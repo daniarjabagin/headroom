@@ -12,6 +12,13 @@ QtObject {
     }
 
     function answer(message) {
+        if (PreviewConfig.failingMembers.includes(message.member))
+            return {
+                isError: true,
+                error: {
+                    message: `${message.member} failed`
+                }
+            };
         if (message.member === "GetState")
             return {
                 value: PreviewConfig.shiftedState()

@@ -61,6 +61,7 @@ PlasmoidItem {
         reducedMotion: root.reducedMotion
         versionText: `Headroom ${Plasmoid.metaData.version}`
         onRefreshRequested: accountId => daemon.refresh(accountId)
+        onRefreshNowRequested: onFailed => daemon.refreshNow(onFailed)
         onOrderRequested: ids => daemon.setOrder(ids)
         onDisplayPatched: patch => daemon.patchDisplay(patch)
         onStartServiceRequested: daemon.startService()

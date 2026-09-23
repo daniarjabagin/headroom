@@ -39,6 +39,7 @@ PlasmaExtras.PlasmoidHeading {
             T.AbstractButton {
                 id: statusButton
 
+                objectName: "footerStatus"
                 visible: footer.status.text !== ""
                 enabled: footer.view.kind === "ready"
                 implicitWidth: statusRow.implicitWidth

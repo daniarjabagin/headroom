@@ -36,7 +36,7 @@ Item {
             else if (onReply)
                 onReply(reply.value);
             if (onSettled)
-                onSettled();
+                onSettled(reply.isError);
             reply.destroy();
         });
     }
@@ -129,6 +129,17 @@ Item {
 
     function refresh(accountId) {
         command("Refresh", "(s)", [accountId]);
+    }
+
+    function refreshNow(onFailed) {
+        if (!watcher.registered) {
+            onFailed();
+            return;
+        }
+        daemonCall("RefreshNow", "()", [], () => client.afterCommand(), failed => {
+            if (failed)
+                onFailed();
+        });
     }
 
     function rescan() {

@@ -2,14 +2,12 @@ import QtQuick
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
-import "logic/Motion.js" as Motion
 import "logic/Tokens.js" as Tokens
 
 T.AbstractButton {
     id: button
 
     required property string iconName
-    property bool spinning: false
     property bool animated: true
     readonly property bool active: button.hovered || button.down || button.visualFocus
 
@@ -25,23 +23,12 @@ T.AbstractButton {
 
     contentItem: Item {
         Kirigami.Icon {
-            id: glyph
-
             anchors.centerIn: parent
             implicitWidth: Kirigami.Units.iconSizes.small
             implicitHeight: implicitWidth
             source: button.iconName
             isMask: true
             color: button.active ? Kirigami.Theme.textColor : Tokens.secondaryText(Kirigami.Theme)
-
-            RotationAnimator on rotation {
-                from: 0
-                to: 360
-                duration: Motion.spinDuration(Kirigami.Units)
-                loops: Animation.Infinite
-                alwaysRunToEnd: true
-                running: button.spinning && button.animated
-            }
         }
     }
 

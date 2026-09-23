@@ -31,6 +31,7 @@ Item {
     property real reveal: 1
 
     signal refreshRequested(string accountId)
+    signal refreshNowRequested(var onFailed)
     signal orderRequested(var ids)
     signal displayPatched(var patch)
     signal startServiceRequested
@@ -88,18 +89,17 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        IconButton {
+        RefreshButton {
             id: refreshButton
 
             objectName: "refreshButton"
             Layout.alignment: Qt.AlignRight
             Layout.bottomMargin: Kirigami.Units.smallSpacing
-            iconName: "view-refresh"
             text: I18n.tr(full.lang, "Refresh")
             enabled: full.view.kind !== "unavailable"
-            spinning: full.ready && State.isRefreshing(full.view.state)
+            busy: full.ready && State.isRefreshing(full.view.state)
             animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
-            onClicked: full.refreshRequested("")
+            onRefreshNowRequested: full.refreshNowRequested(() => refreshButton.fail())
         }
 
         PlasmaComponents3.ScrollView {
@@ -166,7 +166,7 @@ Item {
             now: full.now
             lang: full.lang
             versionText: full.versionText
-            onRefreshRequested: full.refreshRequested("")
+            onRefreshRequested: refreshButton.trigger()
             onSettingsRequested: full.settingsRequested()
         }
     }
