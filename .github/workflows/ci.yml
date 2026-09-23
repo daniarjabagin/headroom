@@ -1,0 +1,250 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to check out
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: short
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rust-lint:
+    name: Rust fmt and clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  rust-build:
+    name: Rust build (pinned toolchain)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Check that rust-version matches rust-toolchain.toml
+        run: .github/scripts/check-msrv.sh
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: cargo build
+        run: cargo build --workspace --all-targets --locked
+
+  rust-test:
+    name: Rust tests (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu-22.04
+            image: ubuntu:22.04
+            install: >-
+              apt-get update &&
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+              build-essential pkg-config cmake git curl ca-certificates dbus
+          - distro: ubuntu-24.04
+            image: ubuntu:24.04
+            install: >-
+              apt-get update &&
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+              build-essential pkg-config cmake git curl ca-certificates dbus
+          - distro: debian-stable
+            image: debian:stable
+            install: >-
+              apt-get update &&
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
+              build-essential pkg-config cmake git curl ca-certificates dbus
+          - distro: fedora
+            image: fedora:latest
+            install: >-
+              dnf install -y gcc gcc-c++ make pkgconf-pkg-config cmake git-core tar gzip
+              /usr/bin/dbus-daemon
+          - distro: archlinux
+            image: archlinux:latest
+            install: >-
+              pacman -Syu --noconfirm --needed base-devel cmake git curl dbus
+          - distro: opensuse-tumbleweed
+            image: opensuse/tumbleweed
+            install: >-
+              zypper --non-interactive install gcc gcc-c++ make pkg-config cmake git-core curl tar gzip
+              /usr/bin/dbus-daemon
+    env:
+      CARGO_HOME: /usr/local/cargo
+      RUSTUP_HOME: /usr/local/rustup
+    steps:
+      - name: Install build dependencies
+        run: ${{ matrix.install }}
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install rustup and the pinned toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          "$CARGO_HOME/bin/rustup" toolchain install --profile minimal
+
+      - name: Check that dbus-daemon is available
+        run: command -v dbus-daemon
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: ${{ matrix.distro }}
+
+      - name: cargo test
+        run: cargo test --workspace --locked
+
+      - name: Check that the D-Bus integration test ran on a real bus
+        run: |
+          cargo test -p headroom-daemon --test dbus_service --locked -- --nocapture 2>&1 | tee dbus-test.log
+          if grep -q "dbus-daemon unavailable" dbus-test.log; then
+            echo "::error::the D-Bus integration test was skipped"
+            exit 1
+          fi
+
+  gnome-extension:
+    name: GNOME Shell extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shell/gnome
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: shell/gnome/package-lock.json
+
+      - name: Install GJS and GNOME Shell tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            gjs gnome-shell libglib2.0-bin python3
+          command -v gnome-extensions
+
+      - name: npm ci
+        run: npm ci
+
+      - name: eslint
+        run: npx eslint .
+
+      - name: prettier
+        run: npx prettier --check .
+
+      - name: Unit tests
+        run: gjs -m tests/run.js
+
+      - name: Pack
+        run: make pack
+
+      - name: Upload the extension bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gnome-extension
+          path: shell/gnome/build/headroom@headroom.github.io.shell-extension.zip
+          if-no-files-found: error
+
+  plasmoid:
+    name: Plasma widget
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    defaults:
+      run:
+        working-directory: shell/plasma
+    steps:
+      - name: Install Qt 6 tools
+        working-directory: /
+        run: pacman -Syu --noconfirm --needed qt6-base qt6-declarative make diffutils findutils git zip
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: qmllint and qmlformat
+        run: make lint
+
+      - name: QML tests
+        run: make test
+
+      - name: Pack
+        run: |
+          mkdir -p build
+          (cd package && zip -r -X ../build/io.github.headroom.plasmoid.plasmoid .)
+
+      - name: Upload the widget package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plasmoid
+          path: shell/plasma/build/io.github.headroom.plasmoid.plasmoid
+          if-no-files-found: error
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: shellcheck
+        run: shellcheck packaging/*.sh packaging/release/*.sh .github/scripts/*.sh

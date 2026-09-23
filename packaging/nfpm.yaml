@@ -1,0 +1,78 @@
+name: headroom
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+release: 1
+section: utils
+priority: optional
+maintainer: Daniar Jabagin
+vendor: Daniar Jabagin
+homepage: ${HOMEPAGE}
+license: MIT
+description: |
+  How much of your AI coding limits is left, in your Linux top panel.
+  Headroom tracks Codex, Claude Code and other AI coding tools: session and
+  weekly limits, reset times, exact token usage and estimated spend. It ships
+  a user daemon with D-Bus activation, a GNOME Shell extension and a KDE
+  Plasma widget.
+
+rpm:
+  packager: Daniar Jabagin
+
+archlinux:
+  packager: Daniar Jabagin
+
+suggests:
+  - gnome-shell
+  - plasma-workspace
+
+contents:
+  - src: dist/stage/headroom
+    dst: /usr/bin/headroom
+    file_info:
+      mode: 0755
+
+  - src: packaging/systemd/headroom.packaged.service
+    dst: /usr/lib/systemd/user/headroom.service
+    file_info:
+      mode: 0644
+
+  - src: packaging/dbus/io.github.headroom.Daemon.packaged.service
+    dst: /usr/share/dbus-1/services/io.github.headroom.Daemon.service
+    file_info:
+      mode: 0644
+
+  - src: dist/stage/gnome-extension/
+    dst: /usr/share/gnome-shell/extensions/headroom@headroom.github.io/
+    type: tree
+
+  - src: shell/plasma/package/
+    dst: /usr/share/plasma/plasmoids/io.github.headroom.plasmoid/
+    type: tree
+
+  - src: README.md
+    dst: /usr/share/doc/headroom/README.md
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/doc/headroom/copyright
+    packager: deb
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/licenses/headroom/LICENSE
+    packager: rpm
+    type: license
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/licenses/headroom/LICENSE
+    packager: archlinux
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: packaging/release/postinstall.sh
