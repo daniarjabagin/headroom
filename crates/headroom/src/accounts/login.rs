@@ -13,7 +13,7 @@ use headroom_core::descriptor::{CliLogin, ProviderDescriptor};
 use super::ansi::CleanLine;
 use super::cancel::{CANCELLED, Cancel};
 use super::home::{create_home, discard_home};
-use super::stream::run_streamed;
+use super::stream::{LineSink, run_in_pty, run_streamed};
 
 const EXIT_POLL: Duration = Duration::from_millis(100);
 
@@ -70,6 +70,8 @@ pub enum LoginEvent {
     Url(String),
 }
 
+type Runner = fn(Command, Box<dyn Read + Send>, &mut LineSink<'_>, &Cancel) -> Result<ExitStatus>;
+
 pub type EventSink<'a> = dyn FnMut(LoginEvent) -> Result<()> + 'a;
 
 pub enum Console<'a> {
@@ -87,12 +89,6 @@ pub fn sign_in(
     console: Console<'_>,
     cancel: &Cancel,
 ) -> Result<PathBuf> {
-    if spec.login.needs_pty {
-        bail!(
-            "`{}` needs a terminal to sign in, which Headroom cannot provide yet",
-            spec.command_line()
-        );
-    }
     let home = create_home(root, spec.provider)?;
     match run_login(&spec, &home, launcher, console, cancel) {
         Ok(()) => Ok(home),
@@ -115,7 +111,12 @@ fn run_login(
         Console::Terminal => spawn_attached(command, cancel)?,
         Console::Streamed { input, events } => {
             events(LoginEvent::Started(home.to_path_buf()))?;
-            spawn_streamed(command, input, events, cancel)?
+            let runner = if spec.login.needs_pty {
+                run_in_pty
+            } else {
+                run_streamed
+            };
+            spawn_streamed(runner, command, input, events, cancel)?
         }
     };
     check_outcome(spec, home, status)
@@ -150,6 +151,7 @@ pub fn not_started(command: &Command) -> String {
 }
 
 fn spawn_streamed(
+    runner: Runner,
     command: Command,
     input: Box<dyn Read + Send>,
     events: &mut EventSink<'_>,
@@ -165,7 +167,7 @@ fn spawn_streamed(
             _ => Ok(()),
         }
     };
-    run_streamed(command, input, &mut on_line, cancel)
+    runner(command, input, &mut on_line, cancel)
 }
 
 fn check_outcome(spec: &LoginSpec, home: &Path, status: ExitStatus) -> Result<()> {

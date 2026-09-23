@@ -8,6 +8,7 @@ mod login;
 mod plan;
 mod progress;
 mod prompt;
+mod pty;
 mod remove;
 mod stream;
 

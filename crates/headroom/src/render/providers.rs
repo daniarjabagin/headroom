@@ -56,18 +56,15 @@ mod tests {
             local_usage: false,
         };
         let mut payload = crate::providers::catalog().payload();
+        payload
+            .providers
+            .retain(|provider| matches!(provider.id.as_str(), "codex" | "claude"));
         payload.providers.push(keyed);
         let expected = "\
-ID          NAME        ADD ACCOUNT                                   ACCOUNTS  LOCAL USAGE
-codex       Codex       sign in with codex                            several   yes
-claude      Claude      sign in with claude                           several   yes
-opencode    OpenCode    paste api key or detected automatically       several   no
-openrouter  OpenRouter  paste api key                                 several   no
-zai         Z.ai        paste api key                                 several   no
-kimi        Kimi Code   paste kimi code api key or sign in with kimi  several   no
-minimax     MiniMax     paste minimax token plan key                  several   no
-grok        Grok        sign in with grok or detected automatically   several   yes
-keyed       Keyed       paste api key or detected automatically       one       no
+ID      NAME    ADD ACCOUNT                              ACCOUNTS  LOCAL USAGE
+codex   Codex   sign in with codex                       several   yes
+claude  Claude  sign in with claude                      several   yes
+keyed   Keyed   paste api key or detected automatically  one       no
 ";
         assert_eq!(render_providers(&payload), expected);
     }

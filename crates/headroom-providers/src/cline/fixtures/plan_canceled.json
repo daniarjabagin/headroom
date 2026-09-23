@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "userId": "usr-0000000000000001",
+    "subscriptionId": "sub_000000000000000001",
+    "currentPeriodStart": "2026-09-01T00:00:00.000Z",
+    "currentPeriodEnd": "2026-10-01T00:00:00.000Z",
+    "cancelAt": "2026-10-01T00:00:00.000Z",
+    "canceledAt": "2026-09-10T08:00:00.000Z",
+    "plan": {
+      "id": "plan-clinepass-pro",
+      "name": "clinepass_pro"
+    }
+  }
+}

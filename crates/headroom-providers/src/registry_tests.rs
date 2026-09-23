@@ -31,6 +31,7 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
         seen.into_iter().collect::<Vec<_>>(),
         [
             "claude",
+            "cline",
             "codex",
             "grok",
             "kimi",
@@ -50,6 +51,7 @@ fn codex_and_claude_sign_in_with_their_clis() {
     };
     assert_eq!(program("codex"), "codex");
     assert_eq!(program("claude"), "claude");
+    assert_eq!(program("cline"), "cline");
     assert_eq!(descriptor("codex").unwrap().display_name, "Codex");
     assert!(descriptor("nope").is_none());
 }
@@ -68,7 +70,8 @@ fn built_providers_follow_the_registry_order() {
             "zai",
             "kimi",
             "minimax",
-            "grok"
+            "grok",
+            "cline"
         ]
     );
     for provider in &providers {

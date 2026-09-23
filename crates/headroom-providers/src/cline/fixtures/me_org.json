@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "data": {
+    "id": "usr-0000000000000001",
+    "email": "someone@example.com",
+    "displayName": "Some One",
+    "photoUrl": "",
+    "createdAt": "2025-02-01T12:00:00.000Z",
+    "updatedAt": "2026-09-01T12:00:00.000Z",
+    "organizations": [
+      {
+        "organizationId": "org-0000000000000001",
+        "memberId": "mem-1",
+        "name": "Example Team",
+        "active": true,
+        "roles": [
+          "member"
+        ]
+      },
+      {
+        "organizationId": "org-0000000000000002",
+        "memberId": "mem-2",
+        "name": "Other Team",
+        "active": false,
+        "roles": [
+          "owner"
+        ]
+      }
+    ]
+  }
+}

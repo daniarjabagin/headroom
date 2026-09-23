@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::process::CommandExt;
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
@@ -10,6 +10,7 @@ use rustix::process::{Pid, Signal, kill_process_group};
 
 use super::cancel::{CANCELLED, Cancel};
 use super::login::not_started;
+use super::pty::Pty;
 
 const QUIET_FLUSH: Duration = Duration::from_millis(100);
 const DRAIN_GRACE: Duration = Duration::from_millis(200);
@@ -33,8 +34,42 @@ pub fn run_streamed(
     if let Some(stdin) = child.stdin.take() {
         thread::spawn(move || forward_input(input, stdin));
     }
+    supervise(child, &chunks, on_line, cancel)
+}
+
+pub fn run_in_pty(
+    mut command: Command,
+    input: Box<dyn Read + Send>,
+    on_line: &mut LineSink<'_>,
+    cancel: &Cancel,
+) -> Result<ExitStatus> {
+    let pty = Pty::open()?;
+    pty.set_echo(false)?;
+    command
+        .process_group(0)
+        .stdin(pty.slave_stdio()?)
+        .stdout(pty.slave_stdio()?)
+        .stderr(pty.slave_stdio()?);
+    let child = command.spawn().with_context(|| not_started(&command))?;
+    drop(command);
+    let master = pty.into_master();
+    let reader = master
+        .try_clone()
+        .context("could not read the pseudo-terminal")?;
+    let (sender, chunks) = mpsc::channel();
+    spawn_reader(0, reader, sender);
+    thread::spawn(move || forward_input(input, master));
+    supervise(child, &chunks, on_line, cancel)
+}
+
+fn supervise(
+    mut child: Child,
+    chunks: &Receiver<Chunk>,
+    on_line: &mut LineSink<'_>,
+    cancel: &Cancel,
+) -> Result<ExitStatus> {
     let mut lines = Lines::default();
-    match pump(&mut child, &chunks, &mut lines, on_line, cancel) {
+    match pump(&mut child, chunks, &mut lines, on_line, cancel) {
         Ok(status) => Ok(status),
         Err(error) => {
             stop(&mut child);
@@ -110,7 +145,7 @@ fn spawn_reader(stream: usize, mut pipe: impl Read + Send + 'static, sender: Sen
     });
 }
 
-fn forward_input(input: Box<dyn Read + Send>, mut stdin: ChildStdin) {
+fn forward_input(input: Box<dyn Read + Send>, mut stdin: impl Write) {
     let mut reader = BufReader::new(input);
     let mut line = String::new();
     loop {

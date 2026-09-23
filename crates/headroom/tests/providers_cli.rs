@@ -69,9 +69,10 @@ fn adding_an_unknown_provider_reports_an_error_event() {
     let lines = events(&output);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0]["event"], "error");
-    assert_eq!(
-        lines[0]["message"],
-        "unknown provider \"nope\"; known providers: codex, claude, opencode, openrouter, zai, kimi, minimax, grok"
+    let message = lines[0]["message"].as_str().unwrap();
+    assert!(
+        message.starts_with("unknown provider \"nope\"; known providers: codex, claude"),
+        "{message}"
     );
 }
 

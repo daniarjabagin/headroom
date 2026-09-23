@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "accessToken": "fresh.jwt.token",
+    "refreshToken": "rotated-refresh",
+    "tokenType": "Bearer",
+    "expiresAt": "2026-09-23T11:00:00.000Z",
+    "userInfo": {
+      "subject": "user_00000000000000000000000001",
+      "email": "someone@example.com",
+      "name": "Some One",
+      "clineUserId": "usr-0000000000000001",
+      "accounts": null
+    }
+  }
+}
