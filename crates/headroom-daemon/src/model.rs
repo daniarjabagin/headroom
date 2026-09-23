@@ -41,6 +41,7 @@ pub struct AccountRuntime {
     pub failure: Option<RefreshFailure>,
     pub failures: u32,
     pub hold_until: Option<Timestamp>,
+    pub next_refresh_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -60,6 +61,11 @@ impl RefreshFailure {
             self,
             RefreshFailure::Provider(ProviderError::NotSignedIn | ProviderError::SignInExpired)
         )
+    }
+
+    #[must_use]
+    pub fn is_network(&self) -> bool {
+        matches!(self, RefreshFailure::Provider(ProviderError::Network(_)))
     }
 }
 
@@ -187,6 +193,13 @@ mod tests {
         assert!(RefreshFailure::Provider(ProviderError::NotSignedIn).is_signed_out());
         assert!(!RefreshFailure::Provider(ProviderError::ApiKeyOnly).is_signed_out());
         assert!(!RefreshFailure::Timeout.is_signed_out());
+    }
+
+    #[test]
+    fn only_network_failures_count_as_network() {
+        assert!(RefreshFailure::Provider(ProviderError::Network("down".into())).is_network());
+        assert!(!RefreshFailure::Timeout.is_network());
+        assert!(!RefreshFailure::Provider(ProviderError::SignInExpired).is_network());
     }
 
     #[test]

@@ -9,7 +9,7 @@ use crate::notify::alerts::Review;
 use crate::storage::{accounts, snapshots};
 
 pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuration {
-    set_refreshing(core, account, true);
+    begin_refresh(core, account);
     let fetched = fetch(core, account).await;
     let now = core.clock.now();
     let delay = match fetched {
@@ -20,7 +20,7 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
         Err(failure) => record_failure(core, account, failure, now),
     };
     review_alerts(core, account, now).await;
-    set_refreshing(core, account, false);
+    finish_refresh(core, account, now.checked_add(delay).ok());
     delay
 }
 
@@ -111,7 +111,20 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
     }
 }
 
-fn set_refreshing(core: &Core, account: &AccountRef, refreshing: bool) {
-    core.model().runtime_mut(&account.id).refreshing = refreshing;
+fn begin_refresh(core: &Core, account: &AccountRef) {
+    let mut model = core.model();
+    let runtime = model.runtime_mut(&account.id);
+    runtime.refreshing = true;
+    runtime.next_refresh_at = None;
+    drop(model);
+    core.mark_changed();
+}
+
+fn finish_refresh(core: &Core, account: &AccountRef, next_refresh_at: Option<Timestamp>) {
+    let mut model = core.model();
+    let runtime = model.runtime_mut(&account.id);
+    runtime.refreshing = false;
+    runtime.next_refresh_at = next_refresh_at;
+    drop(model);
     core.mark_changed();
 }

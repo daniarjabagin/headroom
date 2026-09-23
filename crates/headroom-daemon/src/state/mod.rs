@@ -1,6 +1,8 @@
 mod account;
+mod activity;
 mod headline;
 pub mod payload;
+mod spend;
 pub mod status;
 mod usage;
 
@@ -24,7 +26,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .map(|record| account::account_view(record, model, ctx))
         .collect();
     let homes = model.usage_homes();
-    let usage = model
+    let usage: Vec<_> = model
         .usage
         .iter()
         .filter(|(home, _)| homes.contains(home))
@@ -33,8 +35,12 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
     StatePayload {
         version: STATE_VERSION,
         generated_at: ctx.now,
+        next_refresh_at: activity::next_refresh_at(model),
+        last_success_at: activity::last_success_at(model),
+        offline: activity::offline(model),
         headline: headline::headline(&accounts, &model.settings.headline),
         accounts,
+        spend: spend::spend(&usage),
         usage,
     }
 }

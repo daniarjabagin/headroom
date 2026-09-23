@@ -220,6 +220,39 @@ async fn success_persists_snapshot_and_identity_and_failure_keeps_it() {
 }
 
 #[tokio::test]
+async fn completed_refreshes_schedule_the_next_one_in_the_state() {
+    let provider = Arc::new(ScriptedProvider::new(Vec::new()));
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Fresh).await;
+    let state = harness.core.state();
+    let next = state
+        .generated_at
+        .checked_add(SignedDuration::from_mins(5))
+        .unwrap();
+    assert_eq!(state.next_refresh_at, Some(next));
+    assert_eq!(state.last_success_at, Some(state.generated_at));
+    assert!(!state.offline);
+}
+
+#[tokio::test]
+async fn network_failures_mark_the_state_offline_until_a_success() {
+    let down = Err(ProviderError::Network("down".into()));
+    let provider = Arc::new(ScriptedProvider::new(vec![down]));
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| status(&harness) == AccountStatus::Error).await;
+    let state = harness.core.state();
+    assert!(state.offline);
+    let retry = state
+        .generated_at
+        .checked_add(SignedDuration::from_mins(1))
+        .unwrap();
+    assert_eq!(state.next_refresh_at, Some(retry));
+    harness.core.refresh("codex:work").unwrap();
+    eventually(|| status(&harness) == AccountStatus::Fresh).await;
+    assert!(!harness.core.state().offline);
+}
+
+#[tokio::test]
 async fn vanished_accounts_lose_their_worker() {
     let provider = Arc::new(ScriptedProvider::new(Vec::new()));
     let (harness, mut scheduler) = start(&provider).await;

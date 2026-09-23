@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import St from 'gi://St';
 import { column } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
@@ -7,6 +8,8 @@ import { OptionsMenu } from './optionsMenu.js';
 import { SpendSection } from './spendCard.js';
 import { emptyView, errorView, loadingView, serviceView } from './statusViews.js';
 import { Tooltips } from './tooltip.js';
+
+const SCROLLBAR_LINGER_MS = 800;
 
 function visibleAccounts(state) {
     return state.accounts.filter(account => !account.hidden);
@@ -21,6 +24,7 @@ export class PopupView {
         this._view = { kind: 'loading', state: null };
         this._sections = [];
         this._spendSection = null;
+        this._scrollbarTimeoutId = 0;
         this._tooltips = new Tooltips();
         this._ctx = {
             dir,
@@ -28,6 +32,7 @@ export class PopupView {
             tooltips: this._tooltips,
             now: () => new Date(),
             expanded: new Map(),
+            offline: false,
             period: 'today',
             selectPeriod: period => (this._ctx.period = period),
             actions: { ...actions, toggleOptions: () => this._toggleOptions() },
@@ -53,6 +58,7 @@ export class PopupView {
             y_expand: true,
         });
         this._scroll.child = this._content;
+        this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
         this._footer = new Footer(this._ctx, versionText);
         this._options = new OptionsMenu(this._ctx);
         main.add_child(this._scroll);
@@ -74,19 +80,48 @@ export class PopupView {
         this._footer.tick(now);
     }
 
+    setMaxHeight(pixels) {
+        this.actor.style = `max-height: ${pixels}px;`;
+    }
+
     onOpen() {
         this._scroll.vadjustment.value = 0;
+        this._hideScrollbar();
         this.tick();
     }
 
     onClose() {
         this._options.close();
         this._tooltips.hide();
+        this._hideScrollbar();
     }
 
     destroy() {
+        this._hideScrollbar();
+        this._scroll.vadjustment.disconnectObject(this);
         this._tooltips.destroy();
         this.actor.destroy();
+    }
+
+    _revealScrollbar() {
+        this._clearScrollbarTimeout();
+        this._scroll.add_style_class_name('scrolling');
+        this._scrollbarTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SCROLLBAR_LINGER_MS, () => {
+            this._scrollbarTimeoutId = 0;
+            this._scroll.remove_style_class_name('scrolling');
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _hideScrollbar() {
+        this._clearScrollbarTimeout();
+        this._scroll.remove_style_class_name('scrolling');
+    }
+
+    _clearScrollbarTimeout() {
+        if (this._scrollbarTimeoutId === 0) return;
+        GLib.source_remove(this._scrollbarTimeoutId);
+        this._scrollbarTimeoutId = 0;
     }
 
     _statusView(view) {
@@ -101,7 +136,9 @@ export class PopupView {
             this._replaceContent([emptyView(this._ctx)]);
             return;
         }
-        if (this._canUpdateInPlace(state, accounts)) {
+        const offlineChanged = this._ctx.offline !== state.offline;
+        this._ctx.offline = state.offline;
+        if (!offlineChanged && this._canUpdateInPlace(state, accounts)) {
             this._spendSection?.update(state.spend);
             accounts.forEach((account, index) => this._sections[index].update(account));
             return;

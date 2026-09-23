@@ -61,9 +61,13 @@ Top level:
 | --- | --- | --- |
 | `version` | integer | Schema version, currently `1`. Incompatible changes bump it; new fields may be added without a bump, so ignore unknown fields. |
 | `generated_at` | RFC 3339 timestamp | When the payload was assembled. Use it as "now" for countdowns. |
+| `next_refresh_at` | timestamp \| null | Earliest scheduled refresh among visible accounts. Accounts that are refreshing have no schedule until they finish; `null` when nothing is scheduled. |
+| `last_success_at` | timestamp \| null | `fetched_at` of the newest live snapshot of a visible account (cached snapshots from an earlier daemon run count; data read from local logs does not). `null` when there is none. |
+| `offline` | bool | `true` when every listed account (hidden ones included) failed its most recent refresh with a `network` error. Any success, any other error or an account not tried yet makes it `false`. `false` without accounts. |
 | `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
 | `usage` | Usage[] | Local token usage, one entry per `(provider, usage_home)` of a listed account. |
+| `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
 
 All timestamps are RFC 3339 strings in UTC (`2026-09-23T10:00:00Z`, fractional seconds when present).
 Percentages are JSON numbers (floating point, unrounded). Token counts and money are integers; money
@@ -147,6 +151,7 @@ Pace:
 | `severity` | Severity | `untracked`, `healthy`, `close`, `running_out`, `spent` |
 | `even_pace_percent` | number \| null | Where an even burn would be now (position of the pace tick). Present whenever reset and period are known. |
 | `projected_percent` | number \| null | Projected use at reset. `null` for `untracked` and `spent`. |
+| `spare_percent` | number \| null | `100 − projected_percent`, the headroom left at reset (`~8% spare`). Only for `healthy` and `close`; `null` otherwise. |
 | `runs_out_at` | timestamp \| null | Projected run-out time when it falls before the reset. |
 
 Tone: `neutral`, `good`, `warning`, `critical` (blue accent, amber, red; neutral is grey).
@@ -212,12 +217,34 @@ Daily: `date` (`YYYY-MM-DD`), `total_tokens`, `cost_usd_micros`, `partial`.
 
 ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
 
+### Spend
+
+| field | type | description |
+| --- | --- | --- |
+| `today` | PeriodSpend | Sum of `usage[].today`. |
+| `yesterday` | PeriodSpend | Sum of `usage[].yesterday`. |
+| `last_30_days` | PeriodSpend | Sum of `usage[].last_30_days`. |
+
+PeriodSpend:
+
+| field | type | description |
+| --- | --- | --- |
+| `cost_usd_micros` | integer | Sum of `by_provider[].cost_usd_micros`. |
+| `total_tokens` | integer | Sum of `by_provider[].total_tokens`. |
+| `partial` | bool | Any provider in the period is `partial`. |
+| `by_provider` | ProviderSpend[] | One entry per provider with tokens or cost in the period (homes of one provider are added together), highest cost first, then by provider name. Empty when the period has no usage. |
+
+ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial).
+
 ### Example
 
 ```json
 {
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
+  "next_refresh_at": "2026-09-23T10:03:00Z",
+  "last_success_at": "2026-09-23T09:58:00Z",
+  "offline": false,
   "headline": {
     "account_id": "claude:main",
     "window": "session",
@@ -249,6 +276,7 @@ ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
             "severity": "close",
             "even_pace_percent": 60.0,
             "projected_percent": 91.66666666666667,
+            "spare_percent": 8.333333333333329,
             "runs_out_at": null
           }
         }
@@ -286,6 +314,7 @@ ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
             "severity": "running_out",
             "even_pace_percent": 90.0,
             "projected_percent": 102.22222222222221,
+            "spare_percent": null,
             "runs_out_at": "2026-09-23T10:23:28.695652174Z"
           }
         }
@@ -316,7 +345,20 @@ ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
         { "model": "gpt-5.5", "total_tokens": 1800, "cost_usd_micros": 3600, "partial": false }
       ]
     }
-  ]
+  ],
+  "spend": {
+    "today": {
+      "cost_usd_micros": 12400,
+      "total_tokens": 6200,
+      "partial": false,
+      "by_provider": [
+        { "provider": "claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false },
+        { "provider": "codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false }
+      ]
+    },
+    "yesterday": { "…": "same shape as today" },
+    "last_30_days": { "…": "same shape as today" }
+  }
 }
 ```
 

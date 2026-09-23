@@ -1,4 +1,4 @@
-use headroom_core::pace::{Pace, pace, tone};
+use headroom_core::pace::{Pace, Severity, pace, tone};
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, QuotaWindow};
 use jiff::Timestamp;
 
@@ -83,8 +83,16 @@ fn pace_view(pace: &Pace) -> PaceView {
         severity: pace.severity,
         even_pace_percent: pace.even_pace.map(f64::from),
         projected_percent: pace.projected.map(f64::from),
+        spare_percent: spare_percent(pace),
         runs_out_at: pace.runs_out_at,
     }
+}
+
+fn spare_percent(pace: &Pace) -> Option<f64> {
+    let on_track = matches!(pace.severity, Severity::Healthy | Severity::Close);
+    pace.projected
+        .filter(|_| on_track)
+        .map(|projected| projected.remaining().value())
 }
 
 fn balance_view(balance: &Balance) -> BalanceView {

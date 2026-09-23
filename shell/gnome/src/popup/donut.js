@@ -58,7 +58,7 @@ export class Donut {
     }
 
     update(slices, valueText) {
-        this._slices = [...slices].sort((a, b) => b.value - a.value);
+        this._slices = slices;
         this._value.text = valueText;
         this._area.queue_repaint();
     }

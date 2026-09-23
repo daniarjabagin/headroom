@@ -18,11 +18,32 @@ function throws(name, run, type) {
     }
 }
 
-function readSample() {
+function readRelative(...parts) {
     const [testFile] = GLib.filename_from_uri(import.meta.url);
-    const path = GLib.build_filenamev([GLib.path_get_dirname(testFile), '..', 'dev', 'sample-state.json']);
+    const path = GLib.build_filenamev([GLib.path_get_dirname(testFile), '..', ...parts]);
     const [, bytes] = GLib.file_get_contents(path);
     return new TextDecoder().decode(bytes);
+}
+
+const readSample = () => readRelative('dev', 'sample-state.json');
+const readDaemonSnapshot = () =>
+    readRelative('..', '..', 'crates', 'headroom-daemon', 'src', 'state', 'snapshots', 'state_full.json');
+
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function shapeMismatches(sample, daemon, path) {
+    if (Array.isArray(sample) && Array.isArray(daemon)) {
+        if (sample.length === 0 || daemon.length === 0) return [];
+        return shapeMismatches(sample[0], daemon[0], `${path}[0]`);
+    }
+    if (!isPlainObject(sample) || !isPlainObject(daemon)) return [];
+    const sampleKeys = Object.keys(sample).sort();
+    const daemonKeys = Object.keys(daemon).sort();
+    if (JSON.stringify(sampleKeys) !== JSON.stringify(daemonKeys))
+        return [`${path}: sample keys ${sampleKeys} vs daemon keys ${daemonKeys}`];
+    return daemonKeys.flatMap(key => shapeMismatches(sample[key], daemon[key], `${path}.${key}`));
 }
 
 function testFormat() {
@@ -33,7 +54,8 @@ function testFormat() {
     check('reset days', format.resetText(new Date('2026-09-27T16:30:00Z'), now), 'Resets in 4d 6h');
     check('reset soon', format.resetText(new Date('2026-09-23T10:00:30Z'), now), 'Resets soon');
     check('not started', format.resetText(null, now), 'Not started');
-    check('spare', format.spareText(96), '~4% spare');
+    check('spare', format.spareText(4.2), '~4% spare');
+    check('left at reset', format.leftAtResetText(18), '~18% left at reset');
     check('limit', format.limitText(new Date('2026-09-24T19:00:00Z'), now), 'Limit in 1d 9h');
     check('next update', format.nextUpdateText(new Date('2026-09-23T10:03:10Z'), now), 'Next update in 3m');
     check('next update soon', format.nextUpdateText(new Date('2026-09-23T10:00:40Z'), now), 'Next update in <1m');
@@ -52,7 +74,7 @@ function testFormat() {
     check('spend empty', format.spendLine({ costMicros: 0, totalTokens: 0 }), 'No data');
 }
 
-function testState() {
+function testSampleAccounts() {
     const state = parseState(readSample());
     check('accounts', state.accounts.length, 4);
     check('headline', state.headline, {
@@ -61,25 +83,90 @@ function testState() {
         remainingPercent: 62,
         tone: 'good',
     });
+    check('next refresh', state.nextRefreshAt.toISOString(), '2026-09-23T10:03:10.000Z');
+    check('last success', state.lastSuccessAt.toISOString(), '2026-09-23T09:58:00.000Z');
+    check('online', state.offline, false);
     const personal = state.accounts[1];
     check('stale status', personal.status, 'stale');
     check('window tone', personal.windows[1].tone, 'critical');
     check('pace severity', personal.windows[1].pace.severity, 'running_out');
+    check('no spare when running out', personal.windows[1].pace.sparePercent, null);
+    check('spare when close', personal.windows[0].pace.sparePercent, 4);
+    check('model window id', personal.windows[2].id, 'model:spark');
     check('runs out', personal.windows[1].pace.runsOutAt.toISOString(), '2026-09-24T19:00:00.000Z');
     check('shared usage', personal.usage.provider, 'codex');
-    check('no data window', state.accounts[2].windows[2].remainingPercent, null);
-    check('error message', state.accounts[2].error, 'HTTP 503 from api.anthropic.com');
+    check('usd balance', state.accounts[0].balances[0], {
+        id: 'credits',
+        label: 'Credits',
+        kind: 'usd',
+        usdMicros: 12_500_000,
+        value: null,
+        unit: null,
+    });
+    check('count balance', state.accounts[2].balances[0].kind, 'count');
+    check('count unit', state.accounts[2].balances[0].unit, 'requests');
+    check('error', state.accounts[2].error, {
+        kind: 'invalid_response',
+        message: 'invalid response: HTTP 503 from api.anthropic.com',
+    });
     check('signed out', state.accounts[3].status, 'signed_out');
+    check('hidden flag', state.accounts[0].hidden, false);
+}
+
+function testSampleUsage() {
+    const state = parseState(readSample());
+    const claudeMonth = state.accounts[2].usage.last30Days;
+    check('usage tokens total', claudeMonth.tokens.total, 35_812_904);
+    check(
+        'unpriced',
+        [claudeMonth.partial, claudeMonth.unpricedTokens, claudeMonth.unpricedModels],
+        [true, 412_000, ['claude-next']]
+    );
     check('spend today', state.spend.today.costMicros, 18_420_000);
-    check('spend slices', state.spend.today.slices.length, 2);
-    check('partial month', state.spend.month.partial, true);
+    check(
+        'spend providers',
+        state.spend.today.providers.map(spend => spend.provider),
+        ['codex', 'claude']
+    );
+    check('partial month', state.spend.last30Days.partial, true);
+}
+
+function testDaemonSnapshot() {
+    const daemonJson = readDaemonSnapshot();
+    const state = parseState(daemonJson);
+    check('daemon spend today', state.spend.today.costMicros, 12_400);
+    check(
+        'daemon spend order',
+        state.spend.today.providers.map(spend => [spend.provider, spend.costMicros]),
+        [
+            ['claude', 10_000],
+            ['codex', 2_400],
+        ]
+    );
+    check('daemon partial yesterday', state.spend.yesterday.partial, true);
+    check('daemon spare', state.accounts[0].windows[1].pace.sparePercent, 47.5);
+    check('daemon error kind', state.accounts[1].error.kind, 'sign_in_expired');
+    check('daemon hidden', state.accounts[2].hidden, true);
+    check('daemon next refresh', state.nextRefreshAt.toISOString(), '2026-09-23T10:03:00.000Z');
+    check('sample shape', shapeMismatches(JSON.parse(readSample()), JSON.parse(daemonJson), '$'), []);
+}
+
+function testEdgeStates() {
     throws('bad json', () => parseState('{'), StateError);
     throws('wrong version', () => parseState('{"version": 2}'), StateError);
-    check('empty', parseState('{"version": 1}').accounts, []);
+    const bare = parseState('{"version": 1}');
+    check('empty', bare.accounts, []);
+    check('no spend without usage', bare.spend, null);
+    check('no refresh', bare.nextRefreshAt, null);
+    const offline = parseState('{"version": 1, "offline": true, "last_success_at": "2026-09-23T09:13:00Z"}');
+    check('offline', [offline.offline, offline.lastSuccessAt.toISOString()], [true, '2026-09-23T09:13:00.000Z']);
 }
 
 testFormat();
-testState();
+testSampleAccounts();
+testSampleUsage();
+testDaemonSnapshot();
+testEdgeStates();
 if (failures.length > 0) {
     printerr(failures.join('\n'));
     imports.system.exit(1);
