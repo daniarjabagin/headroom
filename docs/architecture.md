@@ -347,6 +347,7 @@ pub struct CliLogin {
     pub home_var: HomeVar,
     pub credentials_file: &'static str,   // relative to the directory home_var names
     pub needs_pty: bool,
+    pub scrub_env: &'static [&'static str], // removed from the inherited environment
 }
 pub enum HomeVar { Direct(&'static str), XdgBase { var: &'static str, subdir: &'static str } }
 pub struct ApiKeyPrompt { pub label: &'static str, pub console_url: &'static str, pub hint: &'static str }
@@ -368,6 +369,13 @@ pub fn build(context: &RegistryContext, id: &str) -> Option<Result<Arc<dyn Provi
 - `HomeVar::Direct(VAR)` points `VAR` at the new home (`CODEX_HOME`). `HomeVar::XdgBase { var,
   subdir }` points an XDG base variable at the home, so the tool writes to `home/subdir`
   (`XDG_DATA_HOME` + `opencode`); the login waits for `credentials_file` there.
+- `scrub_env` names inherited variables removed before the login starts, because they would send
+  the credentials somewhere other than the new home or sign in to a different account: Cline
+  `CLINE_DATA_DIR`, `CLINE_PROVIDER_SETTINGS_PATH`; Copilot `GH_TOKEN`, `GITHUB_TOKEN`,
+  `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `GH_HOST`; Grok `GROK_OIDC_ISSUER`,
+  `GROK_OIDC_CLIENT_ID` (Headroom refreshes only `auth.x.ai` tokens). Codex keeps its environment:
+  `OPENAI_API_KEY` does not change where `codex login` writes. Every launch path (attached terminal,
+  pipes, pseudo-terminal) builds the command in `Launcher::command`, which applies the list.
 - A `needs_pty` login (Cline) runs, when streamed to a shell, on a fresh pseudo-terminal: slave
   as stdin/stdout/stderr, opened `O_NOCTTY` and spawned in its own process group, so the child has a
   terminal (`isatty` is true, 120×40) but no controlling terminal and no job control. Echo is off so

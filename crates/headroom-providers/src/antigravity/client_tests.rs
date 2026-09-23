@@ -92,6 +92,25 @@ async fn language_server_calls_send_csrf_and_metadata() {
     assert!(refused.is_none());
 }
 
+#[tokio::test]
+async fn language_server_redirects_are_not_followed() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(format!("/{LS_SERVICE}/GetUserStatus")))
+        .respond_with(ResponseTemplate::new(302).insert_header("location", "/elsewhere".to_owned()))
+        .mount(&server)
+        .await;
+    Mock::given(path("/elsewhere"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(USER_STATUS))
+        .mount(&server)
+        .await;
+    let ls = LanguageServerClient::new().unwrap();
+    let status: Option<RawUserStatusEnvelope> =
+        ls.call(&server.uri(), "csrf-1", "GetUserStatus").await;
+    assert!(status.is_none());
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
 #[test]
 fn statuses_map_like_every_provider() {
     assert!(matches!(

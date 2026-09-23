@@ -38,11 +38,11 @@ impl FileSecrets {
             .map_err(|error| io_error("write", &path, &error))
     }
 
-    pub(super) fn delete(&self, account: &AccountId) -> Result<(), SecretError> {
+    pub(super) fn delete(&self, account: &AccountId) -> Result<bool, SecretError> {
         let path = self.path(account)?;
         match fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+            Ok(()) => Ok(true),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(error) => Err(io_error("delete", &path, &error)),
         }
     }
@@ -100,8 +100,8 @@ mod tests {
         let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode(&dir), 0o700);
         assert_eq!(mode(&dir.join("tool:0123456789ab")), 0o600);
-        files.delete(&id).unwrap();
-        files.delete(&id).unwrap();
+        assert!(files.delete(&id).unwrap());
+        assert!(!files.delete(&id).unwrap());
         assert_eq!(files.read(&id).unwrap(), None);
     }
 

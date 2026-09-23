@@ -24,6 +24,7 @@ use crate::key_accounts;
 pub use self::config::{DEFAULT_API_BASE, OpenCodeConfig};
 
 pub const ID: ProviderId = ProviderId::from_static("opencode");
+const CONSOLE_URL: &str = "https://opencode.ai/auth";
 
 pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     id: ID,
@@ -31,7 +32,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     add_account: &[
         AddAccountMethod::ApiKey(ApiKeyPrompt {
             label: "API key",
-            console_url: "https://opencode.ai/auth",
+            console_url: CONSOLE_URL,
             hint: "The key's workspace needs an OpenCode Go subscription",
         }),
         AddAccountMethod::AutoDetect {
@@ -146,11 +147,20 @@ impl Provider for OpenCodeProvider {
     }
 
     async fn validate_key(&self, key: &str) -> Result<AccountIdentity, ProviderError> {
-        match self.client.fetch(key, (self.clock)()).await {
-            Ok(_) => Ok(identity_for_key(key)),
-            Err(ProviderError::SignInExpired) => Err(ProviderError::NotSignedIn),
-            Err(error) => Err(error),
-        }
+        self.client
+            .fetch(key, (self.clock)())
+            .await
+            .map_err(rejected_key)?;
+        Ok(identity_for_key(key))
+    }
+}
+
+fn rejected_key(error: ProviderError) -> ProviderError {
+    match error {
+        ProviderError::SignInExpired | ProviderError::NotSignedIn => ProviderError::Unsupported(
+            format!("OpenCode rejected this API key; check it at {CONSOLE_URL}"),
+        ),
+        other => other,
     }
 }
 

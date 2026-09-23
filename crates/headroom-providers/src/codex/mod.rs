@@ -48,6 +48,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
         home_var: HomeVar::Direct("CODEX_HOME"),
         credentials_file: "auth.json",
         needs_pty: false,
+        scrub_env: &[],
     })],
     multi_account: true,
     local_usage: true,

@@ -77,11 +77,16 @@ async fn a_valid_key_names_a_stable_account_without_storing_the_key() {
 
 #[tokio::test]
 async fn rejected_keys_are_not_accepted() {
+    let rejected = ProviderError::Unsupported(
+        "MiniMax rejected this API key; check it at \
+         https://platform.minimax.io/user-center/payment/token-plan"
+            .into(),
+    );
     for (status, body, expected) in [
         (
             200,
             include_str!("fixtures/invalid_key.json"),
-            ProviderError::SignInExpired,
+            rejected.clone(),
         ),
         (
             200,
@@ -90,7 +95,7 @@ async fn rejected_keys_are_not_accepted() {
                 detail: mapper::NO_PLAN.into(),
             },
         ),
-        (401, "", ProviderError::SignInExpired),
+        (401, "", rejected.clone()),
     ] {
         let server = server_with(status, body).await;
         let root = tempfile::tempdir().unwrap();

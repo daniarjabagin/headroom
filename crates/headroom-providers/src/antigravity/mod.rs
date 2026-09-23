@@ -109,7 +109,8 @@ impl AntigravityProvider {
 
     async fn language_servers(&self) -> Vec<LanguageServer> {
         let proc_root = self.config.proc_root.clone();
-        tokio::task::spawn_blocking(move || discovery::language_servers(&proc_root))
+        let owner = rustix::process::geteuid().as_raw();
+        tokio::task::spawn_blocking(move || discovery::language_servers(&proc_root, owner))
             .await
             .unwrap_or_default()
     }

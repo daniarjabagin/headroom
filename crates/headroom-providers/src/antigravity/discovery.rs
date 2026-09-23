@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use super::process::{self, Candidate, Rank};
@@ -36,8 +37,8 @@ impl LanguageServer {
     }
 }
 
-pub(super) fn language_servers(proc_root: &Path) -> Vec<LanguageServer> {
-    let mut servers: Vec<LanguageServer> = process_dirs(proc_root)
+pub(super) fn language_servers(proc_root: &Path, owner: u32) -> Vec<LanguageServer> {
+    let mut servers: Vec<LanguageServer> = process_dirs(proc_root, owner)
         .into_iter()
         .filter_map(|dir| server_at(&dir))
         .collect();
@@ -46,7 +47,7 @@ pub(super) fn language_servers(proc_root: &Path) -> Vec<LanguageServer> {
     servers
 }
 
-fn process_dirs(proc_root: &Path) -> Vec<PathBuf> {
+fn process_dirs(proc_root: &Path, owner: u32) -> Vec<PathBuf> {
     let Ok(entries) = fs::read_dir(proc_root) else {
         return Vec::new();
     };
@@ -59,6 +60,7 @@ fn process_dirs(proc_root: &Path) -> Vec<PathBuf> {
                 .bytes()
                 .all(|b| b.is_ascii_digit())
         })
+        .filter(|entry| entry.metadata().is_ok_and(|meta| meta.uid() == owner))
         .map(|entry| entry.path())
         .collect()
 }

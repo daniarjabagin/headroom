@@ -181,3 +181,36 @@ async fn a_bus_without_a_secret_service_uses_files() {
     fx.store.delete(&account()).await.unwrap();
     assert!(!fx.file().exists());
 }
+
+#[tokio::test]
+async fn a_locked_keyring_keeps_the_file_copy_and_reports_the_lock() {
+    let Some(fx) = fixture(true).await else {
+        return;
+    };
+    fx.store
+        .store(&TOOL, &account(), &key("sk-1"))
+        .await
+        .unwrap();
+    std::fs::create_dir_all(fx.file().parent().unwrap()).unwrap();
+    std::fs::write(fx.file(), b"sk-1").unwrap();
+    fx.keyring.lock().unwrap().locked = true;
+    assert!(matches!(
+        fx.store.delete(&account()).await,
+        Err(SecretError::Locked)
+    ));
+    assert!(fx.file().exists());
+    assert_eq!(fx.live_items().len(), 1);
+}
+
+#[tokio::test]
+async fn an_unreachable_service_without_a_file_copy_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let bus = format!("unix:path={}", dir.path().join("no-bus").display());
+    let store = SecretStore::new(SecretBus::Address(bus), dir.path().join("secrets"));
+    assert!(matches!(
+        store.delete(&account()).await,
+        Err(SecretError::Unreachable)
+    ));
+    let disabled = SecretStore::new(SecretBus::Disabled, dir.path().join("secrets"));
+    disabled.delete(&account()).await.unwrap();
+}

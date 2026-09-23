@@ -31,7 +31,6 @@ impl DevinKey {
     }
 }
 
-/// The key stored in `dir`: a CLI `credentials.toml`, else a Devin app `state.vscdb`.
 pub(super) fn load_key(dir: &Path) -> Result<Option<DevinKey>, ProviderError> {
     let credentials = dir.join(CREDENTIALS_FILE);
     if let Some(text) = read_optional(&credentials)? {

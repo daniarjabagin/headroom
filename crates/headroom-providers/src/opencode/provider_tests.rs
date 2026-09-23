@@ -204,7 +204,9 @@ async fn validation_accepts_a_subscribed_key_and_names_rejections() {
     let provider = Sandbox::new(&server.uri()).provider(Secrets::default());
     assert_eq!(
         provider.validate_key(STORED_KEY).await,
-        Err(ProviderError::NotSignedIn)
+        Err(ProviderError::Unsupported(
+            "OpenCode rejected this API key; check it at https://opencode.ai/auth".into()
+        ))
     );
     let server = usage_server(STORED_KEY, 403, NO_PLAN).await;
     let provider = Sandbox::new(&server.uri()).provider(Secrets::default());

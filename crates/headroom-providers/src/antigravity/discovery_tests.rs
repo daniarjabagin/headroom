@@ -1,3 +1,5 @@
+use std::os::unix::fs::MetadataExt;
+
 use super::*;
 use crate::antigravity::test_support::fake_process;
 
@@ -26,7 +28,7 @@ fn servers_are_found_with_their_listening_ports_best_first() {
     );
     fake_process(root.path(), 42, &["/usr/bin/bash"], &[(22, 10)]);
     fs::create_dir_all(root.path().join("self")).unwrap();
-    let servers = language_servers(root.path());
+    let servers = language_servers(root.path(), owner(root.path()));
     assert_eq!(servers.len(), 2);
     assert_eq!(servers[0].rank, Rank::NamedApp);
     assert_eq!(servers[0].csrf, "tok");
@@ -36,12 +38,25 @@ fn servers_are_found_with_their_listening_ports_best_first() {
     assert_eq!(servers[1].ports, BTreeSet::from([50_001]));
 }
 
+fn owner(path: &Path) -> u32 {
+    fs::metadata(path).unwrap().uid()
+}
+
+#[test]
+fn processes_of_other_users_are_skipped() {
+    let root = tempfile::tempdir().unwrap();
+    fake_process(root.path(), 40, &["/usr/bin/agy"], &[(50_001, 7)]);
+    let me = owner(root.path());
+    assert_eq!(language_servers(root.path(), me).len(), 1);
+    assert!(language_servers(root.path(), me.wrapping_add(1)).is_empty());
+}
+
 #[test]
 fn a_server_without_any_port_is_skipped() {
     let root = tempfile::tempdir().unwrap();
     fake_process(root.path(), 7, &["/usr/bin/agy"], &[]);
-    assert!(language_servers(root.path()).is_empty());
-    assert!(language_servers(&root.path().join("missing")).is_empty());
+    assert!(language_servers(root.path(), owner(root.path())).is_empty());
+    assert!(language_servers(&root.path().join("missing"), owner(root.path())).is_empty());
 }
 
 #[test]

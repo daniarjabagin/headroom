@@ -93,6 +93,23 @@ async fn a_valid_key_is_identified_by_its_fingerprint_and_plan() {
 }
 
 #[tokio::test]
+async fn a_rejected_key_points_to_the_console() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&server)
+        .await;
+    let root = tempfile::tempdir().unwrap();
+    let provider = provider(&root, &server, Secrets(HashMap::new()));
+    assert_eq!(
+        provider.validate_key("sk-bad").await.unwrap_err(),
+        ProviderError::Unsupported(
+            "Kimi Code rejected this API key; check it at https://www.kimi.com/code/console".into()
+        )
+    );
+}
+
+#[tokio::test]
 async fn key_accounts_fetch_with_the_stored_key() {
     let server = usages_server("sk-kimi", include_str!("fixtures/usages_counts.json")).await;
     let root = tempfile::tempdir().unwrap();

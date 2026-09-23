@@ -4,7 +4,7 @@ use tempfile::TempDir;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::test_support::{fake_gh, sign_in};
+use super::test_support::{fake_gh_printing_stored_tokens, sign_in};
 use super::*;
 
 const PRO: &str = include_str!("fixtures/user_pro.json");
@@ -29,7 +29,7 @@ async fn server_with(status: u16, body: &str, token: &str) -> MockServer {
 fn provider(root: &TempDir, server: &MockServer) -> CopilotProvider {
     let mut config = CopilotConfig::for_home(root.path());
     config.api_base = server.uri();
-    config.gh_program = fake_gh(root.path());
+    config.gh_program = fake_gh_printing_stored_tokens(root.path());
     sign_in(
         &config.gh_config_dir,
         MULTI,

@@ -17,9 +17,7 @@ pub enum AddPlan {
     KeyFromPrompt(&'static ApiKeyPrompt),
 }
 
-/// The API key method when a key is on stdin, a prompt when the default method is an API key
-/// and a terminal is attached, otherwise the provider's first CLI login.
-pub fn plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<AddPlan> {
+pub fn choose_add_plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<AddPlan> {
     let name = descriptor.display_name;
     if keys == KeyInput::Stdin {
         if descriptor.accepts_api_key() {
@@ -37,7 +35,7 @@ pub fn plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<A
     }
     match descriptor.default_method() {
         Some(AddAccountMethod::ApiKey(prompt)) => bail!(
-            "{name} accounts are added with an {}: pass --api-key-stdin and write it to stdin",
+            "{name} accounts need a key ({}): pass --api-key-stdin and write it to stdin",
             prompt.label
         ),
         Some(AddAccountMethod::AutoDetect { reason }) => {
@@ -91,6 +89,7 @@ mod tests {
                 },
                 credentials_file: "auth.json",
                 needs_pty: false,
+                scrub_env: &[],
             }),
             KEY,
         ],
@@ -109,6 +108,7 @@ mod tests {
                 home_var: HomeVar::Direct("KEYFIRST_HOME"),
                 credentials_file: "auth.json",
                 needs_pty: false,
+                scrub_env: &[],
             }),
         ],
         multi_account: true,
@@ -133,30 +133,33 @@ mod tests {
     fn the_default_method_decides_without_a_key() {
         let codex = headroom_providers::registry::descriptor("codex").unwrap();
         for keys in [KeyInput::Terminal, KeyInput::Unavailable] {
-            match plan(codex, keys).unwrap() {
+            match choose_add_plan(codex, keys).unwrap() {
                 AddPlan::Login(spec) => assert_eq!(spec.login.program, "codex"),
                 other => panic!("codex signs in with its CLI: {other:?}"),
             }
-            assert!(matches!(plan(&LOGIN_THEN_KEY, keys), Ok(AddPlan::Login(_))));
+            assert!(matches!(
+                choose_add_plan(&LOGIN_THEN_KEY, keys),
+                Ok(AddPlan::Login(_))
+            ));
         }
-        match plan(&KEY_THEN_LOGIN, KeyInput::Unavailable).unwrap() {
+        match choose_add_plan(&KEY_THEN_LOGIN, KeyInput::Unavailable).unwrap() {
             AddPlan::Login(spec) => assert_eq!(spec.login.program, "keyfirst"),
             other => panic!("without a key the CLI login is used: {other:?}"),
         }
         assert!(matches!(
-            plan(&KEY_THEN_LOGIN, KeyInput::Terminal),
+            choose_add_plan(&KEY_THEN_LOGIN, KeyInput::Terminal),
             Ok(AddPlan::KeyFromPrompt(_))
         ));
         assert!(matches!(
-            plan(&KEY_THEN_LOGIN, KeyInput::Stdin),
+            choose_add_plan(&KEY_THEN_LOGIN, KeyInput::Stdin),
             Ok(AddPlan::KeyFromStdin)
         ));
         assert_eq!(
-            message(plan(&KEYED, KeyInput::Unavailable)),
-            "Keyed accounts are added with an API key: pass --api-key-stdin and write it to stdin"
+            message(choose_add_plan(&KEYED, KeyInput::Unavailable)),
+            "Keyed accounts need a key (API key): pass --api-key-stdin and write it to stdin"
         );
         assert_eq!(
-            message(plan(&DETECTED, KeyInput::Terminal)),
+            message(choose_add_plan(&DETECTED, KeyInput::Terminal)),
             "Found accounts are detected automatically: one IDE login per machine"
         );
     }
@@ -164,23 +167,23 @@ mod tests {
     #[test]
     fn a_key_on_stdin_picks_the_api_key_method() {
         assert!(matches!(
-            plan(&KEYED, KeyInput::Stdin),
+            choose_add_plan(&KEYED, KeyInput::Stdin),
             Ok(AddPlan::KeyFromStdin)
         ));
         assert!(matches!(
-            plan(&LOGIN_THEN_KEY, KeyInput::Stdin),
+            choose_add_plan(&LOGIN_THEN_KEY, KeyInput::Stdin),
             Ok(AddPlan::KeyFromStdin)
         ));
         let codex = headroom_providers::registry::descriptor("codex").unwrap();
         assert_eq!(
-            message(plan(codex, KeyInput::Stdin)),
+            message(choose_add_plan(codex, KeyInput::Stdin)),
             "Codex accounts cannot be added with an API key"
         );
     }
 
     #[test]
     fn a_terminal_is_prompted_for_the_default_api_key() {
-        match plan(&KEYED, KeyInput::Terminal).unwrap() {
+        match choose_add_plan(&KEYED, KeyInput::Terminal).unwrap() {
             AddPlan::KeyFromPrompt(prompt) => {
                 assert_eq!(prompt.console_url, "https://keyed.example/keys");
             }
@@ -188,12 +191,17 @@ mod tests {
         }
         let opencode = headroom_providers::registry::descriptor("opencode").unwrap();
         assert!(matches!(
-            plan(opencode, KeyInput::Terminal),
+            choose_add_plan(opencode, KeyInput::Terminal),
             Ok(AddPlan::KeyFromPrompt(_))
         ));
         assert_eq!(
-            message(plan(opencode, KeyInput::Unavailable)),
-            "OpenCode accounts are added with an API key: pass --api-key-stdin and write it to stdin"
+            message(choose_add_plan(opencode, KeyInput::Unavailable)),
+            "OpenCode accounts need a key (API key): pass --api-key-stdin and write it to stdin"
+        );
+        let minimax = headroom_providers::registry::descriptor("minimax").unwrap();
+        assert_eq!(
+            message(choose_add_plan(minimax, KeyInput::Unavailable)),
+            "MiniMax accounts need a key (MiniMax Token Plan key): pass --api-key-stdin and write it to stdin"
         );
     }
 }

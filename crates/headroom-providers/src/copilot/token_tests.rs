@@ -1,10 +1,10 @@
-use super::super::test_support::{fake_gh, sign_in};
+use super::super::test_support::{fake_gh_printing_stored_tokens, sign_in};
 use super::*;
 
 #[tokio::test]
 async fn the_token_of_the_named_account_is_captured() {
     let root = tempfile::tempdir().unwrap();
-    let gh = fake_gh(root.path());
+    let gh = fake_gh_printing_stored_tokens(root.path());
     let config = root.path().join("gh");
     sign_in(
         &config,
@@ -19,7 +19,7 @@ async fn the_token_of_the_named_account_is_captured() {
 #[tokio::test]
 async fn an_account_without_a_token_must_sign_in_again() {
     let root = tempfile::tempdir().unwrap();
-    let gh = fake_gh(root.path());
+    let gh = fake_gh_printing_stored_tokens(root.path());
     let config = root.path().join("gh");
     sign_in(&config, "", &[]);
     assert_eq!(
@@ -36,7 +36,7 @@ async fn a_missing_gh_or_unusable_output_is_a_local_error() {
         missing.unwrap_err(),
         ProviderError::LocalData("the GitHub CLI (gh) is not installed".into())
     );
-    let gh = fake_gh(root.path());
+    let gh = fake_gh_printing_stored_tokens(root.path());
     let config = root.path().join("gh");
     sign_in(&config, "", &[("octocat", "two words")]);
     assert!(matches!(

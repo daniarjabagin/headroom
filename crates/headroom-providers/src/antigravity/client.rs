@@ -30,6 +30,7 @@ impl LanguageServerClient {
     pub(super) fn new() -> Result<LanguageServerClient, ProviderError> {
         let http = Client::builder()
             .danger_accept_invalid_certs(true)
+            .redirect(reqwest::redirect::Policy::none())
             .no_proxy()
             .timeout(LS_TIMEOUT)
             .build()

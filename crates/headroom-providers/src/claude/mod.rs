@@ -39,6 +39,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
         home_var: HomeVar::Direct("CLAUDE_CONFIG_DIR"),
         credentials_file: ".credentials.json",
         needs_pty: false,
+        scrub_env: &[],
     })],
     multi_account: true,
     local_usage: true,

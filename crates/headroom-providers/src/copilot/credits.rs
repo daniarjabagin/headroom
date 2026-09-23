@@ -4,7 +4,6 @@ use serde_json::Number;
 const MICRO_USD_PER_CREDIT: i64 = 10_000;
 const CREDIT_FRACTION_DIGITS: usize = 4;
 
-/// GitHub AI credits (1 credit = USD 0.01) as micro-USD, read from the number's decimal text.
 pub(super) fn credits_to_micro_usd(credits: &Number) -> Option<MicroUsd> {
     let text = credits.to_string();
     let (negative, digits) = match text.strip_prefix('-') {
