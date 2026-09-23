@@ -1,4 +1,4 @@
-use super::payload::{AccountView, Headline, WindowView};
+use super::payload::{AccountStatus, AccountView, Headline, WindowView};
 use crate::settings::HeadlineMode;
 
 #[must_use]
@@ -30,7 +30,7 @@ fn most_critical(accounts: &[AccountView]) -> Option<Headline> {
 fn candidates(accounts: &[AccountView]) -> impl Iterator<Item = (&AccountView, &WindowView)> {
     accounts
         .iter()
-        .filter(|a| !a.hidden)
+        .filter(|a| !a.hidden && a.status != AccountStatus::NoSubscription)
         .flat_map(|account| account.windows.iter().map(move |w| (account, w)))
         .filter(|(_, w)| !w.hidden)
 }

@@ -208,3 +208,49 @@ async fn russian_locale_is_used_for_delivery() {
         "{titles:?}"
     );
 }
+
+async fn lapse(alerts: &Alerts, storage: &Storage, account: &AccountRecord) {
+    let id = account.id().clone();
+    storage
+        .run(move |conn| crate::storage::lapses::record(conn, &id, "none"))
+        .await
+        .unwrap();
+    alerts.review_lapse(account, Locale::En).await.unwrap();
+}
+
+#[tokio::test]
+async fn lapse_is_announced_once_even_across_restarts() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    lapse(&alerts, &storage, &work()).await;
+    lapse(&alerts, &storage, &work()).await;
+    let reloaded = load(&storage, &notifier);
+    lapse(&reloaded, &storage, &work()).await;
+    assert_eq!(
+        notifier.texts(),
+        [(
+            "Codex · Work — subscription inactive".to_owned(),
+            "Limits are unavailable until the plan is renewed.".to_owned()
+        )]
+    );
+    reloaded.renewed(work().id());
+    lapse(&reloaded, &storage, &work()).await;
+    assert_eq!(notifier.texts().len(), 2);
+}
+
+#[tokio::test]
+async fn undelivered_lapse_is_retried_and_hidden_accounts_stay_quiet() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    let mut hidden = work();
+    hidden.hidden = true;
+    lapse(&alerts, &storage, &hidden).await;
+    notifier.fail(true);
+    lapse(&alerts, &storage, &work()).await;
+    assert!(notifier.texts().is_empty());
+    notifier.fail(false);
+    lapse(&alerts, &storage, &work()).await;
+    assert_eq!(notifier.texts().len(), 1);
+}

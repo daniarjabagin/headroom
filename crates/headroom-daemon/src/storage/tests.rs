@@ -49,6 +49,7 @@ fn fresh_database_is_migrated_to_latest() {
             "log_cursors",
             "notification_state",
             "settings",
+            "subscription_lapses",
             "usage_events"
         ]
     );
@@ -349,6 +350,25 @@ fn alert_payloads_round_trip() {
     let stored: Vec<(AccountId, String, Vec<u8>)> =
         storage.blocking(|conn| alerts::load_all(conn)).unwrap();
     assert_eq!(stored, [(id, "session".to_owned(), vec![1, 2])]);
+}
+
+#[test]
+fn deleted_snapshots_are_gone() {
+    let storage = memory();
+    let id = AccountId("codex:work".into());
+    let stored = snapshot(Vec::new(), "2026-09-23T10:00:00Z");
+    storage
+        .blocking(|conn| {
+            snapshots::save(conn, &id, &stored)?;
+            snapshots::delete(conn, &id)
+        })
+        .unwrap();
+    assert!(
+        storage
+            .blocking(|conn| snapshots::load_all(conn))
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[tokio::test]

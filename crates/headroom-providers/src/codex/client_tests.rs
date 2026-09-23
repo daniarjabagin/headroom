@@ -7,6 +7,7 @@ use super::*;
 
 const FULL: &str = include_str!("fixtures/usage_full.json");
 const WEEKLY_ONLY: &str = include_str!("fixtures/usage_weekly_only.json");
+const FORBIDDEN_PLAN: &str = include_str!("fixtures/forbidden_plan.json");
 const NOW: &str = "2026-09-21T14:13:20Z";
 
 fn credentials(account_id: Option<&str>) -> Credentials {
@@ -102,6 +103,31 @@ async fn unauthorized_and_forbidden_mean_sign_in_expired() {
             Err(ProviderError::SignInExpired)
         );
     }
+}
+
+#[tokio::test]
+async fn payment_required_and_plan_forbidden_mean_no_subscription() {
+    let expected = Err(ProviderError::NoSubscription {
+        detail: "No active ChatGPT subscription.".into(),
+    });
+    let payment = serve(ResponseTemplate::new(402)).await;
+    assert_eq!(fetch(&payment, None).await, expected);
+    let forbidden = serve(
+        ResponseTemplate::new(403)
+            .set_body_raw(FORBIDDEN_PLAN.as_bytes().to_vec(), "application/json"),
+    )
+    .await;
+    assert_eq!(fetch(&forbidden, None).await, expected);
+}
+
+#[tokio::test]
+async fn forbidden_without_plan_wording_means_sign_in_expired() {
+    let body = r#"{"detail":"Could not validate your token. Please sign in again."}"#;
+    let server = serve(ResponseTemplate::new(403).set_body_raw(body, "application/json")).await;
+    assert_eq!(
+        fetch(&server, None).await,
+        Err(ProviderError::SignInExpired)
+    );
 }
 
 #[tokio::test]

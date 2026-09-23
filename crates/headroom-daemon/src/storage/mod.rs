@@ -3,6 +3,7 @@ pub mod alerts;
 mod codec;
 pub mod cursors;
 pub mod events;
+pub mod lapses;
 mod migrations;
 pub mod settings;
 pub mod snapshots;

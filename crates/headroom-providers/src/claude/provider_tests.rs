@@ -10,6 +10,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::*;
 
 const FULL: &str = include_str!("fixtures/usage_full.json");
+const NO_LIMITS: &str = include_str!("fixtures/usage_no_limits.json");
+const FREE_CREDENTIALS: &str = include_str!("fixtures/credentials_free.json");
 
 fn fixed_now() -> Timestamp {
     "2026-09-23T10:00:00Z".parse().unwrap()
@@ -43,10 +45,14 @@ fn sign_in(home: &Path, account: &str, expires_at: Timestamp) {
 }
 
 async fn usage_server(expected_calls: u64) -> MockServer {
+    usage_server_with(FULL, expected_calls).await
+}
+
+async fn usage_server_with(body: &str, expected_calls: u64) -> MockServer {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/api/oauth/usage"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(FULL))
+        .respond_with(ResponseTemplate::new(200).set_body_string(body))
         .expect(expected_calls)
         .mount(&server)
         .await;
@@ -100,6 +106,26 @@ async fn expired_token_fails_without_calling_the_api() {
     assert_eq!(
         provider.fetch_limits(&accounts[0]).await.unwrap_err(),
         ProviderError::SignInExpired
+    );
+}
+
+#[tokio::test]
+async fn account_without_subscription_reports_no_subscription() {
+    let home = tempfile::tempdir().unwrap();
+    sign_in(home.path(), "acc-1", one_hour_later());
+    fs::write(
+        home.path().join(".claude/.credentials.json"),
+        FREE_CREDENTIALS,
+    )
+    .unwrap();
+    let server = usage_server_with(NO_LIMITS, 1).await;
+    let provider = provider(&home, &server);
+    let accounts = provider.discover().await.unwrap();
+    assert_eq!(
+        provider.fetch_limits(&accounts[0]).await.unwrap_err(),
+        ProviderError::NoSubscription {
+            detail: "No active Claude subscription.".into()
+        }
     );
 }
 

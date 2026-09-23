@@ -1,0 +1,11 @@
+{
+  "plan_type": "free",
+  "rate_limit": null,
+  "additional_rate_limits": null,
+  "credits": {
+    "has_credits": false,
+    "unlimited": false,
+    "balance": "0"
+  },
+  "rate_limit_reset_credits": null
+}

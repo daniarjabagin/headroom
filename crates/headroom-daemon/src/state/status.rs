@@ -17,6 +17,7 @@ pub fn status(
         return AccountStatus::Refreshing;
     }
     match runtime.and_then(|r| r.failure.as_ref()) {
+        Some(failure) if failure.is_no_subscription() => AccountStatus::NoSubscription,
         Some(failure) if failure.is_signed_out() => AccountStatus::SignedOut,
         Some(_) => AccountStatus::Error,
         None if snapshot.is_some_and(|s| !is_stale(s, now)) => AccountStatus::Fresh,
@@ -54,6 +55,7 @@ fn error_kind(failure: &RefreshFailure) -> &'static str {
             ProviderError::NotSignedIn => "not_signed_in",
             ProviderError::SignInExpired => "sign_in_expired",
             ProviderError::ApiKeyOnly => "api_key_only",
+            ProviderError::NoSubscription { .. } => "no_subscription",
             ProviderError::RateLimited { .. } => "rate_limited",
             ProviderError::Network(_) => "network",
             ProviderError::InvalidResponse(_) => "invalid_response",
@@ -122,6 +124,31 @@ mod tests {
         assert_eq!(
             status(Some(&network), Some(&fresh), now),
             AccountStatus::Error
+        );
+    }
+
+    #[test]
+    fn no_subscription_ranks_below_refreshing_only() {
+        let now = ts(NOW);
+        let fresh = entry(NOW, SnapshotOrigin::Refreshed);
+        let mut lapsed = failing(RefreshFailure::Provider(ProviderError::NoSubscription {
+            detail: "No active Claude subscription.".into(),
+        }));
+        assert_eq!(
+            status(Some(&lapsed), Some(&fresh), now),
+            AccountStatus::NoSubscription
+        );
+        assert_eq!(
+            status(Some(&lapsed), None, now),
+            AccountStatus::NoSubscription
+        );
+        let view = error_view(lapsed.failure.as_ref().unwrap());
+        assert_eq!(view.kind, "no_subscription");
+        assert_eq!(view.message, "No active Claude subscription.");
+        lapsed.refreshing = true;
+        assert_eq!(
+            status(Some(&lapsed), Some(&fresh), now),
+            AccountStatus::Refreshing
         );
     }
 

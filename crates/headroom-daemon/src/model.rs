@@ -11,6 +11,7 @@ use crate::error::StorageError;
 use crate::home::UsageHome;
 use crate::settings::Settings;
 use crate::storage::accounts::{self, AccountRecord};
+use crate::storage::lapses::{self, Lapse};
 use crate::storage::{settings, snapshots};
 
 #[derive(Debug, Clone, Default)]
@@ -65,6 +66,14 @@ impl RefreshFailure {
     }
 
     #[must_use]
+    pub fn is_no_subscription(&self) -> bool {
+        matches!(
+            self,
+            RefreshFailure::Provider(ProviderError::NoSubscription { .. })
+        )
+    }
+
+    #[must_use]
     pub fn is_network(&self) -> bool {
         matches!(self, RefreshFailure::Provider(ProviderError::Network(_)))
     }
@@ -93,7 +102,7 @@ impl Model {
             settings: settings::load(conn)?,
             accounts: accounts::load_all(conn)?,
             snapshots,
-            runtime: HashMap::new(),
+            runtime: lapsed_runtime(lapses::load_all(conn)?),
             usage_homes: BTreeSet::new(),
             usage: BTreeMap::new(),
         })
@@ -130,12 +139,31 @@ impl Model {
         now: Timestamp,
         hold_until: Option<Timestamp>,
     ) {
+        if failure.is_no_subscription() {
+            self.snapshots.remove(id);
+        }
         let runtime = self.runtime_mut(id);
         runtime.last_attempt = Some(now);
         runtime.failure = Some(failure);
         runtime.failures = runtime.failures.saturating_add(1);
         runtime.hold_until = hold_until;
     }
+}
+
+fn lapsed_runtime(lapses: Vec<Lapse>) -> HashMap<AccountId, AccountRuntime> {
+    lapses
+        .into_iter()
+        .map(|lapse| {
+            let error = ProviderError::NoSubscription {
+                detail: lapse.detail,
+            };
+            let runtime = AccountRuntime {
+                failure: Some(RefreshFailure::Provider(error)),
+                ..AccountRuntime::default()
+            };
+            (lapse.account, runtime)
+        })
+        .collect()
 }
 
 #[must_use]
@@ -153,7 +181,10 @@ mod tests {
     use headroom_core::account::ProviderKind;
 
     use super::*;
+    use crate::storage::Storage;
     use crate::testing::{session, snapshot, ts};
+
+    const NOW_TEXT: &str = "2026-09-23T10:00:00Z";
 
     #[test]
     fn window_keys_are_flat_strings() {
@@ -188,6 +219,42 @@ mod tests {
         assert!(RefreshFailure::Provider(ProviderError::NotSignedIn).is_signed_out());
         assert!(!RefreshFailure::Provider(ProviderError::ApiKeyOnly).is_signed_out());
         assert!(!RefreshFailure::Timeout.is_signed_out());
+    }
+
+    #[test]
+    fn no_subscription_failure_drops_the_snapshot() {
+        let mut model = Model::default();
+        let id = AccountId(format!("{}:a", ProviderKind::Claude));
+        let now = ts("2026-09-23T10:00:00Z");
+        let fresh = snapshot(vec![session(1.0, "2026-09-23T12:00:00Z")], NOW_TEXT);
+        model.record_success(&id, fresh, now);
+        let lapsed = RefreshFailure::Provider(ProviderError::NoSubscription {
+            detail: "none".into(),
+        });
+        assert!(lapsed.is_no_subscription());
+        model.record_failure(&id, lapsed, now, None);
+        assert!(!model.snapshots.contains_key(&id));
+        model.record_failure(&id, RefreshFailure::Timeout, now, None);
+        assert!(!RefreshFailure::Timeout.is_no_subscription());
+    }
+
+    #[test]
+    fn stored_lapses_seed_the_runtime_on_load() {
+        let storage = Storage::open_in_memory().unwrap();
+        let id = AccountId("codex:work".into());
+        let model = storage
+            .blocking(|conn| {
+                lapses::record(conn, &id, "No active ChatGPT subscription.")?;
+                Model::load(conn)
+            })
+            .unwrap();
+        let failure = model.runtime[&id].failure.clone();
+        assert_eq!(
+            failure,
+            Some(RefreshFailure::Provider(ProviderError::NoSubscription {
+                detail: "No active ChatGPT subscription.".into()
+            }))
+        );
     }
 
     #[test]

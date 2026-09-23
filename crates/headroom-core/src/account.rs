@@ -24,7 +24,7 @@ impl ProviderKind {
     pub fn display_name(self) -> &'static str {
         match self {
             ProviderKind::Codex => "Codex",
-            ProviderKind::Claude => "Claude Code",
+            ProviderKind::Claude => "Claude",
         }
     }
 }

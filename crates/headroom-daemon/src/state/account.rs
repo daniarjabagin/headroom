@@ -7,7 +7,7 @@ use super::payload::{
     AccountView, BalanceAmountView, BalanceView, NoticeView, PaceView, WindowView,
 };
 use super::status::{error_view, source, status};
-use crate::model::{Model, window_key};
+use crate::model::{Model, RefreshFailure, window_key};
 use crate::storage::accounts::AccountRecord;
 
 #[must_use]
@@ -16,8 +16,11 @@ pub fn account_view(
     model: &Model,
     ctx: &AssembleContext<'_>,
 ) -> AccountView {
-    let entry = model.snapshots.get(record.id());
     let runtime = model.runtime.get(record.id());
+    let lapsed = runtime
+        .and_then(|r| r.failure.as_ref())
+        .is_some_and(RefreshFailure::is_no_subscription);
+    let entry = model.snapshots.get(record.id()).filter(|_| !lapsed);
     let snapshot = entry.map(|e| &e.snapshot);
     AccountView {
         id: record.id().0.clone(),
@@ -32,7 +35,8 @@ pub fn account_view(
             snapshot,
             |s| s.identity.plan.clone(),
             record.plan.as_deref(),
-        ),
+        )
+        .filter(|_| !lapsed),
         hidden: record.hidden,
         owner: record.reference.owner,
         status: status(runtime, entry, ctx.now),

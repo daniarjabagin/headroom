@@ -17,7 +17,7 @@ fn tooltip_summarises_visible_accounts_and_spend() {
     let expected = "\
 Codex · Work (Pro)
   Session: 45% left · resets in 2h 0m · ~8% spare
-Claude Code · ada@claude.example (Pro)
+Claude · ada@claude.example (Pro)
   sign-in expired, open the CLI to sign in again
   Session: 8% left · resets in 30m · limit in 23m
 

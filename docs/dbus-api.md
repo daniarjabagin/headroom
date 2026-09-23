@@ -19,7 +19,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | method | signature | description |
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
-| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit hold. An account id: force a refresh of that account now. |
+| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now. |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
@@ -35,6 +35,9 @@ Refresh semantics:
   the meantime are coalesced into that follow-up.
 - Scheduled refreshes run every `refresh_interval_secs` ± 10 %. Failures back off 60 s, 120 s, 240 s, …
   up to 30 min (± 10 %). A provider rate limit waits `retry_after`, or 5 min when none is given.
+  `no_subscription` is not transient: the account is checked again after 1 h (± 10 %).
+- Rate-limited and `no_subscription` accounts are skipped by `Refresh("")` until their next scheduled
+  check; `Refresh(account_id)` still forces a check.
 - Each provider call has a 30 s timeout.
 
 Rescan semantics:
@@ -92,14 +95,15 @@ is always micro-USD (`12500000` = $12.50).
 | --- | --- | --- |
 | `account_id` | string | Account the window belongs to. |
 | `provider` | Provider | Provider of that account. |
-| `account_label` | string | The account's user label, else its email, else the provider's display name (`Codex`, `Claude Code`). |
+| `account_label` | string | The account's user label, else its email, else the provider's display name (`Codex`, `Claude`). |
 | `window` | string | Window id, see [Window ids](#window-ids). |
 | `window_label` | string | Same as the window's `label`. |
 | `used_percent` | number | Same as the window's `used_percent`. |
 | `remaining_percent` | number | Same as the window's `remaining_percent`. |
 | `tone` | Tone | Same as the window's `tone`. |
 
-Selection: hidden accounts and hidden windows (`display.hidden_windows`) are never chosen. With
+Selection: hidden accounts, accounts with status `no_subscription` and hidden windows
+(`display.hidden_windows`) are never chosen. With
 `headline.mode = "pinned"` in settings the pinned window is used when that account is listed, not
 hidden and has that window, and the window is not hidden. Otherwise (`"auto"`, or the pin is not
 available) the most critical visible window wins: highest `tone`, then lowest `remaining_percent`,
@@ -113,7 +117,7 @@ then account order.
 | `provider` | Provider | `"codex"` or `"claude"`. |
 | `label` | string \| null | User label. Shells fall back to `email`, then to the provider name. |
 | `email` | string \| null | From the last snapshot, else from storage. |
-| `plan` | string \| null | Plan name as reported by the provider. |
+| `plan` | string \| null | Plan name as reported by the provider. `null` while the status is `no_subscription`. |
 | `hidden` | bool | Hidden by the user. |
 | `owner` | string | `cli` when the credentials belong to the provider's CLI home (read-only for Headroom, sign out with the CLI), `headroom` when the account was added with `headroom accounts add` and can be removed with `headroom accounts remove`. |
 | `status` | Status | See below. |
@@ -130,6 +134,7 @@ Status, evaluated in this order:
 | value | meaning |
 | --- | --- |
 | `refreshing` | A refresh is in flight. |
+| `no_subscription` | The account is signed in, but the provider reports no active paid plan (for example a free ChatGPT plan without Codex limits, or a Claude account without Pro/Max). `error.kind` is `no_subscription` and `error.message` says what the provider reported. The last good snapshot is dropped: `windows`, `balances` and `notices` are empty, `updated_at`, `source` and `plan` are `null`. The account never drives the headline or window notifications. The state survives daemon restarts until a refresh succeeds. |
 | `signed_out` | The last refresh failed with `not_signed_in` or `sign_in_expired`. Ask the user to sign in with the CLI. |
 | `error` | The last refresh failed for another reason. Any previous data is still shown. |
 | `fresh` | Data is at most 10 minutes old. |
@@ -147,8 +152,33 @@ Error:
 
 | field | type | description |
 | --- | --- | --- |
-| `kind` | string | `not_signed_in`, `sign_in_expired`, `api_key_only`, `rate_limited`, `network`, `invalid_response`, `local_data`, `timeout`, `no_provider` |
+| `kind` | string | `not_signed_in`, `sign_in_expired`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `timeout`, `no_provider` |
 | `message` | string | Safe, human-readable message. Never contains tokens. |
+
+An account without an active subscription:
+
+```json
+{
+  "id": "codex:work",
+  "provider": "codex",
+  "label": "Work",
+  "email": "ada@example.com",
+  "plan": null,
+  "hidden": false,
+  "owner": "cli",
+  "status": "no_subscription",
+  "error": {
+    "kind": "no_subscription",
+    "message": "No active ChatGPT subscription (Free plan)."
+  },
+  "updated_at": null,
+  "source": null,
+  "windows": [],
+  "balances": [],
+  "notices": [],
+  "usage_home": "~/.codex"
+}
+```
 
 ### Window
 
@@ -212,7 +242,7 @@ already listed from another dir. Accounts that share a home share usage.
 
 - Codex: `$CODEX_HOME` or `~/.codex` when it has `sessions/` or `archived_sessions/`, and
   Headroom-owned homes with those directories.
-- Claude Code: `$CLAUDE_CONFIG_DIR`, `~/.claude`, config dirs found by the account scan (hidden
+- Claude: `$CLAUDE_CONFIG_DIR`, `~/.claude`, config dirs found by the account scan (hidden
   directories in `~` and directories in `$XDG_CONFIG_HOME` holding `.claude.json` or
   `.credentials.json`) and Headroom-owned dirs — each only when it has a `projects/` directory.
 - Paths that resolve to the same directory are listed once. The set is refreshed with every account
@@ -543,6 +573,13 @@ Rules per `(account, window)`:
   rolled back and retried at the next refresh. Disabled milestones advance silently.
 - Hidden accounts and hidden windows (`display.hidden_windows`) are not evaluated.
 
+Subscription lapse, per account:
+
+- When a refresh first ends in `no_subscription`, one notification is sent. It is not repeated while the
+  account stays in that state, including across daemon restarts. A successful refresh ends the lapse,
+  so a later lapse notifies again. A failed delivery is retried at the next check. Hidden accounts are
+  not notified. There is no setting for it.
+
 Texts follow `display.language`:
 
 | milestone | English | Russian |
@@ -553,6 +590,8 @@ Texts follow `display.language`:
 | `WillRunOut` | `Projected to run out in 20m · resets in 42m` (`… before the reset` without a run-out time) | `По прогнозу лимит закончится через 20 мин · сброс через 42 мин` (`… до сброса`) |
 | `WillRunOut` when spent | `Limit reached · resets in 42m` | `Лимит исчерпан · сброс через 42 мин` |
 | `Reset` | `Limit reset · 100% left` | `Лимит сброшен · осталось 100%` |
+| lapse title | `Codex · Work — subscription inactive` | `Codex · Work — подписка неактивна` |
+| lapse body | `Limits are unavailable until the plan is renewed.` | `Данные о лимитах недоступны, пока подписка не продлена.` |
 
 Session and weekly window labels are translated; other window labels come from the provider as is.
 

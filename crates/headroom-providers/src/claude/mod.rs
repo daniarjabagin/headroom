@@ -8,6 +8,7 @@ mod log_record;
 mod mapper;
 mod number;
 mod raw;
+mod subscription;
 mod usage_homes;
 
 use std::path::{Path, PathBuf};
@@ -79,11 +80,14 @@ impl Provider for ClaudeProvider {
         let identity = self.current_identity(account)?;
         let credentials = auth::load_credentials(&account.home)?;
         let now = (self.clock)();
-        let raw = self
-            .client
-            .fetch(credentials.usable_token(now)?, now)
-            .await?;
-        let mapped = mapper::map_usage(&raw);
+        let fetched = match credentials.usable_token(now) {
+            Ok(token) => self.client.fetch(token, now).await,
+            Err(error) => Err(error),
+        };
+        let mapped = subscription::require_subscription(
+            &credentials,
+            fetched.map(|raw| mapper::map_usage(&raw)),
+        )?;
         Ok(LimitsSnapshot {
             identity: AccountIdentity {
                 email: identity.email,

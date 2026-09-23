@@ -1,3 +1,5 @@
+use headroom_daemon::state::payload::AccountError;
+
 use super::*;
 use crate::render::fixtures::full_state;
 
@@ -7,7 +9,7 @@ Codex · Work  Pro
   Session  ━━━━━━━━┃───────────   45% left  resets in 2h 0m    ~8% spare
   Credits  $12.50
 
-Claude Code · ada@claude.example  Pro  signed out
+Claude · ada@claude.example  Pro  signed out
   sign-in expired, open the CLI to sign in again
   Session  ━━┃─────────────────    8% left  resets in 30m      limit in 23m
 
@@ -41,6 +43,27 @@ fn empty_state_explains_what_to_do() {
     assert_eq!(
         render_status(&state, Palette::plain()),
         format!("{NO_ACCOUNTS}\n")
+    );
+}
+
+#[test]
+fn accounts_without_subscription_say_so() {
+    let mut state = full_state();
+    state.accounts.truncate(1);
+    state.usage.clear();
+    let account = &mut state.accounts[0];
+    account.windows.clear();
+    account.balances.clear();
+    account.notices.clear();
+    account.plan = None;
+    account.status = AccountStatus::NoSubscription;
+    account.error = Some(AccountError {
+        kind: "no_subscription".into(),
+        message: "No active ChatGPT subscription (Free plan).".into(),
+    });
+    assert_eq!(
+        render_status(&state, Palette::plain()),
+        "Codex · Work  no active subscription\n  No active ChatGPT subscription (Free plan).\n"
     );
 }
 

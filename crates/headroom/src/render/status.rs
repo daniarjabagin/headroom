@@ -117,11 +117,17 @@ fn status_tag(status: AccountStatus, palette: Palette) -> Option<String> {
         AccountStatus::Refreshing => Some(palette.dim("refreshing…")),
         AccountStatus::Error => Some(palette.tone("couldn't refresh", Tone::Warning)),
         AccountStatus::SignedOut => Some(palette.tone("signed out", Tone::Critical)),
+        AccountStatus::NoSubscription => {
+            Some(palette.tone("no active subscription", Tone::Critical))
+        }
     }
 }
 
 fn error_tone(account: &AccountView) -> Tone {
-    if account.status == AccountStatus::SignedOut {
+    if matches!(
+        account.status,
+        AccountStatus::SignedOut | AccountStatus::NoSubscription
+    ) {
         Tone::Critical
     } else {
         Tone::Warning

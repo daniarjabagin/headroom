@@ -1,0 +1,7 @@
+{
+  "type": "error",
+  "error": {
+    "type": "permission_error",
+    "message": "Usage limits are only available with a Claude Pro or Max subscription."
+  }
+}

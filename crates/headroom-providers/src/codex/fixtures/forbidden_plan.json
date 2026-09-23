@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "code": "no_active_subscription",
+    "message": "Codex is not included in your current plan."
+  }
+}

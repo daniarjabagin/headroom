@@ -125,7 +125,7 @@ fn headline_names_the_account_and_window() {
     for (account, expected) in [
         (labelled, "Work"),
         (emailed, "ada@example.com"),
-        (anonymous, "Claude Code"),
+        (anonymous, "Claude"),
     ] {
         let chosen = headline(&[account], &HeadlineMode::Auto {}).unwrap();
         assert_eq!(chosen.account_label, expected);
