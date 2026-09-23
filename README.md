@@ -80,6 +80,7 @@ more detail).
 headroom status             # limits, pace and spend for every account
 headroom status --json      # the raw state payload (see docs/dbus-api.md)
 headroom refresh [ID]       # refresh all due accounts, or one account now
+headroom refresh --now      # refresh every account right away
 headroom accounts           # list accounts with their ids
 headroom accounts label ID "Work"
 headroom accounts hide ID   # and: show ID, order ID1 ID2 …
