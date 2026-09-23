@@ -1,0 +1,8 @@
+node_modules/
+build/
+package-lock.json
+stylesheet.css
+stylesheet-light.css
+stylesheet-dark.css
+icons/*.svg
+dev/sample-state.json
