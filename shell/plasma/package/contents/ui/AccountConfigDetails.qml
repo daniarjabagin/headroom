@@ -139,6 +139,7 @@ Item {
                         name: Providers.accountName(details.account)
                     }),
                     detail: details.tr("Headroom deletes the sign-in it created for this account. The account itself is not affected."),
+                    note: "",
                     actions: [
                         {
                             kind: "cancel",

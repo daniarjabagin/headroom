@@ -20,7 +20,6 @@ Item {
     required property bool lifted
     required property real dragOffset
     required property string indicator
-    readonly property var info: Providers.providerInfo(account.provider)
 
     signal hiddenToggled(bool hidden)
     signal labelApplied(string label)
@@ -31,7 +30,7 @@ Item {
     signal dragFinished
 
     function subtitle() {
-        const parts = [info.name, account.plan, account.label ? account.email : null];
+        const parts = [account.providerName, account.plan, account.label ? account.email : null];
         if (account.owner === "headroom")
             parts.push(I18n.tr(lang, "added in Headroom"));
         return parts.filter(Boolean).join(" · ");

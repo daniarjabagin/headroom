@@ -9,8 +9,10 @@ KCM.SimpleKCM {
     id: scaffold
 
     default property alias content: body.data
+    property bool trackProviders: false
     readonly property DaemonClient daemon: DaemonClient {
         trackSettings: true
+        trackProviders: scaffold.trackProviders
         onCommandFailed: message => scaffold.message = message
     }
     readonly property var settings: daemon.settings

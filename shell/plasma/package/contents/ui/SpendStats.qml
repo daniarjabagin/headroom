@@ -4,7 +4,6 @@ import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
-import "logic/Providers.js" as Providers
 import "logic/Spend.js" as Spend
 import "logic/Tokens.js" as Tokens
 
@@ -15,7 +14,7 @@ Item {
     required property string periodKey
     required property string lang
     readonly property var provider: period.providers.length > 0 ? period.providers[0] : null
-    readonly property string providerName: provider ? Providers.providerInfo(provider.provider).name : ""
+    readonly property string providerName: provider?.providerName ?? ""
 
     Layout.fillWidth: true
     implicitHeight: row.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -55,7 +54,7 @@ Item {
         id: tip
 
         lang: stats.lang
-        title: stats.provider ? Spend.breakdownTitle(stats.lang, stats.periodKey, stats.provider.provider) : ""
+        title: stats.provider ? Spend.breakdownTitle(stats.lang, stats.periodKey, stats.provider) : ""
         totals: stats.provider
         fallback: stats.provider ? Format.spendTooltip(stats.lang, stats.provider) : ""
     }

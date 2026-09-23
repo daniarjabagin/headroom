@@ -7,6 +7,7 @@ import "logic/Format.js" as Format
 import "logic/Metrics.js" as Metrics
 import "logic/Sector.js" as Sector
 import "logic/Spend.js" as Spend
+import "logic/Tokens.js" as Tokens
 
 Item {
     id: donut
@@ -17,7 +18,7 @@ Item {
     readonly property real holeRatio: 0.618
     readonly property bool gapped: period.providers.length > 1
     readonly property var geometry: Sector.geometry(size, holeRatio, gapped ? Metrics.donutGap(Kirigami.Units) : 0)
-    readonly property var slices: Spend.slices(period.providers, Sector.minSweep(geometry))
+    readonly property var slices: Spend.slices(period.providers, Sector.minSweep(geometry), Tokens.isDark(Kirigami.Theme))
 
     implicitWidth: size
     implicitHeight: size

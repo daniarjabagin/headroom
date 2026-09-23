@@ -5,11 +5,10 @@ import "logic/Tokens.js" as Tokens
 
 Kirigami.Icon {
     required property string provider
-    readonly property var info: Providers.providerInfo(provider)
 
     implicitWidth: Kirigami.Units.iconSizes.small
     implicitHeight: Kirigami.Units.iconSizes.small
-    source: info.icon ? Qt.resolvedUrl(`../icons/${info.icon}`) : "application-x-executable"
-    isMask: info.tinted
+    source: Qt.resolvedUrl(`../icons/${Providers.iconFile(provider)}`)
+    isMask: Providers.isTinted(provider)
     color: Tokens.secondaryText(Kirigami.Theme)
 }

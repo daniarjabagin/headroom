@@ -1,6 +1,7 @@
 import QtQuick
 import org.kde.plasma.workspace.dbus as DBus
 import "logic/PatchQueue.js" as PatchQueue
+import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
 
@@ -15,6 +16,9 @@ Item {
     readonly property int startGraceMs: 5000
     property bool active: false
     property bool trackSettings: false
+    property bool trackProviders: false
+    property var providers: null
+    property bool providersRequested: false
     property var settings: null
     property var rawSettings: null
     property var view: ({
@@ -70,6 +74,21 @@ Item {
         daemonCall("GetSettings", "", [], json => acceptSettings(json));
     }
 
+    function loadProviders() {
+        providersRequested = true;
+        daemonCall("ListProviders", "", [], json => acceptProviders(json));
+    }
+
+    function acceptProviders(json) {
+        try {
+            providers = Registry.parseRegistry(json);
+        } catch (error) {
+            if (!Registry.isRegistryError(error))
+                throw error;
+            commandFailed(error.message);
+        }
+    }
+
     function acceptSettings(json) {
         if (patchQueue.busy)
             return;
@@ -91,6 +110,8 @@ Item {
             };
             if (trackSettings)
                 loadSettings();
+            if (trackProviders && !providersRequested)
+                loadProviders();
         } catch (error) {
             if (!State.isStateError(error))
                 throw error;
@@ -226,6 +247,8 @@ Item {
         } else {
             settings = null;
             rawSettings = null;
+            providers = null;
+            providersRequested = false;
             patchQueue = PatchQueue.idle();
             view = {
                 kind: "unavailable",

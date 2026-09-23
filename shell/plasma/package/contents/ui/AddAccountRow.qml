@@ -4,24 +4,46 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
-import "logic/Providers.js" as Providers
+import "logic/Registry.js" as Registry
 import "logic/Tokens.js" as Tokens
 
 Item {
     id: addRow
 
-    required property string provider
+    required property var provider
     required property string lang
-    required property bool separated
     required property bool launched
+    readonly property var method: provider.method
+    readonly property string keyHint: Registry.keyHint(method)
+    readonly property bool takesLabel: method.kind !== "auto_detect"
+    readonly property real textIndent: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.largeSpacing
 
-    signal signInRequested(string provider, string label)
+    signal addRequested(string label)
+
+    function tr(msgid, values) {
+        return I18n.tr(lang, msgid, values);
+    }
+
+    function actionText() {
+        if (method.kind === "api_key")
+            return tr("Add API key…");
+        if (method.kind === "auto_detect")
+            return tr("Rescan");
+        return tr("Sign in…");
+    }
+
+    function launchedText() {
+        if (method.kind === "api_key")
+            return tr("A terminal window opened. Paste the API key there; the account shows up here when it is done.");
+        if (method.kind === "auto_detect")
+            return tr("Looking for accounts. New ones show up here in a moment.");
+        return tr("A terminal window opened. Finish signing in there; the account shows up here when it is done.");
+    }
 
     Layout.fillWidth: true
     implicitHeight: column.implicitHeight + Kirigami.Units.largeSpacing * 2
 
     Rectangle {
-        visible: addRow.separated
         x: Metrics.rowInset(Kirigami.Units)
         width: parent.width - x * 2
         height: Metrics.hairline(Kirigami.Units)
@@ -42,44 +64,79 @@ Item {
             spacing: Kirigami.Units.largeSpacing
 
             ProviderIcon {
-                provider: addRow.provider
+                Layout.alignment: Qt.AlignTop
+                provider: addRow.provider.id
                 implicitWidth: Kirigami.Units.iconSizes.smallMedium
                 implicitHeight: implicitWidth
             }
 
-            TextLabel {
+            ColumnLayout {
                 Layout.fillWidth: true
-                role: "label"
-                weight: Font.Medium
-                text: I18n.tr(addRow.lang, "Add {provider} account", {
-                    provider: Providers.providerInfo(addRow.provider).name
-                })
-                elide: Text.ElideRight
+                spacing: Math.round(Kirigami.Units.smallSpacing / 2)
+
+                TextLabel {
+                    Layout.fillWidth: true
+                    role: "label"
+                    weight: Font.Medium
+                    text: addRow.tr("Add {provider} account", {
+                        provider: addRow.provider.name
+                    })
+                    elide: Text.ElideRight
+                }
+
+                TextLabel {
+                    Layout.fillWidth: true
+                    role: "caption"
+                    emphasis: "secondary"
+                    text: Registry.methodHint(addRow.lang, addRow.provider)
+                    wrapMode: Text.Wrap
+                }
             }
 
             QQC2.TextField {
                 id: labelField
 
+                visible: addRow.takesLabel
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                placeholderText: I18n.tr(addRow.lang, "Label (optional)")
+                placeholderText: addRow.tr("Label (optional)")
                 maximumLength: 64
-                onAccepted: addRow.signInRequested(addRow.provider, text)
+                onAccepted: addRow.addRequested(text)
             }
 
             SmallButton {
-                text: I18n.tr(addRow.lang, "Sign in…")
-                onClicked: addRow.signInRequested(addRow.provider, labelField.text)
+                text: addRow.actionText()
+                onClicked: addRow.addRequested(addRow.takesLabel ? labelField.text : "")
+            }
+        }
+
+        RowLayout {
+            visible: addRow.method.kind === "api_key" && (addRow.keyHint !== "" || addRow.method.consoleUrl !== null)
+            Layout.leftMargin: addRow.textIndent
+            spacing: Kirigami.Units.largeSpacing
+
+            TextLabel {
+                Layout.fillWidth: true
+                role: "caption"
+                emphasis: "secondary"
+                wrapMode: Text.Wrap
+                text: addRow.keyHint
+            }
+
+            SmallButton {
+                visible: addRow.method.consoleUrl !== null
+                text: addRow.tr("Get a key…")
+                onClicked: Qt.openUrlExternally(addRow.method.consoleUrl)
             }
         }
 
         TextLabel {
             visible: addRow.launched
             Layout.fillWidth: true
-            Layout.leftMargin: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.largeSpacing
+            Layout.leftMargin: addRow.textIndent
             role: "caption"
             emphasis: "secondary"
             wrapMode: Text.Wrap
-            text: I18n.tr(addRow.lang, "A terminal window opened. Finish signing in there; the account shows up here when it is done.")
+            text: addRow.launchedText()
         }
     }
 }

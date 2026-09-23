@@ -57,12 +57,12 @@ ColumnLayout {
                     implicitWidth: Kirigami.Units.largeSpacing
                     implicitHeight: implicitWidth
                     radius: width / 2
-                    color: Providers.providerInfo(entry.modelData.provider).ringColor
+                    color: Providers.ringColor(entry.modelData.provider, Tokens.isDark(Kirigami.Theme))
                 }
 
                 TextLabel {
                     Layout.fillWidth: true
-                    text: Providers.providerInfo(entry.modelData.provider).name
+                    text: entry.modelData.providerName
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                 }
@@ -78,7 +78,7 @@ ColumnLayout {
                 id: tip
 
                 lang: legend.lang
-                title: Spend.breakdownTitle(legend.lang, legend.periodKey, entry.modelData.provider)
+                title: Spend.breakdownTitle(legend.lang, legend.periodKey, entry.modelData)
                 totals: entry.modelData
                 fallback: Format.spendTooltip(legend.lang, entry.modelData)
             }

@@ -183,7 +183,16 @@ const MESSAGES = {
     "No terminal found. Install xdg-terminal-exec or Konsole, or run \"headroom accounts add\" yourself.": "Терминал не найден. Установите xdg-terminal-exec или Konsole либо запустите «headroom accounts add» сами.",
     "Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.": "Перетаскивайте, чтобы изменить порядок. Скрытые аккаунты продолжают обновляться, но не показываются на панели и в уведомлениях.",
     "No accounts yet": "Пока нет аккаунтов",
-    "Sign in with the Codex or Claude CLI, or add an account below.": "Войдите через CLI Codex или Claude либо добавьте аккаунт ниже.",
+    "Sign in with a supported CLI, or add an account below.": "Войдите через поддерживаемый CLI или добавьте аккаунт ниже.",
     "Add Account": "Добавить аккаунт",
-    "Sign in to another account without touching the one your CLI uses.": "Войдите в другой аккаунт, не трогая тот, который использует ваш CLI."
+    "Pick a service. Accounts added here never touch the one your CLI uses.": "Выберите сервис. Аккаунты, добавленные здесь, не затрагивают тот, что использует ваш CLI.",
+    "Signs in with the {program} CLI in a terminal": "Вход через CLI {program} в терминале",
+    "Asks for an API key in a terminal": "Запросит API-ключ в терминале",
+    "Found automatically": "Находится автоматически",
+    "Add API key…": "Добавить API-ключ…",
+    "Rescan": "Искать снова",
+    "Get a key…": "Получить ключ…",
+    "A terminal window opened. Paste the API key there; the account shows up here when it is done.": "Открылось окно терминала. Вставьте туда API-ключ — аккаунт появится здесь, когда всё будет готово.",
+    "Looking for accounts. New ones show up here in a moment.": "Ищем аккаунты. Новые появятся здесь через мгновение.",
+    "No providers available": "Нет доступных сервисов"
 };

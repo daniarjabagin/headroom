@@ -101,6 +101,11 @@ function popupPalette(system, themeMode, translucent) {
     };
 }
 
+function isDark(theme) {
+    const background = theme.backgroundColor;
+    return 0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b < 0.5;
+}
+
 function tick(theme) {
     return alpha(theme.textColor, TICK);
 }

@@ -23,6 +23,10 @@ QtObject {
             return {
                 value: PreviewConfig.shiftedState()
             };
+        if (message.member === "ListProviders")
+            return {
+                value: PreviewConfig.providersJson()
+            };
         if (message.member === "GetSettings")
             return {
                 value: PreviewConfig.settingsJson()

@@ -60,24 +60,24 @@ function visibleFractions(values, minimum) {
     return raisedFractions(values, Math.min(Math.max(MIN_SLICE, minimum), 1 / values.length));
 }
 
-function fullRing(spend) {
+function fullRing(spend, dark) {
     return {
         start: START_DEGREES,
         sweep: 360,
-        color: Providers.providerInfo(spend.provider).ringColor
+        color: Providers.ringColor(spend.provider, dark)
     };
 }
 
-function slices(providers, minDegrees) {
+function slices(providers, minDegrees, dark) {
     if (providers.length === 1)
-        return [fullRing(providers[0])];
+        return [fullRing(providers[0], dark)];
     const fractions = visibleFractions(providers.map(spend => spend.costMicros), minDegrees / 360);
     let start = START_DEGREES;
     return providers.map((spend, index) => {
         const slice = {
             start,
             sweep: fractions[index] * 360,
-            color: Providers.providerInfo(spend.provider).ringColor
+            color: Providers.ringColor(spend.provider, dark)
         };
         start += slice.sweep;
         return slice;
@@ -100,6 +100,6 @@ function infoText(lang, period) {
     return `${I18n.tr(lang, "Estimated from local logs and public pricing.")}${partial}`;
 }
 
-function breakdownTitle(lang, periodKey, provider) {
-    return `${periodTitle(lang, periodKey)} · ${Providers.providerInfo(provider).name}`;
+function breakdownTitle(lang, periodKey, spend) {
+    return `${periodTitle(lang, periodKey)} · ${spend.providerName}`;
 }

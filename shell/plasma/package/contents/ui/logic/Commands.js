@@ -1,6 +1,7 @@
 .pragma library
 
-const ADDABLE = ["codex", "claude"];
+const PROVIDER_ID = /^[a-z0-9_-]+$/;
+const TERMINAL_METHODS = ["cli_login", "api_key"];
 const ACCOUNT_ID = /^[a-z0-9_-]+:[0-9a-f]+$/;
 
 class CommandError extends Error {}
@@ -16,10 +17,22 @@ function loginScript(provider, label, closePrompt) {
 }
 
 function addAccountCommand(provider, label, closePrompt) {
-    if (!ADDABLE.includes(provider))
-        throw new CommandError(`Unknown provider ${provider}`);
+    if (!PROVIDER_ID.test(provider))
+        throw new CommandError(`Unexpected provider id ${provider}`);
     const script = shellQuote(loginScript(provider, label, closePrompt));
     return `if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c ${script}; else exec konsole -e sh -c ${script}; fi`;
+}
+
+function addPlan(provider, label, closePrompt) {
+    if (TERMINAL_METHODS.includes(provider.method.kind))
+        return {
+            kind: "terminal",
+            command: addAccountCommand(provider.id, label, closePrompt)
+        };
+    return {
+        kind: "rescan",
+        command: ""
+    };
 }
 
 function removeAccountCommand(accountId) {
