@@ -1,0 +1,13 @@
+/target/
+**/*.rs.bk
+node_modules/
+*.zip
+*.log
+.env
+.env.*
+/dist/
+/shell/gnome/schemas/gschemas.compiled
+.claude/settings.local.json
+.idea/
+.vscode/
+*.swp
