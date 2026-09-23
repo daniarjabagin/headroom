@@ -106,8 +106,7 @@ pub(super) fn snapshot(
         balances: limits
             .credits
             .as_ref()
-            .and_then(|credits| credits.balance.as_ref()?.whole())
-            .map(credits_balance)
+            .and_then(credits_balance)
             .into_iter()
             .collect(),
         notices: Vec::new(),

@@ -3,8 +3,7 @@ use std::sync::{Arc, PoisonError, RwLock};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use headroom_core::event::ServiceTier;
-use headroom_core::tokens::TokenCounts;
+use headroom_core::event::UsageEvent;
 use headroom_core::units::MicroUsd;
 use headroom_core::usage::PriceBook;
 use headroom_pricing::{FeedStatus, PriceCatalog, RefreshOutcome, Sources};
@@ -45,14 +44,8 @@ impl ReloadablePrices {
 }
 
 impl PriceBook for ReloadablePrices {
-    fn cost(
-        &self,
-        model: &str,
-        tier: ServiceTier,
-        tokens: &TokenCounts,
-        web_search: u32,
-    ) -> Option<MicroUsd> {
-        self.current().cost(model, tier, tokens, web_search)
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd> {
+        self.current().cost(event)
     }
 }
 
@@ -107,6 +100,9 @@ fn next_delay(outcome: &RefreshOutcome) -> Duration {
 
 #[cfg(test)]
 mod tests {
+    use headroom_core::event::{EventKey, ServiceTier};
+    use headroom_core::tokens::TokenCounts;
+    use headroom_core::units::Tokens;
     use headroom_pricing::PricingError;
 
     use super::*;
@@ -143,16 +139,20 @@ mod tests {
     fn prices_from_an_empty_cache_fall_back_to_the_bundled_snapshot() {
         let dir = tempfile::tempdir().unwrap();
         let prices = ReloadablePrices::load(dir.path().to_path_buf()).unwrap();
-        let tokens = TokenCounts {
-            input: headroom_core::units::Tokens(1_000_000),
-            ..TokenCounts::default()
+        let event = UsageEvent {
+            key: EventKey("resp_1".into()),
+            at: "2026-09-23T10:00:00Z".parse().unwrap(),
+            model: "codex-auto-review".into(),
+            tier: ServiceTier::Standard,
+            tokens: TokenCounts {
+                input: Tokens(1_000_000),
+                ..TokenCounts::default()
+            },
+            web_search_requests: 0,
         };
-        let cost = prices.cost("gpt-5", ServiceTier::Standard, &tokens, 0);
+        let cost = prices.cost(&event);
         assert!(cost.is_some_and(|micros| micros.0 > 0));
         prices.reload();
-        assert_eq!(
-            prices.cost("gpt-5", ServiceTier::Standard, &tokens, 0),
-            cost
-        );
+        assert_eq!(prices.cost(&event), cost);
     }
 }

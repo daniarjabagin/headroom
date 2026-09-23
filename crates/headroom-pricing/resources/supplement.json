@@ -43,5 +43,16 @@
     { "pattern": "^gpt-5\\.1-codex(?:-max)?$", "canonical": "gpt-5.1" },
     { "pattern": "^gpt-5\\.1-codex-mini$", "canonical": "gpt-5-mini" },
     { "pattern": "^gpt-5\\.2-codex$", "canonical": "gpt-5.2" }
-  ]
+  ],
+  "dated_aliases": {
+    "codex-auto-review": [
+      { "from": "2026-04-23", "model": "gpt-5.5" },
+      { "from": "2026-03-05", "model": "gpt-5.4" },
+      { "from": "2026-02-05", "model": "gpt-5.3-codex" },
+      { "from": "2025-12-11", "model": "gpt-5.2-codex" },
+      { "from": "2025-11-13", "model": "gpt-5.1-codex" },
+      { "from": "2025-09-15", "model": "gpt-5-codex" },
+      { "model": "gpt-5" }
+    ]
+  }
 }

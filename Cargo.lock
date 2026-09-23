@@ -843,6 +843,7 @@ name = "headroom-pricing"
 version = "0.1.0"
 dependencies = [
  "headroom-core",
+ "jiff",
  "regex",
  "reqwest",
  "serde",

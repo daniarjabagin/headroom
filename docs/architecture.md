@@ -203,7 +203,7 @@ One function maps a window to `Tone`, used by every surface (panel, popup, tray,
 
 ```rust
 pub trait PriceBook: Send + Sync {
-    fn cost(&self, model: &str, tier: ServiceTier, tokens: &TokenCounts, web_search: u32) -> Option<MicroUsd>;
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd>;
 }
 pub struct UsageTotals { pub tokens: TokenCounts, pub cost: MicroUsd, pub unpriced_tokens: Tokens, pub unpriced_models: BTreeSet<String> }
 pub struct UsageSummary {
@@ -219,6 +219,10 @@ pub struct UsageSummary {
   time zone. 30 days = today and the 29 previous days.
 - Unpriced events still count their tokens; their cost is excluded and reported via `unpriced_*` so
   the UI can mark the total as partial. Never price with a guessed default model.
+- The price book sees the whole event so prices can depend on its time. The supplement's
+  `dated_aliases` map a model name to the model it was billed as on the event's UTC day (newest
+  `from` date not after it; an entry without `from` covers everything older). `codex-auto-review`
+  uses this; the displayed model name stays the logged one.
 
 ## Provider trait (`headroom-core::provider`)
 

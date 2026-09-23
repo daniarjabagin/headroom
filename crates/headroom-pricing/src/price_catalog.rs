@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use headroom_core::event::ServiceTier;
-use headroom_core::tokens::TokenCounts;
+use headroom_core::event::{ServiceTier, UsageEvent};
 use headroom_core::units::MicroUsd;
 use headroom_core::usage::PriceBook;
+use jiff::Timestamp;
 use serde::Serialize;
 
 use crate::cache::{self, Feed};
@@ -61,6 +61,15 @@ impl PriceCatalog {
             })
     }
 
+    #[must_use]
+    pub fn resolve_at(&self, model: &str, at: Timestamp) -> Option<ResolvedModel> {
+        let name = normalize(model);
+        match self.supplement.dated_alias(&name, at) {
+            Some(dated) => self.resolve(dated),
+            None => self.resolve(&name),
+        }
+    }
+
     fn lookup(&self, name: &str) -> Option<ResolvedModel> {
         [
             (PriceSource::Supplement, self.supplement.pricing()),
@@ -100,19 +109,16 @@ impl PriceCatalog {
 }
 
 impl PriceBook for PriceCatalog {
-    fn cost(
-        &self,
-        model: &str,
-        tier: ServiceTier,
-        tokens: &TokenCounts,
-        web_search: u32,
-    ) -> Option<MicroUsd> {
-        let resolved = self.resolve(model)?;
-        let multiplier = self.tier_multiplier(&resolved, tier)?;
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd> {
+        let resolved = self.resolve_at(&event.model, event.at)?;
+        let multiplier = self.tier_multiplier(&resolved, event.tier)?;
         let search_rate = self.web_search_rate(&resolved);
-        resolved
-            .rates
-            .cost(tokens, multiplier, web_search, search_rate)
+        resolved.rates.cost(
+            &event.tokens,
+            multiplier,
+            event.web_search_requests,
+            search_rate,
+        )
     }
 }
 

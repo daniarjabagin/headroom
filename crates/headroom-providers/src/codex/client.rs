@@ -47,6 +47,8 @@ pub(super) struct RawAdditionalLimit {
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub(super) struct RawCredits {
+    pub has_credits: Option<bool>,
+    pub unlimited: Option<bool>,
     pub balance: Option<FlexNumber>,
 }
 

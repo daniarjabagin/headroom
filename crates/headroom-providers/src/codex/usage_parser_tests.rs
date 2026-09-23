@@ -6,6 +6,8 @@ use super::*;
 const RECORDS: &str = include_str!("fixtures/rollout_records.jsonl");
 const LEGACY: &str = include_str!("fixtures/rollout_legacy.jsonl");
 const CUMULATIVE: &str = include_str!("fixtures/rollout_cumulative.jsonl");
+const GUARDIAN: &str = include_str!("fixtures/rollout_guardian.jsonl");
+const GUARDIAN_AT: &str = "2026-09-12T14:01:34.836Z";
 const LONG_AFTER: &str = "2026-12-01T00:00:00Z";
 
 fn parse_with(state: &mut ParserState, content: &str, now: &str) -> Vec<UsageEvent> {
@@ -301,4 +303,82 @@ fn invalid_state_and_garbage_lines_are_tolerated() {
     );
     let content = "not json token_count\n{\"type\":\"token_usage_record\",\"payload\":7}\n";
     assert!(parse(content).is_empty());
+}
+
+#[test]
+fn guardian_compaction_record_takes_the_model_stated_later_in_the_file() {
+    let events = parse_with(&mut ParserState::default(), GUARDIAN, GUARDIAN_AT);
+    let summary: Vec<_> = events
+        .iter()
+        .map(|event| (event.key.0.as_str(), event.model.as_str(), event.tier))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            (
+                "resp_fake_guardian_compaction",
+                "codex-auto-review",
+                ServiceTier::Standard
+            ),
+            (
+                "resp_fake_guardian_review",
+                "codex-auto-review",
+                ServiceTier::Standard
+            ),
+        ]
+    );
+    assert_eq!(events[0].tokens, counts(249_538, 4864, 845, 0));
+}
+
+#[test]
+fn model_less_record_waits_across_reads_for_the_model() {
+    let lines: Vec<&str> = GUARDIAN.lines().collect();
+    let (first, second) = lines.split_at(4);
+    let mut state = ParserState::default();
+    assert!(parse_with(&mut state, &first.join("\n"), "2026-09-12T14:02:00Z").is_empty());
+    let mut restored = ParserState::from_value(&state.to_value().unwrap());
+    let events = parse_with(&mut restored, &second.join("\n"), "2026-09-12T14:02:00Z");
+    assert_eq!(events.len(), 2);
+    assert!(
+        events
+            .iter()
+            .all(|event| event.model == "codex-auto-review")
+    );
+}
+
+#[test]
+fn model_less_record_becomes_unknown_after_the_pairing_window() {
+    let record = usage_record("2026-09-22T10:00:00Z", "r1", &usage(10, 0, 1, 0));
+    let mut state = ParserState::default();
+    assert!(parse_with(&mut state, &record, "2026-09-22T10:14:59Z").is_empty());
+    let events = parse_with(&mut state, "", "2026-09-22T10:15:00Z");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].model, "unknown");
+    let late = parse_with(
+        &mut state,
+        &turn_context("2026-09-22T10:20:00Z", "gpt-5.5"),
+        LONG_AFTER,
+    );
+    assert!(late.is_empty());
+}
+
+#[test]
+fn model_less_token_count_is_rekeyed_once_the_model_is_known() {
+    let content = [
+        token_count(
+            "2026-09-22T10:00:00Z",
+            &usage(90, 0, 9, 0),
+            &usage(90, 0, 9, 0),
+        ),
+        settings("2026-09-22T10:00:01Z", "gpt-5.5", "priority"),
+    ]
+    .join("\n");
+    let events = parse(&content);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].model, "gpt-5.5");
+    assert_eq!(events[0].tier, ServiceTier::Priority);
+    assert_eq!(
+        events[0].key,
+        EventKey::fallback(at("2026-09-22T10:00:00Z"), "gpt-5.5", &counts(90, 0, 9, 0))
+    );
 }

@@ -1,7 +1,9 @@
+use headroom_core::tokens::TokenCounts;
 use headroom_core::units::Tokens;
 use serde_json::json;
 
 use super::*;
+use crate::test_support::event;
 
 fn bundled() -> PriceCatalog {
     PriceCatalog::bundled().unwrap()
@@ -153,21 +155,58 @@ fn normalization_reaches_catalog_keys() {
 #[test]
 fn unknown_and_ambiguous_models_are_unpriced() {
     let catalog = bundled();
-    for model in [
-        "codex-auto-review",
-        "gpt-5.5-mini",
-        "mystery",
-        "",
-        "claude-opus",
-        "gpt-5.5-fast",
-    ] {
+    for model in ["gpt-5.5-mini", "mystery", "", "claude-opus", "gpt-5.5-fast"] {
         assert!(catalog.resolve(model).is_none(), "{model}");
         assert_eq!(
-            catalog.cost(model, ServiceTier::Standard, &io(1, 1), 0),
+            catalog.cost(&event(model, ServiceTier::Standard, &io(1, 1), 0)),
             None,
             "{model}"
         );
     }
+}
+
+fn dated(model: &str, at: &str) -> UsageEvent {
+    UsageEvent {
+        at: at.parse().unwrap(),
+        ..event(model, ServiceTier::Standard, &io(1_000_000, 0), 0)
+    }
+}
+
+#[test]
+fn codex_auto_review_is_priced_as_the_codex_default_of_its_day() {
+    let catalog = bundled();
+    let cases = [
+        ("2026-09-23T10:00:00Z", "gpt-5.5"),
+        ("2026-04-23T00:00:00Z", "gpt-5.5"),
+        ("2026-04-22T23:59:59Z", "gpt-5.4"),
+        ("2026-03-05T12:00:00Z", "gpt-5.4"),
+        ("2026-02-05T12:00:00Z", "gpt-5.3-codex"),
+        ("2025-12-11T12:00:00Z", "gpt-5.2-codex"),
+        ("2025-11-13T12:00:00Z", "gpt-5.1-codex"),
+        ("2025-09-15T12:00:00Z", "gpt-5-codex"),
+        ("2025-09-14T12:00:00Z", "gpt-5"),
+    ];
+    for (at, model) in cases {
+        let auto_review = catalog.cost(&dated("codex-auto-review", at));
+        assert!(auto_review.is_some(), "{at}");
+        assert_eq!(auto_review, catalog.cost(&dated(model, at)), "{at}");
+        assert_eq!(
+            catalog.resolve_at("Codex-Auto-Review", at.parse().unwrap()),
+            catalog.resolve(model),
+            "{at}"
+        );
+    }
+}
+
+#[test]
+fn dated_aliases_do_not_touch_other_models() {
+    let catalog = bundled();
+    let at = "2026-09-23T10:00:00Z";
+    assert_eq!(catalog.cost(&dated("unknown", at)), None);
+    assert_eq!(
+        catalog.resolve_at("gpt-5.4", at.parse().unwrap()),
+        catalog.resolve("gpt-5.4")
+    );
 }
 
 #[test]
@@ -188,7 +227,7 @@ fn tier_multipliers_come_from_supplement_catalog_then_vendor_default() {
     ];
     for (model, tier, expected) in cases {
         assert_eq!(
-            catalog.cost(model, tier, &tokens, 0),
+            catalog.cost(&event(model, tier, &tokens, 0)),
             expected.map(MicroUsd),
             "{model} {tier:?}"
         );
@@ -200,11 +239,11 @@ fn openai_long_context_uses_272k_threshold() {
     let catalog = bundled();
     let standard = ServiceTier::Standard;
     assert_eq!(
-        catalog.cost("gpt-5.5", standard, &io(272_000, 0), 0),
+        catalog.cost(&event("gpt-5.5", standard, &io(272_000, 0), 0)),
         Some(MicroUsd(1_360_000))
     );
     assert_eq!(
-        catalog.cost("gpt-5.5", standard, &io(272_001, 0), 0),
+        catalog.cost(&event("gpt-5.5", standard, &io(272_001, 0), 0)),
         Some(MicroUsd(2_720_010))
     );
 }
@@ -214,7 +253,7 @@ fn current_claude_models_have_no_long_context_premium() {
     let catalog = bundled();
     let big = io(900_000, 0);
     assert_eq!(
-        catalog.cost("claude-opus-5", ServiceTier::Standard, &big, 0),
+        catalog.cost(&event("claude-opus-5", ServiceTier::Standard, &big, 0)),
         Some(MicroUsd(4_500_000))
     );
     let sonnet_45 = catalog.resolve("claude-sonnet-4-5").unwrap().rates;
@@ -226,15 +265,20 @@ fn web_search_uses_model_price_then_vendor_default() {
     let catalog = bundled();
     let standard = ServiceTier::Standard;
     assert_eq!(
-        catalog.cost("claude-sonnet-5", standard, &io(0, 0), 2),
+        catalog.cost(&event("claude-sonnet-5", standard, &io(0, 0), 2)),
         Some(MicroUsd(20_000))
     );
     assert_eq!(
-        catalog.cost("gpt-5.3-codex-spark", standard, &io(0, 0), 1),
+        catalog.cost(&event("gpt-5.3-codex-spark", standard, &io(0, 0), 1)),
         Some(MicroUsd(10_000))
     );
     assert_eq!(
-        catalog.cost("claude-sonnet-5", ServiceTier::Priority, &io(0, 0), 1),
+        catalog.cost(&event(
+            "claude-sonnet-5",
+            ServiceTier::Priority,
+            &io(0, 0),
+            1
+        )),
         None
     );
 }
@@ -249,7 +293,7 @@ fn cache_writes_price_5m_and_1h_separately() {
         ..TokenCounts::default()
     };
     assert_eq!(
-        catalog.cost("claude-sonnet-5", ServiceTier::Standard, &tokens, 0),
+        catalog.cost(&event("claude-sonnet-5", ServiceTier::Standard, &tokens, 0)),
         Some(MicroUsd(250_000 + 400_000 + 20_000))
     );
 }

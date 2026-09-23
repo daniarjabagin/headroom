@@ -3,7 +3,7 @@ use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, LimitsSource,
 use headroom_core::units::Percent;
 use jiff::{SignedDuration, Timestamp};
 
-use super::client::{RawAdditionalLimit, RawRateLimit, RawWindow, UsageResponse};
+use super::client::{RawAdditionalLimit, RawCredits, RawRateLimit, RawWindow, UsageResponse};
 use super::labels::plan_label;
 use super::number::FlexNumber;
 use super::timestamp::from_epoch_seconds;
@@ -39,7 +39,13 @@ pub(super) fn with_plan(mut identity: AccountIdentity, plan: Option<&str>) -> Ac
     identity
 }
 
-pub(super) fn credits_balance(value: u64) -> Balance {
+pub(super) fn credits_balance(credits: &RawCredits) -> Option<Balance> {
+    let value = credits.balance.as_ref()?.whole()?;
+    let held = credits.has_credits == Some(true) || credits.unlimited == Some(true);
+    (held || value > 0).then(|| credits_count(value))
+}
+
+fn credits_count(value: u64) -> Balance {
     Balance {
         id: "credits".to_owned(),
         label: "Credits".to_owned(),
@@ -119,15 +125,12 @@ fn additional_windows(extra: &RawAdditionalLimit, now: Timestamp) -> Vec<QuotaWi
 }
 
 fn balances(response: &UsageResponse) -> Vec<Balance> {
-    let credits = response
-        .credits
-        .as_ref()
-        .and_then(|credits| credits.balance.as_ref()?.whole())
-        .map(credits_balance);
+    let credits = response.credits.as_ref().and_then(credits_balance);
     let resets = response
         .rate_limit_reset_credits
         .as_ref()
         .and_then(|resets| resets.available_count.as_ref()?.whole())
+        .filter(|&available| available > 0)
         .map(resets_balance);
     credits.into_iter().chain(resets).collect()
 }

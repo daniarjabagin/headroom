@@ -5,18 +5,12 @@ use jiff::tz::TimeZone;
 use jiff::{Timestamp, ToSpan};
 use serde::{Deserialize, Serialize};
 
-use crate::event::{ServiceTier, UsageEvent};
+use crate::event::UsageEvent;
 use crate::tokens::TokenCounts;
 use crate::units::{MicroUsd, Tokens};
 
 pub trait PriceBook: Send + Sync {
-    fn cost(
-        &self,
-        model: &str,
-        tier: ServiceTier,
-        tokens: &TokenCounts,
-        web_search: u32,
-    ) -> Option<MicroUsd>;
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd>;
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,13 +67,7 @@ pub fn aggregate(
     for event in events {
         let date = tz.to_datetime(event.at).date();
         if days.contains(date) {
-            let cost = prices.cost(
-                &event.model,
-                event.tier,
-                &event.tokens,
-                event.web_search_requests,
-            );
-            builder.record(&days, date, event, cost);
+            builder.record(&days, date, event, prices.cost(event));
         }
     }
     builder.finish()

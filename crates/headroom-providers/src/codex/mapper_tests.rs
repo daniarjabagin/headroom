@@ -97,10 +97,44 @@ fn weekly_window_in_primary_slot_is_weekly() {
         Some(at("2026-09-22T15:13:20Z"))
     );
     assert_eq!(snapshot.identity.plan.as_deref(), Some("Pro 5x"));
-    assert_eq!(
-        snapshot.balances,
-        [count("credits", "Credits", 0, "credits")]
-    );
+    assert!(snapshot.balances.is_empty());
+}
+
+#[test]
+fn credits_show_only_when_held_unlimited_or_positive() {
+    let cases = [
+        (
+            r#"{"has_credits":false,"unlimited":false,"balance":"0"}"#,
+            None,
+        ),
+        (r#"{"balance":0}"#, None),
+        (
+            r#"{"has_credits":true,"unlimited":false,"balance":"0"}"#,
+            Some(0),
+        ),
+        (
+            r#"{"has_credits":false,"unlimited":true,"balance":"0"}"#,
+            Some(0),
+        ),
+        (
+            r#"{"has_credits":false,"unlimited":false,"balance":"5.5"}"#,
+            Some(5),
+        ),
+        (r#"{"has_credits":true,"unlimited":false}"#, None),
+    ];
+    for (credits, expected) in cases {
+        let snapshot = map(&format!(r#"{{"credits":{credits}}}"#));
+        let shown = expected.map(|value| count("credits", "Credits", value, "credits"));
+        assert_eq!(snapshot.balances, Vec::from_iter(shown), "{credits}");
+    }
+}
+
+#[test]
+fn resets_show_only_when_available() {
+    let none = map(r#"{"rate_limit_reset_credits":{"available_count":0}}"#);
+    assert!(none.balances.is_empty());
+    let one = map(r#"{"rate_limit_reset_credits":{"available_count":"1"}}"#);
+    assert_eq!(one.balances, [count("resets", "Resets", 1, "resets")]);
 }
 
 #[test]

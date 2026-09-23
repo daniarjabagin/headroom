@@ -1,23 +1,19 @@
 use super::*;
-use crate::event::EventKey;
+use crate::event::{EventKey, ServiceTier};
 
 struct FlatPrices;
 
 impl PriceBook for FlatPrices {
-    fn cost(
-        &self,
-        model: &str,
-        tier: ServiceTier,
-        tokens: &TokenCounts,
-        web_search: u32,
-    ) -> Option<MicroUsd> {
-        let rate = match (model, tier) {
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd> {
+        let rate = match (event.model.as_str(), event.tier) {
             ("unknown", _) => return None,
             (_, ServiceTier::Priority) => 2,
             _ => 1,
         };
-        let base = i64::try_from(tokens.total().0).ok()? * rate;
-        Some(MicroUsd(base + i64::from(web_search) * 10_000))
+        let base = i64::try_from(event.tokens.total().0).ok()? * rate;
+        Some(MicroUsd(
+            base + i64::from(event.web_search_requests) * 10_000,
+        ))
     }
 }
 

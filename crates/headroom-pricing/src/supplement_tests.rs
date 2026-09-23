@@ -97,4 +97,9 @@ fn bundled_supplement_parses() {
     let supplement = Supplement::parse(include_str!("../resources/supplement.json")).unwrap();
     assert!(supplement.pricing().get("codex-mini-latest").is_some());
     assert_eq!(supplement.alias("gpt-5.2-codex"), Some("gpt-5.2"));
+    let today = "2026-09-23T10:00:00Z".parse().unwrap();
+    assert_eq!(
+        supplement.dated_alias("codex-auto-review", today),
+        Some("gpt-5.5")
+    );
 }

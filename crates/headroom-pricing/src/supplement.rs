@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 
 use headroom_core::event::ServiceTier;
 use headroom_core::units::Tokens;
+use jiff::Timestamp;
 use regex::Regex;
 use serde::Deserialize;
 
 use crate::catalog::Catalog;
+use crate::dated_alias::{DatedAlias, DatedAliases};
 use crate::error::{PricingError, json_error};
 use crate::money::{Multiplier, PicoUsd};
 use crate::rates::{ModelRates, RawModel, RawRates};
@@ -23,6 +25,8 @@ struct RawSupplement {
     strip_suffixes: Vec<String>,
     #[serde(default)]
     aliases: Vec<RawAlias>,
+    #[serde(default)]
+    dated_aliases: BTreeMap<String, Vec<DatedAlias>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +103,7 @@ pub(crate) struct Supplement {
     tier_multipliers: BTreeMap<String, Tiers>,
     strip_suffixes: Vec<String>,
     aliases: Vec<Alias>,
+    dated_aliases: DatedAliases,
 }
 
 impl Supplement {
@@ -123,6 +128,7 @@ impl Supplement {
                 .iter()
                 .map(compile_alias)
                 .collect::<Result<_, _>>()?,
+            dated_aliases: DatedAliases::new(raw.dated_aliases),
         })
     }
 
@@ -139,6 +145,10 @@ impl Supplement {
             .iter()
             .find(|alias| alias.pattern.is_match(name))
             .map(|alias| alias.canonical.as_str())
+    }
+
+    pub(crate) fn dated_alias(&self, name: &str, at: Timestamp) -> Option<&str> {
+        self.dated_aliases.resolve(name, at)
     }
 
     pub(crate) fn model_tier(&self, model: &str, tier: ServiceTier) -> Option<Multiplier> {

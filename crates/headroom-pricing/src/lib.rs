@@ -1,5 +1,6 @@
 mod cache;
 mod catalog;
+mod dated_alias;
 mod error;
 mod fetch;
 mod litellm;
@@ -10,6 +11,8 @@ mod price_catalog;
 mod rates;
 mod source;
 mod supplement;
+#[cfg(test)]
+mod test_support;
 
 pub use error::PricingError;
 pub use fetch::{FeedStatus, RefreshOutcome, Sources, refresh};

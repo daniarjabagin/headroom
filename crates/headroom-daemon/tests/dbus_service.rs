@@ -11,10 +11,9 @@ use headroom_core::account::{
     AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderKind,
 };
 use headroom_core::cursor::LogCursors;
-use headroom_core::event::{ServiceTier, UsageEvent};
+use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
-use headroom_core::tokens::TokenCounts;
 use headroom_core::units::{MicroUsd, Percent};
 use headroom_core::usage::PriceBook;
 use headroom_daemon::clock::SystemClock;
@@ -131,7 +130,7 @@ impl Provider for StaticProvider {
 struct NoPrices;
 
 impl PriceBook for NoPrices {
-    fn cost(&self, _: &str, _: ServiceTier, _: &TokenCounts, _: u32) -> Option<MicroUsd> {
+    fn cost(&self, _: &UsageEvent) -> Option<MicroUsd> {
         None
     }
 }

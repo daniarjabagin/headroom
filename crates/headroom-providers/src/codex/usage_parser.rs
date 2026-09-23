@@ -106,6 +106,7 @@ pub(super) struct ParserState {
     previous_totals: Option<RawTokenUsage>,
     has_records: bool,
     pending: Vec<UsageEvent>,
+    unattributed: Vec<UsageEvent>,
 }
 
 impl ParserState {
@@ -127,8 +128,14 @@ impl ParserState {
         let at = raw.timestamp.as_deref().and_then(parse_log_timestamp);
         let payload = raw.payload.unwrap_or_default();
         match (raw.kind.as_deref(), payload.kind.as_deref()) {
-            (Some("turn_context"), _) => self.set_model(payload.model),
-            (Some("event_msg"), Some("thread_settings_applied")) => self.apply_settings(payload),
+            (Some("turn_context"), _) => {
+                self.set_model(payload.model);
+                self.attribute(events);
+            }
+            (Some("event_msg"), Some("thread_settings_applied")) => {
+                self.apply_settings(payload);
+                self.attribute(events);
+            }
             (Some("event_msg"), Some("token_count")) => self.on_token_count(at, payload.info),
             (Some("token_usage_record"), _) => self.on_usage_record(at, payload, events),
             _ => {}
@@ -136,11 +143,8 @@ impl ParserState {
     }
 
     pub(super) fn settle(&mut self, now: Timestamp, events: &mut Vec<UsageEvent>) {
-        let (settled, waiting): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
-            .into_iter()
-            .partition(|event| is_settled(event.at, now));
-        self.pending = waiting;
-        events.extend(settled);
+        events.extend(take_settled(&mut self.pending, now));
+        events.extend(take_settled(&mut self.unattributed, now));
     }
 
     fn set_model(&mut self, model: Option<String>) {
@@ -176,7 +180,27 @@ impl ParserState {
         let key = response_id
             .filter(|id| !id.is_empty())
             .map_or_else(|| self.fallback_key(at, &tokens), EventKey);
-        events.push(self.event(key, at, tokens));
+        let event = self.event(key, at, tokens);
+        if self.model.is_some() {
+            events.push(event);
+        } else {
+            self.unattributed.push(event);
+        }
+    }
+
+    fn attribute(&mut self, events: &mut Vec<UsageEvent>) {
+        let Some(model) = self.model.clone() else {
+            return;
+        };
+        let tier = self.tier;
+        self.pending
+            .iter_mut()
+            .filter(|event| event.model == UNKNOWN_MODEL)
+            .for_each(|event| attribute_event(event, &model, tier));
+        events.extend(self.unattributed.drain(..).map(|mut event| {
+            attribute_event(&mut event, &model, tier);
+            event
+        }));
     }
 
     fn on_token_count(&mut self, at: Option<Timestamp>, info: Option<RawTokenInfo>) {
@@ -234,6 +258,22 @@ impl ParserState {
             web_search_requests: 0,
         }
     }
+}
+
+fn attribute_event(event: &mut UsageEvent, model: &str, tier: ServiceTier) {
+    if event.key.is_fallback() {
+        event.key = EventKey::fallback(event.at, model, &event.tokens);
+    }
+    model.clone_into(&mut event.model);
+    event.tier = tier;
+}
+
+fn take_settled(events: &mut Vec<UsageEvent>, now: Timestamp) -> Vec<UsageEvent> {
+    let (settled, waiting) = std::mem::take(events)
+        .into_iter()
+        .partition(|event| is_settled(event.at, now));
+    *events = waiting;
+    settled
 }
 
 fn is_settled(at: Timestamp, now: Timestamp) -> bool {

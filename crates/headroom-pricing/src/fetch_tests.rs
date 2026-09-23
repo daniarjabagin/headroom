@@ -8,6 +8,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::*;
 use crate::price_catalog::PriceCatalog;
+use crate::test_support::event;
 
 fn litellm_body(input_per_token: f64) -> Value {
     json!({
@@ -51,7 +52,7 @@ fn input_cost(catalog: &PriceCatalog, model: &str) -> Option<MicroUsd> {
         input: Tokens(100_000),
         ..TokenCounts::default()
     };
-    catalog.cost(model, ServiceTier::Standard, &tokens, 0)
+    catalog.cost(&event(model, ServiceTier::Standard, &tokens, 0))
 }
 
 #[tokio::test]

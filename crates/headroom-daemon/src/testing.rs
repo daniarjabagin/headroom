@@ -96,17 +96,11 @@ pub fn event(key: &str, at: &str, model: &str, input: u64, output: u64) -> Usage
 pub struct FlatPrices;
 
 impl PriceBook for FlatPrices {
-    fn cost(
-        &self,
-        model: &str,
-        _tier: ServiceTier,
-        tokens: &TokenCounts,
-        _web_search: u32,
-    ) -> Option<MicroUsd> {
-        if model == "unknown" {
+    fn cost(&self, event: &UsageEvent) -> Option<MicroUsd> {
+        if event.model == "unknown" {
             return None;
         }
-        Some(MicroUsd(i64::try_from(tokens.total().0).ok()? * 2))
+        Some(MicroUsd(i64::try_from(event.tokens.total().0).ok()? * 2))
     }
 }
 

@@ -51,6 +51,18 @@ fn newest_main_snapshot_becomes_local_log_limits() {
 }
 
 #[test]
+fn zero_credit_balance_is_not_shown_offline() {
+    let home = tempfile::tempdir().unwrap();
+    let first_line = RATE_LIMITS.lines().next().unwrap();
+    write_rollout(home.path(), "sessions/rollout.jsonl", first_line);
+    let snapshot = latest_snapshot(home.path(), identity(), None, at("2026-09-23T10:00:00Z"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(snapshot.windows.len(), 1);
+    assert!(snapshot.balances.is_empty());
+}
+
+#[test]
 fn window_that_already_reset_is_shown_empty() {
     let home = tempfile::tempdir().unwrap();
     write_rollout(home.path(), "sessions/rollout.jsonl", RATE_LIMITS);
