@@ -45,6 +45,7 @@ pub struct Core {
     homes: HomeDisplay,
     model: Mutex<Model>,
     pub(crate) settings_write: AsyncMutex<()>,
+    pub(crate) log_reads: AsyncMutex<()>,
     changes: Notify,
     triggers: Mutex<HashMap<AccountId, mpsc::Sender<()>>>,
 }
@@ -69,6 +70,7 @@ impl Core {
             homes: parts.homes,
             model: Mutex::new(model),
             settings_write: AsyncMutex::new(()),
+            log_reads: AsyncMutex::new(()),
             changes: Notify::new(),
             triggers: Mutex::new(HashMap::new()),
         })

@@ -13,10 +13,11 @@ use crate::pricing::{ReloadablePrices, keep_fresh};
 
 pub async fn run(globals: &Globals) -> Result<ExitCode> {
     let prices = Arc::new(ReloadablePrices::load(pricing_cache_dir()?)?);
-    let mut config = DaemonConfig::new(providers(), prices.clone(), shutdown_signal()?)?;
+    let http = headroom_providers::http::client().context("cannot create the HTTP client")?;
+    let mut config = DaemonConfig::new(providers(&http), prices.clone(), shutdown_signal()?)?;
     config.db_path = globals.db_path()?;
     config.bus = globals.bus.clone();
-    let pricing = tokio::spawn(keep_fresh(prices));
+    let pricing = tokio::spawn(keep_fresh(prices, http));
     let result = headroom_daemon::run(config).await;
     pricing.abort();
     let _ = pricing.await;
@@ -30,14 +31,11 @@ pub async fn run(globals: &Globals) -> Result<ExitCode> {
     }
 }
 
-fn providers() -> Vec<Arc<dyn Provider>> {
-    let mut providers: Vec<Arc<dyn Provider>> = Vec::new();
-    match CodexProvider::new(CodexConfig::from_process()) {
-        Ok(codex) => providers.push(Arc::new(codex)),
-        Err(error) => tracing::error!(%error, "Codex provider unavailable"),
-    }
-    match ClaudeConfig::from_env().and_then(ClaudeProvider::new) {
-        Ok(claude) => providers.push(Arc::new(claude)),
+fn providers(http: &reqwest::Client) -> Vec<Arc<dyn Provider>> {
+    let codex = CodexProvider::with_http(CodexConfig::from_process(), http.clone());
+    let mut providers: Vec<Arc<dyn Provider>> = vec![Arc::new(codex)];
+    match ClaudeConfig::from_env() {
+        Ok(config) => providers.push(Arc::new(ClaudeProvider::with_http(config, http.clone()))),
         Err(error) => tracing::error!(%error, "Claude provider unavailable"),
     }
     providers

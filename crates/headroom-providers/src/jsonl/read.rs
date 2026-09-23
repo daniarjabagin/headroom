@@ -1,5 +1,5 @@
 use std::fs::{self, File, Metadata};
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
@@ -7,29 +7,71 @@ use headroom_core::cursor::{FileCursor, LogCursors};
 
 use super::{JsonlError, io_error, warn_skipped};
 
-pub fn read_new_lines(path: &Path, cursor: &mut FileCursor) -> Result<Vec<String>, JsonlError> {
+const READ_BUFFER: usize = 64 * 1024;
+
+pub fn read_new_lines<S>(
+    path: &Path,
+    cursor: &mut FileCursor,
+    init: impl FnOnce(&FileCursor) -> S,
+    visit: impl FnMut(&mut S, &str),
+) -> Result<S, JsonlError> {
     let mut file = File::open(path).map_err(io_error(path))?;
     let stamp = FileStamp::of(&file.metadata().map_err(io_error(path))?);
     if stamp.invalidates(cursor) {
         *cursor = FileCursor::default();
     }
-    let chunk = read_range(&mut file, cursor.offset, stamp.size).map_err(io_error(path))?;
-    let complete = complete_prefix(&chunk);
-    cursor.offset += complete.len() as u64;
+    let mut acc = init(cursor);
+    file.seek(SeekFrom::Start(cursor.offset))
+        .map_err(io_error(path))?;
+    let range = file.take(stamp.size.saturating_sub(cursor.offset));
+    let consumed = visit_complete_lines(range, &mut acc, visit).map_err(io_error(path))?;
+    cursor.offset += consumed;
     stamp.store(cursor);
-    Ok(split_lines(complete))
+    Ok(acc)
 }
 
-pub fn read_new_lines_or_skip(path: &Path, cursors: &mut LogCursors) -> Option<Vec<String>> {
+pub fn read_new_lines_or_skip<S>(
+    path: &Path,
+    cursors: &mut LogCursors,
+    init: impl FnOnce(&FileCursor) -> S,
+    visit: impl FnMut(&mut S, &str),
+) -> Option<S> {
     let previous = cursors.0.get(path).cloned();
-    match read_new_lines(path, cursors.cursor_mut(path)) {
-        Ok(lines) => Some(lines),
+    match read_new_lines(path, cursors.cursor_mut(path), init, visit) {
+        Ok(acc) => Some(acc),
         Err(JsonlError::Io { source, .. }) => {
             restore(cursors, path, previous);
             warn_skipped(path, &source);
             None
         }
     }
+}
+
+fn visit_complete_lines<S>(
+    range: impl Read,
+    acc: &mut S,
+    mut visit: impl FnMut(&mut S, &str),
+) -> io::Result<u64> {
+    let mut reader = BufReader::with_capacity(READ_BUFFER, range);
+    let mut line = Vec::new();
+    let mut consumed = 0;
+    loop {
+        line.clear();
+        let read = reader.read_until(b'\n', &mut line)?;
+        if read == 0 || line.last() != Some(&b'\n') {
+            return Ok(consumed);
+        }
+        consumed += read as u64;
+        let text = trim_line_end(&line);
+        if !text.iter().all(u8::is_ascii_whitespace) {
+            visit(acc, &String::from_utf8_lossy(text));
+        }
+    }
+}
+
+fn trim_line_end(line: &[u8]) -> &[u8] {
+    let line = line.strip_suffix(b"\n").unwrap_or(line);
+    line.strip_suffix(b"\r").unwrap_or(line)
 }
 
 fn restore(cursors: &mut LogCursors, path: &Path, previous: Option<FileCursor>) {
@@ -79,31 +121,6 @@ impl FileStamp {
         cursor.size = self.size;
         cursor.mtime_ns = self.mtime_ns;
     }
-}
-
-fn read_range(file: &mut File, offset: u64, size: u64) -> io::Result<Vec<u8>> {
-    file.seek(SeekFrom::Start(offset))?;
-    let mut chunk = Vec::new();
-    file.take(size.saturating_sub(offset))
-        .read_to_end(&mut chunk)?;
-    Ok(chunk)
-}
-
-fn complete_prefix(chunk: &[u8]) -> &[u8] {
-    let end = chunk
-        .iter()
-        .rposition(|&byte| byte == b'\n')
-        .map_or(0, |index| index + 1);
-    &chunk[..end]
-}
-
-fn split_lines(bytes: &[u8]) -> Vec<String> {
-    bytes
-        .split(|&byte| byte == b'\n')
-        .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
-        .filter(|line| !line.iter().all(u8::is_ascii_whitespace))
-        .map(|line| String::from_utf8_lossy(line).into_owned())
-        .collect()
 }
 
 #[cfg(test)]

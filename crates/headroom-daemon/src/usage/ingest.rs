@@ -27,6 +27,7 @@ pub async fn ingest(core: &Core, home: &UsageHome) -> Result<usize, IngestError>
         .ok_or_else(|| IngestError::NoProvider(home.provider.to_string()))?;
     let storage = core.storage.clone();
     let home = home.clone();
+    let _one_home_at_a_time = core.log_reads.lock().await;
     tokio::task::spawn_blocking(move || ingest_blocking(&storage, provider.as_ref(), &home))
         .await
         .map_err(|error| IngestError::Task(error.to_string()))?

@@ -11,17 +11,22 @@ mod waybar;
 
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
+use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use headroom_daemon::BusTarget;
+use tokio::runtime::Runtime;
 use tracing_subscriber::EnvFilter;
 
 use cli::{AccountsAction, Cli, Command};
 use paths::Globals;
 
-#[tokio::main]
-async fn main() -> ExitCode {
+const WORKER_THREADS: usize = 2;
+const MAX_BLOCKING_THREADS: usize = 4;
+const BLOCKING_KEEP_ALIVE: Duration = Duration::from_secs(5);
+
+fn main() -> ExitCode {
     let cli = Cli::parse();
     init_logging(&cli.command);
     let globals = Globals {
@@ -30,13 +35,25 @@ async fn main() -> ExitCode {
             .map_or(BusTarget::Session, BusTarget::Address),
         db: cli.db,
     };
-    match dispatch(&globals, cli.command).await {
+    let outcome = runtime()
+        .context("cannot start the async runtime")
+        .and_then(|runtime| runtime.block_on(dispatch(&globals, cli.command)));
+    match outcome {
         Ok(code) => code,
         Err(error) => {
             let _ = writeln!(io::stderr(), "headroom: {error:#}");
             ExitCode::FAILURE
         }
     }
+}
+
+fn runtime() -> io::Result<Runtime> {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(WORKER_THREADS)
+        .max_blocking_threads(MAX_BLOCKING_THREADS)
+        .thread_keep_alive(BLOCKING_KEEP_ALIVE)
+        .enable_all()
+        .build()
 }
 
 async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {

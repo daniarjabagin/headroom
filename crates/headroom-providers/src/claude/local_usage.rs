@@ -18,14 +18,16 @@ pub(super) fn read_usage(
     jsonl::prune_missing(cursors);
     let mut events = LatestByKey::default();
     for path in jsonl::jsonl_files(&home.join(PROJECTS_DIR))? {
-        let Some(lines) = jsonl::read_new_lines_or_skip(&path, cursors) else {
-            continue;
-        };
-        for event in lines.iter().flat_map(|line| parse_line(line)) {
+        let found = jsonl::read_new_lines_or_skip(&path, cursors, |_| Vec::new(), parse_into);
+        for event in found.into_iter().flatten() {
             events.insert(event);
         }
     }
     Ok(events.into_sorted())
+}
+
+fn parse_into(found: &mut Vec<UsageEvent>, line: &str) {
+    found.extend(parse_line(line));
 }
 
 #[derive(Default)]

@@ -49,14 +49,7 @@ impl PriceBook for ReloadablePrices {
     }
 }
 
-pub async fn keep_fresh(prices: Arc<ReloadablePrices>) {
-    let client = match http_client() {
-        Ok(client) => client,
-        Err(error) => {
-            tracing::warn!(%error, "price updates disabled");
-            return;
-        }
-    };
+pub async fn keep_fresh(prices: Arc<ReloadablePrices>, client: reqwest::Client) {
     let sources = Sources::default();
     loop {
         let delay = match headroom_pricing::refresh(&prices.dir, &client, &sources).await {
@@ -73,12 +66,6 @@ pub async fn keep_fresh(prices: Arc<ReloadablePrices>) {
         };
         tokio::time::sleep(delay).await;
     }
-}
-
-fn http_client() -> reqwest::Result<reqwest::Client> {
-    reqwest::Client::builder()
-        .user_agent(concat!("headroom/", env!("CARGO_PKG_VERSION")))
-        .build()
 }
 
 fn feeds(outcome: &RefreshOutcome) -> [&FeedStatus; 2] {

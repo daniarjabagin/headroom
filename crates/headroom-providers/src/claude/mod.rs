@@ -23,6 +23,7 @@ use jiff::Timestamp;
 
 use self::client::UsageClient;
 use self::identity::ClaudeIdentity;
+use crate::http;
 
 pub use self::config::{ClaudeConfig, DEFAULT_API_BASE};
 
@@ -37,15 +38,24 @@ pub struct ClaudeProvider {
 
 impl ClaudeProvider {
     pub fn new(config: ClaudeConfig) -> Result<ClaudeProvider, ProviderError> {
-        ClaudeProvider::with_clock(config, Timestamp::now)
+        Ok(ClaudeProvider::with_http(config, http::client()?))
+    }
+
+    #[must_use]
+    pub fn with_http(config: ClaudeConfig, http: reqwest::Client) -> ClaudeProvider {
+        ClaudeProvider::assemble(config, Timestamp::now, http)
     }
 
     pub fn with_clock(config: ClaudeConfig, clock: Clock) -> Result<ClaudeProvider, ProviderError> {
-        Ok(ClaudeProvider {
-            client: UsageClient::new(&config.api_base)?,
+        Ok(ClaudeProvider::assemble(config, clock, http::client()?))
+    }
+
+    fn assemble(config: ClaudeConfig, clock: Clock, http: reqwest::Client) -> ClaudeProvider {
+        ClaudeProvider {
+            client: UsageClient::new(http, &config.api_base),
             config,
             clock,
-        })
+        }
     }
 
     fn current_identity(&self, account: &AccountRef) -> Result<ClaudeIdentity, ProviderError> {

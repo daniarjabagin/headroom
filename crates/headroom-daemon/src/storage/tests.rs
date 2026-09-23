@@ -86,6 +86,14 @@ fn reopening_a_file_database_keeps_data_and_uses_wal() {
 }
 
 #[test]
+fn the_page_cache_is_bounded() {
+    let cache: i64 = memory()
+        .blocking(|conn| Ok(conn.pragma_query_value(None, "cache_size", |row| row.get(0))?))
+        .unwrap();
+    assert_eq!(cache, -PAGE_CACHE_KIB);
+}
+
+#[test]
 fn newer_schema_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("headroom.db");
