@@ -1,0 +1,9 @@
+{
+  "billingCycleStart": "1788566400000",
+  "billingCycleEnd": "1791158400000",
+  "planUsage": {
+    "totalSpend": 0,
+    "remaining": 0
+  },
+  "enabled": true
+}

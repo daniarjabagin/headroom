@@ -34,6 +34,7 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
             "cline",
             "codex",
             "copilot",
+            "cursor",
             "devin",
             "grok",
             "kimi",
@@ -75,7 +76,8 @@ fn built_providers_follow_the_registry_order() {
             "grok",
             "cline",
             "devin",
-            "copilot"
+            "copilot",
+            "cursor"
         ]
     );
     for provider in &providers {

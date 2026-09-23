@@ -166,6 +166,18 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "cursor",
+      "display_name": "Cursor",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Cursor keeps one login per machine: sign in to the Cursor app (or run `agent login`) and Headroom picks it up."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
     }
   ]
 }

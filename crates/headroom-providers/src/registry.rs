@@ -8,6 +8,7 @@ use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::cline::{self, ClineConfig, ClineProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
 use crate::copilot::{self, CopilotConfig, CopilotProvider};
+use crate::cursor::{self, CursorConfig, CursorProvider};
 use crate::devin::{self, DevinConfig, DevinProvider};
 use crate::grok::{self, GrokConfig, GrokProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
@@ -29,7 +30,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 11] = [
+static ENTRIES: [Entry; 12] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -73,6 +74,10 @@ static ENTRIES: [Entry; 11] = [
     Entry {
         descriptor: &copilot::DESCRIPTOR,
         build: build_copilot,
+    },
+    Entry {
+        descriptor: &cursor::DESCRIPTOR,
+        build: build_cursor,
     },
 ];
 
@@ -208,6 +213,14 @@ fn build_devin(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderE
 fn build_copilot(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = CopilotConfig::from_env()?;
     Ok(Arc::new(CopilotProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_cursor(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = CursorConfig::from_env()?;
+    Ok(Arc::new(CursorProvider::with_http(
         config,
         context.http.clone(),
     )))
