@@ -16,8 +16,8 @@ const INTERFACE_XML = `
     <method name="GetSettings">
       <arg type="s" name="settings" direction="out"/>
     </method>
-    <method name="SetSettings">
-      <arg type="s" name="json" direction="in"/>
+    <method name="UpdateSettings">
+      <arg type="s" name="patch" direction="in"/>
     </method>
     <method name="SetAccountLabel">
       <arg type="s" name="account_id" direction="in"/>

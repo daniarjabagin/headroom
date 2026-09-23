@@ -25,6 +25,7 @@ INTERFACE_XML = f"""
     <method name="Rescan"/>
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
     <method name="SetSettings"><arg type="s" name="json" direction="in"/></method>
+    <method name="UpdateSettings"><arg type="s" name="patch" direction="in"/></method>
     <method name="SetAccountLabel">
       <arg type="s" name="account_id" direction="in"/>
       <arg type="s" name="label" direction="in"/>
@@ -49,6 +50,18 @@ def merged(defaults, raw):
     if not defaults:
         return copy.deepcopy(raw)
     return {key: merged(value, raw.get(key)) for key, value in defaults.items()}
+
+
+def merge_patch(target, patch):
+    if not isinstance(patch, dict):
+        return copy.deepcopy(patch)
+    result = copy.deepcopy(target) if isinstance(target, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = merge_patch(result.get(key), value)
+    return result
 
 
 def normalized_settings(raw):
@@ -128,6 +141,12 @@ class MockDaemon:
             raise ValueError("settings must be a JSON object")
         self.settings = normalized_settings(raw)
 
+    def update_settings(self, text):
+        patch = json.loads(text)
+        if not isinstance(patch, dict):
+            raise ValueError("settings patch must be a JSON object")
+        self.settings = normalized_settings(merge_patch(self.settings, patch))
+
     def apply(self, method, args):
         if method == "Refresh":
             self.refresh(args[0])
@@ -140,6 +159,8 @@ class MockDaemon:
             self.set_order(args[0])
         elif method == "SetSettings":
             self.set_settings(args[0])
+        elif method == "UpdateSettings":
+            self.update_settings(args[0])
         self.emit()
 
     def on_method(self, _connection, _sender, _path, _interface, method, parameters, invocation):

@@ -13,7 +13,7 @@ import { Motion } from './motion.js';
 import { PanelRing } from './panelRing.js';
 import { PopupView } from './popup/popup.js';
 import { startService } from './service.js';
-import { toggledResetFormat, toggledValueMode } from './settings.js';
+import { displayPatch, toggledResetFormat, toggledValueMode } from './settings.js';
 import { parseState, StateError } from './state.js';
 import { Ticker } from './ticker.js';
 import { fileIcon, label, providerIcon, row } from './widgets.js';
@@ -136,7 +136,7 @@ export const Indicator = GObject.registerClass(
             const patch = patchFor(state.display);
             state.display = { ...state.display, ...patch };
             this._render();
-            this._client.updateDisplay(() => patch);
+            this._client.updateSettings(displayPatch(patch));
         }
 
         _render() {

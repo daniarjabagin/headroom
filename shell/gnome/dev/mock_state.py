@@ -4,6 +4,7 @@ MINUTE = timedelta(minutes=1)
 HOUR = timedelta(hours=1)
 DAY = timedelta(days=1)
 PERIODS = ("today", "yesterday", "last_30_days")
+TOP_MODELS = 5
 TRACKED = ("healthy", "close")
 
 
@@ -88,6 +89,30 @@ def merge_models(groups):
             entry["cost_usd_micros"] += model["cost_usd_micros"]
             entry["partial"] = entry["partial"] or model["partial"]
     return by_cost(merged.values())
+
+
+def models_other(rest):
+    if not rest:
+        return None
+    return {
+        "count": len(rest),
+        "total_tokens": sum(model["total_tokens"] for model in rest),
+        "cost_usd_micros": sum(model["cost_usd_micros"] for model in rest),
+        "partial": any(model["partial"] for model in rest),
+    }
+
+
+def with_top_models(entry):
+    models = entry["models"]
+    return {**entry, "models": models[:TOP_MODELS], "models_other": models_other(models[TOP_MODELS:])}
+
+
+def published_usage(entry):
+    return {**entry, **{period: with_top_models(entry[period]) for period in PERIODS}}
+
+
+def published_spend(spend):
+    return {**spend, "by_provider": [with_top_models(row) for row in spend["by_provider"]]}
 
 
 def daily(now, seed, scale):
@@ -288,8 +313,8 @@ def assemble(now, accounts, usage, preferred, **extra):
         "headline": choose_headline(accounts, preferred),
         "display": DEFAULT_SETTINGS["display"],
         "accounts": accounts,
-        "usage": usage,
-        "spend": {period: period_spend(usage, period) for period in PERIODS},
+        "usage": [published_usage(entry) for entry in usage],
+        "spend": {period: published_spend(period_spend(usage, period)) for period in PERIODS},
     }
     state.update(extra)
     return state

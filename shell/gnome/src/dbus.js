@@ -1,72 +1,43 @@
-import Gio from 'gi://Gio';
-import { BUS_NAME, DaemonProxy, OBJECT_PATH, PROXY_FLAGS, remoteMessage } from './daemonInterface.js';
-import { parseSettings, serializeSettings, withDisplay } from './settings.js';
+import { DaemonConnection } from './daemonConnection.js';
+import { remoteMessage } from './daemonInterface.js';
+import { parseSettings } from './settings.js';
 
 export class DaemonClient {
     constructor({ onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested }) {
         this._handlers = { onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested };
-        this._proxy = null;
-        this._signalIds = [];
-        this._cancellable = new Gio.Cancellable();
-        this._watchId = Gio.bus_watch_name(
-            Gio.BusType.SESSION,
-            BUS_NAME,
-            Gio.BusNameWatcherFlags.NONE,
-            () => this._onNameAppeared(),
-            () => this._onNameVanished()
-        );
+        this._connection = new DaemonConnection({
+            signals: {
+                StateChanged: json => this._onStateChanged(json),
+                OpenRequested: () => this._handlers.onOpenRequested(),
+            },
+            onReady: () => this._onReady(),
+            onVanished: () => this._handlers?.onUnavailable(),
+            onError: message => this._handlers?.onError(message),
+        });
     }
 
     destroy() {
-        this._cancellable.cancel();
-        Gio.bus_unwatch_name(this._watchId);
-        this._dropProxy();
+        this._connection.destroy();
         this._handlers = null;
     }
 
     refresh(accountId = '') {
-        this._call(proxy => proxy.RefreshAsync(accountId));
+        this._connection.enqueue(proxy => proxy.RefreshAsync(accountId));
     }
 
     setAccountHidden(accountId, hidden) {
-        this._call(proxy => proxy.SetAccountHiddenAsync(accountId, hidden));
+        this._connection.enqueue(proxy => proxy.SetAccountHiddenAsync(accountId, hidden));
     }
 
     setAccountOrder(ids) {
-        this._call(proxy => proxy.SetAccountOrderAsync(ids));
+        this._connection.enqueue(proxy => proxy.SetAccountOrderAsync(ids));
     }
 
-    updateDisplay(patchFor) {
-        this._call(async proxy => {
-            const [json] = await proxy.GetSettingsAsync();
-            const settings = parseSettings(json);
-            await proxy.SetSettingsAsync(serializeSettings(withDisplay(settings, patchFor(settings.display))));
-        });
+    updateSettings(patch) {
+        this._connection.enqueue(proxy => proxy.UpdateSettingsAsync(JSON.stringify(patch)));
     }
 
-    _onNameAppeared() {
-        if (this._proxy) return;
-        DaemonProxy(
-            Gio.DBus.session,
-            BUS_NAME,
-            OBJECT_PATH,
-            (proxy, error) => this._onProxyReady(proxy, error),
-            this._cancellable,
-            PROXY_FLAGS
-        );
-    }
-
-    _onProxyReady(proxy, error) {
-        if (this._cancellable.is_cancelled()) return;
-        if (error) {
-            this._handlers.onError(remoteMessage(error));
-            return;
-        }
-        this._proxy = proxy;
-        this._signalIds = [
-            proxy.connectSignal('StateChanged', (_proxy, _sender, [json]) => this._onStateChanged(json)),
-            proxy.connectSignal('OpenRequested', () => this._handlers.onOpenRequested()),
-        ];
+    _onReady() {
         this._handlers.onAvailable();
         this._loadState();
     }
@@ -77,46 +48,28 @@ export class DaemonClient {
     }
 
     async _loadState() {
-        const proxy = this._proxy;
-        try {
-            const [json] = await proxy.GetStateAsync();
-            if (this._proxy === proxy) this._handlers.onState(json);
-        } catch (error) {
-            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
-        }
+        await this._read(
+            proxy => proxy.GetStateAsync(),
+            json => this._handlers.onState(json)
+        );
         this._loadSettings();
     }
 
-    async _loadSettings() {
-        const proxy = this._proxy;
+    _loadSettings() {
+        return this._read(
+            proxy => proxy.GetSettingsAsync(),
+            json => this._handlers.onSettings(parseSettings(json))
+        );
+    }
+
+    async _read(fetch, accept) {
+        const proxy = this._connection.proxy;
         if (!proxy) return;
         try {
-            const [json] = await proxy.GetSettingsAsync();
-            if (this._proxy === proxy) this._handlers.onSettings(parseSettings(json));
+            const [json] = await fetch(proxy);
+            if (this._connection.proxy === proxy) accept(json);
         } catch (error) {
-            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
-        }
-    }
-
-    _onNameVanished() {
-        this._dropProxy();
-        this._handlers?.onUnavailable();
-    }
-
-    _dropProxy() {
-        if (!this._proxy) return;
-        for (const id of this._signalIds) this._proxy.disconnectSignal(id);
-        this._signalIds = [];
-        this._proxy = null;
-    }
-
-    async _call(invoke) {
-        const proxy = this._proxy;
-        if (!proxy) return;
-        try {
-            await invoke(proxy);
-        } catch (error) {
-            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
+            if (this._connection.proxy === proxy) this._handlers?.onError(remoteMessage(error));
         }
     }
 }

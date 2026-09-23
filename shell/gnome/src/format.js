@@ -79,6 +79,7 @@ export function isCountdownLive(resetsAt, now) {
 }
 
 export function resetPhrase(resetsAt, now, resetFormat, withSeconds = false) {
+    if (resetsAt <= now) return _('reset pending');
     if (resetFormat === 'exact') return fill(_('resets {moment}'), { moment: exactMoment(resetsAt, now) });
     const left = resetsAt - now;
     if (left < (withSeconds ? SECOND : MINUTE)) return _('resets soon');

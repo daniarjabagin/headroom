@@ -38,39 +38,49 @@ function testParse() {
     throws('settings array', () => settings.parseSettings('[]'), settings.SettingsError);
 }
 
-function testSerialize() {
-    const parsed = settings.parseSettings(SAMPLE);
-    const serialized = JSON.parse(settings.serializeSettings(parsed));
-    check('serialize keys', Object.keys(serialized).sort(), [
-        'display',
-        'headline',
-        'notifications',
-        'reduced_motion',
-        'refresh_interval_secs',
-    ]);
-    check('serialize headline', serialized.headline, { mode: 'pinned', account_id: 'codex:1', window: 'weekly' });
-    check('serialize auto', JSON.parse(settings.serializeSettings(settings.parseSettings('{}'))).headline, {
-        mode: 'auto',
+function testPatches() {
+    check('patch display', settings.displayPatch({ valueMode: 'used' }), { display: { value_mode: 'used' } });
+    check('patch display many', settings.displayPatch({ showTrend: false, translucent: true }), {
+        display: { show_trend: false, translucent: true },
     });
-    check('serialize display', serialized.display, {
-        theme: 'dark',
-        language: 'ru',
-        value_mode: 'used',
-        reset_format: 'countdown',
-        panel_label: 'percent',
-        show_spend: true,
-        show_account_spend: true,
-        show_trend: true,
-        show_forecast: true,
-        translucent: false,
-        hidden_windows: { 'codex:1': ['session'] },
+    throws('patch unknown', () => settings.displayPatch({ sepia: true }), settings.SettingsError);
+    check('patch notifications', settings.notificationsPatch({ cuttingItClose: false }), {
+        notifications: { cutting_it_close: false },
     });
-    check('round trip', settings.parseSettings(settings.serializeSettings(parsed)), parsed);
+    check('patch interval', settings.refreshIntervalPatch(9000), { refresh_interval_secs: 3600 });
+    check('patch pinned', settings.headlinePatch({ mode: 'pinned', accountId: 'codex:1', window: 'weekly' }), {
+        headline: { mode: 'pinned', account_id: 'codex:1', window: 'weekly' },
+    });
+    check('patch auto clears pin', settings.headlinePatch({ mode: 'auto' }), {
+        headline: { mode: 'auto', account_id: null, window: null },
+    });
+    check('patch hidden windows', settings.hiddenWindowsPatch('codex:x', ['weekly']), {
+        display: { hidden_windows: { 'codex:x': ['weekly'] } },
+    });
+    check('patch hidden windows clear', settings.hiddenWindowsPatch('codex:x', []), {
+        display: { hidden_windows: { 'codex:x': null } },
+    });
+}
+
+function testMergePatch() {
+    const raw = JSON.parse(SAMPLE);
+    const merged = settings.mergePatch(raw, settings.displayPatch({ theme: 'light' }));
+    check('merge keeps unknown', merged.show_usage, false);
+    check('merge keeps siblings', [merged.display.theme, merged.display.value_mode], ['light', 'used']);
+    check('merge leaves input', raw.display.theme, 'dark');
+    const cleared = settings.mergePatch(raw, settings.hiddenWindowsPatch('codex:1', []));
+    check('merge deletes entry', cleared.display.hidden_windows, { 'claude:2': [] });
+    const auto = settings.mergePatch(raw, settings.headlinePatch({ mode: 'auto' }));
+    check('merge auto headline', auto.headline, { mode: 'auto' });
+    check('merge replaces arrays', settings.mergePatch({ a: [1, 2] }, { a: [3] }), { a: [3] });
+    check('merge scalar target', settings.mergePatch(5, { a: { b: null, c: 1 } }), { a: { c: 1 } });
+    check('merge parsed', settings.settingsFrom(merged).display.theme, 'light');
 }
 
 export function testSettings() {
     testParse();
-    testSerialize();
+    testPatches();
+    testMergePatch();
 }
 
 export function testSettingsUpdates() {
@@ -79,14 +89,11 @@ export function testSettingsUpdates() {
     check('toggle value back', settings.toggledValueMode({ valueMode: 'used' }), { valueMode: 'left' });
     check('toggle reset', settings.toggledResetFormat(display), { resetFormat: 'countdown' });
     check('toggle reset back', settings.toggledResetFormat({ resetFormat: 'countdown' }), { resetFormat: 'exact' });
-    const hidden = settings.withWindowHidden(display, 'claude:1', 'weekly', true);
-    check('hide window', hidden, { hiddenWindows: { 'claude:1': ['weekly'] } });
-    const withHidden = { ...display, ...hidden };
+    const hidden = settings.hiddenWindowsAfter(display, 'claude:1', 'weekly', true);
+    check('hide window', hidden, ['weekly']);
+    const withHidden = { ...display, hiddenWindows: { 'claude:1': hidden } };
     check('is hidden', settings.isWindowHidden(withHidden, 'claude:1', 'weekly'), true);
     check('is not hidden', settings.isWindowHidden(withHidden, 'claude:1', 'session'), false);
-    check('show window', settings.withWindowHidden(withHidden, 'claude:1', 'weekly', false), { hiddenWindows: {} });
-    const base = settings.parseSettings('{}');
-    check('with display', settings.withDisplay(base, { theme: 'light' }).display.theme, 'light');
-    check('with display keeps', settings.withDisplay(base, { theme: 'light' }).display.showTrend, true);
-    check('with notifications', settings.withNotifications(base, { reset: true }).notifications.reset, true);
+    check('show window', settings.hiddenWindowsAfter(withHidden, 'claude:1', 'weekly', false), []);
+    check('hide second', settings.hiddenWindowsAfter(withHidden, 'claude:1', 'session', true), ['weekly', 'session']);
 }
