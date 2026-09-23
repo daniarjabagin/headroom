@@ -33,11 +33,12 @@ impl Feed {
         }
     }
 
-    pub(crate) fn trim(self, document: &Value) -> Value {
-        match self {
-            Feed::LiteLlm => litellm::trim(document),
-            Feed::ModelsDev => models_dev::trim(document),
-        }
+    pub(crate) fn trim(self, body: &[u8]) -> Result<Value, PricingError> {
+        let trimmed = match self {
+            Feed::LiteLlm => litellm::trim(body),
+            Feed::ModelsDev => models_dev::trim(body),
+        };
+        trimmed.map_err(json_error(self.source()))
     }
 
     pub(crate) fn parse(self, document: &Value) -> Result<Catalog, PricingError> {

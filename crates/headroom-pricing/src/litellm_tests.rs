@@ -2,6 +2,10 @@ use serde_json::json;
 
 use super::*;
 
+fn trim_value(document: &Value) -> Value {
+    trim(&serde_json::to_vec(document).unwrap()).unwrap()
+}
+
 fn sample() -> Value {
     json!({
         "sample_spec": { "input_cost_per_token": 0.0, "litellm_provider": "one of …", "mode": "one of …" },
@@ -123,7 +127,7 @@ fn document_without_usable_models_is_rejected() {
 
 #[test]
 fn trim_keeps_only_priced_vendor_entries_and_rate_fields() {
-    let trimmed = trim(&sample());
+    let trimmed = trim_value(&sample());
     let keys: Vec<&String> = trimmed.as_object().unwrap().keys().collect();
     assert_eq!(keys, ["claude-sonnet-4-5", "gpt-5.5"]);
     let sonnet = &trimmed["claude-sonnet-4-5"];
@@ -138,7 +142,7 @@ fn trim_keeps_only_priced_vendor_entries_and_rate_fields() {
             .get("input_cost_per_token_priority")
             .is_none()
     );
-    assert_eq!(trim(&trimmed), trimmed);
+    assert_eq!(trim_value(&trimmed), trimmed);
     assert_eq!(
         parse(&trimmed).unwrap().get("gpt-5.5"),
         parse(&sample()).unwrap().get("gpt-5.5")
@@ -148,5 +152,5 @@ fn trim_keeps_only_priced_vendor_entries_and_rate_fields() {
 #[test]
 fn bundled_snapshot_is_already_trimmed() {
     let bundled: Value = serde_json::from_str(include_str!("../resources/litellm.json")).unwrap();
-    assert_eq!(trim(&bundled), bundled);
+    assert_eq!(trim_value(&bundled), bundled);
 }

@@ -1,5 +1,9 @@
 use super::*;
 
+fn trim_value(document: &Value) -> Value {
+    trim(&serde_json::to_vec(document).unwrap()).unwrap()
+}
+
 fn sample() -> Value {
     json!({
         "openai": {
@@ -76,10 +80,10 @@ fn only_openai_and_anthropic_providers_are_read() {
 
 #[test]
 fn trim_is_idempotent_and_preserves_prices() {
-    let trimmed = trim(&sample());
+    let trimmed = trim_value(&sample());
     assert!(trimmed.get("somebody-else").is_none());
     assert!(trimmed["openai"]["models"].get("whisper-1").is_none());
-    assert_eq!(trim(&trimmed), trimmed);
+    assert_eq!(trim_value(&trimmed), trimmed);
     let from_trimmed = parse(&trimmed).unwrap();
     let from_full = parse(&sample()).unwrap();
     assert_eq!(
@@ -92,7 +96,7 @@ fn trim_is_idempotent_and_preserves_prices() {
 fn bundled_snapshot_is_already_trimmed() {
     let bundled: Value =
         serde_json::from_str(include_str!("../resources/models_dev.json")).unwrap();
-    assert_eq!(trim(&bundled), bundled);
+    assert_eq!(trim_value(&bundled), bundled);
 }
 
 #[test]

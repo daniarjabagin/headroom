@@ -7,6 +7,7 @@ use crate::error::PricingError;
 use crate::money::PicoUsd;
 use crate::rates::{ModelRates, RawModel, RawRates};
 use crate::source::{PriceSource, Vendor};
+use crate::stream_filter::ObjectFilter;
 
 const CONTEXT_OVER_200K: Tokens = Tokens(200_000);
 
@@ -55,7 +56,16 @@ pub(crate) fn parse(document: &Value) -> Result<Catalog, PricingError> {
     Catalog::from_entries(PriceSource::ModelsDev, entries)
 }
 
-pub(crate) fn trim(document: &Value) -> Value {
+pub(crate) fn trim(body: &[u8]) -> Result<Value, serde_json::Error> {
+    let filter = ObjectFilter {
+        wants: |key| Vendor::from_id(key).is_some(),
+        keep: |_, provider| Some(provider),
+    };
+    let vendors = filter.apply(body)?;
+    Ok(trim_document(&Value::Object(vendors)))
+}
+
+fn trim_document(document: &Value) -> Value {
     let providers: Map<String, Value> = Vendor::ALL
         .into_iter()
         .map(|vendor| {

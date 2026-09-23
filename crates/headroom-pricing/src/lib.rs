@@ -10,6 +10,7 @@ mod normalize;
 mod price_catalog;
 mod rates;
 mod source;
+mod stream_filter;
 mod supplement;
 #[cfg(test)]
 mod test_support;

@@ -2,7 +2,7 @@ use headroom_core::event::ServiceTier;
 use headroom_core::tokens::TokenCounts;
 use headroom_core::units::{MicroUsd, Tokens};
 use headroom_core::usage::PriceBook;
-use serde_json::json;
+use serde_json::{Value, json};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -241,6 +241,35 @@ async fn creates_missing_cache_directory() {
 
     assert!(nested.join("models_dev.json").exists());
     assert!(!nested.join("models_dev.json.tmp").exists());
+}
+
+#[tokio::test]
+async fn oversized_body_is_rejected_without_touching_the_cache() {
+    let server = MockServer::start().await;
+    let huge = format!("{{\"pad\": \"{}\"}}", "x".repeat(MAX_BODY_BYTES));
+    serve(
+        &server,
+        "/litellm.json",
+        ResponseTemplate::new(200).set_body_string(huge),
+    )
+    .await;
+    serve(
+        &server,
+        "/api.json",
+        ResponseTemplate::new(200).set_body_json(models_dev_body()),
+    )
+    .await;
+    let dir = tempfile::tempdir().unwrap();
+
+    let outcome = refresh(dir.path(), &reqwest::Client::new(), &sources(&server))
+        .await
+        .unwrap();
+
+    assert!(matches!(
+        outcome.litellm,
+        FeedStatus::Failed(PricingError::TooLarge { .. })
+    ));
+    assert!(!dir.path().join("litellm.json").exists());
 }
 
 #[test]

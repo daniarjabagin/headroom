@@ -1,14 +1,14 @@
 use std::path::Path;
 use std::time::Duration;
 
-use reqwest::StatusCode;
 use reqwest::header::{ETAG, IF_NONE_MATCH};
-use serde_json::Value;
+use reqwest::{Response, StatusCode};
 
 use crate::cache::{self, CachedFeed, Feed};
-use crate::error::{PricingError, io_error, json_error};
+use crate::error::{PricingError, io_error};
 
 const TIMEOUT: Duration = Duration::from_secs(20);
+const MAX_BODY_BYTES: usize = 32 * 1024 * 1024;
 const LITELLM_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const MODELS_DEV_URL: &str = "https://models.dev/api.json";
@@ -76,11 +76,7 @@ async fn try_refresh(
     if let Some(etag) = cache::read_etag(&path, feed).await {
         request = request.header(IF_NONE_MATCH, etag);
     }
-    let http_error = |source| PricingError::Http {
-        url: url.to_owned(),
-        source,
-    };
-    let response = request.send().await.map_err(http_error)?;
+    let response = request.send().await.map_err(http_error(url))?;
     let status = response.status();
     if status == StatusCode::NOT_MODIFIED {
         return Ok(FeedStatus::NotModified);
@@ -91,26 +87,51 @@ async fn try_refresh(
             status: status.as_u16(),
         });
     }
+    let cached = trimmed_feed(feed, response, url).await?;
+    cache::write_atomic(&path, feed, &cached).await?;
+    Ok(FeedStatus::Updated)
+}
+
+async fn trimmed_feed(
+    feed: Feed,
+    response: Response,
+    url: &str,
+) -> Result<CachedFeed, PricingError> {
     let etag = response
         .headers()
         .get(ETAG)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
-    let body = response.bytes().await.map_err(http_error)?;
-    let cached = validated_feed(feed, &body, etag)?;
-    cache::write_atomic(&path, feed, &cached).await?;
-    Ok(FeedStatus::Updated)
-}
-
-fn validated_feed(
-    feed: Feed,
-    body: &[u8],
-    etag: Option<String>,
-) -> Result<CachedFeed, PricingError> {
-    let document: Value = serde_json::from_slice(body).map_err(json_error(feed.source()))?;
-    let data = feed.trim(&document);
+    let body = bounded_body(response, url).await?;
+    let data = feed.trim(&body)?;
+    drop(body);
     feed.parse(&data)?;
     Ok(CachedFeed { etag, data })
+}
+
+async fn bounded_body(mut response: Response, url: &str) -> Result<Vec<u8>, PricingError> {
+    let announced = response
+        .content_length()
+        .and_then(|length| usize::try_from(length).ok())
+        .unwrap_or(0);
+    let mut body = Vec::with_capacity(announced.min(MAX_BODY_BYTES));
+    while let Some(chunk) = response.chunk().await.map_err(http_error(url))? {
+        if body.len() + chunk.len() > MAX_BODY_BYTES {
+            return Err(PricingError::TooLarge {
+                url: url.to_owned(),
+                limit: MAX_BODY_BYTES,
+            });
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+fn http_error(url: &str) -> impl Fn(reqwest::Error) -> PricingError + '_ {
+    move |source| PricingError::Http {
+        url: url.to_owned(),
+        source,
+    }
 }
 
 #[cfg(test)]
