@@ -6,6 +6,7 @@ use crate::error::PricingError;
 use crate::money::{Multiplier, PicoUsd};
 use crate::rates::{RawModel, RawRates};
 use crate::source::{PriceSource, Vendor};
+use crate::stream_filter::ObjectFilter;
 
 const PROVIDER: &str = "litellm_provider";
 const MODE: &str = "mode";
@@ -13,6 +14,7 @@ const WEB_SEARCH: &str = "search_context_cost_per_query";
 const WEB_SEARCH_SIZE: &str = "search_context_size_medium";
 const PROVIDER_SPECIFIC: &str = "provider_specific_entry";
 const FAST: &str = "fast";
+const FINE_TUNE_PREFIX: &str = "ft:";
 const MODES: [&str; 2] = ["chat", "responses"];
 const INPUT: &str = "input_cost_per_token";
 const OUTPUT: &str = "output_cost_per_token";
@@ -33,22 +35,24 @@ pub(crate) fn parse(document: &Value) -> Result<Catalog, PricingError> {
     Catalog::from_entries(PriceSource::LiteLlm, entries)
 }
 
-pub(crate) fn trim(document: &Value) -> Value {
-    let kept: Map<String, Value> = document
-        .as_object()
+pub(crate) fn trim(body: &[u8]) -> Result<Value, serde_json::Error> {
+    let filter = ObjectFilter {
+        wants: |key| !key.starts_with(FINE_TUNE_PREFIX),
+        keep: trim_entry,
+    };
+    filter.apply(body).map(Value::Object)
+}
+
+fn trim_entry(key: &str, value: Value) -> Option<Value> {
+    priced_entry(key, &value)?;
+    let Value::Object(entry) = value else {
+        return None;
+    };
+    let fields = entry
         .into_iter()
-        .flatten()
-        .filter_map(|(key, value)| {
-            let entry = priced_entry(key, value)?;
-            let fields = entry
-                .iter()
-                .filter(|(name, _)| is_kept_field(name))
-                .map(|(name, field)| (name.clone(), field.clone()))
-                .collect();
-            Some((key.clone(), Value::Object(fields)))
-        })
+        .filter(|(name, _)| is_kept_field(name))
         .collect();
-    Value::Object(kept)
+    Some(Value::Object(fields))
 }
 
 fn priced_entry<'a>(key: &str, value: &'a Value) -> Option<&'a Map<String, Value>> {
@@ -62,7 +66,10 @@ fn priced_entry<'a>(key: &str, value: &'a Value) -> Option<&'a Map<String, Value
         .get(MODE)
         .and_then(Value::as_str)
         .is_some_and(|mode| MODES.contains(&mode));
-    let usable = vendor_known && mode_known && entry.contains_key(INPUT) && !key.starts_with("ft:");
+    let usable = vendor_known
+        && mode_known
+        && entry.contains_key(INPUT)
+        && !key.starts_with(FINE_TUNE_PREFIX);
     usable.then_some(entry)
 }
 

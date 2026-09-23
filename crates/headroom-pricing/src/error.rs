@@ -35,6 +35,8 @@ pub enum PricingError {
         #[source]
         source: reqwest::Error,
     },
+    #[error("{url} sent more than {limit} bytes")]
+    TooLarge { url: String, limit: usize },
     #[error("{url} answered HTTP {status}")]
     Status { url: String, status: u16 },
 }
