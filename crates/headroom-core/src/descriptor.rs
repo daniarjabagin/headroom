@@ -27,6 +27,8 @@ pub struct CliLogin {
     /// Written by a successful login, relative to the directory `home_var` names.
     pub credentials_file: &'static str,
     pub needs_pty: bool,
+    /// Inherited variables removed before the login runs, because they would redirect it.
+    pub scrub_env: &'static [&'static str],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,6 +113,12 @@ impl CliLogin {
         }
         if !is_relative_inside(self.credentials_file) {
             return Err("credentials file must be a relative path inside the home");
+        }
+        let scrubs_home = self.scrub_env.contains(&self.home_var.var());
+        if scrubs_home || !self.scrub_env.iter().all(|name| is_env_name(name)) {
+            return Err(
+                "scrubbed variables must be environment variable names other than the home",
+            );
         }
         self.home_var.validate()
     }

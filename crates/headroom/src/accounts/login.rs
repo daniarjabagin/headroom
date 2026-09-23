@@ -55,6 +55,9 @@ impl Launcher {
     fn command(&self, spec: &LoginSpec, home: &Path) -> Command {
         let login = spec.login;
         let mut command = Command::new(login.program);
+        for name in login.scrub_env {
+            command.env_remove(name);
+        }
         command.args(login.args).env(login.home_var.var(), home);
         if let Some(path) = &self.search_path {
             command.env("PATH", path);

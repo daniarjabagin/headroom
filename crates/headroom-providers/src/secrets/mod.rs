@@ -36,6 +36,10 @@ pub enum SecretBackend {
 pub enum SecretError {
     #[error("the keyring is locked; unlock it and try again")]
     Locked,
+    #[error(
+        "the Secret Service is unreachable and may still hold the API key; try again when it runs"
+    )]
+    Unreachable,
     #[error("Secret Service error: {0}")]
     Service(String),
     #[error("cannot {action} {}: {kind}", path.display())]
@@ -139,13 +143,22 @@ impl SecretStore {
 
     pub async fn delete(&self, account: &AccountId) -> Result<(), SecretError> {
         let attributes = attributes(None, account);
-        let from_file = self.files.delete(account);
         let from_service = self
             .with_service(async |conn| service::delete(conn, &attributes).await)
             .await;
         match from_service {
-            Ok(()) | Err(ServiceError::Unavailable) => from_file,
+            Ok(()) => self.files.delete(account).map(drop),
+            Err(ServiceError::Unavailable) => self.delete_without_service(account),
             Err(error) => Err(to_error(error)),
+        }
+    }
+
+    fn delete_without_service(&self, account: &AccountId) -> Result<(), SecretError> {
+        let had_file = self.files.delete(account)?;
+        if had_file || self.bus == SecretBus::Disabled {
+            Ok(())
+        } else {
+            Err(SecretError::Unreachable)
         }
     }
 

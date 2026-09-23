@@ -43,6 +43,13 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             home_var: HomeVar::Direct("GH_CONFIG_DIR"),
             credentials_file: hosts::HOSTS_FILE,
             needs_pty: false,
+            scrub_env: &[
+                "GH_TOKEN",
+                "GITHUB_TOKEN",
+                "GH_ENTERPRISE_TOKEN",
+                "GITHUB_ENTERPRISE_TOKEN",
+                "GH_HOST",
+            ],
         }),
         AddAccountMethod::AutoDetect {
             reason: "Every account signed in to the GitHub CLI (gh) is found",
@@ -100,7 +107,7 @@ impl Provider for CopilotProvider {
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
-        let login = accounts::login_for(account)?;
+        let login = accounts::current_gh_login(account)?;
         let token = token::gh_token(&self.config.gh_program, &account.home, &login).await?;
         let now = (self.clock)();
         let raw = self.client.fetch(&token, now).await?;

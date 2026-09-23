@@ -29,6 +29,7 @@ use crate::key_accounts;
 pub use self::config::{DEFAULT_API_BASE, DEFAULT_OAUTH_HOST, KimiConfig};
 
 pub const ID: ProviderId = ProviderId::from_static("kimi");
+const CONSOLE_URL: &str = "https://www.kimi.com/code/console";
 
 pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     id: ID,
@@ -36,7 +37,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     add_account: &[
         AddAccountMethod::ApiKey(ApiKeyPrompt {
             label: "Kimi Code API key",
-            console_url: "https://www.kimi.com/code/console",
+            console_url: CONSOLE_URL,
             hint: "Create it in the Kimi Code console; Moonshot platform keys do not work",
         }),
         AddAccountMethod::CliLogin(CliLogin {
@@ -45,6 +46,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             home_var: HomeVar::Direct("KIMI_SHARE_DIR"),
             credentials_file: credentials::CREDENTIALS_FILE,
             needs_pty: false,
+            scrub_env: &[],
         }),
     ],
     multi_account: true,
@@ -157,8 +159,20 @@ impl Provider for KimiProvider {
     }
 
     async fn validate_key(&self, key: &str) -> Result<AccountIdentity, ProviderError> {
-        let mapped = self.usage(key, (self.clock)()).await?;
+        let mapped = self
+            .usage(key, (self.clock)())
+            .await
+            .map_err(rejected_key)?;
         Ok(accounts::key_identity(key, mapped.plan))
+    }
+}
+
+fn rejected_key(error: ProviderError) -> ProviderError {
+    match error {
+        ProviderError::SignInExpired | ProviderError::NotSignedIn => ProviderError::Unsupported(
+            format!("Kimi Code rejected this API key; check it at {CONSOLE_URL}"),
+        ),
+        other => other,
     }
 }
 

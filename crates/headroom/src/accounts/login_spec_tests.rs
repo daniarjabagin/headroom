@@ -15,6 +15,7 @@ static XDG_TOOL: ProviderDescriptor = ProviderDescriptor {
         },
         credentials_file: "auth.json",
         needs_pty: false,
+        scrub_env: &[],
     })],
     multi_account: true,
     local_usage: false,
@@ -26,6 +27,7 @@ static PTY_LOGIN: CliLogin = CliLogin {
     home_var: HomeVar::Direct("PTYTOOL_DIR"),
     credentials_file: "auth.json",
     needs_pty: true,
+    scrub_env: &[],
 };
 
 fn xdg_spec() -> LoginSpec {
@@ -212,6 +214,48 @@ fn cline_signs_in_through_a_pseudo_terminal_into_its_own_home() {
     assert!(events.contains(&LoginEvent::Output(
         "[auth] Enter this code in your browser: WXYZ-1234".into()
     )));
+}
+
+const FAKE_CLINE_DATA_DIR: &str = r#"
+PATH=/usr/bin:/bin
+data="${CLINE_DATA_DIR:-$CLINE_DIR/data}"
+mkdir -p "$data/settings"
+echo '{}' > "$data/settings/providers.json"
+"#;
+
+#[test]
+fn inherited_variables_that_redirect_a_login_are_removed() {
+    let elsewhere = tempfile::tempdir().unwrap();
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "--ignored", "--quiet"])
+        .arg("accounts::login::spec_tests::cline_login_with_a_foreign_data_dir")
+        .env("CLINE_DATA_DIR", elsewhere.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    assert!(!elsewhere.path().join("settings").exists());
+}
+
+#[test]
+#[ignore = "run with CLINE_DATA_DIR set by inherited_variables_that_redirect_a_login_are_removed"]
+fn cline_login_with_a_foreign_data_dir() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    bin.install("cline", FAKE_CLINE_DATA_DIR);
+    let mut record = |_: LoginEvent| Ok(());
+    let console = Console::Streamed {
+        input: Box::new(std::io::empty()),
+        events: &mut record,
+    };
+    let home = sign_in(
+        root.path(),
+        spec("cline"),
+        &bin.launcher(),
+        console,
+        &Cancel::default(),
+    )
+    .unwrap();
+    assert!(home.join("data/settings/providers.json").exists());
 }
 
 fn alive(pid: &str) -> bool {

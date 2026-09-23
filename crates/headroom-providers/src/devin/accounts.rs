@@ -31,7 +31,6 @@ pub(super) fn headroom_account_at(home: &Path) -> Result<Option<AccountRef>, Pro
     Ok(key.map(|key| account_ref(&key, candidate)))
 }
 
-/// Where the key of an account lives: a Headroom home holds the CLI's data dir below it.
 pub(super) fn key_dir(home: &Path, owner: CredentialOwner) -> PathBuf {
     match owner {
         CredentialOwner::Cli => home.to_path_buf(),

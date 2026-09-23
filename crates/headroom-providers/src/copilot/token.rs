@@ -19,7 +19,6 @@ const FOREIGN_TOKEN_VARS: [&str; 5] = [
     "GH_HOST",
 ];
 
-/// Asks `gh` for the stored token of one account; the token is never logged or shown.
 pub(super) async fn gh_token(
     program: &Path,
     config_dir: &Path,

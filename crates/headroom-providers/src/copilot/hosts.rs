@@ -8,7 +8,6 @@ pub(super) const HOSTS_FILE: &str = "hosts.yml";
 pub(super) const GITHUB_HOST: &str = "github.com";
 const MAX_LOGIN_LEN: usize = 100;
 
-/// Accounts the GitHub CLI knows for github.com, the active one first.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct GhUsers(pub(super) Vec<String>);
 

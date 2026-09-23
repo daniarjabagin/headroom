@@ -2,9 +2,10 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use headroom_core::account::{CredentialOwner, ProviderId};
+use headroom_core::account::{AccountId, CredentialOwner, ProviderId};
 use headroom_core::descriptor::ProviderDescriptor;
 use headroom_providers::registry;
+use headroom_providers::secrets::SecretStore;
 
 use super::announce::rescan_if_running;
 use super::discovery::discover_local;
@@ -61,17 +62,20 @@ async fn delete_account(
     if !approve(&home)? {
         bail!("cancelled");
     }
-    std::fs::remove_dir_all(&home)
-        .with_context(|| format!("could not delete {}", home.display()))?;
-    if takes_api_keys(&account.provider) {
-        registry
-            .secrets
-            .delete(&account.id)
-            .await
-            .context("deleted the account home, but not its stored API key")?;
-    }
+    let secrets = takes_api_keys(&account.provider).then_some(registry.secrets.as_ref());
+    forget(secrets, &account.id, &home).await?;
     rescan_if_running(globals).await?;
     Ok(home)
+}
+
+async fn forget(secrets: Option<&SecretStore>, id: &AccountId, home: &Path) -> Result<()> {
+    if let Some(secrets) = secrets {
+        secrets
+            .delete(id)
+            .await
+            .context("could not delete the stored API key; the account is kept, try again")?;
+    }
+    std::fs::remove_dir_all(home).with_context(|| format!("could not delete {}", home.display()))
 }
 
 fn takes_api_keys(provider: &ProviderId) -> bool {
@@ -96,4 +100,34 @@ fn confirm(id: &str, home: &Path) -> Result<bool> {
     let mut answer = String::new();
     stdin.lock().read_line(&mut answer)?;
     Ok(matches!(answer.trim(), "y" | "Y" | "yes"))
+}
+
+#[cfg(test)]
+mod tests {
+    use headroom_providers::secrets::SecretBus;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn a_key_that_cannot_be_deleted_keeps_the_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        std::fs::create_dir(&home).unwrap();
+        let bus = format!("unix:path={}", dir.path().join("no-bus").display());
+        let secrets = SecretStore::new(SecretBus::Address(bus), dir.path().join("secrets"));
+        let id = AccountId("keyed:0123456789ab".into());
+        assert!(forget(Some(&secrets), &id, &home).await.is_err());
+        assert!(home.exists());
+    }
+
+    #[tokio::test]
+    async fn a_deleted_key_is_followed_by_the_home() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        std::fs::create_dir(&home).unwrap();
+        let secrets = SecretStore::new(SecretBus::Disabled, dir.path().join("secrets"));
+        let id = AccountId("keyed:0123456789ab".into());
+        forget(Some(&secrets), &id, &home).await.unwrap();
+        assert!(!home.exists());
+    }
 }

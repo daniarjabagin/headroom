@@ -29,7 +29,7 @@ use cancel::{CANCELLED, Cancel};
 use discovery::discover_local;
 use home::discard_home;
 use login::{Console, Launcher, LoginEvent, LoginSpec, sign_in};
-use plan::{AddPlan, KeyInput, plan};
+use plan::{AddPlan, KeyInput, choose_add_plan};
 use progress::{JsonLines, ProgressEvent};
 
 pub use remove::remove;
@@ -52,7 +52,7 @@ struct Target {
 impl Target {
     fn resolve(globals: &Globals, request: &AddRequest<'_>) -> Result<Target> {
         let descriptor = providers::descriptor(request.provider)?;
-        let plan = plan(descriptor, key_input(request))?;
+        let plan = choose_add_plan(descriptor, key_input(request))?;
         let registry = LocalRegistry::for_cli(globals)?;
         Ok(Target {
             descriptor,
@@ -137,7 +137,7 @@ async fn ask_for_key(prompt: &ApiKeyPrompt, cancel: &Cancel) -> Result<String> {
     let mut stderr = io::stderr();
     writeln!(
         stderr,
-        "Create an {} at {}",
+        "Get a key ({}) at {}",
         prompt.label, prompt.console_url
     )?;
     if !prompt.hint.is_empty() {

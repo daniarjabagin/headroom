@@ -39,6 +39,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             },
             credentials_file: auth::CREDENTIALS_FILE,
             needs_pty: false,
+            scrub_env: &[],
         }),
         AddAccountMethod::AutoDetect {
             reason: "Found when you sign in with the Devin CLI or the Devin app",

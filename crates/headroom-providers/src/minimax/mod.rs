@@ -22,13 +22,14 @@ use crate::key_accounts;
 pub use self::config::{GLOBAL_API_BASE, MiniMaxConfig};
 
 pub const ID: ProviderId = ProviderId::from_static("minimax");
+const CONSOLE_URL: &str = "https://platform.minimax.io/user-center/payment/token-plan";
 
 pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     id: ID,
     display_name: "MiniMax",
     add_account: &[AddAccountMethod::ApiKey(ApiKeyPrompt {
         label: "MiniMax Token Plan key",
-        console_url: "https://platform.minimax.io/user-center/payment/token-plan",
+        console_url: CONSOLE_URL,
         hint: "Use the Token Plan subscription key from platform.minimax.io; \
                pay-as-you-go keys have no plan limits",
     })],
@@ -133,8 +134,19 @@ impl Provider for MiniMaxProvider {
     }
 
     async fn validate_key(&self, key: &str) -> Result<AccountIdentity, ProviderError> {
-        self.windows(key, (self.clock)()).await?;
+        self.windows(key, (self.clock)())
+            .await
+            .map_err(rejected_key)?;
         Ok(key_identity(key))
+    }
+}
+
+fn rejected_key(error: ProviderError) -> ProviderError {
+    match error {
+        ProviderError::SignInExpired | ProviderError::NotSignedIn => ProviderError::Unsupported(
+            format!("MiniMax rejected this API key; check it at {CONSOLE_URL}"),
+        ),
+        other => other,
     }
 }
 

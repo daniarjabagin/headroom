@@ -6,6 +6,7 @@ const LOGIN: CliLogin = CliLogin {
     home_var: HomeVar::Direct("TOOL_HOME"),
     credentials_file: "auth.json",
     needs_pty: false,
+    scrub_env: &[],
 };
 
 const KEY: ApiKeyPrompt = ApiKeyPrompt {
@@ -79,6 +80,16 @@ fn login_specs_must_stay_inside_the_home() {
         },
         ..LOGIN
     })];
+    static SCRUBBED_HOME: [AddAccountMethod; 1] = [AddAccountMethod::CliLogin(CliLogin {
+        scrub_env: &["TOOL_HOME"],
+        ..LOGIN
+    })];
+    static LOWER_SCRUB: [AddAccountMethod; 1] = [AddAccountMethod::CliLogin(CliLogin {
+        scrub_env: &["tool_token"],
+        ..LOGIN
+    })];
+    assert!(problem(&SCRUBBED_HOME).unwrap().contains("scrubbed"));
+    assert!(problem(&LOWER_SCRUB).unwrap().contains("scrubbed"));
     assert!(problem(&PATH_PROGRAM).unwrap().contains("bare command"));
     assert!(
         problem(&ESCAPING_FILE)

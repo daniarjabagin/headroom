@@ -66,7 +66,7 @@ fn a_login_home_names_its_account_and_the_login_is_resolved_back() {
     write_hosts(&home, &single("mona"));
     let account = headroom_account_at(&home).unwrap().unwrap();
     assert_eq!(account.owner, CredentialOwner::Headroom);
-    assert_eq!(login_for(&account).unwrap(), "mona");
+    assert_eq!(current_gh_login(&account).unwrap(), "mona");
     write_hosts(&home, &single("someone-else"));
-    assert_eq!(login_for(&account), Err(ProviderError::NotSignedIn));
+    assert_eq!(current_gh_login(&account), Err(ProviderError::NotSignedIn));
 }

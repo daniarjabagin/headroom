@@ -36,8 +36,7 @@ pub(super) fn headroom_account_at(home: &Path) -> Result<Option<AccountRef>, Pro
         .map(|login| account_ref(login, home, CredentialOwner::Headroom)))
 }
 
-/// The GitHub login behind an account, as listed in its config dir right now.
-pub(super) fn login_for(account: &AccountRef) -> Result<String, ProviderError> {
+pub(super) fn current_gh_login(account: &AccountRef) -> Result<String, ProviderError> {
     load_users(&account.home)?
         .0
         .into_iter()

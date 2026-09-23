@@ -36,6 +36,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             home_var: HomeVar::Direct("GROK_HOME"),
             credentials_file: "auth.json",
             needs_pty: false,
+            scrub_env: &["GROK_OIDC_ISSUER", "GROK_OIDC_CLIENT_ID"],
         }),
         AddAccountMethod::AutoDetect {
             reason: "Found from the Grok CLI sign-in in ~/.grok, which expires while the CLI is closed",

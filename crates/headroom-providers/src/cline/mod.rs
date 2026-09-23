@@ -38,6 +38,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             home_var: HomeVar::Direct("CLINE_DIR"),
             credentials_file: "data/settings/providers.json",
             needs_pty: true,
+            scrub_env: &["CLINE_DATA_DIR", "CLINE_PROVIDER_SETTINGS_PATH"],
         }),
         AddAccountMethod::AutoDetect {
             reason: "the Cline CLI sign-in in ~/.cline is picked up automatically, but it expires \

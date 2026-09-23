@@ -15,8 +15,7 @@ cat "$token"
 echo
 "#;
 
-/// A stand-in `gh` that prints the token stored under `$GH_CONFIG_DIR/fake-tokens/<login>`.
-pub(super) fn fake_gh(dir: &Path) -> PathBuf {
+pub(super) fn fake_gh_printing_stored_tokens(dir: &Path) -> PathBuf {
     let bin = dir.join("bin");
     fs::create_dir_all(&bin).unwrap();
     let program = bin.join("gh");
