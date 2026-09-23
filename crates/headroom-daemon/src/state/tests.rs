@@ -346,3 +346,14 @@ fn hidden_windows_are_flagged_in_the_payload() {
     assert_eq!(flags, [("session", false), ("weekly", true)]);
     assert!(payload.display.is_hidden("codex:work", "weekly"));
 }
+
+#[test]
+fn translucent_display_setting_is_copied_into_the_payload() {
+    let mut model = sample_model();
+    assert!(!assemble_sample(&model).display.translucent);
+    model.settings.display.translucent = true;
+    let payload = assemble_sample(&model);
+    assert!(payload.display.translucent);
+    let json = serde_json::to_value(&payload).unwrap();
+    assert_eq!(json["display"]["translucent"], serde_json::json!(true));
+}

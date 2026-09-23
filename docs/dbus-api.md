@@ -286,6 +286,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
     "show_account_spend": true,
     "show_trend": true,
     "show_forecast": true,
+    "translucent": false,
     "hidden_windows": { "codex:work": ["weekly"] }
   },
   "headline": {
@@ -457,6 +458,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.show_account_spend` | bool | `true` | Show local spend under each account card. |
 | `display.show_trend` | bool | `true` | Show the 30-day trend. |
 | `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
+| `display.translucent` | bool | `false` | Shells render the popup with a translucent (blurred where supported) background instead of an opaque one. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
 
 ```json
@@ -475,6 +477,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
     "show_account_spend": true,
     "show_trend": true,
     "show_forecast": true,
+    "translucent": false,
     "hidden_windows": {}
   }
 }

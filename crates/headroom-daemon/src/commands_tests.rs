@@ -176,7 +176,9 @@ async fn settings_changes_emit_state_with_display_and_hidden_windows() {
     sink.states.lock().unwrap().clear();
     harness
         .core
-        .set_settings(r#"{"display":{"theme":"dark","hidden_windows":{"codex:a":["session"]}}}"#)
+        .set_settings(
+            r#"{"display":{"theme":"dark","translucent":true,"hidden_windows":{"codex:a":["session"]}}}"#,
+        )
         .await
         .unwrap();
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -184,6 +186,7 @@ async fn settings_changes_emit_state_with_display_and_hidden_windows() {
     assert_eq!(states.len(), 1);
     let parsed: crate::StatePayload = serde_json::from_str(&states[0]).unwrap();
     assert_eq!(parsed.display.theme, crate::settings::Theme::Dark);
+    assert!(parsed.display.translucent);
     let hidden: Vec<(String, bool)> = parsed
         .accounts
         .iter()
