@@ -13,7 +13,7 @@
         "Id": "io.github.headroom.plasmoid",
         "License": "MIT",
         "Name": "Headroom",
-        "Version": "0.2.0",
+        "Version": "0.3.0",
         "Website": "https://github.com/headroom/headroom"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
