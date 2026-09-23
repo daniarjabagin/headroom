@@ -13,7 +13,7 @@ use crate::home::UsageHome;
 use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin};
 use crate::settings::HeadlineMode;
 use crate::storage::accounts::AccountRecord;
-use crate::testing::{FlatPrices, account, event, session, snapshot, ts, weekly};
+use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 
@@ -119,12 +119,11 @@ fn sample_model() -> Model {
             ..AccountRuntime::default()
         },
     );
-    model
-        .usage
-        .insert(UsageHome::of(&work.reference), codex_usage());
-    model
-        .usage
-        .insert(UsageHome::of(&claude.reference), claude_usage());
+    let codex_home = usage_home_of(&work.reference);
+    let claude_home = usage_home_of(&claude.reference);
+    model.usage_homes = [codex_home.clone(), claude_home.clone()].into();
+    model.usage.insert(codex_home, codex_usage());
+    model.usage.insert(claude_home, claude_usage());
     model
 }
 
@@ -306,7 +305,7 @@ fn daily_trend_is_dense_over_thirty_days() {
 }
 
 #[test]
-fn usage_of_homes_without_active_accounts_is_omitted() {
+fn usage_of_undiscovered_homes_is_omitted() {
     let mut model = sample_model();
     let stray = UsageHome {
         provider: ProviderKind::Claude,
@@ -314,14 +313,37 @@ fn usage_of_homes_without_active_accounts_is_omitted() {
     };
     model.usage.insert(stray, codex_usage());
     model
-        .accounts
-        .retain(|a| a.id() != &AccountId("codex:work".into()));
+        .usage_homes
+        .retain(|home| home.provider != ProviderKind::Codex);
     let homes: Vec<_> = assemble_sample(&model)
         .usage
         .iter()
         .map(|u| u.usage_home.clone())
         .collect();
     assert_eq!(homes, ["~/.claude"]);
+}
+
+#[test]
+fn usage_homes_without_accounts_are_listed_and_spent() {
+    let mut model = sample_model();
+    let api_key = UsageHome {
+        provider: ProviderKind::Claude,
+        home: PathBuf::from("/home/ada/.claude-api"),
+    };
+    model.usage_homes.insert(api_key.clone());
+    model.usage.insert(api_key, claude_usage());
+    model
+        .accounts
+        .retain(|a| a.id() != &AccountId("claude:main".into()));
+    let payload = assemble_sample(&model);
+    let homes: Vec<_> = payload
+        .usage
+        .iter()
+        .map(|u| u.usage_home.as_str())
+        .collect();
+    assert_eq!(homes, ["~/.codex", "~/.claude", "~/.claude-api"]);
+    assert_eq!(payload.spend.today.total_tokens, 11_200);
+    assert_eq!(payload.spend.today.cost_usd_micros, 22_400);
 }
 
 #[test]

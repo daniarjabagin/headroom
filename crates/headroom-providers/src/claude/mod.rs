@@ -8,8 +8,9 @@ mod log_record;
 mod mapper;
 mod number;
 mod raw;
+mod usage_homes;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, ProviderKind};
@@ -68,6 +69,10 @@ impl Provider for ClaudeProvider {
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         Ok(accounts::discover_accounts(&self.config))
+    }
+
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        Ok(usage_homes::usage_homes(&self.config))
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {

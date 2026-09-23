@@ -53,7 +53,11 @@ impl ClaudeConfig {
     pub(super) fn cli_dir(&self) -> PathBuf {
         self.config_dir
             .clone()
-            .unwrap_or_else(|| self.home.join(".claude"))
+            .unwrap_or_else(|| self.default_dir())
+    }
+
+    pub(super) fn default_dir(&self) -> PathBuf {
+        self.home.join(".claude")
     }
 
     pub(super) fn headroom_accounts_dir(&self) -> PathBuf {

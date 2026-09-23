@@ -7,9 +7,9 @@ use headroom_core::provider::ProviderError;
 use serde::Deserialize;
 
 use super::config::ClaudeConfig;
+use crate::homes::canonical;
 
-const IDENTITY_FILE: &str = ".claude.json";
-const DEFAULT_DIR_NAME: &str = ".claude";
+pub(super) const IDENTITY_FILE: &str = ".claude.json";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ClaudeIdentity {
@@ -50,15 +50,11 @@ fn uses_home_identity(config: &ClaudeConfig, dir: &Path) -> bool {
         .config_dir
         .as_deref()
         .is_some_and(|override_dir| same_dir(override_dir, dir));
-    !reached_via_override && same_dir(dir, &config.home.join(DEFAULT_DIR_NAME))
+    !reached_via_override && same_dir(dir, &config.default_dir())
 }
 
 pub(super) fn same_dir(a: &Path, b: &Path) -> bool {
     canonical(a) == canonical(b)
-}
-
-pub(super) fn canonical(path: &Path) -> PathBuf {
-    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
 pub(super) fn load_identity(

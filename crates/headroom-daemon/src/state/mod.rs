@@ -25,11 +25,10 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .active_accounts()
         .map(|record| account::account_view(record, model, ctx))
         .collect();
-    let homes = model.usage_homes();
     let usage: Vec<_> = model
         .usage
         .iter()
-        .filter(|(home, _)| homes.contains(home))
+        .filter(|(home, _)| model.usage_homes.contains(home))
         .map(|(home, summary)| usage::usage_view(home, summary, ctx))
         .collect();
     StatePayload {

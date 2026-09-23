@@ -1,21 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use headroom_core::account::{AccountRef, ProviderKind};
+use headroom_core::account::ProviderKind;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct UsageHome {
     pub provider: ProviderKind,
     pub home: PathBuf,
-}
-
-impl UsageHome {
-    #[must_use]
-    pub fn of(account: &AccountRef) -> UsageHome {
-        UsageHome {
-            provider: account.provider,
-            home: account.home.clone(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

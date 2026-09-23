@@ -19,6 +19,7 @@ pub struct Model {
     pub accounts: Vec<AccountRecord>,
     pub snapshots: HashMap<AccountId, SnapshotEntry>,
     pub runtime: HashMap<AccountId, AccountRuntime>,
+    pub usage_homes: BTreeSet<UsageHome>,
     pub usage: BTreeMap<UsageHome, UsageSummary>,
 }
 
@@ -93,6 +94,7 @@ impl Model {
             accounts: accounts::load_all(conn)?,
             snapshots,
             runtime: HashMap::new(),
+            usage_homes: BTreeSet::new(),
             usage: BTreeMap::new(),
         })
     }
@@ -104,13 +106,6 @@ impl Model {
 
     pub fn active_accounts(&self) -> impl Iterator<Item = &AccountRecord> {
         self.accounts.iter().filter(|a| !a.gone)
-    }
-
-    #[must_use]
-    pub fn usage_homes(&self) -> BTreeSet<UsageHome> {
-        self.active_accounts()
-            .map(|a| UsageHome::of(&a.reference))
-            .collect()
     }
 
     pub fn runtime_mut(&mut self, id: &AccountId) -> &mut AccountRuntime {

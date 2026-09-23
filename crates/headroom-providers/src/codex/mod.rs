@@ -103,6 +103,10 @@ impl Provider for CodexProvider {
         discover_accounts(self.config.environment.homes()?)
     }
 
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        self.config.environment.usage_homes()
+    }
+
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         let credentials = current_credentials(account)?;
         let now = self.now();

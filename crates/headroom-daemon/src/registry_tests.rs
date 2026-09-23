@@ -31,6 +31,7 @@ async fn running() -> Running {
     let (rescans, requests) = rescan::channel();
     let task = tokio::spawn(supervise(harness.core.clone(), requests));
     eventually(|| provider.discoveries.load(Ordering::SeqCst) == 2).await;
+    eventually(|| harness.core.state().usage.len() == 1).await;
     Running {
         harness,
         provider,
@@ -101,4 +102,31 @@ async fn rescan_fails_once_the_supervisor_is_gone() {
         rescans.rescan().await,
         Err(crate::error::CommandError::Stopping)
     ));
+}
+
+#[tokio::test]
+async fn rescan_starts_reading_new_usage_homes() {
+    let run = running().await;
+    let dir = tempfile::tempdir().unwrap();
+    run.provider.homes.lock().unwrap().clear();
+    run.provider.homes.lock().unwrap().push(dir.path().into());
+    run.provider
+        .usage
+        .lock()
+        .unwrap()
+        .push(crate::testing::event(
+            "a",
+            "2026-09-23T09:00:00Z",
+            "gpt-5.5",
+            30,
+            3,
+        ));
+    run.rescans.rescan().await.unwrap();
+    let shown = dir.path().display().to_string();
+    eventually(|| {
+        let state = run.harness.core.state();
+        state.usage.len() == 1 && state.usage[0].usage_home == shown
+    })
+    .await;
+    assert_eq!(run.harness.core.state().spend.today.total_tokens, 33);
 }

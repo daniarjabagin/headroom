@@ -93,6 +93,10 @@ impl Provider for StaticProvider {
             .map_err(|_| ProviderError::LocalData("poisoned".into()))
     }
 
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        Ok(Vec::new())
+    }
+
     async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         let now = Timestamp::now();
         Ok(LimitsSnapshot {

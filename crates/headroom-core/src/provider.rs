@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use jiff::SignedDuration;
@@ -13,6 +13,8 @@ use crate::quota::LimitsSnapshot;
 pub trait Provider: Send + Sync {
     fn kind(&self) -> ProviderKind;
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError>;
+    /// Every directory whose local logs hold usage, with or without a signed-in account.
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError>;
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError>;
     fn read_usage(
         &self,

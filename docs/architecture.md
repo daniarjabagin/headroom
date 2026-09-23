@@ -119,7 +119,11 @@ pub struct AccountIdentity { pub email: Option<String>, pub plan: Option<String>
   `CODEX_HOME` / `CLAUDE_CONFIG_DIR` pointing there. Headroom may refresh these tokens, writing back by
   patching a `serde_json::Value` and atomically replacing the file only if its content is unchanged
   since it was read.
-- Local token usage belongs to a **usage home**, not an account. Accounts sharing a home share usage.
+- Local token usage belongs to a **usage home** (a directory with the tool's logs), not an account.
+  Usage homes are discovered on their own (`Provider::usage_homes`): a home with logs but no OAuth
+  account (API-key users, signed-out users) still counts, and so does a second config dir signed into
+  an account already discovered elsewhere. An account links to the usage home at its own `home` when
+  that home has logs; accounts sharing a home share usage.
 
 ## Quota model
 
@@ -223,6 +227,7 @@ pub struct UsageSummary {
 pub trait Provider: Send + Sync {
     fn kind(&self) -> ProviderKind;
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError>;
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError>;
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError>;
     fn read_usage(&self, home: &Path, cursors: &mut LogCursors) -> Result<Vec<UsageEvent>, ProviderError>;
 }
@@ -242,6 +247,13 @@ pub enum ProviderError {
 - `fetch_limits` for Codex falls back to the newest `rate_limits` snapshot in local logs when the
   network call fails or the sign-in expired, returning `LimitsSource::LocalLog`.
 - `read_usage` is synchronous and CPU-bound; the daemon runs it on `spawn_blocking`.
+- `usage_homes` returns every directory whose logs should be read, independent of accounts and
+  deduplicated by canonical path. The daemon reads usage from exactly this set.
+  - Codex: the CLI home (`$CODEX_HOME` or `~/.codex`) when it has `sessions/` or `archived_sessions/`,
+    plus Headroom-owned homes with one of those directories.
+  - Claude: dirs with a `projects/` directory among `$CLAUDE_CONFIG_DIR`, `~/.claude`, the scanned
+    config dirs (hidden children of `~`, children of `$XDG_CONFIG_HOME`) that hold `.claude.json` or
+    `.credentials.json` (no identity needed), and Headroom-owned dirs.
 
 ## Daemon
 
@@ -252,7 +264,12 @@ pub enum ProviderError {
 - **Discovery**: every 10 min and on D-Bus `Rescan` (coalesced; a request during a running discovery
   waits for one follow-up). Accounts found by a rescan refresh at once; `headroom accounts add|remove`
   call it.
-- **Usage**: inotify on each usage home's log directories, debounced 2 s, plus a 60 s poll fallback.
+- **Usage**: the usage home set is refreshed with every discovery (a failed or timed-out
+  `usage_homes` keeps that provider's previous set). inotify on each usage home, debounced 2 s, plus a
+  60 s poll fallback. Events are stored per home and a session is logged in one home only, so summing
+  homes never double counts.
+  Without a running daemon, `headroom status` reads cached usage for every stored usage home whose
+  directory still exists.
 - **Storage** (`$XDG_STATE_HOME/headroom/headroom.db`, WAL): `accounts`, `limits_snapshots` (last good per
   account), `usage_events`, `log_cursors`, `notification_state`, `settings`. Migrations are numbered
   SQL files applied in order.

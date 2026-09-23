@@ -23,6 +23,10 @@ pub(super) fn read_usage(
     Ok(events)
 }
 
+pub(super) fn has_logs(home: &Path) -> bool {
+    LOG_DIRS.iter().any(|dir| home.join(dir).is_dir())
+}
+
 pub(super) fn rollout_files(home: &Path) -> Result<Vec<PathBuf>, JsonlError> {
     let mut files = Vec::new();
     for dir in LOG_DIRS {

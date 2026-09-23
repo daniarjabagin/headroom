@@ -104,3 +104,42 @@ fn read_usage_uses_the_injected_clock() {
     assert_eq!(events.len(), 3);
     assert_eq!(setup.provider(DEFAULT_API_BASE).kind(), ProviderKind::Codex);
 }
+
+#[tokio::test]
+async fn api_key_home_with_sessions_is_a_usage_home() {
+    let setup = Setup::new();
+    write_auth(&setup.cli_home(), &json!({ "OPENAI_API_KEY": "sk-fake" }));
+    write_rollout(&setup.cli_home(), "sessions/rollout.jsonl", RECORDS);
+    let provider = setup.provider(DEFAULT_API_BASE);
+    assert_eq!(provider.discover().await, Err(ProviderError::ApiKeyOnly));
+    assert_eq!(provider.usage_homes().await.unwrap(), [setup.cli_home()]);
+}
+
+#[tokio::test]
+async fn usage_homes_need_log_directories() {
+    let setup = Setup::new();
+    setup.sign_in("2026-09-24T00:00:00Z");
+    fs::create_dir_all(setup.headroom_home("a").join("archived_sessions")).unwrap();
+    write_auth(&setup.headroom_home("b"), &auth_document("other"));
+    let homes = setup
+        .provider(DEFAULT_API_BASE)
+        .usage_homes()
+        .await
+        .unwrap();
+    assert_eq!(homes, [setup.headroom_home("a")]);
+}
+
+#[tokio::test]
+async fn usage_homes_are_deduplicated_by_canonical_path() {
+    let setup = Setup::new();
+    write_rollout(&setup.cli_home(), "sessions/rollout.jsonl", RECORDS);
+    let data = setup.root.path().join("data/headroom/accounts/codex");
+    fs::create_dir_all(&data).unwrap();
+    std::os::unix::fs::symlink(setup.cli_home(), data.join("alias")).unwrap();
+    let homes = setup
+        .provider(DEFAULT_API_BASE)
+        .usage_homes()
+        .await
+        .unwrap();
+    assert_eq!(homes, [setup.cli_home()]);
+}

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use headroom_core::account::{AccountId, AccountRef, ProviderKind};
@@ -9,7 +10,7 @@ use tokio::sync::{Notify, mpsc};
 
 use crate::clock::Clock;
 use crate::error::StorageError;
-use crate::home::HomeDisplay;
+use crate::home::{HomeDisplay, UsageHome};
 use crate::model::Model;
 use crate::notify::Notifier;
 use crate::notify::alerts::Alerts;
@@ -111,6 +112,16 @@ impl Core {
         self.model().accounts = accounts;
         self.mark_changed();
         Ok(())
+    }
+
+    pub fn set_usage_homes(&self, provider: ProviderKind, homes: Vec<PathBuf>) {
+        let mut model = self.model();
+        model.usage_homes.retain(|home| home.provider != provider);
+        model
+            .usage_homes
+            .extend(homes.into_iter().map(|home| UsageHome { provider, home }));
+        drop(model);
+        self.mark_changed();
     }
 
     pub(crate) fn register_trigger(&self, id: AccountId, trigger: mpsc::Sender<()>) {

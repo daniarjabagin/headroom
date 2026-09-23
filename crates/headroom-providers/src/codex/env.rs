@@ -5,6 +5,9 @@ use std::path::{Path, PathBuf};
 use headroom_core::account::CredentialOwner;
 use headroom_core::provider::ProviderError;
 
+use super::local_usage::has_logs;
+use crate::homes::unique_dirs;
+
 const CODEX_HOME_VAR: &str = "CODEX_HOME";
 const DEFAULT_HOME_DIR: &str = ".codex";
 const HEADROOM_ACCOUNTS_DIR: [&str; 3] = ["headroom", "accounts", "codex"];
@@ -44,6 +47,11 @@ impl CodexEnvironment {
             .iter()
             .fold(data_dir.clone(), |path, part| path.join(part));
         subdirectories(&root)
+    }
+
+    pub(super) fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        let homes = self.cli_home().into_iter().chain(self.headroom_homes()?);
+        Ok(unique_dirs(homes.filter(|home| has_logs(home))))
     }
 
     pub(super) fn homes(&self) -> Result<Vec<(PathBuf, CredentialOwner)>, ProviderError> {

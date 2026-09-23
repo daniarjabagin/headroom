@@ -77,7 +77,7 @@ Top level:
 | `offline` | bool | `true` when every listed account (hidden ones included) failed its most recent refresh with a `network` error. Any success, any other error or an account not tried yet makes it `false`. `false` without accounts. |
 | `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
-| `usage` | Usage[] | Local token usage, one entry per `(provider, usage_home)` of a listed account. |
+| `usage` | Usage[] | Local token usage, one entry per usage home the daemon reads (see [Usage](#usage)), whether or not an account belongs to it. |
 | `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
 
 All timestamps are RFC 3339 strings in UTC (`2026-09-23T10:00:00Z`, fractional seconds when present).
@@ -115,7 +115,7 @@ account order.
 | `windows` | Window[] | Quota windows of the last good snapshot, in provider order. |
 | `balances` | Balance[] | Credits and similar balances. |
 | `notices` | Notice[] | Provider notices to show under the account. |
-| `usage_home` | string | Usage home of the account, `~`-relative when under the user's home. Matches `usage[].usage_home`. |
+| `usage_home` | string | The account's own home, `~`-relative when under the user's home. Links the account to the `usage[]` entry with the same `usage_home` and provider; when that home has no logs there is no such entry. |
 
 Status, evaluated in this order:
 
@@ -196,8 +196,18 @@ Tone: `neutral`, `good`, `warning`, `critical` (blue accent, amber, red; neutral
 
 ### Usage
 
-Local token usage belongs to a usage home (a CLI config directory), not to an account; accounts that
-share a home share usage.
+Local token usage belongs to a usage home (a CLI config directory with the tool's logs), not to an
+account. Usage homes are discovered independently of accounts, so the list also covers homes without
+an OAuth account (API-key or signed-out users) and extra config dirs signed into an account that is
+already listed from another dir. Accounts that share a home share usage.
+
+- Codex: `$CODEX_HOME` or `~/.codex` when it has `sessions/` or `archived_sessions/`, and
+  Headroom-owned homes with those directories.
+- Claude Code: `$CLAUDE_CONFIG_DIR`, `~/.claude`, config dirs found by the account scan (hidden
+  directories in `~` and directories in `$XDG_CONFIG_HOME` holding `.claude.json` or
+  `.credentials.json`) and Headroom-owned dirs — each only when it has a `projects/` directory.
+- Paths that resolve to the same directory are listed once. The set is refreshed with every account
+  discovery (every 10 minutes and on `Rescan`).
 
 | field | type | description |
 | --- | --- | --- |
@@ -232,7 +242,7 @@ ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
 
 | field | type | description |
 | --- | --- | --- |
-| `today` | PeriodSpend | Sum of `usage[].today`. |
+| `today` | PeriodSpend | Sum of `usage[].today` over every usage home, including homes without an account. Events are stored per home and a session is logged in one home only, so nothing is counted twice. |
 | `yesterday` | PeriodSpend | Sum of `usage[].yesterday`. |
 | `last_30_days` | PeriodSpend | Sum of `usage[].last_30_days`. |
 

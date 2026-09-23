@@ -44,7 +44,7 @@ impl Supervisor {
         discover_all(&self.core).await;
         prune_usage(&self.core).await;
         self.scheduler.sync(&self.core.active_accounts(), first);
-        let homes = self.core.model().usage_homes();
+        let homes = self.core.model().usage_homes.clone();
         self.watchers.sync(&homes);
     }
 }
@@ -52,6 +52,7 @@ impl Supervisor {
 pub async fn discover_all(core: &Core) {
     for provider in &core.providers {
         discover(core, provider.as_ref()).await;
+        discover_usage_homes(core, provider.as_ref()).await;
     }
     if let Err(error) = core.reload_accounts().await {
         tracing::warn!(%error, "could not reload accounts");
@@ -78,6 +79,15 @@ async fn discover(core: &Core, provider: &dyn Provider) {
         .await;
     if let Err(error) = result {
         tracing::warn!(provider = %kind, %error, "could not store discovered accounts");
+    }
+}
+
+async fn discover_usage_homes(core: &Core, provider: &dyn Provider) {
+    let kind = provider.kind();
+    match tokio::time::timeout(DISCOVERY_TIMEOUT, provider.usage_homes()).await {
+        Ok(Ok(homes)) => core.set_usage_homes(kind, homes),
+        Ok(Err(error)) => tracing::warn!(provider = %kind, %error, "usage home discovery failed"),
+        Err(_) => tracing::warn!(provider = %kind, "usage home discovery timed out"),
     }
 }
 

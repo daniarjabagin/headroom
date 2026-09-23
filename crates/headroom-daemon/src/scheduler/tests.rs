@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -73,6 +73,10 @@ impl Provider for ScriptedProvider {
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         Ok(vec![self.account.clone()])
+    }
+
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        Ok(Vec::new())
     }
 
     async fn fetch_limits(&self, _account: &AccountRef) -> Outcome {

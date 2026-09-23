@@ -18,7 +18,7 @@ use jiff::{SignedDuration, Timestamp};
 
 use crate::clock::testing::ManualClock;
 use crate::core::{Core, CoreParts};
-use crate::home::HomeDisplay;
+use crate::home::{HomeDisplay, UsageHome};
 use crate::notify::{Notification, Notifier, NotifyError};
 use crate::random::FixedRandom;
 use crate::storage::Storage;
@@ -33,6 +33,13 @@ pub fn account(provider: ProviderKind, name: &str) -> AccountRef {
         provider,
         home: PathBuf::from(format!("/home/ada/.{provider}")),
         owner: CredentialOwner::Cli,
+    }
+}
+
+pub fn usage_home_of(account: &AccountRef) -> UsageHome {
+    UsageHome {
+        provider: account.provider,
+        home: account.home.clone(),
     }
 }
 
@@ -108,13 +115,16 @@ pub struct FakeProvider {
     pub accounts: Mutex<Vec<AccountRef>>,
     pub limits: Mutex<Result<LimitsSnapshot, ProviderError>>,
     pub usage: Mutex<Vec<UsageEvent>>,
+    pub homes: Mutex<Vec<PathBuf>>,
     pub discoveries: AtomicUsize,
 }
 
 impl FakeProvider {
     pub fn new(kind: ProviderKind, accounts: Vec<AccountRef>, limits: LimitsSnapshot) -> Self {
+        let homes = accounts.iter().map(|a| a.home.clone()).collect();
         FakeProvider {
             kind,
+            homes: Mutex::new(homes),
             accounts: Mutex::new(accounts),
             limits: Mutex::new(Ok(limits)),
             usage: Mutex::new(Vec::new()),
@@ -132,6 +142,10 @@ impl Provider for FakeProvider {
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         self.discoveries.fetch_add(1, Ordering::SeqCst);
         Ok(self.accounts.lock().unwrap().clone())
+    }
+
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        Ok(self.homes.lock().unwrap().clone())
     }
 
     async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {

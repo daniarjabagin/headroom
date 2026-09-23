@@ -9,7 +9,7 @@ use headroom_core::provider::ProviderError;
 use super::log_record::parse_line;
 use crate::jsonl;
 
-const PROJECTS_DIR: &str = "projects";
+pub(super) const PROJECTS_DIR: &str = "projects";
 
 pub(super) fn read_usage(
     home: &Path,
