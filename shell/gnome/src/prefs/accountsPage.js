@@ -40,7 +40,7 @@ export class AccountsPage {
     _placeholder() {
         const row = new Adw.ActionRow({
             title: _('No accounts yet'),
-            subtitle: _('Sign in with the Codex or Claude Code CLI, or add an account below.'),
+            subtitle: _('Sign in with the Codex or Claude CLI, or add an account below.'),
         });
         row.add_css_class('dim-label');
         return row;

@@ -13,24 +13,25 @@ function periodTitle(key) {
     return PERIODS.find(([candidate]) => candidate === key)[1]();
 }
 
-function header() {
+function header(trailing) {
     const actor = row({ style_class: 'headroom-section-header spend' });
     actor.add_child(label(_('Total Spend'), 'headroom-title'));
     const info = themeIcon('help-about-symbolic', 'headroom-info-icon');
     actor.add_child(info);
     actor.add_child(spacer());
+    actor.add_child(trailing);
     return [actor, info];
 }
 
 export class SpendSection {
-    constructor(ctx, spend, period) {
+    constructor(ctx, spend, period, trailing) {
         this._ctx = ctx;
         this._spend = spend;
         this._period = period;
         this._body = null;
         this._bodyKey = null;
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
-        const [headerRow, info] = header();
+        const [headerRow, info] = header(trailing);
         ctx.tooltips.attach(info, () => this._infoText());
         this._card = column({
             style_class: 'headroom-card headroom-spend-card',

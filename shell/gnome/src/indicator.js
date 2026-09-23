@@ -100,7 +100,6 @@ export const Indicator = GObject.registerClass(
                 motion: this._motion,
                 actions: {
                     refresh: accountId => this._client.refresh(accountId),
-                    setHidden: (accountId, hidden) => this._client.setAccountHidden(accountId, hidden),
                     setOrder: ids => this._client.setAccountOrder(ids),
                     toggleValueMode: () => this._patchDisplay(toggledValueMode),
                     toggleResetFormat: () => this._patchDisplay(toggledResetFormat),

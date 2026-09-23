@@ -23,14 +23,8 @@
     background-color: var(--chip);
 }
 
-.headroom-options-button:active {
+.headroom-icon-button:active {
     background-color: var(--chip);
-    box-shadow: inset 0 1px 2px var(--control-shadow);
-}
-
-.headroom-menu-item:active {
-    background-color: var(--accent);
-    background-color: st-darken(-st-accent-color, 8%);
 }
 
 .headroom-primary-button:active {
@@ -123,7 +117,6 @@
 .headroom-translucent .headroom-forecast,
 .headroom-translucent .headroom-footer-text,
 .headroom-translucent .headroom-stat-caption,
-.headroom-translucent .headroom-donut-unit,
 .headroom-translucent .headroom-segment,
 .headroom-translucent .headroom-caret-icon,
 .headroom-translucent .headroom-info-icon,
@@ -131,11 +124,21 @@
 .headroom-translucent .headroom-status-detail,
 .headroom-translucent .headroom-notice-detail,
 .headroom-translucent .headroom-empty-period,
-.headroom-translucent .headroom-stale-tag {
+.headroom-translucent .headroom-stale-tag,
+.headroom-translucent .headroom-icon-button {
     color: var(--glass-text-secondary);
 }
 
 .headroom-translucent .headroom-segment:checked,
 .headroom-translucent .headroom-segment:hover {
     color: var(--text);
+}
+
+.headroom-translucent .headroom-icon-button:hover {
+    color: var(--text);
+}
+
+.headroom-translucent .headroom-refresh-button.busy {
+    color: var(--accent);
+    color: -st-accent-color;
 }

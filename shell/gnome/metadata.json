@@ -1,7 +1,7 @@
 {
   "uuid": "headroom@headroom.github.io",
   "name": "Headroom",
-  "description": "How much of your AI coding limits is left — Codex, Claude Code and more — in the top panel. Requires the Headroom service.",
+  "description": "How much of your AI coding limits is left — Codex, Claude and more — in the top panel. Requires the Headroom service.",
   "shell-version": ["46", "47", "48", "49", "50"],
   "url": "https://github.com/headroom/headroom",
   "version-name": "0.1.0"

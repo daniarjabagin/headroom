@@ -69,7 +69,8 @@ export const RU = {
     Offline: 'Нет сети',
     'Updating…': 'Обновление…',
     'Updated {time}': 'Обновлено в {time}',
-    Options: 'Параметры',
+    Preferences: 'Параметры',
+    Refresh: 'Обновить',
     'Limit reached': 'Лимит исчерпан',
     'Over pace': 'Темп превышен',
     'No data': 'Нет данных',
@@ -91,6 +92,9 @@ export const RU = {
     'Run "{command}" and sign in, then Retry': 'Выполните «{command}», войдите и нажмите «Повторить»',
     'Sign in again, then Retry': 'Войдите снова и нажмите «Повторить»',
     "Couldn't refresh {provider}": 'Не удалось обновить {provider}',
+    'No active subscription': 'Подписка неактивна',
+    "Limits aren't available for this account. Renew the plan or sign in with another account.":
+        'Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт.',
     dollars: 'USD',
     tokens: 'токенов',
     'No usage in this period': 'За этот период расходов нет',
@@ -98,9 +102,6 @@ export const RU = {
     'Some models have no public price yet.': 'У некоторых моделей пока нет публичной цены.',
     'Estimated from local logs and public pricing.': 'Оценка по локальным журналам и публичным ценам.',
     'Partly unpriced, cost leaves it out': 'Частично без цены, в стоимость не входит',
-    'Refresh now': 'Обновить сейчас',
-    'Settings…': 'Настройки…',
-    'Hide accounts…': 'Скрыть аккаунты…',
     Accounts: 'Аккаунты',
     "Headroom service isn't running": 'Служба Headroom не запущена',
     'Start it to see your usage limits here.': 'Запустите её, чтобы видеть здесь свои лимиты.',
@@ -123,8 +124,8 @@ export const RU = {
     'Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.':
         'Перетащите, чтобы изменить порядок. Скрытые аккаунты продолжают обновляться, но не появляются на панели и в уведомлениях.',
     'No accounts yet': 'Аккаунтов пока нет',
-    'Sign in with the Codex or Claude Code CLI, or add an account below.':
-        'Войдите через CLI Codex или Claude Code либо добавьте аккаунт ниже.',
+    'Sign in with the Codex or Claude CLI, or add an account below.':
+        'Войдите через CLI Codex или Claude либо добавьте аккаунт ниже.',
     'Add Account': 'Добавить аккаунт',
     'Sign in to another account without touching the one your CLI uses.':
         'Войдите в другой аккаунт, не затрагивая тот, что использует ваш CLI.',

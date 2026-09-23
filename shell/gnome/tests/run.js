@@ -2,12 +2,14 @@ import GLib from 'gi://GLib';
 import { parseDisplay } from '../src/settings.js';
 import { parseState, StateError } from '../src/state.js';
 import { check, failures, throws } from './check.js';
+import { testDonut } from './donutTests.js';
 import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
 import { testProgressProcess } from './processTests.js';
 import { testSerialQueue } from './queueTests.js';
 import { testSettings, testSettingsUpdates } from './settingsTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
+import { testStatus } from './statusTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
 
 function readRelative(...parts) {
@@ -175,6 +177,8 @@ testSampleContract();
 testSampleUsage();
 testDaemonSnapshot();
 testEdgeStates();
+testStatus();
+testDonut();
 await testSerialQueue();
 await testProgressProcess();
 if (failures.length > 0) {

@@ -231,6 +231,17 @@ def claude_team(now):
     )
 
 
+def codex_lapsed(now):
+    return account(
+        "codex:7c6b5a4f3e2d", "codex", "old", "old@example.net", "Plus", "no_subscription", [], now,
+        error={"kind": "no_subscription", "message": "ChatGPT Plus ended on Sep 20, usage limits need an active plan"},
+        updated_at=None,
+        source=None,
+        usage_home="~/.local/share/headroom/homes/codex-7c6b5a4f3e2d",
+        owner="headroom",
+    )
+
+
 CODEX_MIX = [("gpt-5.5", 62, 78), ("gpt-5.5-mini", 21, 12), ("gpt-5.4-codex", 11, 8), ("o4-mini", 6, 2)]
 CLAUDE_MIX = [
     ("claude-opus-4-5", 34, 61),
@@ -344,6 +355,11 @@ def offline_state(now):
                     offline=True, next_refresh_at=iso(now + 4 * MINUTE), last_success_at=iso(now - 47 * MINUTE))
 
 
+def no_subscription_state(now):
+    accounts = [codex_work(now), codex_lapsed(now), claude_personal(now)]
+    return assemble(now, accounts, full_usage(now), WORK_SESSION)
+
+
 def single_state(now):
     return assemble(now, [codex_work(now)], full_usage(now)[:1], WORK_SESSION)
 
@@ -358,6 +374,7 @@ SCENARIOS = {
     "offline": offline_state,
     "single": single_state,
     "critical": critical_state,
+    "no_subscription": no_subscription_state,
 }
 
 

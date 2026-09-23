@@ -27,68 +27,30 @@
     color: var(--text);
 }
 
-.headroom-options-button {
+.headroom-icon-button {
+    width: 28px;
     height: 28px;
-    padding: 0 12px 0 14px;
     border-radius: 14px;
-    border: 1px solid var(--separator);
-    background-color: var(--control);
-    color: var(--text);
-    font-size: 9.75pt;
-    font-weight: 600;
+    color: var(--text-secondary);
     transition-duration: 120ms;
 }
 
-.headroom-options-button:hover {
-    background-color: var(--control-hover);
-}
-
-.headroom-options-content {
-    spacing: 5px;
-}
-
-.headroom-options-chevron {
-    icon-size: 11px;
-}
-
-.headroom-options-menu {
-    margin: 0 14px 58px 0;
-    padding: 5px;
-    min-width: 176px;
-    border-radius: 10px;
-    border: 1px solid var(--separator);
-    background-color: var(--tooltip);
-    box-shadow: 0 6px 20px var(--float-shadow);
-}
-
-.headroom-menu-item {
-    padding: 5px 9px;
-    border-radius: 6px;
+.headroom-icon-button:hover {
+    background-color: var(--button-hover);
     color: var(--text);
-    font-size: 9.75pt;
 }
 
-.headroom-menu-item:hover,
-.headroom-menu-item:focus {
-    background-color: var(--accent);
-    background-color: -st-accent-color;
-    color: var(--accent-fg);
-    color: -st-accent-fg-color;
+.headroom-icon-button-icon {
+    icon-size: 16px;
 }
 
-.headroom-menu-item-content {
-    spacing: 6px;
+.headroom-refresh-button.busy {
+    color: var(--accent);
+    color: -st-accent-color;
 }
 
-.headroom-menu-check,
-.headroom-menu-back {
-    icon-size: 12px;
-}
-
-.headroom-menu-separator {
-    height: 1px;
-    margin: 4px 8px;
-    background-color: var(--separator);
+.headroom-top-bar {
+    padding: 0 0 0 10px;
 }
 
 .headroom-tooltip {
@@ -147,7 +109,7 @@
 
 .headroom-segment:focus,
 .headroom-small-button:focus,
-.headroom-options-button:focus,
+.headroom-icon-button:focus,
 .headroom-primary-button:focus {
     box-shadow: inset 0 0 0 2px var(--accent);
     box-shadow: inset 0 0 0 2px -st-accent-color;

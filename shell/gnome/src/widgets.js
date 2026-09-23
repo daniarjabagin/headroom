@@ -62,3 +62,9 @@ export function button(child, styleClass, onClick) {
 export function textButton(text, styleClass, onClick) {
     return button(new St.Label({ text }), styleClass, onClick);
 }
+
+export function iconButton(iconName, accessibleName, onClick) {
+    const widget = button(themeIcon(iconName, 'headroom-icon-button-icon'), 'headroom-icon-button', onClick);
+    widget.accessible_name = accessibleName;
+    return widget;
+}

@@ -44,6 +44,10 @@
     color: var(--text-secondary);
 }
 
+.headroom-notice-note {
+    padding-top: 3px;
+}
+
 .headroom-notice-actions {
     spacing: 4px;
 }
@@ -114,15 +118,9 @@
 }
 
 .headroom-donut-value {
-    font-size: 9.75pt;
+    font-size: 11.25pt;
     font-weight: 600;
     color: var(--text);
-}
-
-.headroom-donut-unit {
-    font-size: 6.75pt;
-    font-weight: 500;
-    color: var(--text-secondary);
 }
 
 .headroom-legend {

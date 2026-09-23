@@ -6,7 +6,7 @@ DEV_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 usage() {
     echo "usage: devkit.sh BUNDLE.zip" >&2
-    echo "  SCENARIO=full|critical|empty|offline|single  sample state served by the mock daemon" >&2
+    echo "  SCENARIO=full|critical|empty|offline|single|no_subscription  sample state served by the mock daemon" >&2
     echo "  HEADLESS=1                         run without a window (virtual monitor)" >&2
     echo "  COLOR_SCHEME=prefer-dark|default   color scheme inside the nested shell" >&2
     exit 2

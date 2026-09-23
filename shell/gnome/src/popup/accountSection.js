@@ -1,3 +1,4 @@
+import { lacksSubscription, subscriptionNote } from '../accountStatus.js';
 import { _, fill } from '../i18n.js';
 import { providerInfo } from '../providers.js';
 import { column } from '../widgets.js';
@@ -25,6 +26,16 @@ function signedOutNotice(ctx, account) {
     });
 }
 
+function noSubscriptionNotice(ctx, account) {
+    return noticeRow({
+        kind: 'warning',
+        title: _('No active subscription'),
+        detail: _("Limits aren't available for this account. Renew the plan or sign in with another account."),
+        note: subscriptionNote(account.error),
+        actions: [{ label: _('Retry'), run: () => ctx.actions.refresh(account.id) }],
+    });
+}
+
 function errorNotice(ctx, account) {
     return noticeRow({
         kind: 'error',
@@ -40,11 +51,16 @@ function showsErrorNotice(ctx, account) {
 
 function noticeRows(ctx, account) {
     if (account.status === 'signed_out') return [signedOutNotice(ctx, account)];
+    if (lacksSubscription(account)) return [noSubscriptionNotice(ctx, account)];
     const rows = account.notices.map(notice =>
         noticeRow({ kind: notice.tone === 'critical' ? 'error' : 'warning', title: notice.text })
     );
     if (showsErrorNotice(ctx, account)) rows.unshift(errorNotice(ctx, account));
     return rows;
+}
+
+function showsLimits(account) {
+    return account.status !== 'signed_out' && !lacksSubscription(account);
 }
 
 function shownWindows(account) {
@@ -115,6 +131,7 @@ export class AccountSection {
             windows: shownWindows(account).map(window => window.id),
             skeleton: awaitingFirstData(account),
             signedOut: account.status === 'signed_out',
+            noSubscription: lacksSubscription(account) ? subscriptionNote(account.error) : false,
             errorNotice: showsErrorNotice(ctx, account) ? account.error : null,
             notices: account.notices,
             plan: account.plan,
@@ -134,7 +151,7 @@ export class AccountSection {
         this.actor.add_child(this._header.actor);
         const card = column({ style_class: 'headroom-card', x_expand: true, reactive: true, track_hover: true });
         for (const notice of noticeRows(this._ctx, account)) card.add_child(notice);
-        if (account.status !== 'signed_out') this._addBody(card, account);
+        if (showsLimits(account)) this._addBody(card, account);
         card.visible = card.get_n_children() > 0;
         this.actor.add_child(card);
     }
