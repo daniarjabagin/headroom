@@ -6,7 +6,7 @@ import { contextKey, pluralIndex, resolveLanguage, setLanguage } from '../src/i1
 import { RU } from '../src/locale/ru.js';
 import * as numbers from '../src/numbers.js';
 import { check } from './check.js';
-import { scanMessages } from './messageScan.js';
+import { literalErrorFiles, scanMessages } from './messageScan.js';
 
 const NBSP = '\u00a0';
 
@@ -98,6 +98,7 @@ function testCatalogCoverage() {
     const badPlurals = messages.plural.filter(msgid => !Array.isArray(RU[msgid]) || RU[msgid].length !== 3);
     check('ru plural entries have three forms', badPlurals, []);
     check('only literal msgids', messages.dynamic, []);
+    check('prefs errors are translated', literalErrorFiles(extensionDir()), []);
     const used = new Set([
         ...messages.plain,
         ...messages.plural,

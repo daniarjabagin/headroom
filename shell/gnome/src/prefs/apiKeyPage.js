@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 import { _, fill } from '../i18n.js';
 import { ProgressProcess } from './cli.js';
 import { flowBody, navigationPage, pageStack, resultPage, stack } from './flowPage.js';
-import { addAccountArgs } from './registry.js';
+import { addAccountArgs, LABEL_MAX_CHARS } from './registry.js';
 import { pillButton, spinner } from './widgets.js';
 
 export class ApiKeyPage {
@@ -43,7 +43,7 @@ export class ApiKeyPage {
         this._keyRow = new Adw.PasswordEntryRow({ title: this._method.label ?? _('API key') });
         this._keyRow.connect('changed', () => this._syncAddButton());
         this._keyRow.connect('entry-activated', () => this._start());
-        this._labelRow = new Adw.EntryRow({ title: _('Label (optional)') });
+        this._labelRow = new Adw.EntryRow({ title: _('Label (optional)'), max_length: LABEL_MAX_CHARS });
         this._labelRow.connect('entry-activated', () => this._start());
         const group = new Adw.PreferencesGroup({ description: this._method.hint ?? '' });
         group.add(this._keyRow);
@@ -80,7 +80,7 @@ export class ApiKeyPage {
         if (!key || this._process) return;
         this._stack.visible_child_name = 'progress';
         this._description.label = _('This takes a moment.');
-        const args = addAccountArgs(this._provider.id, this._method, this._labelRow.text.trim());
+        const args = addAccountArgs(this._provider.id, this._method, this._labelRow.text);
         try {
             this._process = new ProgressProcess(args, {
                 onEvent: event => this._onEvent(event),

@@ -1,6 +1,7 @@
 import { _, fill } from '../i18n.js';
 
 const SCHEMA_VERSION = 1;
+export const LABEL_MAX_CHARS = 64;
 const PROVIDER_ID = /^[a-z0-9_-]+$/;
 
 export class RegistryError extends Error {}
@@ -43,16 +44,21 @@ function decode(json) {
     try {
         return JSON.parse(json);
     } catch (error) {
-        throw new RegistryError(`Unreadable provider list from the Headroom service: ${error.message}`);
+        throw new RegistryError(
+            fill(_('Unreadable provider list from the Headroom service: {reason}'), { reason: error.message })
+        );
     }
 }
 
 export function parseProviders(json) {
     const raw = decode(json);
-    if (!isObject(raw)) throw new RegistryError('Unexpected provider list from the Headroom service');
+    if (!isObject(raw)) throw new RegistryError(_('Unexpected provider list from the Headroom service'));
     if (raw.version !== SCHEMA_VERSION)
         throw new RegistryError(
-            `Headroom service lists providers in version ${raw.version}, expected ${SCHEMA_VERSION}`
+            fill(_('Headroom service lists providers in version {actual}, expected {expected}'), {
+                actual: raw.version,
+                expected: SCHEMA_VERSION,
+            })
         );
     const providers = (Array.isArray(raw.providers) ? raw.providers : []).map(parseProvider).filter(Boolean);
     return providers.filter((provider, index) => providers.findIndex(other => other.id === provider.id) === index);
@@ -67,7 +73,8 @@ export function methodSummary(method) {
 
 export function addAccountArgs(providerId, method, label) {
     const keyFlag = method.kind === 'api_key' ? ['--api-key-stdin'] : [];
-    return ['accounts', 'add', providerId, ...keyFlag, ...(label ? ['--label', label] : [])];
+    const trimmed = label.trim();
+    return ['accounts', 'add', providerId, ...keyFlag, ...(trimmed ? [`--label=${trimmed}`] : [])];
 }
 
 export function providerSummary(provider) {

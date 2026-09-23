@@ -8,6 +8,7 @@ const PLURAL = new RegExp(String.raw`(?<![\w$])n_\(\s*(?:${STRING})\s*,\s*(?:${S
 const ANY_CALL = /(?<![\w$])(?:_|C_|n_)\(/g;
 const DEFINITION = /export function (?:_|C_|n_)\(/g;
 const SKIPPED = ['locale', 'i18n.js'];
+const LITERAL_ERROR = /new \w*Error\(\s*['"`]/;
 
 function unescape(text) {
     return text.replace(/\\(.)/g, '$1');
@@ -58,4 +59,10 @@ export function scanMessages(extensionDir) {
         plural: [...new Set(messages.plural)],
         dynamic: messages.dynamic,
     };
+}
+
+export function literalErrorFiles(extensionDir) {
+    return sourceFiles(extensionDir.get_child('src').get_child('prefs'))
+        .filter(file => LITERAL_ERROR.test(read(file)))
+        .map(file => file.get_basename());
 }
