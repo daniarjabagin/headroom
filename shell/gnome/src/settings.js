@@ -83,9 +83,13 @@ function decode(json) {
     }
 }
 
-export function parseSettings(json) {
+export function decodeSettings(json) {
     const raw = decode(json);
     if (!isObject(raw)) throw new SettingsError('Unexpected settings from the Headroom service');
+    return raw;
+}
+
+export function settingsFrom(raw) {
     return {
         refreshIntervalSecs: refreshInterval(raw.refresh_interval_secs),
         notifications: parseNotifications(raw.notifications),
@@ -95,49 +99,68 @@ export function parseSettings(json) {
     };
 }
 
-function serializeHeadline(headline) {
-    if (headline.mode !== 'pinned') return { mode: 'auto' };
-    return { mode: 'pinned', account_id: headline.accountId, window: headline.window };
+export function parseSettings(json) {
+    return settingsFrom(decodeSettings(json));
 }
 
-export function serializeDisplay(display) {
-    return {
-        theme: display.theme,
-        language: display.language,
-        value_mode: display.valueMode,
-        reset_format: display.resetFormat,
-        panel_label: display.panelLabel,
-        show_spend: display.showSpend,
-        show_account_spend: display.showAccountSpend,
-        show_trend: display.showTrend,
-        show_forecast: display.showForecast,
-        translucent: display.translucent,
-        hidden_windows: parseHiddenWindows(display.hiddenWindows),
-    };
+const DISPLAY_FIELDS = {
+    theme: 'theme',
+    language: 'language',
+    valueMode: 'value_mode',
+    resetFormat: 'reset_format',
+    panelLabel: 'panel_label',
+    showSpend: 'show_spend',
+    showAccountSpend: 'show_account_spend',
+    showTrend: 'show_trend',
+    showForecast: 'show_forecast',
+    translucent: 'translucent',
+};
+
+const NOTIFICATION_FIELDS = {
+    almostOut: 'almost_out',
+    cuttingItClose: 'cutting_it_close',
+    willRunOut: 'will_run_out',
+    reset: 'reset',
+};
+
+function renamed(fields, changes) {
+    return Object.fromEntries(
+        Object.entries(changes).map(([key, value]) => {
+            if (!(key in fields)) throw new SettingsError(`Unknown setting ${key}`);
+            return [fields[key], value];
+        })
+    );
 }
 
-export function serializeSettings(settings) {
-    const { notifications } = settings;
-    return JSON.stringify({
-        refresh_interval_secs: refreshInterval(settings.refreshIntervalSecs),
-        notifications: {
-            almost_out: notifications.almostOut,
-            cutting_it_close: notifications.cuttingItClose,
-            will_run_out: notifications.willRunOut,
-            reset: notifications.reset,
-        },
-        headline: serializeHeadline(settings.headline),
-        reduced_motion: settings.reducedMotion,
-        display: serializeDisplay(settings.display),
-    });
+export function displayPatch(changes) {
+    return { display: renamed(DISPLAY_FIELDS, changes) };
 }
 
-export function withDisplay(settings, patch) {
-    return { ...settings, display: { ...settings.display, ...patch } };
+export function notificationsPatch(changes) {
+    return { notifications: renamed(NOTIFICATION_FIELDS, changes) };
 }
 
-export function withNotifications(settings, patch) {
-    return { ...settings, notifications: { ...settings.notifications, ...patch } };
+export function refreshIntervalPatch(secs) {
+    return { refresh_interval_secs: refreshInterval(secs) };
+}
+
+export function headlinePatch(headline) {
+    if (headline.mode !== 'pinned') return { headline: { mode: 'auto', account_id: null, window: null } };
+    return { headline: { mode: 'pinned', account_id: headline.accountId, window: headline.window } };
+}
+
+export function hiddenWindowsPatch(accountId, windows) {
+    return { display: { hidden_windows: { [accountId]: windows.length > 0 ? windows : null } } };
+}
+
+export function mergePatch(target, patch) {
+    if (!isObject(patch)) return patch;
+    const merged = isObject(target) ? { ...target } : {};
+    for (const [key, value] of Object.entries(patch)) {
+        if (value === null) delete merged[key];
+        else merged[key] = mergePatch(merged[key], value);
+    }
+    return merged;
 }
 
 export function toggledValueMode(display) {
@@ -152,10 +175,7 @@ export function isWindowHidden(display, accountId, windowId) {
     return (display.hiddenWindows[accountId] ?? []).includes(windowId);
 }
 
-export function withWindowHidden(display, accountId, windowId, hidden) {
+export function hiddenWindowsAfter(display, accountId, windowId, hidden) {
     const current = (display.hiddenWindows[accountId] ?? []).filter(id => id !== windowId);
-    const next = hidden ? [...current, windowId] : current;
-    const hiddenWindows = { ...display.hiddenWindows, [accountId]: next };
-    if (next.length === 0) delete hiddenWindows[accountId];
-    return { hiddenWindows };
+    return hidden ? [...current, windowId] : current;
 }

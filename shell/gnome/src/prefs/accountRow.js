@@ -3,7 +3,7 @@ import Gtk from 'gi://Gtk';
 import { percentLeft, windowLabel } from '../format.js';
 import { _ } from '../i18n.js';
 import { providerInfo } from '../providers.js';
-import { isWindowHidden, withDisplay, withWindowHidden } from '../settings.js';
+import { hiddenWindowsAfter, hiddenWindowsPatch, isWindowHidden } from '../settings.js';
 import { providerImage } from './widgets.js';
 
 function titleOf(account) {
@@ -86,10 +86,10 @@ export class AccountRow {
     _windowRow(window) {
         const row = new Adw.SwitchRow({ title: windowLabel(window.id, window.label), use_markup: false });
         row.connect('notify::active', () => {
-            if (this._syncing) return;
-            this._client.updateSettings(settings =>
-                withDisplay(settings, withWindowHidden(settings.display, this.id, window.id, !row.active))
-            );
+            const display = this._client.settings?.display;
+            if (this._syncing || !display) return;
+            const windows = hiddenWindowsAfter(display, this.id, window.id, !row.active);
+            this._client.updateSettings(hiddenWindowsPatch(this.id, windows));
         });
         return row;
     }

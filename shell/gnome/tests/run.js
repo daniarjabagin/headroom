@@ -4,6 +4,8 @@ import { parseState, StateError } from '../src/state.js';
 import { check, failures, throws } from './check.js';
 import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
+import { testProgressProcess } from './processTests.js';
+import { testSerialQueue } from './queueTests.js';
 import { testSettings, testSettingsUpdates } from './settingsTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
@@ -115,15 +117,16 @@ function testSampleUsage() {
     check('partial month', state.spend.last30Days.partial, true);
     const claudeModels = state.spend.last30Days.providers[1].models;
     check('provider models sorted', claudeModels[0].model, 'claude-opus-4-5');
-    check('unpriced model', claudeModels[claudeModels.length - 1], {
-        model: 'claude-next',
-        totalTokens: 412_000,
-        costMicros: 0,
+    check('provider other', state.spend.last30Days.providers[1].modelsOther, {
+        count: 2,
+        totalTokens: 2_182_045,
+        costMicros: 964_000,
         partial: true,
     });
-    check('totals models', claudeMonth.models.length, 7);
+    check('totals models', claudeMonth.models.length, 5);
     const summed = claudeMonth.models.reduce((sum, entry) => sum + entry.totalTokens, 0);
-    check('models add up', summed, claudeMonth.tokens.total);
+    check('models add up', summed + claudeMonth.modelsOther.totalTokens, claudeMonth.tokens.total);
+    check('no other when few', state.accounts[0].usage.last30Days.modelsOther, null);
 }
 
 function testDaemonSnapshot() {
@@ -172,6 +175,8 @@ testSampleContract();
 testSampleUsage();
 testDaemonSnapshot();
 testEdgeStates();
+await testSerialQueue();
+await testProgressProcess();
 if (failures.length > 0) {
     printerr(failures.join('\n'));
     imports.system.exit(1);

@@ -10,6 +10,10 @@ export function testExactReset() {
     check('exact far', format.resetText(new Date(2026, 9, 2, 8, 0), now, 'exact'), 'Resets Oct 2 at 08:00');
     check('countdown default', format.resetText(at(23, 12, 41), now), 'Resets in 2h 41m');
     check('exact not started', format.resetText(null, now, 'exact'), 'Not started');
+    check('exact past', format.resetText(at(23, 9, 30), now, 'exact'), 'Reset pending');
+    check('exact past yesterday', format.resetText(at(22, 23, 0), now, 'exact'), 'Reset pending');
+    check('countdown past', format.resetText(at(23, 9, 59), now), 'Reset pending');
+    check('exact now', format.resetText(now, now, 'exact'), 'Reset pending');
 }
 
 function paceWindow(pace, resetsAt) {

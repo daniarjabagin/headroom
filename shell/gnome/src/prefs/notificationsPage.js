@@ -1,6 +1,6 @@
 import Adw from 'gi://Adw';
 import { _ } from '../i18n.js';
-import { withNotifications } from '../settings.js';
+import { notificationsPatch } from '../settings.js';
 import { group, switchRow } from './rows.js';
 
 const MILESTONES = [
@@ -20,7 +20,7 @@ export class NotificationsPage {
             switchRow({
                 title: title(),
                 subtitle: subtitle(),
-                onChange: value => client.updateSettings(settings => withNotifications(settings, { [key]: value })),
+                onChange: value => client.updateSettings(notificationsPatch({ [key]: value })),
             })
         );
         const description = _('Hidden accounts and hidden limits never notify.');

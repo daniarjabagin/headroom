@@ -3,6 +3,9 @@ import GLib from 'gi://GLib';
 import { _, fill } from '../i18n.js';
 import { parseProgressLine } from './progress.js';
 
+const SIGTERM = 15;
+const KILL_GRACE_SECS = 3;
+
 export function findHeadroom() {
     const onPath = GLib.find_program_in_path('headroom');
     if (onPath) return onPath;
@@ -22,25 +25,45 @@ export class ProgressProcess {
         if (!binary) throw new MissingBinaryError();
         this._handlers = { onEvent, onExit };
         this._finished = false;
+        this._writing = 0;
+        this._killTimer = 0;
         this._cancellable = new Gio.Cancellable();
         this._process = Gio.Subprocess.new(
             [binary, ...args, '--progress', 'json'],
             Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE
         );
+        this._stdin = this._process.get_stdin_pipe();
         this._stdout = new Gio.DataInputStream({ base_stream: this._process.get_stdout_pipe() });
+        this._process.wait_async(null, (process, result) => this._onReaped(process, result));
         this._readLine();
     }
 
     write(text) {
+        if (this._finished) return;
         const bytes = new GLib.Bytes(new TextEncoder().encode(`${text}\n`));
-        this._process.get_stdin_pipe().write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, this._cancellable, null);
+        this._writing += 1;
+        this._stdin.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, this._cancellable, (stream, result) =>
+            this._onWritten(stream, result)
+        );
     }
 
     cancel() {
         if (this._finished) return;
         this._finished = true;
-        this._cancellable.cancel();
-        this._process.force_exit();
+        this._shutdown();
+    }
+
+    _onWritten(stream, result) {
+        this._writing -= 1;
+        try {
+            stream.write_bytes_finish(result);
+        } catch (error) {
+            if (!this._cancellable.is_cancelled()) {
+                this._exit(error.message);
+                return;
+            }
+        }
+        if (this._finished && this._writing === 0) this._stdin.close(null);
     }
 
     _readLine() {
@@ -49,10 +72,11 @@ export class ProgressProcess {
             try {
                 [line] = stream.read_line_finish_utf8(result);
             } catch (error) {
-                if (!this._cancellable.is_cancelled()) this._exit(error.message);
+                this._onReadFailed(error);
                 return;
             }
             if (line === null) {
+                this._stdout.close(null);
                 this._waitForExit();
                 return;
             }
@@ -60,6 +84,11 @@ export class ProgressProcess {
             if (event) this._handlers.onEvent(event);
             this._readLine();
         });
+    }
+
+    _onReadFailed(error) {
+        this._stdout.close(null);
+        if (!this._cancellable.is_cancelled()) this._exit(error.message);
     }
 
     _waitForExit() {
@@ -82,6 +111,32 @@ export class ProgressProcess {
     _exit(errorMessage) {
         if (this._finished) return;
         this._finished = true;
+        this._shutdown();
         this._handlers.onExit(errorMessage);
+    }
+
+    _shutdown() {
+        this._cancellable.cancel();
+        if (this._writing === 0) this._stdin.close(null);
+        if (this._isRunning()) this._terminate();
+    }
+
+    _isRunning() {
+        return this._process.get_identifier() !== null;
+    }
+
+    _terminate() {
+        this._process.send_signal(SIGTERM);
+        this._killTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, KILL_GRACE_SECS, () => {
+            this._killTimer = 0;
+            if (this._isRunning()) this._process.force_exit();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _onReaped(process, result) {
+        process.wait_finish(result);
+        if (this._killTimer !== 0) GLib.source_remove(this._killTimer);
+        this._killTimer = 0;
     }
 }

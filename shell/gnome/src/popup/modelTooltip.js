@@ -40,7 +40,7 @@ function totalLine(totals) {
 }
 
 export function modelTooltip(title, totals) {
-    const breakdown = modelBreakdown(totals.models);
+    const breakdown = modelBreakdown(totals.models, totals.modelsOther);
     if (breakdown === null) return null;
     const actor = column({ style_class: 'headroom-tip' });
     actor.add_child(label(title, 'headroom-tip-title', { x_align: Clutter.ActorAlign.START }));

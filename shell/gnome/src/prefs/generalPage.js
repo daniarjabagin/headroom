@@ -2,7 +2,7 @@ import Adw from 'gi://Adw';
 import { windowLabel } from '../format.js';
 import { _, fill, n_ } from '../i18n.js';
 import { accountTitle, showsName } from '../providers.js';
-import { withDisplay } from '../settings.js';
+import { displayPatch, headlinePatch, refreshIntervalPatch } from '../settings.js';
 import { comboRow, group, segmentedRow, switchRow } from './rows.js';
 
 const AUTO = 'auto';
@@ -99,7 +99,7 @@ export class GeneralPage {
     }
 
     _display(key) {
-        return value => this._client.updateSettings(settings => withDisplay(settings, { [key]: value }));
+        return value => this._client.updateSettings(displayPatch({ [key]: value }));
     }
 
     _buildRows() {
@@ -114,8 +114,7 @@ export class GeneralPage {
                 title: _('Refresh interval'),
                 subtitle: _('How often the service asks each provider'),
                 options: refreshOptions(300),
-                onChange: value =>
-                    this._client.updateSettings(settings => ({ ...settings, refreshIntervalSecs: value })),
+                onChange: value => this._client.updateSettings(refreshIntervalPatch(value)),
             }),
         };
     }
@@ -177,8 +176,7 @@ export class GeneralPage {
                 title: _('Panel limit'),
                 subtitle: _('The limit shown next to the clock'),
                 options: [{ value: AUTO, label: _('Auto — most critical') }],
-                onChange: value =>
-                    this._client.updateSettings(settings => ({ ...settings, headline: headlineFor(value) })),
+                onChange: value => this._client.updateSettings(headlinePatch(headlineFor(value))),
             }),
             panelLabel: segmentedRow({
                 title: _('Panel label'),

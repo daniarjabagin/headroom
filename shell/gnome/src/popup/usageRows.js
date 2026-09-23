@@ -52,7 +52,11 @@ export class TrendRow {
         const strip = row({ style_class: 'headroom-trend', y_align: Clutter.ActorAlign.CENTER });
         this._bars = this._days.map((_day, index) => {
             const slot = new St.Widget({ style_class: 'headroom-trend-slot', layout_manager: new Clutter.BinLayout() });
-            const bar = new St.Widget({ style_class: 'headroom-trend-bar', y_align: Clutter.ActorAlign.END });
+            const bar = new St.Widget({
+                style_class: 'headroom-trend-bar',
+                y_expand: true,
+                y_align: Clutter.ActorAlign.END,
+            });
             slot.add_child(bar);
             ctx.tooltips.attach(slot, () => dayTooltip(this._days[index]));
             strip.add_child(slot);

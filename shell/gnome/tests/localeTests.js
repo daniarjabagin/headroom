@@ -33,6 +33,7 @@ function testRussianReadings(now) {
     check('ru left', format.percentLeft(61.6), 'Осталось 62%');
     check('ru used', format.percentUsed(38.4), 'Использовано 38%');
     check('ru reset', format.resetText(new Date('2026-09-23T12:41:00Z'), now), 'Сброс через 2 ч 41 мин');
+    check('ru reset pending', format.resetText(new Date('2026-09-23T09:00:00Z'), now, 'exact'), 'Ожидается сброс');
     check('ru reset days', format.resetText(new Date('2026-09-27T15:30:00Z'), now), 'Сброс через 4 д 5 ч');
     check(
         'ru live',
