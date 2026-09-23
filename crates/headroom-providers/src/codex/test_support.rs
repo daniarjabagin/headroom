@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use headroom_core::account::{AccountId, AccountRef, CredentialOwner, ProviderKind};
+use headroom_core::account::{AccountId, AccountRef, CredentialOwner};
 use jiff::Timestamp;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -134,8 +134,8 @@ impl Setup {
 
     pub(super) fn account(&self) -> AccountRef {
         AccountRef {
-            id: AccountId::from_stable_key(ProviderKind::Codex, &format!("{USER_ID}/{ACCOUNT_ID}")),
-            provider: ProviderKind::Codex,
+            id: AccountId::from_stable_key(&super::ID, &format!("{USER_ID}/{ACCOUNT_ID}")),
+            provider: super::ID,
             home: self.cli_home(),
             owner: CredentialOwner::Cli,
         }

@@ -19,6 +19,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | method | signature | description |
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
+| `ListProviders` | `() → s` | The providers compiled into this build and how to add their accounts (see [Providers](#providers)). Does not change while the daemon runs. |
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now. |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
@@ -68,6 +69,54 @@ The error message is human readable and safe to show.
 
 Shells should call `GetState` once on start-up and then follow `StateChanged`.
 
+## Providers
+
+`ListProviders` returns the provider registry so shells can build their "Add account" menu, name
+providers and pick icons without special-casing any of them. `headroom providers --json` prints the
+same document without a daemon.
+
+```json
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "codex",
+      "display_name": "Codex",
+      "add_account": [{ "kind": "cli_login", "program": "codex" }],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "claude",
+      "display_name": "Claude",
+      "add_account": [{ "kind": "cli_login", "program": "claude" }],
+      "multi_account": true,
+      "local_usage": true
+    }
+  ]
+}
+```
+
+| field | type | description |
+| --- | --- | --- |
+| `version` | integer | Schema version, currently `1`. New fields may be added without a bump. |
+| `providers[].id` | string | Provider id, lowercase `[a-z0-9_-]+`. The same value as `accounts[].provider`, the prefix of account ids, and the argument of `headroom accounts add`. |
+| `providers[].display_name` | string | Name to show, e.g. `Claude`. |
+| `providers[].add_account` | AddAccount[] | Ways to add an account, most preferred first; the first is what `headroom accounts add <id>` does without `--api-key-stdin`. Never empty. |
+| `providers[].multi_account` | bool | Several accounts of this provider can be tracked at once. |
+| `providers[].local_usage` | bool | The provider reads local token logs, so it can appear in `usage[]` and `spend`. |
+
+AddAccount, tagged by `kind`:
+
+| kind | fields | shell action |
+| --- | --- | --- |
+| `cli_login` | `program` | Run `headroom accounts add <id> --progress json` (see [Adding accounts](#adding-and-removing-accounts-from-a-shell)); `program` is the CLI the login runs, useful in help text. |
+| `api_key` | `label`, `console_url`, `hint` | Ask for the key (`label` names it, `console_url` is where the user creates one, `hint` describes its format), then run `headroom accounts add <id> --api-key-stdin --progress json` and write the key and a newline to its stdin. Keys never travel over D-Bus. |
+| `auto_detect` | `reason` | Nothing to run; the daemon finds the account itself. Show `reason`. |
+
+Icons: shells look up `icons/<id>.svg` in their own directory and fall back to a generic provider
+icon when it is missing.
+
 ## State payload
 
 Top level:
@@ -94,8 +143,9 @@ is always micro-USD (`12500000` = $12.50).
 | field | type | description |
 | --- | --- | --- |
 | `account_id` | string | Account the window belongs to. |
-| `provider` | Provider | Provider of that account. |
-| `account_label` | string | The account's user label, else its email, else the provider's display name (`Codex`, `Claude`). |
+| `provider` | string | Provider id of that account (see [Providers](#providers)). |
+| `provider_name` | string | Display name of that provider from the registry. |
+| `account_label` | string | The account's user label, else its email, else `provider_name`. |
 | `window` | string | Window id, see [Window ids](#window-ids). |
 | `window_label` | string | Same as the window's `label`. |
 | `used_percent` | number | Same as the window's `used_percent`. |
@@ -114,8 +164,9 @@ then account order.
 | field | type | description |
 | --- | --- | --- |
 | `id` | string | Stable id, `"{provider}:{12 hex}"`. |
-| `provider` | Provider | `"codex"` or `"claude"`. |
-| `label` | string \| null | User label. Shells fall back to `email`, then to the provider name. |
+| `provider` | string | Provider id, e.g. `"codex"` or `"claude"`; any id from `ListProviders`. An account stored by a build with more providers keeps its id and shows the `no_provider` error. |
+| `provider_name` | string | Display name from the registry (`Codex`, `Claude`); the id itself for a provider this build lacks. Shells show it instead of hardcoding names. |
+| `label` | string \| null | User label. Shells fall back to `email`, then to `provider_name`. |
 | `email` | string \| null | From the last snapshot, else from storage. |
 | `plan` | string \| null | Plan name as reported by the provider. `null` while the status is `no_subscription`. |
 | `hidden` | bool | Hidden by the user. |
@@ -152,7 +203,7 @@ Error:
 
 | field | type | description |
 | --- | --- | --- |
-| `kind` | string | `not_signed_in`, `sign_in_expired`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `timeout`, `no_provider` |
+| `kind` | string | `not_signed_in`, `sign_in_expired`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `unsupported`, `timeout`, `no_provider` |
 | `message` | string | Safe, human-readable message. Never contains tokens. |
 
 An account without an active subscription:
@@ -161,6 +212,7 @@ An account without an active subscription:
 {
   "id": "codex:work",
   "provider": "codex",
+  "provider_name": "Codex",
   "label": "Work",
   "email": "ada@example.com",
   "plan": null,
@@ -247,10 +299,12 @@ already listed from another dir. Accounts that share a home share usage.
   `.credentials.json`) and Headroom-owned dirs — each only when it has a `projects/` directory.
 - Paths that resolve to the same directory are listed once. The set is refreshed with every account
   discovery (every 10 minutes and on `Rescan`).
+- Entries are ordered by the provider's position in `ListProviders`, then by home path.
 
 | field | type | description |
 | --- | --- | --- |
-| `provider` | Provider | Tool that wrote the logs. |
+| `provider` | string | Provider id of the tool that wrote the logs. |
+| `provider_name` | string | Display name of that provider. |
 | `usage_home` | string | Same format as `accounts[].usage_home`. |
 | `today` | Totals | Today in the daemon's local time zone. |
 | `yesterday` | Totals | Yesterday. |
@@ -301,7 +355,7 @@ PeriodSpend:
 | `partial` | bool | Any provider in the period is `partial`. |
 | `by_provider` | ProviderSpend[] | One entry per provider with tokens or cost in the period (homes of one provider are added together), highest cost first, then by provider name. Empty when the period has no usage. |
 
-ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 5 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
+ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 5 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
 
 ### Example
 
@@ -328,6 +382,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
   "headline": {
     "account_id": "claude:main",
     "provider": "claude",
+    "provider_name": "Claude",
     "account_label": "ada@claude.example",
     "window": "session",
     "window_label": "Session",
@@ -339,6 +394,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
     {
       "id": "codex:work",
       "provider": "codex",
+      "provider_name": "Codex",
       "label": "Work",
       "email": "ada@example.com",
       "plan": "Pro",
@@ -382,6 +438,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
     {
       "id": "claude:main",
       "provider": "claude",
+      "provider_name": "Claude",
       "label": null,
       "email": "ada@claude.example",
       "plan": "Pro",
@@ -421,6 +478,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
   "usage": [
     {
       "provider": "codex",
+      "provider_name": "Codex",
       "usage_home": "~/.codex",
       "today": {
         "tokens": { "input": 1000, "cache_read": 0, "cache_write": 0, "output": 200, "reasoning": 0, "total": 1200 },
@@ -448,14 +506,14 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
       "partial": false,
       "by_provider": [
         {
-          "provider": "claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false,
+          "provider": "claude", "provider_name": "Claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false,
           "models": [
             { "model": "claude-opus", "total_tokens": 5000, "cost_usd_micros": 10000, "partial": false }
           ],
           "models_other": null
         },
         {
-          "provider": "codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false,
+          "provider": "codex", "provider_name": "Codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false,
           "models": [
             { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
           ],
@@ -594,6 +652,7 @@ Texts follow `display.language`:
 | lapse body | `Limits are unavailable until the plan is renewed.` | `Данные о лимитах недоступны, пока подписка не продлена.` |
 
 Session and weekly window labels are translated; other window labels come from the provider as is.
+Titles start with the provider's `display_name` from the registry.
 
 ## Adding and removing accounts from a shell
 
@@ -602,13 +661,28 @@ without a terminal when `--progress json` is given and then print exactly one JS
 stdout (human hints go to stderr). The exit code is `0` only when the last event is `done`.
 
 ```
-headroom accounts add <codex|claude> [--label NAME] --progress json
+headroom accounts add <PROVIDER-ID> [--label NAME] [--api-key-stdin] --progress json
 headroom accounts remove <ID> --yes --progress json
+headroom providers [--json]
 ```
+
+`add` does what the provider's first `add_account` entry in [`ListProviders`](#providers) says:
+`cli_login` runs the login CLI; `api_key` needs `--api-key-stdin`; `auto_detect` fails with the
+provider's reason. With `--api-key-stdin` it uses the provider's `api_key` entry, whatever its
+position, and fails for providers without one. An unknown id fails with an `error` event that lists
+the known ids.
+
+API keys: `add <id> --api-key-stdin` reads the first line of stdin (surrounding whitespace is
+trimmed; a key is never accepted from arguments or the environment), checks it with the provider,
+stores it in the Secret Service (attributes `application=io.github.headroom`, `provider`, `account`)
+or, without an unlocked keyring, in `$XDG_DATA_HOME/headroom/secrets/<account id>` (mode `0600`),
+and writes the account into a new Headroom-owned home. A rejected key fails with `error` before any
+`started`; nothing is stored. Adding a key for an account that is already added replaces its key.
+The key never appears in events, messages or logs. `remove` also deletes the stored key.
 
 | event | fields | meaning |
 | --- | --- | --- |
-| `started` | `provider`, `home` | The login CLI starts with its config dir set to the new Headroom-owned `home`. `add` only. |
+| `started` | `provider`, `home` | The login CLI starts with its config dir set to the new Headroom-owned `home`; for an API key, the key was accepted and stored for the account in `home`. `add` only. |
 | `url` | `url` | The first `http(s)` URL of an output line, reported once per distinct URL. Loopback URLs (`localhost`, `127.0.0.1`, `[::1]`: the CLI's own callback server) are skipped. Also taken from OSC 8 terminal hyperlinks. `add` only. |
 | `output` | `line` | Every stdout and stderr line of the login CLI, ANSI escapes removed. A prompt without a trailing newline is reported after 100 ms of silence. `add` only. |
 | `done` | `account_id`, `label` | Success. For `add`, `label` is the label that was applied, or `null` when none was requested or the daemon was not running or did not list the account yet. For `remove`, `label` is always `null`. |

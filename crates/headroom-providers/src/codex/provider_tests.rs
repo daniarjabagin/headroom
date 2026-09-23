@@ -36,6 +36,22 @@ async fn discovers_cli_and_headroom_homes() {
 }
 
 #[tokio::test]
+async fn account_at_reads_one_home_even_when_discovery_keeps_the_cli_copy() {
+    let setup = Setup::new();
+    setup.sign_in("2026-09-24T00:00:00Z");
+    let duplicate = setup.headroom_home("dup");
+    write_auth(&duplicate, &auth_document("dup"));
+    let provider = setup.provider(DEFAULT_API_BASE);
+    let found = provider.account_at(&duplicate).await.unwrap().unwrap();
+    assert_eq!(found.id, setup.account().id);
+    assert_eq!(found.home, duplicate);
+    assert_eq!(found.owner, CredentialOwner::Headroom);
+    let empty = setup.headroom_home("empty");
+    fs::create_dir_all(&empty).unwrap();
+    assert_eq!(provider.account_at(&empty).await, Ok(None));
+}
+
+#[tokio::test]
 async fn discovery_reports_api_key_only_and_signed_out() {
     let setup = Setup::new();
     let provider = setup.provider(DEFAULT_API_BASE);
@@ -125,7 +141,7 @@ fn read_usage_uses_the_injected_clock() {
         .read_usage(&setup.cli_home(), &mut cursors)
         .unwrap();
     assert_eq!(events.len(), 3);
-    assert_eq!(setup.provider(DEFAULT_API_BASE).kind(), ProviderKind::Codex);
+    assert_eq!(setup.provider(DEFAULT_API_BASE).id(), &ID);
 }
 
 #[tokio::test]

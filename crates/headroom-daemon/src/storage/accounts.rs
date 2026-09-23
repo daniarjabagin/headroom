@@ -1,4 +1,4 @@
-use headroom_core::account::{AccountId, AccountRef, ProviderKind};
+use headroom_core::account::{AccountId, AccountRef, ProviderId};
 use jiff::Timestamp;
 use rusqlite::{Connection, Row, params};
 
@@ -97,17 +97,17 @@ fn decode(raw: RawAccount) -> Result<AccountRecord, StorageError> {
 
 pub fn sync_provider(
     conn: &mut Connection,
-    provider: ProviderKind,
+    provider: &ProviderId,
     discovered: &[AccountRef],
     now: Timestamp,
 ) -> Result<(), StorageError> {
     let tx = conn.transaction()?;
     tx.execute(
         "UPDATE accounts SET gone = 1 WHERE provider = ?1",
-        [enum_to_sql(&provider)?],
+        [enum_to_sql(provider)?],
     )?;
     let seen = timestamp_to_sql(now)?;
-    for account in discovered.iter().filter(|a| a.provider == provider) {
+    for account in discovered.iter().filter(|a| &a.provider == provider) {
         tx.execute(
             UPSERT,
             params![

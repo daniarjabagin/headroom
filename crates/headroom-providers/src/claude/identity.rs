@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use headroom_core::account::{AccountId, ProviderKind};
+use headroom_core::account::AccountId;
 use headroom_core::provider::ProviderError;
 use serde::Deserialize;
 
@@ -19,7 +19,7 @@ pub(super) struct ClaudeIdentity {
 
 impl ClaudeIdentity {
     pub(super) fn account_id(&self) -> AccountId {
-        AccountId::from_stable_key(ProviderKind::Claude, &self.stable_key)
+        AccountId::from_stable_key(&super::ID, &self.stable_key)
     }
 }
 

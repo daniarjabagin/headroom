@@ -1,16 +1,17 @@
-use headroom_core::account::{AccountId, ProviderKind};
+use headroom_core::account::AccountId;
 use headroom_core::provider::ProviderError;
 use headroom_core::quota::LimitsSource;
 
 use super::*;
 use crate::model::{AccountRuntime, SnapshotEntry, SnapshotOrigin};
+use crate::testing::CODEX;
 use crate::testing::{account, snapshot, ts};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 
 fn record(name: &str, hidden: bool, gone: bool) -> AccountRecord {
     AccountRecord {
-        reference: account(ProviderKind::Codex, name),
+        reference: account(CODEX, name),
         label: None,
         hidden,
         sort_order: 0,
@@ -29,7 +30,7 @@ fn model(records: Vec<AccountRecord>) -> Model {
 }
 
 fn id(name: &str) -> AccountId {
-    account(ProviderKind::Codex, name).id
+    account(CODEX, name).id
 }
 
 fn scheduled(model: &mut Model, name: &str, at: &str) {

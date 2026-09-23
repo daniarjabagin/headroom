@@ -1,13 +1,15 @@
-use headroom_core::account::{CredentialOwner, ProviderKind};
+use headroom_core::account::CredentialOwner;
 use headroom_core::pace::{Severity, Tone};
 
 use super::*;
 use crate::state::payload::{AccountStatus, PaceView};
+use crate::testing::{CLAUDE, CODEX};
 
 fn view(id: &str, hidden: bool, windows: Vec<WindowView>) -> AccountView {
     AccountView {
         id: id.into(),
-        provider: ProviderKind::Codex,
+        provider: CODEX,
+        provider_name: "Codex".into(),
         label: None,
         email: None,
         plan: None,
@@ -121,7 +123,8 @@ fn headline_names_the_account_and_window() {
     emailed.label = None;
     let mut anonymous = emailed.clone();
     anonymous.email = None;
-    anonymous.provider = ProviderKind::Claude;
+    anonymous.provider = CLAUDE;
+    anonymous.provider_name = "Claude".into();
     for (account, expected) in [
         (labelled, "Work"),
         (emailed, "ada@example.com"),

@@ -54,9 +54,10 @@ pub fn enum_from_sql<T: DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
-    use headroom_core::account::ProviderKind;
+    use headroom_core::account::ProviderId;
 
     use super::*;
+    use crate::testing::{CLAUDE, CODEX};
 
     #[test]
     fn timestamps_round_trip_with_nanoseconds() {
@@ -78,11 +79,13 @@ mod tests {
 
     #[test]
     fn enums_use_their_serde_names() {
-        assert_eq!(enum_to_sql(&ProviderKind::Claude).unwrap(), "claude");
-        let kind: ProviderKind = enum_from_sql("provider", "codex".into()).unwrap();
-        assert_eq!(kind, ProviderKind::Codex);
+        assert_eq!(enum_to_sql(&CLAUDE).unwrap(), "claude");
+        let id: ProviderId = enum_from_sql("provider", "codex".into()).unwrap();
+        assert_eq!(id, CODEX);
+        let unknown: ProviderId = enum_from_sql("provider", "cursor".into()).unwrap();
+        assert_eq!(unknown.as_str(), "cursor");
         assert!(matches!(
-            enum_from_sql::<ProviderKind>("provider", "cursor".into()),
+            enum_from_sql::<ProviderId>("provider", "Not An Id".into()),
             Err(StorageError::UnknownValue {
                 field: "provider",
                 ..

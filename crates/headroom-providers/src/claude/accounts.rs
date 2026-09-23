@@ -2,11 +2,12 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use headroom_core::account::{AccountRef, CredentialOwner, ProviderKind};
+use headroom_core::account::{AccountRef, CredentialOwner};
+use headroom_core::provider::ProviderError;
 
 use super::auth::CREDENTIALS_FILE;
 use super::config::ClaudeConfig;
-use super::identity::load_identity;
+use super::identity::{ClaudeIdentity, load_identity};
 use crate::homes::canonical;
 
 struct Candidate {
@@ -90,12 +91,28 @@ fn inspect(config: &ClaudeConfig, candidate: Candidate) -> Option<AccountRef> {
             return None;
         }
     };
-    Some(AccountRef {
+    Some(account_ref(&identity, candidate.dir, candidate.owner))
+}
+
+pub(super) fn headroom_account_at(
+    config: &ClaudeConfig,
+    dir: &Path,
+) -> Result<Option<AccountRef>, ProviderError> {
+    if !dir.join(CREDENTIALS_FILE).is_file() {
+        return Ok(None);
+    }
+    let identity = load_identity(config, dir)?;
+    let owner = CredentialOwner::Headroom;
+    Ok(identity.map(|identity| account_ref(&identity, dir.to_path_buf(), owner)))
+}
+
+fn account_ref(identity: &ClaudeIdentity, home: PathBuf, owner: CredentialOwner) -> AccountRef {
+    AccountRef {
         id: identity.account_id(),
-        provider: ProviderKind::Claude,
-        home: candidate.dir,
-        owner: candidate.owner,
-    })
+        provider: super::ID,
+        home,
+        owner,
+    }
 }
 
 #[cfg(test)]

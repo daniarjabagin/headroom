@@ -1,3 +1,4 @@
+pub mod catalog;
 pub mod clock;
 mod commands;
 pub mod config;

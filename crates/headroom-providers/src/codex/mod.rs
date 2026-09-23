@@ -21,8 +21,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use headroom_core::account::{AccountRef, CredentialOwner, ProviderKind};
+use headroom_core::account::{AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::LimitsSnapshot;
@@ -35,6 +36,22 @@ use crate::http;
 
 pub use client::DEFAULT_API_BASE;
 pub use env::CodexEnvironment;
+
+pub const ID: ProviderId = ProviderId::from_static("codex");
+
+pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: ID,
+    display_name: "Codex",
+    add_account: &[AddAccountMethod::CliLogin(CliLogin {
+        program: "codex",
+        args: &["login"],
+        home_var: HomeVar::Direct("CODEX_HOME"),
+        credentials_file: "auth.json",
+        needs_pty: false,
+    })],
+    multi_account: true,
+    local_usage: true,
+};
 
 pub type Clock = Arc<dyn Fn() -> Timestamp + Send + Sync>;
 
@@ -100,12 +117,24 @@ impl CodexProvider {
 
 #[async_trait]
 impl Provider for CodexProvider {
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Codex
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        &DESCRIPTOR
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         discover_accounts(self.config.environment.homes()?)
+    }
+
+    async fn account_at(&self, home: &Path) -> Result<Option<AccountRef>, ProviderError> {
+        match load_credentials(home) {
+            Ok(credentials) => Ok(Some(account_ref(
+                home.to_path_buf(),
+                CredentialOwner::Headroom,
+                &credentials,
+            ))),
+            Err(ProviderError::NotSignedIn) => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 
     async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
@@ -134,7 +163,7 @@ impl Provider for CodexProvider {
 
 fn current_credentials(account: &AccountRef) -> Result<Credentials, ProviderError> {
     let credentials = load_credentials(&account.home)?;
-    if credentials.identity.account_id(ProviderKind::Codex) == account.id {
+    if credentials.identity.account_id(&ID) == account.id {
         Ok(credentials)
     } else {
         Err(ProviderError::LocalData(format!(
@@ -165,8 +194,8 @@ fn discover_accounts(
 
 fn account_ref(home: PathBuf, owner: CredentialOwner, credentials: &Credentials) -> AccountRef {
     AccountRef {
-        id: credentials.identity.account_id(ProviderKind::Codex),
-        provider: ProviderKind::Codex,
+        id: credentials.identity.account_id(&ID),
+        provider: ID,
         home,
         owner,
     }

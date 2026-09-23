@@ -1,21 +1,21 @@
 use std::time::Duration;
 
-use headroom_core::account::ProviderKind;
 use headroom_core::provider::Provider;
 
 use super::*;
 use crate::home::UsageHome;
 use crate::storage::cursors;
+use crate::testing::{CLAUDE, CODEX};
 use crate::testing::{FakeProvider, account, event, eventually, harness, session, snapshot};
 
 fn provider_at(home: &std::path::Path) -> Arc<FakeProvider> {
-    let mut work = account(ProviderKind::Codex, "work");
+    let mut work = account(CODEX, "work");
     work.home = home.to_path_buf();
     let limits = snapshot(
         vec![session(10.0, "2026-09-23T12:00:00Z")],
         "2026-09-23T10:00:00Z",
     );
-    Arc::new(FakeProvider::new(ProviderKind::Codex, vec![work], limits))
+    Arc::new(FakeProvider::new(CODEX, vec![work], limits))
 }
 
 fn first_home(core: &Core) -> UsageHome {
@@ -74,7 +74,7 @@ async fn homes_without_a_provider_are_rejected_without_losing_usage() {
     let mut summarized_for = None;
     ingest::pass(&harness.core, &home, &mut summarized_for).await;
     let other = UsageHome {
-        provider: ProviderKind::Claude,
+        provider: CLAUDE,
         home: dir.path().to_path_buf(),
     };
     assert!(matches!(
@@ -113,7 +113,7 @@ async fn file_changes_trigger_a_debounced_ingest() {
 
 fn usage_only_provider(home: &std::path::Path) -> Arc<FakeProvider> {
     let limits = snapshot(Vec::new(), "2026-09-23T10:00:00Z");
-    let provider = FakeProvider::new(ProviderKind::Claude, Vec::new(), limits);
+    let provider = FakeProvider::new(CLAUDE, Vec::new(), limits);
     *provider.homes.lock().unwrap() = vec![home.to_path_buf()];
     Arc::new(provider)
 }
@@ -146,12 +146,9 @@ async fn homes_without_accounts_are_ingested_and_counted_in_spend() {
     let listed: Vec<_> = state
         .usage
         .iter()
-        .map(|u| (u.provider, u.today.tokens.total))
+        .map(|u| (u.provider.clone(), u.today.tokens.total))
         .collect();
-    assert_eq!(
-        listed,
-        [(ProviderKind::Codex, 110), (ProviderKind::Claude, 42)]
-    );
+    assert_eq!(listed, [(CODEX, 110), (CLAUDE, 42)]);
     assert_eq!(state.accounts[0].usage_home, state.usage[0].usage_home);
     assert_eq!(state.spend.today.total_tokens, 152);
     assert_eq!(state.spend.today.cost_usd_micros, 304);

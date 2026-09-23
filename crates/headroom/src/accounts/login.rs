@@ -7,7 +7,8 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
+use headroom_core::descriptor::{CliLogin, ProviderDescriptor};
 
 use super::ansi::CleanLine;
 use super::cancel::{CANCELLED, Cancel};
@@ -16,44 +17,32 @@ use super::stream::run_streamed;
 
 const EXIT_POLL: Duration = Duration::from_millis(100);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct LoginSpec {
-    pub program: &'static str,
-    pub args: &'static [&'static str],
-    pub home_var: &'static str,
-    pub credentials_file: &'static str,
-}
-
-pub fn login_spec(provider: ProviderKind) -> LoginSpec {
-    match provider {
-        ProviderKind::Codex => LoginSpec {
-            program: "codex",
-            args: &["login"],
-            home_var: "CODEX_HOME",
-            credentials_file: "auth.json",
-        },
-        ProviderKind::Claude => LoginSpec {
-            program: "claude",
-            args: &["auth", "login", "--claudeai"],
-            home_var: "CLAUDE_CONFIG_DIR",
-            credentials_file: ".credentials.json",
-        },
-    }
+    pub provider: &'static ProviderId,
+    pub login: &'static CliLogin,
 }
 
 impl LoginSpec {
+    pub fn new(descriptor: &'static ProviderDescriptor, login: &'static CliLogin) -> LoginSpec {
+        LoginSpec {
+            provider: &descriptor.id,
+            login,
+        }
+    }
+
     pub fn display(&self, home: &Path) -> String {
-        format!(
-            "{}={} {} {}",
-            self.home_var,
-            home.display(),
-            self.program,
-            self.args.join(" ")
-        )
+        let var = self.login.home_var.var();
+        format!("{var}={} {}", home.display(), self.command_line())
     }
 
     fn command_line(&self) -> String {
-        format!("{} {}", self.program, self.args.join(" "))
+        let mut line = self.login.program.to_owned();
+        for arg in self.login.args {
+            line.push(' ');
+            line.push_str(arg);
+        }
+        line
     }
 }
 
@@ -64,8 +53,9 @@ pub struct Launcher {
 
 impl Launcher {
     fn command(&self, spec: &LoginSpec, home: &Path) -> Command {
-        let mut command = Command::new(spec.program);
-        command.args(spec.args).env(spec.home_var, home);
+        let login = spec.login;
+        let mut command = Command::new(login.program);
+        command.args(login.args).env(login.home_var.var(), home);
         if let Some(path) = &self.search_path {
             command.env("PATH", path);
         }
@@ -92,13 +82,18 @@ pub enum Console<'a> {
 
 pub fn sign_in(
     root: &Path,
-    provider: ProviderKind,
+    spec: LoginSpec,
     launcher: &Launcher,
     console: Console<'_>,
     cancel: &Cancel,
 ) -> Result<PathBuf> {
-    let home = create_home(root, provider)?;
-    let spec = login_spec(provider);
+    if spec.login.needs_pty {
+        bail!(
+            "`{}` needs a terminal to sign in, which Headroom cannot provide yet",
+            spec.command_line()
+        );
+    }
+    let home = create_home(root, spec.provider)?;
     match run_login(&spec, &home, launcher, console, cancel) {
         Ok(()) => Ok(home),
         Err(error) => {
@@ -178,15 +173,23 @@ fn check_outcome(spec: &LoginSpec, home: &Path, status: ExitStatus) -> Result<()
     if !status.success() {
         bail!("`{command}` did not finish successfully ({status})");
     }
-    if !home.join(spec.credentials_file).is_file() {
+    if !spec.login.credentials_path(home).is_file() {
         bail!(
             "`{command}` finished but wrote no {}",
-            spec.credentials_file
+            spec.login.credentials_file
         );
     }
     Ok(())
 }
 
 #[cfg(test)]
+#[path = "login_test_support.rs"]
+mod test_support;
+
+#[cfg(test)]
 #[path = "login_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "login_spec_tests.rs"]
+mod spec_tests;

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use headroom_core::account::{AccountId, CredentialOwner, ProviderKind};
+use headroom_core::account::{AccountId, CredentialOwner, ProviderId};
 use headroom_core::pace::Tone;
 use headroom_core::provider::ProviderError;
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSource, Notice};
@@ -12,11 +12,12 @@ use super::*;
 use crate::home::UsageHome;
 use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin};
 use crate::storage::accounts::AccountRecord;
+use crate::testing::{CLAUDE, CODEX, catalog};
 use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 
-fn record(provider: ProviderKind, name: &str, order: i64) -> AccountRecord {
+fn record(provider: ProviderId, name: &str, order: i64) -> AccountRecord {
     AccountRecord {
         reference: account(provider, name),
         label: None,
@@ -86,13 +87,13 @@ fn claude_usage() -> headroom_core::usage::UsageSummary {
 }
 
 fn sample_model() -> Model {
-    let mut work = record(ProviderKind::Codex, "work", 0);
+    let mut work = record(CODEX, "work", 0);
     work.label = Some("Work".into());
-    let claude = record(ProviderKind::Claude, "main", 1);
-    let mut hidden = record(ProviderKind::Codex, "hidden", 2);
+    let claude = record(CLAUDE, "main", 1);
+    let mut hidden = record(CODEX, "hidden", 2);
     hidden.hidden = true;
     hidden.reference.home = PathBuf::from("/srv/codex");
-    let mut gone = record(ProviderKind::Codex, "gone", 3);
+    let mut gone = record(CODEX, "gone", 3);
     gone.gone = true;
     let mut model = Model {
         accounts: vec![work.clone(), claude.clone(), hidden, gone],
@@ -137,6 +138,7 @@ fn assemble_sample(model: &Model) -> StatePayload {
         now: ts(NOW),
         tz: &TimeZone::UTC,
         homes: &homes,
+        catalog: &catalog(),
     };
     assemble(model, &ctx)
 }
@@ -209,7 +211,7 @@ fn daily_trend_is_dense_over_thirty_days() {
     let daily = &payload
         .usage
         .iter()
-        .find(|u| u.provider == ProviderKind::Codex)
+        .find(|u| u.provider == CODEX)
         .unwrap()
         .daily;
     assert_eq!(daily.len(), 30);
@@ -224,13 +226,11 @@ fn daily_trend_is_dense_over_thirty_days() {
 fn usage_of_undiscovered_homes_is_omitted() {
     let mut model = sample_model();
     let stray = UsageHome {
-        provider: ProviderKind::Claude,
+        provider: CLAUDE,
         home: PathBuf::from("/nowhere"),
     };
     model.usage.insert(stray, codex_usage());
-    model
-        .usage_homes
-        .retain(|home| home.provider != ProviderKind::Codex);
+    model.usage_homes.retain(|home| home.provider != CODEX);
     let homes: Vec<_> = assemble_sample(&model)
         .usage
         .iter()
@@ -243,7 +243,7 @@ fn usage_of_undiscovered_homes_is_omitted() {
 fn usage_homes_without_accounts_are_listed_and_spent() {
     let mut model = sample_model();
     let api_key = UsageHome {
-        provider: ProviderKind::Claude,
+        provider: CLAUDE,
         home: PathBuf::from("/home/ada/.claude-api"),
     };
     model.usage_homes.insert(api_key.clone());
@@ -271,8 +271,12 @@ fn top_level_activity_and_spend_are_reported() {
     let today = &payload.spend.today;
     assert_eq!(today.cost_usd_micros, 12_400);
     assert_eq!(today.total_tokens, 6_200);
-    let providers: Vec<_> = today.by_provider.iter().map(|p| p.provider).collect();
-    assert_eq!(providers, [ProviderKind::Claude, ProviderKind::Codex]);
+    let providers: Vec<_> = today
+        .by_provider
+        .iter()
+        .map(|p| p.provider.clone())
+        .collect();
+    assert_eq!(providers, [CLAUDE, CODEX]);
     assert!(payload.spend.yesterday.partial);
 }
 
@@ -331,7 +335,7 @@ fn usage_totals_carry_models_per_period() {
     assert_eq!(names(&codex.yesterday.models), ["gpt-5.5", "unknown"]);
     assert!(codex.yesterday.models[1].partial);
     let spend_codex = &payload.spend.last_30_days.by_provider[1];
-    assert_eq!(spend_codex.provider, ProviderKind::Codex);
+    assert_eq!(spend_codex.provider, CODEX);
     assert_eq!(spend_codex.models[0].total_tokens, 1_800);
 }
 

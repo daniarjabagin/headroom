@@ -1,4 +1,3 @@
-use headroom_core::account::ProviderKind;
 use headroom_core::pace::{Severity, Tone};
 use headroom_daemon::state::payload::{AccountView, PaceView, WindowView};
 use jiff::{SignedDuration, Timestamp};
@@ -15,19 +14,15 @@ pub struct Note {
     pub tone: Tone,
 }
 
-pub fn provider_name(provider: ProviderKind) -> &'static str {
-    provider.display_name()
-}
-
 pub fn shown_windows(account: &AccountView) -> impl Iterator<Item = &WindowView> {
     account.windows.iter().filter(|window| !window.hidden)
 }
 
 pub fn account_title(account: &AccountView) -> String {
-    let name = provider_name(account.provider);
+    let name = &account.provider_name;
     match account.label.as_deref().or(account.email.as_deref()) {
         Some(who) => format!("{name} · {who}"),
-        None => name.to_owned(),
+        None => name.clone(),
     }
 }
 

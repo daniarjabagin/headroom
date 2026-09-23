@@ -44,7 +44,8 @@ fn more_critical(candidate: &WindowView, current: &WindowView) -> bool {
 fn to_headline(account: &AccountView, window: &WindowView) -> Headline {
     Headline {
         account_id: account.id.clone(),
-        provider: account.provider,
+        provider: account.provider.clone(),
+        provider_name: account.provider_name.clone(),
         account_label: account_label(account),
         window: window.id.clone(),
         window_label: window.label.clone(),
@@ -59,7 +60,7 @@ fn account_label(account: &AccountView) -> String {
         .label
         .clone()
         .or_else(|| account.email.clone())
-        .unwrap_or_else(|| account.provider.display_name().to_owned())
+        .unwrap_or_else(|| account.provider_name.clone())
 }
 
 #[cfg(test)]

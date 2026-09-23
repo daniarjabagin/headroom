@@ -18,7 +18,7 @@ fn observed(severity: Severity, remaining: f64) -> Observation {
 fn body_of(locale: Locale, milestone: Milestone, observation: &Observation) -> String {
     let window = session(50.0, "2026-09-23T10:42:00Z");
     let subject = Subject {
-        provider: ProviderKind::Codex,
+        provider_name: "Codex",
         account_name: Some("Work"),
         window: &window,
     };
@@ -93,7 +93,7 @@ fn titles_translate_known_windows_only() {
     let observation = observed(Severity::Close, 8.0);
     for (window, account_name, english, russian) in cases {
         let subject = Subject {
-            provider: ProviderKind::Codex,
+            provider_name: "Codex",
             account_name,
             window,
         };
@@ -115,7 +115,7 @@ fn titles_translate_known_windows_only() {
 fn claude_titles_name_the_provider() {
     let window = weekly(50.0, NOW);
     let subject = Subject {
-        provider: ProviderKind::Claude,
+        provider_name: "Claude",
         account_name: None,
         window: &window,
     };
@@ -174,15 +174,15 @@ fn system_locale_follows_the_first_set_variable() {
 
 #[test]
 fn lapse_notifications_are_translated() {
-    let en = compose_lapse(Locale::En, ProviderKind::Codex, Some("Work"));
+    let en = compose_lapse(Locale::En, "Codex", Some("Work"));
     assert_eq!(en.title, "Codex · Work — subscription inactive");
     assert_eq!(en.body, "Limits are unavailable until the plan is renewed.");
-    let ru = compose_lapse(Locale::Ru, ProviderKind::Codex, Some("Work"));
+    let ru = compose_lapse(Locale::Ru, "Codex", Some("Work"));
     assert_eq!(ru.title, "Codex · Work — подписка неактивна");
     assert_eq!(
         ru.body,
         "Данные о лимитах недоступны, пока подписка не продлена."
     );
-    let anonymous = compose_lapse(Locale::En, ProviderKind::Claude, None);
+    let anonymous = compose_lapse(Locale::En, "Claude", None);
     assert_eq!(anonymous.title, "Claude — subscription inactive");
 }

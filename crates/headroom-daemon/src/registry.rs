@@ -60,34 +60,34 @@ pub async fn discover_all(core: &Core) {
 }
 
 async fn discover(core: &Core, provider: &dyn Provider) {
-    let kind = provider.kind();
+    let id = provider.id();
     let found = match tokio::time::timeout(DISCOVERY_TIMEOUT, provider.discover()).await {
         Ok(Ok(found)) => found,
         Ok(Err(error)) => {
-            tracing::warn!(provider = %kind, %error, "account discovery failed");
+            tracing::warn!(provider = %id, %error, "account discovery failed");
             return;
         }
         Err(_) => {
-            tracing::warn!(provider = %kind, "account discovery timed out");
+            tracing::warn!(provider = %id, "account discovery timed out");
             return;
         }
     };
     let now = core.clock.now();
     let result = core
         .storage
-        .run(move |conn| accounts::sync_provider(conn, kind, &found, now))
+        .run(move |conn| accounts::sync_provider(conn, id, &found, now))
         .await;
     if let Err(error) = result {
-        tracing::warn!(provider = %kind, %error, "could not store discovered accounts");
+        tracing::warn!(provider = %id, %error, "could not store discovered accounts");
     }
 }
 
 async fn discover_usage_homes(core: &Core, provider: &dyn Provider) {
-    let kind = provider.kind();
+    let id = provider.id();
     match tokio::time::timeout(DISCOVERY_TIMEOUT, provider.usage_homes()).await {
-        Ok(Ok(homes)) => core.set_usage_homes(kind, homes),
-        Ok(Err(error)) => tracing::warn!(provider = %kind, %error, "usage home discovery failed"),
-        Err(_) => tracing::warn!(provider = %kind, "usage home discovery timed out"),
+        Ok(Ok(homes)) => core.set_usage_homes(id, homes),
+        Ok(Err(error)) => tracing::warn!(provider = %id, %error, "usage home discovery failed"),
+        Err(_) => tracing::warn!(provider = %id, "usage home discovery timed out"),
     }
 }
 

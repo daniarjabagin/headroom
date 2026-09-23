@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use headroom_core::account::ProviderKind;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -30,6 +29,17 @@ pub enum Command {
     Accounts(AccountsArgs),
     #[command(about = "Stream JSON lines for a Waybar custom module")]
     Waybar,
+    #[command(about = "List the providers this build supports")]
+    Providers(ProvidersArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ProvidersArgs {
+    #[arg(
+        long,
+        help = "Print the list as JSON, as the daemon's ListProviders returns it"
+    )]
+    pub json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -68,9 +78,13 @@ pub enum AccountsAction {
         #[arg(required = true, value_name = "ID")]
         ids: Vec<String>,
     },
-    #[command(about = "Sign in to another account in a Headroom-owned home")]
+    #[command(about = "Add another account in a Headroom-owned home")]
     Add {
-        provider: ProviderArg,
+        #[arg(
+            value_name = "PROVIDER",
+            help = "Provider id, see `headroom providers`"
+        )]
+        provider: String,
         #[arg(long, value_name = "NAME", help = "Label to give the new account")]
         label: Option<String>,
         #[arg(
@@ -80,6 +94,11 @@ pub enum AccountsAction {
             help = "Report progress as JSON lines on stdout instead of using the terminal"
         )]
         progress: Option<ProgressFormat>,
+        #[arg(
+            long,
+            help = "Read the provider's API key from the first line of stdin"
+        )]
+        api_key_stdin: bool,
     },
     #[command(about = "Delete the home of an account added with `accounts add`")]
     Remove {
@@ -99,19 +118,4 @@ pub enum AccountsAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ProgressFormat {
     Json,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum ProviderArg {
-    Codex,
-    Claude,
-}
-
-impl ProviderArg {
-    pub fn kind(self) -> ProviderKind {
-        match self {
-            ProviderArg::Codex => ProviderKind::Codex,
-            ProviderArg::Claude => ProviderKind::Claude,
-        }
-    }
 }

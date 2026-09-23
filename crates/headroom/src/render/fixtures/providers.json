@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "codex",
+      "display_name": "Codex",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "codex"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "claude",
+      "display_name": "Claude",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "claude"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    }
+  ]
+}

@@ -1,6 +1,5 @@
-use headroom_core::account::ProviderKind;
-
 use super::*;
+use crate::testing::CODEX;
 use crate::testing::{RecordingNotifier, account, session, snapshot, ts, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
@@ -8,7 +7,7 @@ const RESET: &str = "2026-09-23T12:00:00Z";
 
 fn work() -> AccountRecord {
     AccountRecord {
-        reference: account(ProviderKind::Codex, "work"),
+        reference: account(CODEX, "work"),
         label: Some("Work".into()),
         hidden: false,
         sort_order: 0,
@@ -56,6 +55,7 @@ async fn review(
 ) {
     let review = Review {
         account,
+        provider_name: "Codex",
         snapshot: limits,
         settings,
         display,
@@ -190,6 +190,7 @@ async fn russian_locale_is_used_for_delivery() {
         let limits = snapshot(vec![session(used, RESET)], NOW);
         let review = Review {
             account: &work(),
+            provider_name: "Codex",
             snapshot: &limits,
             settings: NotificationSettings::default(),
             display: &display,
@@ -215,7 +216,10 @@ async fn lapse(alerts: &Alerts, storage: &Storage, account: &AccountRecord) {
         .run(move |conn| crate::storage::lapses::record(conn, &id, "none"))
         .await
         .unwrap();
-    alerts.review_lapse(account, Locale::En).await.unwrap();
+    alerts
+        .review_lapse(account, "Codex", Locale::En)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

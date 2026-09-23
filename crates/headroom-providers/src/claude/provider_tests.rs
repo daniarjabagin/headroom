@@ -85,10 +85,7 @@ async fn discovered_account_fetches_live_limits() {
     );
     assert_eq!(snapshot.identity.plan.as_deref(), Some("Max 20x"));
     assert_eq!(snapshot.identity.stable_key, "acc-1/org-1");
-    assert_eq!(
-        snapshot.identity.account_id(ProviderKind::Claude),
-        accounts[0].id
-    );
+    assert_eq!(snapshot.identity.account_id(&ID), accounts[0].id);
     assert_eq!(snapshot.windows[0].id, WindowId::Session);
     assert_eq!(snapshot.windows.len(), 4);
     assert_eq!(snapshot.balances.len(), 2);
@@ -158,10 +155,9 @@ async fn missing_credentials_is_not_signed_in() {
 }
 
 #[test]
-fn kind_is_claude() {
+fn id_is_claude() {
     let config = ClaudeConfig::for_home("/nonexistent".into());
-    assert_eq!(
-        ClaudeProvider::new(config).unwrap().kind(),
-        ProviderKind::Claude
-    );
+    let provider = ClaudeProvider::new(config).unwrap();
+    assert_eq!(provider.id().as_str(), "claude");
+    assert_eq!(provider.descriptor().display_name, "Claude");
 }

@@ -1,6 +1,10 @@
 pub mod claude;
 pub mod codex;
+mod fsio;
 mod homes;
 pub mod http;
 pub mod jsonl;
+pub mod key_accounts;
 mod plan_error;
+pub mod registry;
+pub mod secrets;

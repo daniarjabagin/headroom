@@ -24,7 +24,11 @@ pub fn account_view(
     let snapshot = entry.map(|e| &e.snapshot);
     AccountView {
         id: record.id().0.clone(),
-        provider: record.reference.provider,
+        provider: record.reference.provider.clone(),
+        provider_name: ctx
+            .catalog
+            .display_name(&record.reference.provider)
+            .to_owned(),
         label: record.label.clone(),
         email: identity_field(
             snapshot,

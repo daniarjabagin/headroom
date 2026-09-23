@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use headroom_core::account::{AccountId, ProviderKind};
+use headroom_core::account::AccountId;
 use headroom_core::cursor::LogCursors;
 use headroom_core::units::Tokens;
 use jiff::Timestamp;
@@ -8,6 +8,7 @@ use jiff::Timestamp;
 use super::*;
 use crate::home::UsageHome;
 use crate::settings::Settings;
+use crate::testing::{CLAUDE, CODEX};
 use crate::testing::{account, event, session, snapshot, ts};
 
 fn memory() -> Storage {
@@ -16,7 +17,7 @@ fn memory() -> Storage {
 
 fn codex_home() -> UsageHome {
     UsageHome {
-        provider: ProviderKind::Codex,
+        provider: CODEX,
         home: PathBuf::from("/home/ada/.codex"),
     }
 }
@@ -141,7 +142,7 @@ fn upsert_keeps_the_event_with_the_larger_total() {
 fn events_are_scoped_by_provider_and_home() {
     let storage = memory();
     let other = UsageHome {
-        provider: ProviderKind::Codex,
+        provider: CODEX,
         home: PathBuf::from("/srv/codex"),
     };
     let cursors = LogCursors::default();
@@ -223,26 +224,16 @@ fn failed_ingest_rolls_back_events_and_cursors() {
 #[test]
 fn sync_adds_accounts_in_discovery_order_and_marks_vanished_gone() {
     let storage = memory();
-    let work = account(ProviderKind::Codex, "work");
-    let home = account(ProviderKind::Codex, "home");
-    let claude = account(ProviderKind::Claude, "main");
+    let work = account(CODEX, "work");
+    let home = account(CODEX, "home");
+    let claude = account(CLAUDE, "main");
     let now = ts("2026-09-23T10:00:00Z");
     storage
         .blocking(|conn| {
-            accounts::sync_provider(
-                conn,
-                ProviderKind::Codex,
-                &[work.clone(), home.clone()],
-                now,
-            )?;
-            accounts::sync_provider(
-                conn,
-                ProviderKind::Claude,
-                std::slice::from_ref(&claude),
-                now,
-            )?;
+            accounts::sync_provider(conn, &CODEX, &[work.clone(), home.clone()], now)?;
+            accounts::sync_provider(conn, &CLAUDE, std::slice::from_ref(&claude), now)?;
             accounts::set_label(conn, &work.id, Some("Work"))?;
-            accounts::sync_provider(conn, ProviderKind::Codex, std::slice::from_ref(&work), now)
+            accounts::sync_provider(conn, &CODEX, std::slice::from_ref(&work), now)
         })
         .unwrap();
     let stored = storage.blocking(|conn| accounts::load_all(conn)).unwrap();
@@ -263,14 +254,14 @@ fn sync_adds_accounts_in_discovery_order_and_marks_vanished_gone() {
 #[test]
 fn rediscovered_account_comes_back_with_its_settings() {
     let storage = memory();
-    let work = account(ProviderKind::Codex, "work");
+    let work = account(CODEX, "work");
     let now = ts("2026-09-23T10:00:00Z");
     storage
         .blocking(|conn| {
-            accounts::sync_provider(conn, ProviderKind::Codex, std::slice::from_ref(&work), now)?;
+            accounts::sync_provider(conn, &CODEX, std::slice::from_ref(&work), now)?;
             accounts::set_hidden(conn, &work.id, true)?;
-            accounts::sync_provider(conn, ProviderKind::Codex, &[], now)?;
-            accounts::sync_provider(conn, ProviderKind::Codex, std::slice::from_ref(&work), now)
+            accounts::sync_provider(conn, &CODEX, &[], now)?;
+            accounts::sync_provider(conn, &CODEX, std::slice::from_ref(&work), now)
         })
         .unwrap();
     let stored = storage.blocking(|conn| accounts::load_all(conn)).unwrap();
@@ -282,13 +273,13 @@ fn rediscovered_account_comes_back_with_its_settings() {
 #[test]
 fn order_identity_and_unknown_accounts() {
     let storage = memory();
-    let a = account(ProviderKind::Codex, "a");
-    let b = account(ProviderKind::Codex, "b");
+    let a = account(CODEX, "a");
+    let b = account(CODEX, "b");
     let now = ts("2026-09-23T10:00:00Z");
     let unknown = AccountId("codex:none".into());
     let found = storage
         .blocking(|conn| {
-            accounts::sync_provider(conn, ProviderKind::Codex, &[a.clone(), b.clone()], now)?;
+            accounts::sync_provider(conn, &CODEX, &[a.clone(), b.clone()], now)?;
             accounts::set_order(conn, &[b.id.clone(), a.id.clone()])?;
             accounts::set_identity(conn, &a.id, Some("a@example.com"), Some("Plus"))?;
             accounts::set_label(conn, &unknown, Some("x"))

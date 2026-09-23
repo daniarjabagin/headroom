@@ -21,6 +21,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let parts = CoreParts {
         storage,
         providers: config.providers,
+        catalog: config.catalog,
         price_book: config.price_book,
         clock: config.clock,
         random: Arc::new(ThreadRandom),

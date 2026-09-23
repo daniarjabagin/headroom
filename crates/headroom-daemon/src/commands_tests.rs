@@ -2,13 +2,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use headroom_core::account::ProviderKind;
 use headroom_core::provider::Provider;
 
 use super::*;
 use crate::dbus::publisher::publish_changes;
 use crate::dbus::signals::SignalSink;
 use crate::scheduler::{FirstRefresh, Scheduler};
+use crate::testing::CODEX;
 use crate::testing::{FakeProvider, Harness, account, eventually, harness, session, snapshot};
 
 async fn two_accounts() -> (Harness, Arc<FakeProvider>) {
@@ -16,11 +16,8 @@ async fn two_accounts() -> (Harness, Arc<FakeProvider>) {
         vec![session(20.0, "2026-09-23T12:00:00Z")],
         "2026-09-23T10:00:00Z",
     );
-    let accounts = vec![
-        account(ProviderKind::Codex, "a"),
-        account(ProviderKind::Codex, "b"),
-    ];
-    let provider = Arc::new(FakeProvider::new(ProviderKind::Codex, accounts, limits));
+    let accounts = vec![account(CODEX, "a"), account(CODEX, "b")];
+    let provider = Arc::new(FakeProvider::new(CODEX, accounts, limits));
     let dynamic: Arc<dyn Provider> = provider.clone();
     (harness(vec![dynamic]).await, provider)
 }

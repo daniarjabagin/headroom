@@ -1,7 +1,8 @@
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 
 use super::*;
 use crate::state::payload::{ModelView, OtherModelsView, TokensView};
+use crate::testing::{CLAUDE, CODEX, descriptor_of};
 
 fn model(name: &str, tokens: u64, cost: i64, partial: bool) -> ModelView {
     ModelView {
@@ -31,9 +32,11 @@ fn totals(tokens: u64, cost: i64, partial: bool) -> TotalsView {
     }
 }
 
-fn usage(provider: ProviderKind, home: &str, today: TotalsView) -> UsageView {
+fn usage(provider: ProviderId, home: &str, today: TotalsView) -> UsageView {
+    let provider_name = descriptor_of(&provider).display_name.to_owned();
     UsageView {
         provider,
+        provider_name,
         usage_home: home.into(),
         today,
         yesterday: totals(0, 0, false),
@@ -42,24 +45,27 @@ fn usage(provider: ProviderKind, home: &str, today: TotalsView) -> UsageView {
     }
 }
 
-fn provider_rows(period: &PeriodSpendView) -> Vec<(ProviderKind, i64, u64, bool)> {
+fn provider_rows(period: &PeriodSpendView) -> Vec<(ProviderId, i64, u64, bool)> {
     period
         .by_provider
         .iter()
-        .map(|p| (p.provider, p.cost_usd_micros, p.total_tokens, p.partial))
+        .map(|p| {
+            (
+                p.provider.clone(),
+                p.cost_usd_micros,
+                p.total_tokens,
+                p.partial,
+            )
+        })
         .collect()
 }
 
 #[test]
 fn homes_of_one_provider_are_summed() {
     let entries = [
-        usage(ProviderKind::Codex, "~/.codex", totals(1_000, 2_000, false)),
-        usage(ProviderKind::Codex, "/srv/codex", totals(500, 1_000, false)),
-        usage(
-            ProviderKind::Claude,
-            "~/.claude",
-            totals(4_000, 9_000, false),
-        ),
+        usage(CODEX, "~/.codex", totals(1_000, 2_000, false)),
+        usage(CODEX, "/srv/codex", totals(500, 1_000, false)),
+        usage(CLAUDE, "~/.claude", totals(4_000, 9_000, false)),
     ];
     let today = spend(&entries).today;
     assert_eq!(today.cost_usd_micros, 12_000);
@@ -67,54 +73,50 @@ fn homes_of_one_provider_are_summed() {
     assert!(!today.partial);
     assert_eq!(
         provider_rows(&today),
-        [
-            (ProviderKind::Claude, 9_000, 4_000, false),
-            (ProviderKind::Codex, 3_000, 1_500, false),
-        ]
+        [(CLAUDE, 9_000, 4_000, false), (CODEX, 3_000, 1_500, false),]
     );
+    let names: Vec<_> = today
+        .by_provider
+        .iter()
+        .map(|p| p.provider_name.as_str())
+        .collect();
+    assert_eq!(names, ["Claude", "Codex"]);
 }
 
 #[test]
 fn equal_costs_are_ordered_by_provider_name() {
     let entries = [
-        usage(ProviderKind::Codex, "~/.codex", totals(1, 7, false)),
-        usage(ProviderKind::Claude, "~/.claude", totals(2, 7, false)),
+        usage(CODEX, "~/.codex", totals(1, 7, false)),
+        usage(CLAUDE, "~/.claude", totals(2, 7, false)),
     ];
     let names: Vec<_> = spend(&entries)
         .today
         .by_provider
         .iter()
-        .map(|p| p.provider)
+        .map(|p| p.provider.clone())
         .collect();
-    assert_eq!(names, [ProviderKind::Claude, ProviderKind::Codex]);
+    assert_eq!(names, [CLAUDE, CODEX]);
 }
 
 #[test]
 fn partial_propagates_to_provider_and_period() {
     let entries = [
-        usage(ProviderKind::Codex, "~/.codex", totals(1_000, 2_000, false)),
-        usage(ProviderKind::Codex, "/srv/codex", totals(300, 0, true)),
-        usage(ProviderKind::Claude, "~/.claude", totals(10, 30, false)),
+        usage(CODEX, "~/.codex", totals(1_000, 2_000, false)),
+        usage(CODEX, "/srv/codex", totals(300, 0, true)),
+        usage(CLAUDE, "~/.claude", totals(10, 30, false)),
     ];
     let result = spend(&entries);
     assert!(result.today.partial);
     assert_eq!(
         provider_rows(&result.today),
-        [
-            (ProviderKind::Codex, 2_000, 1_300, true),
-            (ProviderKind::Claude, 30, 10, false),
-        ]
+        [(CODEX, 2_000, 1_300, true), (CLAUDE, 30, 10, false),]
     );
     assert!(!result.last_30_days.partial);
 }
 
 #[test]
 fn providers_without_usage_in_a_period_are_left_out() {
-    let entries = [usage(
-        ProviderKind::Codex,
-        "~/.codex",
-        totals(1_000, 2_000, false),
-    )];
+    let entries = [usage(CODEX, "~/.codex", totals(1_000, 2_000, false))];
     let result = spend(&entries);
     assert_eq!(result.yesterday, PeriodSpendView::default());
     assert_eq!(result.last_30_days.by_provider.len(), 1);
@@ -140,8 +142,8 @@ fn provider_models_are_merged_across_homes_and_ranked() {
         model("free", 300, 0, false),
     ];
     let entries = [
-        usage(ProviderKind::Codex, "~/.codex", main),
-        usage(ProviderKind::Codex, "/srv/codex", spare),
+        usage(CODEX, "~/.codex", main),
+        usage(CODEX, "/srv/codex", spare),
     ];
     let today = spend(&entries).today;
     assert_eq!(
@@ -173,8 +175,8 @@ fn provider_models_keep_the_top_five_and_fold_the_rest_after_merging() {
         model("h", 3, 50, false),
     ];
     let entries = [
-        usage(ProviderKind::Codex, "~/.codex", main),
-        usage(ProviderKind::Codex, "/srv/codex", spare),
+        usage(CODEX, "~/.codex", main),
+        usage(CODEX, "/srv/codex", spare),
     ];
     let provider = spend(&entries).today.by_provider.remove(0);
     let names: Vec<_> = provider.models.iter().map(|m| m.model.as_str()).collect();

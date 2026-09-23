@@ -9,9 +9,12 @@ visual design in `docs/design/`.
 | --- | --- | --- | --- |
 | `headroom-core` | lib, no I/O | units, domain model, log cursors, `Provider` trait, pacing, severity, usage aggregation | `serde`, `serde_json`, `jiff`, `thiserror`, `async-trait`, `sha2`, `hex` |
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
-| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, `codex/`, `claude/` | core |
-| `headroom-daemon` | lib | account registry, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core, pricing, providers |
-| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `refresh`, `tui`, `waybar` | all |
+| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, provider `registry`, `secrets` store, `key_accounts` records, one module per provider (`codex/`, `claude/`) | core, `zbus` |
+| `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core |
+| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `tui`, `waybar` | all |
+
+The daemon crate never names a provider: the binary builds the providers from
+`headroom_providers::registry` and hands them, with the registry's descriptors, to the daemon.
 
 Time library: `jiff` everywhere. Async runtime: `tokio`. HTTP: `reqwest` + `rustls`. D-Bus: `zbus`.
 Storage: `rusqlite` with `bundled`. File watching: `notify`.
@@ -97,26 +100,31 @@ pub fn jsonl_files(root: &Path) -> Result<Vec<PathBuf>, JsonlError>;
 ## Accounts
 
 ```rust
-pub enum ProviderKind { Codex, Claude }
+pub struct ProviderId(Cow<'static, str>);   // "codex", "claude", "opencode", …
 pub struct AccountId(pub String);
 pub enum CredentialOwner { Cli, Headroom }
 pub struct AccountRef {
     pub id: AccountId,
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
     pub home: PathBuf,
     pub owner: CredentialOwner,
 }
 pub struct AccountIdentity { pub email: Option<String>, pub plan: Option<String>, pub stable_key: String }
 ```
 
+- `ProviderId` is an open string id, lowercase `[a-z0-9_-]+`. `ProviderId::from_static` wraps a
+  literal for a registry entry (registry tests check every literal), `ProviderId::parse` checks
+  runtime text; serde reads and writes it as a plain string and rejects invalid ids. Storage keeps
+  the same string, so ids stored by older builds stay valid.
 - `id` = `"{provider}:{sha256(stable_key)[..12]}"`. Codex `stable_key` = `user_id + "/" + account_id`
   from the id_token; Claude = `accountUuid + "/" + organizationUuid` from `.claude.json`.
 - `CredentialOwner::Cli` homes (`~/.codex`, `$CODEX_HOME`, `~/.claude`, `$CLAUDE_CONFIG_DIR`, discovered
   Claude config dirs) are **read-only**: never refresh, never write. Expired access token →
   `ProviderError::SignInExpired` and the UI asks the user to open the CLI.
 - `CredentialOwner::Headroom` homes live in `$XDG_DATA_HOME/headroom/accounts/{provider}/{uuid}/`
-  (mode `0700`, files `0600`). `headroom accounts add codex|claude` runs the CLI login with
-  `CODEX_HOME` / `CLAUDE_CONFIG_DIR` pointing there. Headroom may refresh these tokens, writing back by
+  (mode `0700`, files `0600`). `headroom accounts add <provider>` runs the provider's CLI login with
+  its home variable (`CODEX_HOME`, `CLAUDE_CONFIG_DIR`, …) pointing there, or stores a pasted API
+  key (see [API-key accounts](#api-key-accounts)). Headroom may refresh these tokens, writing back by
   patching a `serde_json::Value` and atomically replacing the file only if its content is unchanged
   since it was read.
 - Local token usage belongs to a **usage home** (a directory with the tool's logs), not an account.
@@ -239,25 +247,38 @@ pub struct UsageSummary {
 ```rust
 #[async_trait]
 pub trait Provider: Send + Sync {
-    fn kind(&self) -> ProviderKind;
+    fn descriptor(&self) -> &'static ProviderDescriptor;
+    fn id(&self) -> &'static ProviderId { &self.descriptor().id }
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError>;
+    async fn account_at(&self, home: &Path) -> Result<Option<AccountRef>, ProviderError>; // default: discover, match home
     async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError>;
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError>;
     fn read_usage(&self, home: &Path, cursors: &mut LogCursors) -> Result<Vec<UsageEvent>, ProviderError>;
+    async fn validate_key(&self, key: &str) -> Result<AccountIdentity, ProviderError>; // default: Unsupported
 }
 
 pub enum ProviderError {
     NotSignedIn,
     SignInExpired,
     ApiKeyOnly,
+    NoSubscription { detail: String },
     RateLimited { retry_after: Option<SignedDuration> },
     Network(String),
     InvalidResponse(String),
     LocalData(String),
+    Unsupported(String),
 }
 ```
 
-- Error messages are safe to show and never contain tokens.
+- Error messages are safe to show and never contain tokens or keys.
+- `NoSubscription { detail }` is generic: each provider writes its own `detail` ("No active ChatGPT
+  subscription (Free plan).", "No active plan."), which the payload shows as `error.message`.
+- `account_at` identifies the account signed in at one Headroom-owned home even when discovery
+  lists the same account from another home first (Codex and Claude override it); `accounts add`
+  uses it after a login.
+- `validate_key` checks a pasted API key with the provider and returns whose key it is. Providers
+  that read stored keys get a `SecretReader` injected at construction (`headroom-core::secret`), so
+  they stay testable without D-Bus.
 - `fetch_limits` for Codex falls back to the newest `rate_limits` snapshot in local logs when the
   network call fails or the sign-in expired, returning `LimitsSource::LocalLog`.
 - `read_usage` is synchronous and CPU-bound; the daemon runs it on `spawn_blocking`.
@@ -268,6 +289,102 @@ pub enum ProviderError {
   - Claude: dirs with a `projects/` directory among `$CLAUDE_CONFIG_DIR`, `~/.claude`, the scanned
     config dirs (hidden children of `~`, children of `$XDG_CONFIG_HOME`) that hold `.claude.json` or
     `.credentials.json` (no identity needed), and Headroom-owned dirs.
+
+## Provider registry
+
+Descriptors live in `headroom-core::descriptor` (types only), the registry in
+`headroom-providers::registry`.
+
+```rust
+pub struct ProviderDescriptor {
+    pub id: ProviderId,
+    pub display_name: &'static str,
+    pub add_account: &'static [AddAccountMethod],   // the first one is the default
+    pub multi_account: bool,
+    pub local_usage: bool,
+}
+pub enum AddAccountMethod {
+    CliLogin(CliLogin),
+    ApiKey(ApiKeyPrompt),
+    AutoDetect { reason: &'static str },
+}
+pub struct CliLogin {
+    pub program: &'static str,
+    pub args: &'static [&'static str],
+    pub home_var: HomeVar,
+    pub credentials_file: &'static str,   // relative to the directory home_var names
+    pub needs_pty: bool,
+}
+pub enum HomeVar { Direct(&'static str), XdgBase { var: &'static str, subdir: &'static str } }
+pub struct ApiKeyPrompt { pub label: &'static str, pub console_url: &'static str, pub hint: &'static str }
+
+// headroom-providers::registry
+pub struct RegistryContext { pub http: reqwest::Client, pub secrets: Arc<dyn SecretReader> }
+pub fn descriptors() -> impl Iterator<Item = &'static ProviderDescriptor>;
+pub fn descriptor(id: &str) -> Option<&'static ProviderDescriptor>;
+pub fn build_all(context: &RegistryContext) -> Vec<Arc<dyn Provider>>;
+pub fn build(context: &RegistryContext, id: &str) -> Option<Result<Arc<dyn Provider>, ProviderError>>;
+```
+
+- One static entry per provider: its descriptor and a builder. Each builder takes its own settings
+  from the process environment and shares the one HTTP client. A provider that cannot start is
+  logged and left out; the others still run.
+- `ProviderDescriptor::validate` checks an entry: valid id, a display name, at least one method,
+  bare login program, upper-case home variable, credential file and XDG subdir relative and inside
+  the home, `https` console URL. The registry test runs it for every entry and checks ids are unique.
+- `HomeVar::Direct(VAR)` points `VAR` at the new home (`CODEX_HOME`). `HomeVar::XdgBase { var,
+  subdir }` points an XDG base variable at the home, so the tool writes to `home/subdir`
+  (`XDG_DATA_HOME` + `opencode`); the login waits for `credentials_file` there.
+- `needs_pty` logins are refused with a clear error until a provider needs one.
+- The daemon's `ProviderCatalog` holds the compiled-in descriptors. It supplies `provider_name` for
+  the state payload and notifications (the id when a stored account belongs to a provider this build
+  lacks), orders `usage[]` by registry position, and answers D-Bus `ListProviders`.
+
+## Secret store
+
+`headroom-providers::secrets::SecretStore` keeps API keys for the CLI (which writes them) and the
+daemon (which reads them through `SecretReader`).
+
+- Secret Service over the existing `zbus` dependency (no extra crates): `OpenSession("plain")`,
+  `ReadAlias("default")`, `Unlock`, `CreateItem` (replace), `SearchItems`, `Item.GetSecret`,
+  `Item.Delete`, `Session.Close`. Attributes `{application: "io.github.headroom", provider, account}`,
+  label `Headroom API key for <account id>`.
+- Fallback file `$XDG_DATA_HOME/headroom/secrets/<account id>` (directory `0700`, file `0600`,
+  written atomically) when no Secret Service answers, there is no default collection, or the
+  collection is locked and unlocking would need a prompt. A key stored in the Secret Service removes
+  any fallback file for that account.
+- Reads try the Secret Service first, then the file. A locked item without a file copy is an error
+  ("the keyring is locked"). Every call has a 10 s timeout; the bus connection is opened lazily and
+  reused, so the daemon holds none until a provider reads a key.
+- Keys are `SecretString` (redacted `Debug`, no `Display`) and never reach logs, errors, argv, the
+  environment or D-Bus payloads.
+
+## API-key accounts
+
+`headroom accounts add <provider> --api-key-stdin` reads one line from stdin, calls
+`Provider::validate_key`, creates a Headroom-owned home, stores the key under the new account id and
+writes `account.json` (the `AccountIdentity`, `0600`) into the home
+(`headroom-providers::key_accounts`). Providers list these homes with `key_accounts::discover` and
+read the key with their injected `SecretReader`. Adding a key whose account already exists replaces
+the stored key in the existing home. `headroom accounts remove` deletes the home and, for providers
+that take API keys, the stored key.
+
+## Adding a provider
+
+1. Module `crates/headroom-providers/src/<id>/`: `mod.rs` (`pub const ID`, `pub static DESCRIPTOR`,
+   `impl Provider`), `auth.rs`, `client.rs` (raw types), `mapper.rs`, `local_usage.rs` if the tool
+   logs usage, `fixtures/` with anonymised real responses.
+2. Descriptor: display name, add-account methods in order of preference (`CliLogin` with its home
+   variable and credentials file, `ApiKey` with label, console URL and hint, or `AutoDetect` with a
+   reason), `multi_account`, `local_usage`.
+3. One entry in `registry::ENTRIES` with a builder that reads the provider's environment.
+4. Discovery: CLI homes and Headroom-owned homes under `$XDG_DATA_HOME/headroom/accounts/<id>/`;
+   API-key providers use `key_accounts::discover` and override `validate_key`.
+5. Map "no active plan" answers to `ProviderError::NoSubscription { detail }` with a provider-specific
+   message.
+6. Tests: mapper and local log parser against fixtures, registry validation passes, and update
+   `crates/headroom/src/render/fixtures/providers.json` (`UPDATE_SNAPSHOTS=1 cargo test -p headroom`).
+7. Icon: `shell/*/icons/<id>.svg`; shells fall back to a generic icon when it is missing.
 
 ## Daemon
 
@@ -295,15 +412,16 @@ pub enum ProviderError {
   (fired set per window + `resets_at`) is persisted so restarts do not re-alert. Default action opens
   the popup via the shell. Hidden accounts and hidden windows (`display.hidden_windows`) are skipped.
   Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
-  `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`.
+  `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`. Titles name the
+  provider by its registry display name.
 
 ## D-Bus API
 
 - Bus name `io.github.headroom.Daemon`, object `/io/github/headroom/Daemon`, interface
   `io.github.headroom.Daemon1`.
-- Methods: `GetState() -> s`, `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts
-  now), `GetSettings() -> s`,
-  `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
+- Methods: `GetState() -> s`, `ListProviders() -> s` (compiled-in providers and how to add their
+  accounts), `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts now),
+  `GetSettings() -> s`, `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
   `SetAccountHidden(account_id: s, hidden: b)`.
 - Signal: `StateChanged(state: s)`.
 - Payloads are JSON (easy in GJS, QML and Rust alike), schema versioned by a top-level `"version"`.
@@ -316,10 +434,10 @@ State payload outline:
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
   "display": { "theme": "system", "language": "system", "value_mode": "left", "…": "copy of settings.display" },
-  "headline": { "account_id": "codex:…", "provider": "codex", "account_label": "Work", "window": "session",
+  "headline": { "account_id": "codex:…", "provider": "codex", "provider_name": "Codex", "account_label": "Work", "window": "session",
                 "window_label": "Session", "used_percent": 62.0, "remaining_percent": 38.0, "tone": "warning" },
   "accounts": [{
-    "id": "codex:1a2b3c4d5e6f", "provider": "codex", "label": "Work", "email": "…", "plan": "Pro", "owner": "cli|headroom",
+    "id": "codex:1a2b3c4d5e6f", "provider": "codex", "provider_name": "Codex", "label": "Work", "email": "…", "plan": "Pro", "owner": "cli|headroom",
     "status": "fresh|stale|refreshing|error|signed_out", "error": null, "updated_at": "…", "source": "live|local_log|cache",
     "windows": [{ "id": "session", "label": "Session", "used_percent": 62.0, "remaining_percent": 38.0,
                   "resets_at": "…", "period_seconds": 18000, "tone": "warning",
@@ -329,13 +447,13 @@ State payload outline:
     "notices": [],
     "usage_home": "~/.codex"
   }],
-  "usage": [{ "provider": "codex", "usage_home": "~/.codex",
+  "usage": [{ "provider": "codex", "provider_name": "Codex", "usage_home": "~/.codex",
               "today": { "tokens": { "input": 0, "cache_read": 0, "cache_write": 0, "output": 0, "reasoning": 0, "total": 0 }, "cost_usd_micros": 0, "partial": false,
                          "models": [{ "model": "gpt-5.5", "total_tokens": 0, "cost_usd_micros": 0, "partial": false }] },
               "yesterday": { … }, "last_30_days": { … },
               "daily": [{ "date": "2026-09-22", "total_tokens": 0, "cost_usd_micros": 0 }] }],
   "spend": { "today": { "cost_usd_micros": 0, "total_tokens": 0, "partial": false,
-                        "by_provider": [{ "provider": "codex", "…": "…", "models": [ … ] }] }, "yesterday": { … }, "last_30_days": { … } }
+                        "by_provider": [{ "provider": "codex", "provider_name": "Codex", "…": "…", "models": [ … ] }] }, "yesterday": { … }, "last_30_days": { … } }
 }
 ```
 
