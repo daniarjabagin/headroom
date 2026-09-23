@@ -66,6 +66,7 @@ openrouter  OpenRouter  paste api key                                 several   
 zai         Z.ai        paste api key                                 several   no
 kimi        Kimi Code   paste kimi code api key or sign in with kimi  several   no
 minimax     MiniMax     paste minimax token plan key                  several   no
+grok        Grok        sign in with grok or detected automatically   several   yes
 keyed       Keyed       paste api key or detected automatically       one       no
 ";
         assert_eq!(render_providers(&payload), expected);

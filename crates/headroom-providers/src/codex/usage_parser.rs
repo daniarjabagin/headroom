@@ -256,6 +256,7 @@ impl ParserState {
             tier: self.tier,
             tokens,
             web_search_requests: 0,
+            reported_cost: None,
         }
     }
 }

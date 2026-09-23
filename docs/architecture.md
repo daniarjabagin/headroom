@@ -9,7 +9,7 @@ visual design in `docs/design/`.
 | --- | --- | --- | --- |
 | `headroom-core` | lib, no I/O | units, domain model, log cursors, `Provider` trait, pacing, severity, usage aggregation | `serde`, `serde_json`, `jiff`, `thiserror`, `async-trait`, `sha2`, `hex` |
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
-| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, provider `registry`, `secrets` store, `key_accounts` records, one module per provider (`codex/`, `claude/`) | core, `zbus` |
+| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, provider `registry`, `secrets` store, `key_accounts` records, one module per provider (`codex/`, `claude/`, `grok/`) | core, `zbus` |
 | `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core |
 | `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `tui`, `waybar` | all |
 
@@ -59,17 +59,21 @@ pub struct UsageEvent {
     pub tier: ServiceTier,
     pub tokens: TokenCounts,
     pub web_search_requests: u32,
+    pub reported_cost: Option<MicroUsd>,
 }
 pub enum ServiceTier { Standard, Priority, Fast }
 pub struct EventKey(pub String);
 ```
 
 - `EventKey` is globally unique per billed API response: Codex `response_id`, Claude
-  `message.id + ":" + requestId` (or `message.id` alone when `requestId` is missing). Claude
+  `message.id + ":" + requestId` (or `message.id` alone when `requestId` is missing), Grok
+  `params._meta.eventId + ":" + model`. Claude
   `usage.iterations[]` entries not covered by the top-level usage (all but the last) get
   `{base}:iter:{index}`. Fallback key when no id exists: stable hash of `(at, model, tokens)`.
-- Providers emit raw events only. Cost is never stored; it is computed at query time so price
-  updates re-cost history.
+- Providers emit raw events only. Cost is computed at query time so price updates re-cost history,
+  except `reported_cost`: the exact cost a tool logged itself (Grok `costUsdTicks`). It is stored
+  with the event (nullable `usage_events.reported_cost`, migration 003; older rows are NULL) and
+  `aggregate` uses it instead of the price book. Codex and Claude leave it `None`.
 - The daemon stores events keyed by `(provider, usage_home, key)`. Duplicate keys keep the event with
   the larger `tokens.total()`.
 
@@ -235,6 +239,8 @@ pub struct UsageSummary {
 - `aggregate(events, &dyn PriceBook, &TimeZone, now) -> UsageSummary`. Day bucketing uses the given
   time zone. 30 days = today and the 29 previous days.
 - Every period carries its per-model breakdown, sorted by cost desc, then tokens desc, then name.
+- An event's cost is `reported_cost` when present (priced, never partial), otherwise
+  `PriceBook::cost`.
 - Unpriced events still count their tokens; their cost is excluded and reported via `unpriced_*` so
   the UI can mark the total as partial. Never price with a guessed default model.
 - The price book sees the whole event so prices can depend on its time. The supplement's
@@ -286,9 +292,36 @@ pub enum ProviderError {
   deduplicated by canonical path. The daemon reads usage from exactly this set.
   - Codex: the CLI home (`$CODEX_HOME` or `~/.codex`) when it has `sessions/` or `archived_sessions/`,
     plus Headroom-owned homes with one of those directories.
+  - Grok: the CLI home (`$GROK_HOME` or `~/.grok`) and Headroom-owned homes that have `sessions/`.
   - Claude: dirs with a `projects/` directory among `$CLAUDE_CONFIG_DIR`, `~/.claude`, the scanned
     config dirs (hidden children of `~`, children of `$XDG_CONFIG_HOME`) that hold `.claude.json` or
     `.credentials.json` (no identity needed), and Headroom-owned dirs.
+
+## Grok
+
+- Accounts: Headroom-owned homes (`grok login` with `GROK_HOME`, listed first so an account signed in
+  both places uses the Headroom home) and the CLI home read-only. Identity `user_id + "/" + team_id`
+  from the `auth.json` entry (keyed `issuer::client_id`).
+- Limits: `GET {GROK_CLI_CHAT_PROXY_BASE_URL or https://cli-chat-proxy.grok.com/v1}/billing?format=credits`
+  and `/settings` with `Authorization: Bearer`, `X-XAI-Token-Auth: xai-grok-cli`. A
+  `USAGE_PERIOD_TYPE_WEEKLY` period becomes the Weekly window (`creditUsagePercent`, absent = 0);
+  otherwise a Neutral "Legacy Grok billing" notice, or `NoSubscription` when settings report no
+  `subscription_tier_display`. `onDemandCap.val > 0` gives an "Extra usage on, cap N" notice, else
+  "Extra usage off". A failed settings call only drops the plan name.
+- Tokens: an expired CLI token is `SignInExpired` and is never refreshed. A Headroom-owned token that
+  expires within 5 min, or is rejected with 401/403, is refreshed once: exclusive `flock` on
+  `auth.json.lock`, re-read (a token refreshed meanwhile is reused), `POST {issuer}/oauth2/token`
+  (`grant_type=refresh_token`, `client_id`, `refresh_token`, form-encoded) only for the configured
+  issuer `https://auth.x.ai`, patch this entry's `key`/`refresh_token`/`id_token`/`expires_at`, and
+  replace the file atomically if its bytes are unchanged. 400/401/403 from the token endpoint →
+  `SignInExpired`.
+- Usage: `sessions/**/updates.jsonl`, lines with `params.update.sessionUpdate == "turn_completed"`;
+  one event per `usage.modelUsage` entry. `input = inputTokens − cachedReadTokens −
+  cacheCreationTokens` (cache writes go to `cache_write_5m`), `output = outputTokens`,
+  `reasoning = reasoningTokens`. Time from `params._meta.agentTimestampMs`, else `timestamp`.
+  `reported_cost` from the model's `costUsdTicks` (the turn's top-level value only when there is one
+  model): 1 tick = 1e-10 USD, so micro-USD = ticks / 10 000 in integer math, rounding half up
+  (remainder ≥ 5 000 adds one); negative or fractional ticks give `None` and the price book is used.
 
 ## Provider registry
 

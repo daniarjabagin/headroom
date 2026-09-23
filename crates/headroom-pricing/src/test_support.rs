@@ -14,5 +14,6 @@ pub(crate) fn event(
         tier,
         tokens: *tokens,
         web_search_requests: web_search,
+        reported_cost: None,
     }
 }

@@ -71,7 +71,7 @@ fn adding_an_unknown_provider_reports_an_error_event() {
     assert_eq!(lines[0]["event"], "error");
     assert_eq!(
         lines[0]["message"],
-        "unknown provider \"nope\"; known providers: codex, claude, opencode, openrouter, zai, kimi, minimax"
+        "unknown provider \"nope\"; known providers: codex, claude, opencode, openrouter, zai, kimi, minimax, grok"
     );
 }
 

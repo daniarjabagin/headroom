@@ -34,6 +34,7 @@ fn event(key: &str, at: &str, model: &str, output: u64) -> UsageEvent {
             ..TokenCounts::default()
         },
         web_search_requests: 0,
+        reported_cost: None,
     }
 }
 
@@ -241,4 +242,63 @@ fn models_are_broken_down_per_period() {
             ("unknown".into(), 100, 0, true)
         ]
     );
+}
+
+fn reported(key: &str, model: &str, cost: i64) -> UsageEvent {
+    UsageEvent {
+        reported_cost: Some(MicroUsd(cost)),
+        ..event(key, "2026-09-23T09:00:00Z", model, 10)
+    }
+}
+
+#[test]
+fn reported_cost_wins_over_the_price_book() {
+    let events = [reported("a", "grok-4.7-build", 1_540_616)];
+    let summary = run(&events, &TimeZone::UTC);
+    assert_eq!(summary.today.totals.cost, MicroUsd(1_540_616));
+    assert!(!summary.today.totals.is_partial());
+}
+
+#[test]
+fn reported_cost_prices_models_the_price_book_does_not_know() {
+    let events = [
+        reported("a", "unknown", 7),
+        event("b", "2026-09-23T09:00:00Z", "unknown", 10),
+    ];
+    let totals = run(&events, &TimeZone::UTC).today.totals;
+    assert_eq!(totals.cost, MicroUsd(7));
+    assert_eq!(totals.unpriced_tokens, Tokens(110));
+    assert!(totals.is_partial());
+}
+
+#[test]
+fn a_reported_zero_is_a_real_zero() {
+    let totals = run(&[reported("a", "unknown", 0)], &TimeZone::UTC)
+        .today
+        .totals;
+    assert_eq!(totals.cost, MicroUsd::ZERO);
+    assert!(!totals.is_partial());
+}
+
+#[test]
+fn events_without_reported_cost_keep_price_book_costs() {
+    let events = [
+        event("a", "2026-09-23T09:00:00Z", "gpt-5.5", 10),
+        reported("b", "gpt-5.5", 1_000),
+    ];
+    let summary = run(&events, &TimeZone::UTC);
+    assert_eq!(summary.today.totals.cost, MicroUsd(110 + 1_000));
+    assert_eq!(summary.today.models[0].totals.cost, MicroUsd(1_110));
+}
+
+#[test]
+fn reported_cost_is_skipped_when_absent_in_serde() {
+    let plain = event("a", "2026-09-23T09:00:00Z", "gpt-5.5", 10);
+    let json = serde_json::to_string(&plain).unwrap();
+    assert!(!json.contains("reported_cost"));
+    let back: UsageEvent = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, plain);
+    let priced = reported("b", "grok", 5);
+    let back: UsageEvent = serde_json::from_str(&serde_json::to_string(&priced).unwrap()).unwrap();
+    assert_eq!(back.reported_cost, Some(MicroUsd(5)));
 }

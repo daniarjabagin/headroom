@@ -32,6 +32,7 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
         [
             "claude",
             "codex",
+            "grok",
             "kimi",
             "minimax",
             "opencode",
@@ -66,7 +67,8 @@ fn built_providers_follow_the_registry_order() {
             "openrouter",
             "zai",
             "kimi",
-            "minimax"
+            "minimax",
+            "grok"
         ]
     );
     for provider in &providers {

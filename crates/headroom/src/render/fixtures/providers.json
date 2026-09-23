@@ -102,6 +102,22 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "grok",
+      "display_name": "Grok",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "grok"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Found from the Grok CLI sign-in in ~/.grok, which expires while the CLI is closed"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
     }
   ]
 }

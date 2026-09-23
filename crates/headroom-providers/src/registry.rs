@@ -6,6 +6,7 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::grok::{self, GrokConfig, GrokProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
 use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
@@ -25,7 +26,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 7] = [
+static ENTRIES: [Entry; 8] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -53,6 +54,10 @@ static ENTRIES: [Entry; 7] = [
     Entry {
         descriptor: &minimax::DESCRIPTOR,
         build: build_minimax,
+    },
+    Entry {
+        descriptor: &grok::DESCRIPTOR,
+        build: build_grok,
     },
 ];
 
@@ -158,6 +163,14 @@ fn build_minimax(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provide
         config,
         http,
         context.secrets.clone(),
+    )))
+}
+
+fn build_grok(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = GrokConfig::from_env()?;
+    Ok(Arc::new(GrokProvider::with_http(
+        config,
+        context.http.clone(),
     )))
 }
 
