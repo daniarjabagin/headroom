@@ -3,7 +3,7 @@ import { parseDisplay } from './settings.js';
 const SCHEMA_VERSION = 1;
 
 const TONES = new Set(['good', 'warning', 'critical', 'neutral']);
-const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out']);
+const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out', 'no_subscription']);
 const SEVERITIES = new Set(['untracked', 'healthy', 'close', 'running_out', 'spent']);
 const BALANCE_KINDS = new Set(['usd', 'count']);
 const OWNERS = new Set(['cli', 'headroom']);
@@ -246,4 +246,8 @@ export function parseState(json) {
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         spend: parseSpend(raw.spend, usage),
     };
+}
+
+export function isRefreshing(state) {
+    return state.accounts.some(account => account.status === 'refreshing');
 }

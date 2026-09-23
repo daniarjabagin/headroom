@@ -7,7 +7,7 @@ const PROVIDERS = {
         signInCommand: 'codex login',
     },
     claude: {
-        name: 'Claude Code',
+        name: 'Claude',
         icon: 'claude.svg',
         tinted: false,
         ringColor: '#DE7356',

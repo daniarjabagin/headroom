@@ -20,11 +20,12 @@ function actionRow(actions) {
     return buttons;
 }
 
-export function noticeRow({ kind, title, detail = null, actions = [] }) {
+export function noticeRow({ kind, title, detail = null, note = null, actions = [] }) {
     const actor = row({ style_class: `headroom-notice ${kind}`, x_expand: true });
     const texts = column({ style_class: 'headroom-notice-texts', x_expand: true, y_align: Clutter.ActorAlign.CENTER });
     texts.add_child(wrappingLabel(title, 'headroom-notice-title'));
     if (detail) texts.add_child(wrappingLabel(detail, 'headroom-notice-detail'));
+    if (note) texts.add_child(wrappingLabel(note, 'headroom-notice-detail headroom-notice-note'));
     actor.add_child(iconTile(kind));
     actor.add_child(texts);
     if (actions.length === 1) actor.add_child(actionRow(actions));

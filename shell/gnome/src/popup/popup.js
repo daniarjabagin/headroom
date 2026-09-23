@@ -5,10 +5,11 @@ import { enter, settle, STAGGER_MS } from '../motion.js';
 import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
 import { parseDisplay } from '../settings.js';
-import { column } from '../widgets.js';
+import { isRefreshing } from '../state.js';
+import { column, row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
 import { Footer } from './footer.js';
-import { OptionsMenu } from './optionsMenu.js';
+import { RefreshButton } from './refreshButton.js';
 import { Reorderer } from './reorder.js';
 import { SpendSection } from './spendCard.js';
 import { loadingSections } from './skeleton.js';
@@ -17,6 +18,7 @@ import { Tooltips } from './tooltip.js';
 
 const SCROLLBAR_LINGER_MS = 800;
 const ENTRANCE_WINDOW_MS = 400;
+const LEADING_ACTORS = 1;
 
 function visibleAccounts(state) {
     return state.accounts.filter(account => !account.hidden);
@@ -37,6 +39,13 @@ function shownSpend(state) {
     return state.display.showSpend ? state.spend : null;
 }
 
+function topBar(trailing) {
+    const actor = row({ style_class: 'headroom-top-bar', x_expand: true });
+    actor.add_child(spacer());
+    actor.add_child(trailing);
+    return actor;
+}
+
 export class PopupView {
     constructor({ dir, versionText, motion, actions }) {
         this._view = { kind: 'loading', state: null };
@@ -44,6 +53,7 @@ export class PopupView {
         this._generation = 0;
         this._sections = [];
         this._spendSection = null;
+        this._refreshButton = null;
         this._layoutKey = null;
         this._pendingView = null;
         this._scrollbarTimeoutId = 0;
@@ -59,7 +69,7 @@ export class PopupView {
             offline: false,
             period: 'today',
             selectPeriod: period => (this._ctx.period = period),
-            actions: { ...actions, toggleOptions: () => this._toggleOptions() },
+            actions,
         };
         this.actor = new St.Widget({
             style_class: 'headroom-popup',
@@ -84,7 +94,6 @@ export class PopupView {
         this._scroll.child = this._content;
         this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
         this._footer = new Footer(this._ctx, versionText);
-        this._options = new OptionsMenu(this._ctx);
         const dragLayer = new St.Widget({
             style_class: 'headroom-drag-layer',
             layout_manager: new Clutter.FixedLayout(),
@@ -101,7 +110,6 @@ export class PopupView {
         main.add_child(this._footer.actor);
         this.actor.add_child(main);
         this.actor.add_child(dragLayer);
-        this.actor.add_child(this._options.actor);
     }
 
     setTheme(themeClass) {
@@ -119,11 +127,11 @@ export class PopupView {
         const generation = this._generation;
         if (view.kind === 'ready') this._renderState(view.state);
         else this._replaceContent(this._statusView(view));
+        this._refreshButton?.setBusy(view.kind === 'ready' && isRefreshing(view.state));
         if (generation !== this._generation && Date.now() < this._entranceUntil) this._playEntrance();
     }
 
     relabel() {
-        this._options.close();
         this._footer.relabel();
         this._replaceContent([]);
         this.render(this._view);
@@ -162,7 +170,6 @@ export class PopupView {
         this._entranceUntil = 0;
         this._settleEntrance();
         this._reorderer.cancel();
-        this._options.close();
         this._tooltips.hide();
         this._hideScrollbar();
     }
@@ -207,8 +214,7 @@ export class PopupView {
         this._content.get_children().forEach((actor, index) => enter(motion, actor, index));
         if (!motion.enabled) return;
         this._spendSection?.grow();
-        const offset = this._spendSection ? 1 : 0;
-        this._sections.forEach((section, index) => section.grow((index + offset) * STAGGER_MS));
+        this._sections.forEach((section, index) => section.grow((index + LEADING_ACTORS) * STAGGER_MS));
     }
 
     _settleEntrance() {
@@ -245,9 +251,12 @@ export class PopupView {
 
     _rebuild(state, accounts) {
         const spendState = shownSpend(state);
-        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period) : null;
+        const refresh = new RefreshButton(this._ctx);
+        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period, refresh.actor) : null;
         const sections = accounts.map(account => new AccountSection(this._ctx, account, showsName(account, accounts)));
-        this._replaceContent([...(spend ? [spend.actor] : []), ...sections.map(section => section.actor)]);
+        const leading = spend ? spend.actor : topBar(refresh.actor);
+        this._replaceContent([leading, ...sections.map(section => section.actor)]);
+        this._refreshButton = refresh;
         this._spendSection = spend;
         this._sections = sections;
         this._layoutKey = layoutKey(state.display);
@@ -260,6 +269,7 @@ export class PopupView {
         this._reorderer.setSections([]);
         this._content.destroy_all_children();
         this._spendSection = null;
+        this._refreshButton = null;
         this._sections = [];
         this._layoutKey = null;
         for (const actor of actors) this._content.add_child(actor);
@@ -268,18 +278,12 @@ export class PopupView {
     _onDrop(from, to) {
         const moved = this._sections[from];
         this._sections = moveItem(this._sections, from, to);
-        const offset = this._spendSection ? 1 : 0;
-        this._content.set_child_at_index(moved.actor, to + offset);
+        this._content.set_child_at_index(moved.actor, to + LEADING_ACTORS);
         const order = mergeOrder(
             this._view.state.accounts.map(account => account.id),
             this._sections.map(section => section.id)
         );
         for (const view of [this._view, this._pendingView]) if (view?.state) applyOrder(view.state, order);
         this._ctx.actions.setOrder(order);
-    }
-
-    _toggleOptions() {
-        const accounts = this._view.state?.accounts ?? [];
-        this._options.toggle(this._view.kind === 'ready' ? accounts : []);
     }
 }
