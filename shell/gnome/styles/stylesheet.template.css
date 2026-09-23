@@ -1,0 +1,536 @@
+.headroom-panel-box {
+    spacing: 5px;
+}
+
+.headroom-panel-ring {
+    width: 15px;
+    height: 15px;
+    -headroom-warning-color: var(--warn);
+    -headroom-critical-color: var(--crit);
+}
+
+.headroom-panel-label {
+    font-feature-settings: 'tnum';
+}
+
+.headroom-menu .popup-menu-content {
+    padding: 0;
+    width: 318px;
+    border-radius: 13px;
+    border: 1px solid var(--popup-border);
+    background-color: var(--tray);
+    color: var(--text);
+}
+
+.headroom-popup {
+    color: var(--text);
+    font-feature-settings: 'tnum';
+}
+
+.headroom-content {
+    padding: 14px 14px 12px;
+    spacing: 14px;
+}
+
+.headroom-section {
+    spacing: 4px;
+}
+
+.headroom-section-header {
+    padding: 2px 4px 2px 10px;
+    spacing: 6px;
+}
+
+.headroom-provider-icon {
+    icon-size: 16px;
+}
+
+.headroom-provider-icon.tinted,
+.headroom-info-icon {
+    color: var(--text-secondary);
+}
+
+.headroom-info-icon {
+    icon-size: 11px;
+}
+
+.headroom-title {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-plan {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+    margin-bottom: 1px;
+}
+
+.headroom-stale-tag {
+    font-size: 8.25pt;
+    color: var(--text-tertiary);
+    margin-bottom: 1px;
+}
+
+.headroom-header-warning {
+    icon-size: 12px;
+    color: var(--notice);
+}
+
+.headroom-card {
+    padding: 5px 0;
+    border-radius: 12px;
+    background-color: var(--card);
+}
+
+.headroom-quota-row {
+    padding: 10px 14px;
+    spacing: 2px;
+}
+
+.headroom-row-line {
+    spacing: 8px;
+}
+
+.headroom-metric-label {
+    font-size: 9.75pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-reading {
+    font-size: 9pt;
+    color: var(--text);
+}
+
+.headroom-reading.dim {
+    color: var(--text-secondary);
+}
+
+.headroom-pace-note {
+    spacing: 4px;
+}
+
+.headroom-flame {
+    icon-size: 11px;
+    color: var(--crit);
+}
+
+.headroom-meter {
+    height: 9px;
+}
+
+.headroom-meter-track,
+.headroom-meter-fill {
+    height: 5px;
+    border-radius: 2.5px;
+}
+
+.headroom-meter-track {
+    background-color: var(--track);
+}
+
+.headroom-meter-fill.ok {
+    background-color: var(--accent);
+    background-color: -st-accent-color;
+}
+
+.headroom-meter-fill.warn {
+    background-color: var(--warn);
+}
+
+.headroom-meter-fill.crit {
+    background-color: var(--crit);
+}
+
+.headroom-meter-fill.none {
+    background-color: transparent;
+}
+
+.headroom-meter-tick {
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--tick);
+}
+
+.headroom-text-row {
+    padding: 6px 14px;
+    spacing: 10px;
+}
+
+.headroom-value-label {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-value {
+    font-size: 9pt;
+    color: var(--text);
+}
+
+.headroom-trend {
+    height: 18px;
+    spacing: 1px;
+}
+
+.headroom-trend-bar {
+    width: 4px;
+    border-radius: 1px 1px 0 0;
+    background-color: var(--accent);
+    background-color: -st-accent-color;
+}
+
+.headroom-caret {
+    margin: 0 8px;
+    padding: 5px 0;
+    border-radius: 6px;
+    transition-duration: 120ms;
+}
+
+.headroom-caret:hover,
+.headroom-caret:focus {
+    background-color: var(--button-hover);
+}
+
+.headroom-caret-icon {
+    icon-size: 10px;
+    color: var(--text-secondary);
+}
+
+.headroom-notice {
+    margin: 6px 8px;
+    padding: 8px 9px;
+    spacing: 8px;
+    border-radius: 9px;
+    border: 1px solid var(--notice-border);
+    background-color: var(--notice-bg);
+}
+
+.headroom-notice.error {
+    border-color: var(--error-border);
+    background-color: var(--error-bg);
+}
+
+.headroom-notice-tile {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    background-color: var(--notice-tile);
+    color: var(--notice-fg);
+}
+
+.headroom-notice.error .headroom-notice-tile {
+    background-color: var(--error-tile);
+    color: var(--error-fg);
+}
+
+.headroom-notice-icon {
+    icon-size: 14px;
+}
+
+.headroom-notice-texts {
+    spacing: 1px;
+}
+
+.headroom-notice-title {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-notice-detail {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-notice-actions {
+    spacing: 4px;
+}
+
+.headroom-notice-texts .headroom-notice-actions {
+    padding-top: 6px;
+}
+
+.headroom-small-button {
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--separator);
+    background-color: var(--control);
+    color: var(--text);
+    font-size: 7.5pt;
+    font-weight: 600;
+    transition-duration: 120ms;
+}
+
+.headroom-small-button:hover {
+    background-color: var(--control-hover);
+}
+
+.headroom-small-button:active {
+    background-color: var(--chip);
+}
+
+.headroom-spend-card {
+    padding: 12px 14px;
+    spacing: 12px;
+}
+
+.headroom-segmented {
+    padding: 3px;
+    spacing: 2px;
+    border-radius: 999px;
+    background-color: var(--chip);
+}
+
+.headroom-segment {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 8.25pt;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition-duration: 120ms;
+}
+
+.headroom-segment:hover {
+    color: var(--text);
+}
+
+.headroom-segment:checked {
+    font-weight: 600;
+    color: var(--text);
+    background-color: var(--tray);
+    box-shadow: 0 1px 2px var(--control-shadow);
+}
+
+.headroom-spend-body {
+    spacing: 18px;
+}
+
+.headroom-donut,
+.headroom-donut-area {
+    width: 104px;
+    height: 104px;
+}
+
+.headroom-donut-value {
+    font-size: 9.75pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-donut-unit {
+    font-size: 6.75pt;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.headroom-legend {
+    spacing: 7px;
+}
+
+.headroom-legend-row {
+    spacing: 8px;
+}
+
+.headroom-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.headroom-legend-name {
+    font-size: 9pt;
+    color: var(--text);
+}
+
+.headroom-legend-value {
+    font-size: 9pt;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.headroom-spend-stats {
+    spacing: 12px;
+}
+
+.headroom-stat {
+    spacing: 2px;
+}
+
+.headroom-stat-value {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-stat-caption {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-empty-period {
+    padding: 18px 0;
+    font-size: 9pt;
+    color: var(--text-secondary);
+}
+
+.headroom-status-card {
+    padding: 24px 16px;
+    spacing: 10px;
+}
+
+.headroom-centered {
+    text-align: center;
+}
+
+.headroom-status-mark {
+    icon-size: 32px;
+    color: var(--text-secondary);
+}
+
+.headroom-status-title {
+    font-size: 9.75pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-status-detail {
+    font-size: 9pt;
+    color: var(--text-secondary);
+}
+
+.headroom-status-error {
+    font-size: 8.25pt;
+    color: var(--error-fg);
+}
+
+.headroom-primary-button {
+    margin-top: 4px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background-color: var(--accent);
+    background-color: -st-accent-color;
+    color: var(--accent-fg);
+    color: -st-accent-fg-color;
+    font-size: 9pt;
+    font-weight: 600;
+}
+
+.headroom-primary-button:hover {
+    background-color: var(--accent);
+    background-color: st-lighten(-st-accent-color, 6%);
+}
+
+.headroom-footer {
+    padding: 12px 14px;
+    spacing: 12px;
+    border-top: 1px solid var(--separator);
+    border-radius: 0 0 12px 12px;
+    background-color: var(--footer);
+}
+
+.headroom-footer-texts {
+    spacing: 1px;
+}
+
+.headroom-footer-text {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-footer-text.notice {
+    color: var(--notice);
+}
+
+.headroom-footer-status {
+    spacing: 4px;
+}
+
+.headroom-footer-link:hover .headroom-footer-text {
+    color: var(--text);
+}
+
+.headroom-options-button {
+    height: 28px;
+    padding: 0 12px 0 14px;
+    border-radius: 14px;
+    border: 1px solid var(--separator);
+    background-color: var(--control);
+    color: var(--text);
+    font-size: 9.75pt;
+    font-weight: 600;
+    transition-duration: 120ms;
+}
+
+.headroom-options-button:hover {
+    background-color: var(--control-hover);
+}
+
+.headroom-options-content {
+    spacing: 5px;
+}
+
+.headroom-options-chevron {
+    icon-size: 11px;
+}
+
+.headroom-options-menu {
+    margin: 0 14px 58px 0;
+    padding: 5px;
+    min-width: 176px;
+    border-radius: 10px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    box-shadow: 0 6px 20px var(--float-shadow);
+}
+
+.headroom-menu-item {
+    padding: 5px 9px;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 9.75pt;
+}
+
+.headroom-menu-item:hover,
+.headroom-menu-item:focus {
+    background-color: var(--accent);
+    background-color: -st-accent-color;
+    color: var(--accent-fg);
+    color: -st-accent-fg-color;
+}
+
+.headroom-menu-item-content {
+    spacing: 6px;
+}
+
+.headroom-menu-check,
+.headroom-menu-back {
+    icon-size: 12px;
+}
+
+.headroom-menu-separator {
+    height: 1px;
+    margin: 4px 8px;
+    background-color: var(--separator);
+}
+
+.headroom-tooltip {
+    max-width: 220px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    color: var(--text);
+    font-size: 8.25pt;
+    font-feature-settings: 'tnum';
+    box-shadow: 0 5px 18px var(--float-shadow);
+}
+
+.headroom-segment:focus,
+.headroom-small-button:focus,
+.headroom-options-button:focus,
+.headroom-primary-button:focus {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    box-shadow: inset 0 0 0 2px -st-accent-color;
+}

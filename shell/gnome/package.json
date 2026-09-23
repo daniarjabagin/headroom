@@ -1,0 +1,17 @@
+{
+  "name": "headroom-gnome-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headroom GNOME Shell extension",
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.0"
+  }
+}

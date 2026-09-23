@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.headroom" path="/org/gnome/shell/extensions/headroom/">
+    <key name="show-panel-percent" type="b">
+      <default>true</default>
+      <summary>Show the remaining percentage in the top panel</summary>
+    </key>
+    <key name="always-show-pacing" type="b">
+      <default>false</default>
+      <summary>Show the even-pace tick and projection on healthy limits too</summary>
+    </key>
+  </schema>
+</schemalist>
