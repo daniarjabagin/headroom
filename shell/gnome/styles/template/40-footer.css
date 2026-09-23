@@ -44,9 +44,23 @@
     icon-size: 16px;
 }
 
+.headroom-refresh-button {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+}
+
+.headroom-refresh-button .headroom-icon-button-icon {
+    icon-size: 14px;
+}
+
 .headroom-refresh-button.busy {
     color: var(--accent);
     color: -st-accent-color;
+}
+
+.headroom-refresh-button.failed {
+    color: var(--crit);
 }
 
 .headroom-top-bar {

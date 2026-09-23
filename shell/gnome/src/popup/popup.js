@@ -10,6 +10,7 @@ import { column, row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
 import { Footer } from './footer.js';
 import { RefreshButton } from './refreshButton.js';
+import { RefreshControl } from './refreshControl.js';
 import { Reorderer } from './reorder.js';
 import { SpendSection } from './spendCard.js';
 import { loadingSections } from './skeleton.js';
@@ -53,7 +54,7 @@ export class PopupView {
         this._generation = 0;
         this._sections = [];
         this._spendSection = null;
-        this._refreshButton = null;
+        this._refreshControl = new RefreshControl(() => actions.refreshNow());
         this._layoutKey = null;
         this._pendingView = null;
         this._scrollbarTimeoutId = 0;
@@ -70,7 +71,10 @@ export class PopupView {
             period: 'today',
             selectPeriod: period => (this._ctx.period = period),
             actions,
+            pressRefresh: () => this._refreshControl.press(),
         };
+        this._refreshButton = new RefreshButton(this._ctx);
+        this._refreshControl.attach(this._refreshButton);
         this.actor = new St.Widget({
             style_class: 'headroom-popup',
             layout_manager: new Clutter.BinLayout(),
@@ -127,12 +131,13 @@ export class PopupView {
         const generation = this._generation;
         if (view.kind === 'ready') this._renderState(view.state);
         else this._replaceContent(this._statusView(view));
-        this._refreshButton?.setBusy(view.kind === 'ready' && isRefreshing(view.state));
+        this._refreshControl.setDaemonBusy(view.kind === 'ready' && isRefreshing(view.state));
         if (generation !== this._generation && Date.now() < this._entranceUntil) this._playEntrance();
     }
 
     relabel() {
         this._footer.relabel();
+        this._refreshButton.relabel();
         this._replaceContent([]);
         this.render(this._view);
     }
@@ -178,6 +183,8 @@ export class PopupView {
         this._reorderer.destroy();
         this._hideScrollbar();
         this._scroll.vadjustment.disconnectObject(this);
+        this._refreshControl.destroy();
+        this._refreshButton.actor.destroy();
         this._tooltips.destroy();
         this.actor.destroy();
     }
@@ -251,12 +258,11 @@ export class PopupView {
 
     _rebuild(state, accounts) {
         const spendState = shownSpend(state);
-        const refresh = new RefreshButton(this._ctx);
-        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period, refresh.actor) : null;
+        const refresh = this._detachedRefresh();
+        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period, refresh) : null;
         const sections = accounts.map(account => new AccountSection(this._ctx, account, showsName(account, accounts)));
-        const leading = spend ? spend.actor : topBar(refresh.actor);
+        const leading = spend ? spend.actor : topBar(refresh);
         this._replaceContent([leading, ...sections.map(section => section.actor)]);
-        this._refreshButton = refresh;
         this._spendSection = spend;
         this._sections = sections;
         this._layoutKey = layoutKey(state.display);
@@ -267,12 +273,18 @@ export class PopupView {
         this._generation += 1;
         this._tooltips.hide();
         this._reorderer.setSections([]);
+        if (this._content.contains(this._refreshButton.actor)) this._detachedRefresh();
         this._content.destroy_all_children();
         this._spendSection = null;
-        this._refreshButton = null;
         this._sections = [];
         this._layoutKey = null;
         for (const actor of actors) this._content.add_child(actor);
+    }
+
+    _detachedRefresh() {
+        const actor = this._refreshButton.actor;
+        actor.get_parent()?.remove_child(actor);
+        return actor;
     }
 
     _onDrop(from, to) {

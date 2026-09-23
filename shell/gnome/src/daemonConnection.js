@@ -27,11 +27,13 @@ export class DaemonConnection {
 
     async call(invoke) {
         const proxy = this.proxy;
-        if (!proxy) return;
+        if (!proxy) return false;
         try {
             await invoke(proxy);
+            return true;
         } catch (error) {
             if (this.proxy === proxy) this._handlers?.onError(remoteMessage(error));
+            return false;
         }
     }
 

@@ -12,7 +12,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mock_state import DEFAULT_SETTINGS, SCENARIOS, build, choose_headline
+from mock_state import DEFAULT_SETTINGS, SCENARIOS, build, choose_headline, iso
 
 BUS_NAME = "io.github.headroom.Daemon"
 OBJECT_PATH = "/io/github/headroom/Daemon"
@@ -22,6 +22,7 @@ INTERFACE_XML = f"""
   <interface name="{INTERFACE}">
     <method name="GetState"><arg type="s" name="state" direction="out"/></method>
     <method name="Refresh"><arg type="s" name="account_id" direction="in"/></method>
+    <method name="RefreshNow"/>
     <method name="Rescan"/>
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
     <method name="SetSettings"><arg type="s" name="json" direction="in"/></method>
@@ -41,6 +42,7 @@ INTERFACE_XML = f"""
 </node>
 """
 REFRESH_SECONDS = 2
+REFRESH_NOW_MS = 1500
 SAMPLE_TIME = datetime(2026, 9, 23, 10, 0, tzinfo=timezone.utc)
 
 
@@ -88,6 +90,7 @@ class MockDaemon:
         self.order = []
         self.settings = copy.deepcopy(DEFAULT_SETTINGS)
         self.refreshing = set()
+        self.refreshed_at = None
         self.connection = None
 
     def account_ids(self):
@@ -99,8 +102,14 @@ class MockDaemon:
         account["label"] = self.labels.get(account["id"], account["label"])
         for window in account["windows"]:
             window["hidden"] = window["id"] in hidden_windows
-        if account["id"] in self.refreshing and account["status"] != "signed_out":
+        if account["status"] == "signed_out":
+            return
+        if account["id"] in self.refreshing:
             account["status"] = "refreshing"
+        elif self.refreshed_at and account["status"] == "stale":
+            account["status"] = "fresh"
+        if self.refreshed_at and account["status"] == "fresh":
+            account["updated_at"] = iso(self.refreshed_at)
 
     def state(self):
         state = build(self.scenario)
@@ -112,6 +121,8 @@ class MockDaemon:
         pinned = (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
         state["headline"] = choose_headline(state["accounts"], pinned, preferred)
         state["display"] = self.settings["display"]
+        if self.refreshed_at and state.get("last_success_at"):
+            state["last_success_at"] = iso(self.refreshed_at)
         return json.dumps(state)
 
     def emit(self):
@@ -128,6 +139,15 @@ class MockDaemon:
         self.refreshing = set()
         self.emit()
         return GLib.SOURCE_REMOVE
+
+    def refresh_now(self):
+        self.refreshing = set(self.account_ids())
+        self.emit()
+        GLib.timeout_add(REFRESH_NOW_MS, self.finish_refresh_now)
+
+    def finish_refresh_now(self):
+        self.refreshed_at = datetime.now(timezone.utc)
+        return self.finish_refresh()
 
     def set_order(self, ids):
         if len(set(ids)) != len(ids):
@@ -150,6 +170,9 @@ class MockDaemon:
     def apply(self, method, args):
         if method == "Refresh":
             self.refresh(args[0])
+            return
+        if method == "RefreshNow":
+            self.refresh_now()
             return
         if method == "SetAccountHidden":
             (self.hidden.add if args[1] else self.hidden.discard)(args[0])

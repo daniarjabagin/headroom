@@ -34,7 +34,7 @@ export class Footer {
         });
         texts.add_child(label(versionText, 'headroom-footer-text', { x_align: Clutter.ActorAlign.START }));
         this._status = label('', 'headroom-footer-text');
-        this._statusButton = button(this._status, 'headroom-footer-link', () => ctx.actions.refresh(''));
+        this._statusButton = button(this._status, 'headroom-footer-link', () => ctx.pressRefresh());
         this._statusButton.x_align = Clutter.ActorAlign.START;
         texts.add_child(this._statusButton);
         this.actor.add_child(texts);
