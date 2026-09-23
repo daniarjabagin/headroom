@@ -33,6 +33,10 @@ impl DaemonInterface {
             .map_err(|error| to_fdo(&error))
     }
 
+    fn refresh_now(&self) {
+        self.core.refresh_now();
+    }
+
     async fn rescan(&self) -> fdo::Result<()> {
         self.rescans.rescan().await.map_err(|error| to_fdo(&error))
     }

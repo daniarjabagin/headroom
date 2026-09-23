@@ -20,6 +20,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now. |
+| `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
@@ -30,14 +31,19 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 
 Refresh semantics:
 
-- A forced refresh while the same account is already refreshing does not start a second request; it
+- A forced refresh (`Refresh(account_id)` or `RefreshNow`) while the same account is already
+  refreshing does not start a second request; it
   queues exactly one follow-up refresh that starts when the current one finishes. Further requests in
   the meantime are coalesced into that follow-up.
 - Scheduled refreshes run every `refresh_interval_secs` ± 10 %. Failures back off 60 s, 120 s, 240 s, …
   up to 30 min (± 10 %). A provider rate limit waits `retry_after`, or 5 min when none is given.
   `no_subscription` is not transient: the account is checked again after 1 h (± 10 %).
 - Rate-limited and `no_subscription` accounts are skipped by `Refresh("")` until their next scheduled
-  check; `Refresh(account_id)` still forces a check.
+  check; `Refresh(account_id)` still forces a check. `RefreshNow` skips only rate-limited accounts
+  whose `retry_after` has not passed yet; it rechecks `no_subscription` accounts.
+- `Refresh("")` suits automatic calls such as opening a popup; a user's explicit refresh should call
+  `RefreshNow`, which also re-reads local usage logs instead of waiting for the file watcher or the
+  60 s usage poll.
 - Each provider call has a 30 s timeout.
 
 Rescan semantics:

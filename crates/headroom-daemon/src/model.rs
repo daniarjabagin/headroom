@@ -74,6 +74,14 @@ impl RefreshFailure {
     }
 
     #[must_use]
+    pub fn is_rate_limited(&self) -> bool {
+        matches!(
+            self,
+            RefreshFailure::Provider(ProviderError::RateLimited { .. })
+        )
+    }
+
+    #[must_use]
     pub fn is_network(&self) -> bool {
         matches!(self, RefreshFailure::Provider(ProviderError::Network(_)))
     }

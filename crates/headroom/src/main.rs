@@ -60,7 +60,7 @@ async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {
     match command {
         Command::Daemon => return daemon::run(globals).await,
         Command::Status(args) => commands::status(globals, &args).await?,
-        Command::Refresh(args) => commands::refresh(globals, args.account_id.as_deref()).await?,
+        Command::Refresh(args) => commands::refresh(globals, &args).await?,
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
         Command::Waybar => waybar::run(globals).await?,
     }

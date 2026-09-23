@@ -111,6 +111,32 @@ async fn file_changes_trigger_a_debounced_ingest() {
     assert!(watchers.tasks.is_empty());
 }
 
+#[tokio::test]
+async fn refresh_now_ingests_every_usage_home_at_once() {
+    let signed_in = tempfile::tempdir().unwrap();
+    let api_key = tempfile::tempdir().unwrap();
+    let codex = provider_at(signed_in.path());
+    let claude = usage_only_provider(api_key.path());
+    let providers: Vec<Arc<dyn Provider>> = vec![codex.clone(), claude.clone()];
+    let harness = harness(providers).await;
+    let mut watchers = UsageWatchers::new(harness.core.clone());
+    watchers.sync(&harness.core.model().usage_homes.clone());
+    eventually(|| harness.core.state().usage.len() == 2).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    codex
+        .usage
+        .lock()
+        .unwrap()
+        .push(event("a", "2026-09-23T09:00:00Z", "gpt-5.5", 100, 10));
+    claude
+        .usage
+        .lock()
+        .unwrap()
+        .push(event("b", "2026-09-23T09:10:00Z", "claude-x", 40, 2));
+    harness.core.refresh_now();
+    eventually(|| harness.core.state().spend.today.total_tokens == 152).await;
+}
+
 fn usage_only_provider(home: &std::path::Path) -> Arc<FakeProvider> {
     let limits = snapshot(Vec::new(), "2026-09-23T10:00:00Z");
     let provider = FakeProvider::new(ProviderKind::Claude, Vec::new(), limits);

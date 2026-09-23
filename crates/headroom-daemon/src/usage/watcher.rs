@@ -19,10 +19,12 @@ pub async fn watch_home(core: Arc<Core>, home: UsageHome) {
     let _watcher = start_watcher(&home.home, sender);
     let mut poll = tokio::time::interval(POLL_EVERY);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    let mut requested = core.ingest_requests();
     let mut summarized_for = None;
     loop {
         tokio::select! {
             _ = poll.tick() => {}
+            Ok(()) = requested.changed() => {}
             Some(()) = changes.recv() => {
                 tokio::time::sleep(DEBOUNCE).await;
                 while changes.try_recv().is_ok() {}
