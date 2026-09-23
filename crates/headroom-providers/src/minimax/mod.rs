@@ -1,0 +1,151 @@
+mod client;
+mod config;
+mod mapper;
+mod raw;
+
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
+use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, ProviderDescriptor};
+use headroom_core::event::UsageEvent;
+use headroom_core::provider::{Provider, ProviderError};
+use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow};
+use headroom_core::secret::SecretReader;
+use jiff::Timestamp;
+use sha2::{Digest, Sha256};
+
+use self::client::MiniMaxClient;
+use crate::key_accounts;
+
+pub use self::config::{GLOBAL_API_BASE, MiniMaxConfig};
+
+pub const ID: ProviderId = ProviderId::from_static("minimax");
+
+pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: ID,
+    display_name: "MiniMax",
+    add_account: &[AddAccountMethod::ApiKey(ApiKeyPrompt {
+        label: "MiniMax Token Plan key",
+        console_url: "https://platform.minimax.io/user-center/payment/token-plan",
+        hint: "Use the Token Plan subscription key from platform.minimax.io; \
+               pay-as-you-go keys have no plan limits",
+    })],
+    multi_account: true,
+    local_usage: false,
+};
+
+const PLAN: &str = "Token Plan";
+const KEY_FINGERPRINT_HEX: usize = 16;
+
+pub type Clock = fn() -> Timestamp;
+
+#[derive(Clone)]
+pub struct MiniMaxProvider {
+    config: MiniMaxConfig,
+    client: MiniMaxClient,
+    secrets: Arc<dyn SecretReader>,
+    clock: Clock,
+}
+
+impl MiniMaxProvider {
+    #[must_use]
+    pub fn with_http(
+        config: MiniMaxConfig,
+        http: reqwest::Client,
+        secrets: Arc<dyn SecretReader>,
+    ) -> MiniMaxProvider {
+        MiniMaxProvider::with_clock(config, http, secrets, Timestamp::now)
+    }
+
+    #[must_use]
+    pub fn with_clock(
+        config: MiniMaxConfig,
+        http: reqwest::Client,
+        secrets: Arc<dyn SecretReader>,
+        clock: Clock,
+    ) -> MiniMaxProvider {
+        MiniMaxProvider {
+            client: MiniMaxClient::new(http, &config.api_base),
+            config,
+            secrets,
+            clock,
+        }
+    }
+
+    async fn windows(&self, key: &str, now: Timestamp) -> Result<Vec<QuotaWindow>, ProviderError> {
+        let raw = self.client.remains(key, now).await?;
+        mapper::map_remains(&raw)
+    }
+
+    fn stored_identity(account: &AccountRef) -> Result<AccountIdentity, ProviderError> {
+        let identity =
+            key_accounts::load_record(&account.home)?.ok_or(ProviderError::NotSignedIn)?;
+        if identity.account_id(&ID) == account.id {
+            Ok(identity)
+        } else {
+            Err(ProviderError::LocalData(format!(
+                "the MiniMax account stored at {} has changed",
+                account.home.display()
+            )))
+        }
+    }
+}
+
+fn key_identity(key: &str) -> AccountIdentity {
+    let digest = hex::encode(Sha256::digest(key.as_bytes()));
+    let fingerprint = digest.get(..KEY_FINGERPRINT_HEX).unwrap_or(&digest);
+    AccountIdentity {
+        email: None,
+        plan: Some(PLAN.to_owned()),
+        stable_key: format!("key:{fingerprint}"),
+    }
+}
+
+#[async_trait]
+impl Provider for MiniMaxProvider {
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        &DESCRIPTOR
+    }
+
+    async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+        key_accounts::discover(&self.config.accounts_dir, &ID)
+    }
+
+    async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+        Ok(Vec::new())
+    }
+
+    async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
+        let identity = MiniMaxProvider::stored_identity(account)?;
+        let key = self
+            .secrets
+            .read_secret(&account.id)
+            .await?
+            .ok_or(ProviderError::NotSignedIn)?;
+        let now = (self.clock)();
+        Ok(LimitsSnapshot {
+            windows: self.windows(key.expose(), now).await?,
+            identity,
+            balances: Vec::new(),
+            notices: Vec::new(),
+            fetched_at: now,
+            source: LimitsSource::Live,
+        })
+    }
+
+    fn read_usage(&self, _: &Path, _: &mut LogCursors) -> Result<Vec<UsageEvent>, ProviderError> {
+        Ok(Vec::new())
+    }
+
+    async fn validate_key(&self, key: &str) -> Result<AccountIdentity, ProviderError> {
+        self.windows(key, (self.clock)()).await?;
+        Ok(key_identity(key))
+    }
+}
+
+#[cfg(test)]
+#[path = "provider_tests.rs"]
+mod tests;

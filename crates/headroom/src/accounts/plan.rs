@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, CliLogin, ProviderDescriptor};
 
 use super::login::LoginSpec;
 
@@ -9,7 +9,7 @@ pub enum AddPlan {
     ApiKey,
 }
 
-/// The provider's default way to add an account, or its API key method when a key is on stdin.
+/// The API key method when a key is on stdin, otherwise the provider's first CLI login.
 pub fn plan(descriptor: &'static ProviderDescriptor, api_key_stdin: bool) -> Result<AddPlan> {
     let name = descriptor.display_name;
     if api_key_stdin {
@@ -18,10 +18,10 @@ pub fn plan(descriptor: &'static ProviderDescriptor, api_key_stdin: bool) -> Res
         }
         bail!("{name} accounts cannot be added with an API key");
     }
+    if let Some(login) = cli_login(descriptor) {
+        return Ok(AddPlan::Login(LoginSpec::new(descriptor, login)));
+    }
     match descriptor.default_method() {
-        Some(AddAccountMethod::CliLogin(login)) => {
-            Ok(AddPlan::Login(LoginSpec::new(descriptor, login)))
-        }
         Some(AddAccountMethod::ApiKey(prompt)) => bail!(
             "{name} accounts are added with an {}: pass --api-key-stdin and write it to stdin",
             prompt.label
@@ -29,14 +29,24 @@ pub fn plan(descriptor: &'static ProviderDescriptor, api_key_stdin: bool) -> Res
         Some(AddAccountMethod::AutoDetect { reason }) => {
             bail!("{name} accounts are detected automatically: {reason}")
         }
-        None => bail!("{name} accounts cannot be added"),
+        None | Some(AddAccountMethod::CliLogin(_)) => bail!("{name} accounts cannot be added"),
     }
+}
+
+fn cli_login(descriptor: &'static ProviderDescriptor) -> Option<&'static CliLogin> {
+    descriptor
+        .add_account
+        .iter()
+        .find_map(|method| match method {
+            AddAccountMethod::CliLogin(login) => Some(login),
+            AddAccountMethod::ApiKey(_) | AddAccountMethod::AutoDetect { .. } => None,
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use headroom_core::account::ProviderId;
-    use headroom_core::descriptor::{ApiKeyPrompt, CliLogin, HomeVar};
+    use headroom_core::descriptor::{ApiKeyPrompt, HomeVar};
 
     use super::*;
 
@@ -74,6 +84,23 @@ mod tests {
         local_usage: false,
     };
 
+    static KEY_THEN_LOGIN: ProviderDescriptor = ProviderDescriptor {
+        id: ProviderId::from_static("keyfirst"),
+        display_name: "Key first",
+        add_account: &[
+            KEY,
+            AddAccountMethod::CliLogin(CliLogin {
+                program: "keyfirst",
+                args: &["login"],
+                home_var: HomeVar::Direct("KEYFIRST_HOME"),
+                credentials_file: "auth.json",
+                needs_pty: false,
+            }),
+        ],
+        multi_account: true,
+        local_usage: false,
+    };
+
     static DETECTED: ProviderDescriptor = ProviderDescriptor {
         id: ProviderId::from_static("found"),
         display_name: "Found",
@@ -99,6 +126,11 @@ mod tests {
             plan(&LOGIN_THEN_KEY, false),
             Ok(AddPlan::Login(_))
         ));
+        match plan(&KEY_THEN_LOGIN, false).unwrap() {
+            AddPlan::Login(spec) => assert_eq!(spec.login.program, "keyfirst"),
+            AddPlan::ApiKey => panic!("without a key the CLI login is used"),
+        }
+        assert!(matches!(plan(&KEY_THEN_LOGIN, true), Ok(AddPlan::ApiKey)));
         assert_eq!(
             message(plan(&KEYED, false)),
             "Keyed accounts are added with an API key: pass --api-key-stdin and write it to stdin"

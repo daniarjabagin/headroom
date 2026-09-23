@@ -5,6 +5,8 @@ mod homes;
 pub mod http;
 pub mod jsonl;
 pub mod key_accounts;
+pub mod kimi;
+pub mod minimax;
 mod plan_error;
 pub mod registry;
 pub mod secrets;

@@ -1,0 +1,25 @@
+{
+  "user": {
+    "userId": "u-0000000000000000",
+    "region": "REGION_OVERSEA",
+    "membership": { "level": "LEVEL_BASIC" },
+    "businessId": ""
+  },
+  "usage": {
+    "limit": "100",
+    "used": "25",
+    "remaining": "75",
+    "resetTime": "2026-09-27T02:17:43.139020Z"
+  },
+  "limits": [
+    {
+      "window": { "duration": 300, "timeUnit": "TIME_UNIT_MINUTE" },
+      "detail": {
+        "limit": "100",
+        "remaining": "80",
+        "resetTime": "2026-09-23T12:17:43.139020Z"
+      }
+    }
+  ],
+  "parallel": { "limit": "10" }
+}

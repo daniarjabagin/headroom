@@ -6,6 +6,8 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::kimi::{self, KimiConfig, KimiProvider};
+use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -20,7 +22,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 4] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +30,14 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &kimi::DESCRIPTOR,
+        build: build_kimi,
+    },
+    Entry {
+        descriptor: &minimax::DESCRIPTOR,
+        build: build_minimax,
     },
 ];
 
@@ -84,6 +94,26 @@ fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provider
     Ok(Arc::new(ClaudeProvider::with_http(
         config,
         context.http.clone(),
+    )))
+}
+
+fn build_kimi(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = KimiConfig::from_env()?;
+    let http = context.http.clone();
+    Ok(Arc::new(KimiProvider::with_http(
+        config,
+        http,
+        context.secrets.clone(),
+    )))
+}
+
+fn build_minimax(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = MiniMaxConfig::from_env()?;
+    let http = context.http.clone();
+    Ok(Arc::new(MiniMaxProvider::with_http(
+        config,
+        http,
+        context.secrets.clone(),
     )))
 }
 
