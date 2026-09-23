@@ -304,7 +304,8 @@
             "cost_usd_micros": 287400,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "yesterday": {
         "tokens": {
@@ -344,7 +345,8 @@
             "cost_usd_micros": 437600,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "last_30_days": {
         "tokens": {
@@ -384,7 +386,8 @@
             "cost_usd_micros": 9262400,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "daily": [
         {
@@ -615,14 +618,14 @@
             "total_tokens": 72206,
             "cost_usd_micros": 81000,
             "partial": false
-          },
-          {
-            "model": "claude-3-5-haiku",
-            "total_tokens": 60172,
-            "cost_usd_micros": 40500,
-            "partial": false
           }
-        ]
+        ],
+        "models_other": {
+          "count": 1,
+          "total_tokens": 60172,
+          "cost_usd_micros": 40500,
+          "partial": false
+        }
       },
       "yesterday": {
         "tokens": {
@@ -667,14 +670,14 @@
             "total_tokens": 144000,
             "cost_usd_micros": 166000,
             "partial": false
-          },
-          {
-            "model": "claude-3-5-haiku",
-            "total_tokens": 120000,
-            "cost_usd_micros": 83000,
-            "partial": false
           }
-        ]
+        ],
+        "models_other": {
+          "count": 1,
+          "total_tokens": 120000,
+          "cost_usd_micros": 83000,
+          "partial": false
+        }
       },
       "last_30_days": {
         "tokens": {
@@ -721,20 +724,14 @@
             "total_tokens": 2124054,
             "cost_usd_micros": 1928000,
             "partial": false
-          },
-          {
-            "model": "claude-3-5-haiku",
-            "total_tokens": 1770045,
-            "cost_usd_micros": 964000,
-            "partial": false
-          },
-          {
-            "model": "claude-next",
-            "total_tokens": 412000,
-            "cost_usd_micros": 0,
-            "partial": true
           }
-        ]
+        ],
+        "models_other": {
+          "count": 2,
+          "total_tokens": 2182045,
+          "cost_usd_micros": 964000,
+          "partial": true
+        }
       },
       "daily": [
         {
@@ -956,7 +953,8 @@
               "cost_usd_micros": 287400,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "claude",
@@ -993,14 +991,14 @@
               "total_tokens": 72206,
               "cost_usd_micros": 81000,
               "partial": false
-            },
-            {
-              "model": "claude-3-5-haiku",
-              "total_tokens": 60172,
-              "cost_usd_micros": 40500,
-              "partial": false
             }
-          ]
+          ],
+          "models_other": {
+            "count": 1,
+            "total_tokens": 60172,
+            "cost_usd_micros": 40500,
+            "partial": false
+          }
         }
       ]
     },
@@ -1039,7 +1037,8 @@
               "cost_usd_micros": 437600,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "claude",
@@ -1076,14 +1075,14 @@
               "total_tokens": 144000,
               "cost_usd_micros": 166000,
               "partial": false
-            },
-            {
-              "model": "claude-3-5-haiku",
-              "total_tokens": 120000,
-              "cost_usd_micros": 83000,
-              "partial": false
             }
-          ]
+          ],
+          "models_other": {
+            "count": 1,
+            "total_tokens": 120000,
+            "cost_usd_micros": 83000,
+            "partial": false
+          }
         }
       ]
     },
@@ -1122,7 +1121,8 @@
               "cost_usd_micros": 9262400,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "claude",
@@ -1159,20 +1159,14 @@
               "total_tokens": 2124054,
               "cost_usd_micros": 1928000,
               "partial": false
-            },
-            {
-              "model": "claude-3-5-haiku",
-              "total_tokens": 1770045,
-              "cost_usd_micros": 964000,
-              "partial": false
-            },
-            {
-              "model": "claude-next",
-              "total_tokens": 412000,
-              "cost_usd_micros": 0,
-              "partial": true
             }
-          ]
+          ],
+          "models_other": {
+            "count": 2,
+            "total_tokens": 2182045,
+            "cost_usd_micros": 964000,
+            "partial": true
+          }
         }
       ]
     }

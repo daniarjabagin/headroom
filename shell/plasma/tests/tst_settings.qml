@@ -4,6 +4,7 @@ import "../package/contents/ui/logic/Commands.js" as Commands
 import "../package/contents/ui/logic/Motion.js" as Motion
 import "../package/contents/ui/logic/Options.js" as Options
 import "../package/contents/ui/logic/Order.js" as Order
+import "../package/contents/ui/logic/PatchQueue.js" as PatchQueue
 import "../package/contents/ui/logic/Settings.js" as Settings
 import "../package/contents/ui/logic/Tokens.js" as Tokens
 
@@ -38,8 +39,12 @@ TestCase {
         }
     })
 
+    function parse(json) {
+        return Settings.fromRaw(Settings.decode(json));
+    }
+
     function test_parse_settings() {
-        const settings = Settings.parseSettings(settingsJson);
+        const settings = parse(settingsJson);
         compare(settings.refreshIntervalSecs, 600);
         compare(settings.notifications.almostOut, false);
         compare(settings.headline, {
@@ -51,8 +56,8 @@ TestCase {
         compare(settings.display.panelLabel, "window");
         compare(settings.display.translucent, false);
         compare(settings.reducedMotion, false);
-        verify(Settings.parseSettings("{\"reduced_motion\": true}").reducedMotion);
-        compare(Settings.parseSettings("{\"refresh_interval_secs\": 5}").refreshIntervalSecs, 60);
+        verify(parse("{\"reduced_motion\": true}").reducedMotion);
+        compare(parse("{\"refresh_interval_secs\": 5}").refreshIntervalSecs, 60);
         compare(Settings.parseDisplay({
             theme: "neon",
             translucent: true
@@ -65,7 +70,7 @@ TestCase {
     function test_bad_settings() {
         for (const json of ["{", "[]", "null"]) {
             try {
-                Settings.parseSettings(json);
+                parse(json);
                 fail(`expected a settings error for ${json}`);
             } catch (error) {
                 verify(Settings.isSettingsError(error));
@@ -73,42 +78,83 @@ TestCase {
         }
     }
 
-    function test_patches_keep_unknown_fields() {
-        const raw = Settings.decode(settingsJson);
-        raw.display.future_option = 7;
-        const patched = Settings.patchDisplay(raw, {
+    function test_merge_patches() {
+        compare(Settings.displayPatch({
             valueMode: "left",
             translucent: true,
             bogus: 1
+        }), {
+            display: {
+                value_mode: "left",
+                translucent: true
+            }
         });
-        compare(patched.display.value_mode, "left");
-        compare(patched.display.translucent, true);
-        compare(patched.display.future_option, 7);
-        compare(patched.display.bogus, undefined);
-        compare(raw.display.value_mode, "used");
-        compare(Settings.patchNotifications(raw, {
+        compare(Settings.notificationsPatch({
             reset: false
-        }).notifications, {
-            almost_out: false,
-            cutting_it_close: true,
-            will_run_out: true,
-            reset: false
+        }), {
+            notifications: {
+                reset: false
+            }
         });
-        compare(Settings.withRefreshInterval(raw, 90000).refresh_interval_secs, 3600);
-        compare(Settings.withHeadline(raw, {
-            mode: "auto"
-        }).headline, {
-            mode: "auto"
+        compare(Settings.refreshIntervalPatch(90000), {
+            refresh_interval_secs: 3600
         });
-        compare(Settings.withHeadline(raw, {
+        compare(Settings.headlinePatch({
+            mode: "auto"
+        }), {
+            headline: {
+                mode: "auto",
+                account_id: null,
+                window: null
+            }
+        });
+        compare(Settings.headlinePatch({
             mode: "pinned",
             accountId: "claude:0a1b2c3d4e5f",
             window: "session"
         }).headline.account_id, "claude:0a1b2c3d4e5f");
     }
 
+    function test_merge_patch_semantics() {
+        const raw = Settings.decode(settingsJson);
+        raw.display.future_option = 7;
+        const merged = Settings.mergePatch(raw, Settings.displayPatch({
+            valueMode: "left"
+        }));
+        compare(merged.display.value_mode, "left");
+        compare(merged.display.future_option, 7);
+        compare(merged.display.theme, "dark");
+        compare(raw.display.value_mode, "used");
+        compare(Settings.mergePatch(raw, Settings.headlinePatch({
+            mode: "auto"
+        })).headline, {
+            mode: "auto"
+        });
+        compare(Settings.mergePatch(raw, {
+            display: null
+        }).display, undefined);
+    }
+
+    function test_patch_queue_keeps_order() {
+        let step = PatchQueue.enqueue(PatchQueue.idle(), "a");
+        compare(step.send, "a");
+        step = PatchQueue.enqueue(step.queue, "b");
+        compare(step.send, null);
+        step = PatchQueue.enqueue(step.queue, "c");
+        compare(step.queue.pending, ["b", "c"]);
+        step = PatchQueue.settle(step.queue);
+        compare(step.send, "b");
+        step = PatchQueue.settle(step.queue);
+        compare(step.send, "c");
+        verify(!step.drained);
+        step = PatchQueue.settle(step.queue);
+        compare(step.send, null);
+        verify(step.drained);
+        compare(step.queue, PatchQueue.idle());
+    }
+
     function test_toggles_and_hidden_windows() {
-        const display = Settings.parseSettings(settingsJson).display;
+        const display = parse(settingsJson).display;
         compare(Settings.toggledValueMode(display), {
             valueMode: "left"
         });
@@ -116,15 +162,25 @@ TestCase {
             resetFormat: "countdown"
         });
         verify(Settings.isWindowHidden(display, "codex:1a2b3c4d5e6f", "weekly"));
-        compare(Settings.withWindowHidden(display, "codex:1a2b3c4d5e6f", "weekly", false).hiddenWindows, {});
-        compare(Settings.withWindowHidden(display, "claude:0a1b2c3d4e5f", "model:opus", true).hiddenWindows, {
-            "codex:1a2b3c4d5e6f": ["weekly"],
-            "claude:0a1b2c3d4e5f": ["model:opus"]
+        compare(Settings.windowHiddenPatch(display, "codex:1a2b3c4d5e6f", "weekly", false), {
+            hiddenWindows: {
+                "codex:1a2b3c4d5e6f": null
+            }
         });
-        const raw = Settings.patchDisplay(Settings.decode(settingsJson), Settings.withWindowHidden(display, "codex:1a2b3c4d5e6f", "session", true));
-        compare(raw.display.hidden_windows, {
-            "codex:1a2b3c4d5e6f": ["weekly", "session"]
+        compare(Settings.windowHiddenPatch(display, "claude:0a1b2c3d4e5f", "model:opus", true), {
+            hiddenWindows: {
+                "claude:0a1b2c3d4e5f": ["model:opus"]
+            }
         });
+        compare(Settings.displayPatch(Settings.windowHiddenPatch(display, "codex:1a2b3c4d5e6f", "session", true)), {
+            display: {
+                hidden_windows: {
+                    "codex:1a2b3c4d5e6f": ["weekly", "session"]
+                }
+            }
+        });
+        const cleared = Settings.mergePatch(Settings.decode(settingsJson), Settings.displayPatch(Settings.windowHiddenPatch(display, "codex:1a2b3c4d5e6f", "weekly", false)));
+        compare(cleared.display.hidden_windows, {});
     }
 
     function test_options() {

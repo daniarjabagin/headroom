@@ -129,6 +129,9 @@ TestCase {
         compare(Format.resetText("en", localDate(26, 8, 0), base, "exact"), "Resets Sat at 08:00");
         compare(Format.resetText("ru", localDate(26, 8, 0), base, "exact"), "Сброс сб в 08:00");
         compare(Format.resetText("ru", new Date(2026, 9, 12, 8, 0), base, "exact"), "Сброс 12 окт в 08:00");
+        compare(Format.resetText("en", localDate(23, 9, 59), base, "exact"), "Reset pending");
+        compare(Format.resetText("ru", localDate(22, 23, 0), base, "exact"), "Ожидается сброс");
+        compare(Format.resetText("en", base, base, "exact"), "Reset pending");
     }
 
     function test_forecast() {
@@ -265,20 +268,40 @@ TestCase {
     }
 
     function test_breakdown() {
-        const models = [1, 2, 3, 4, 5, 6, 7].map(index => ({
+        const models = [1, 2, 3, 4, 5].map(index => ({
                     model: `m${index}`,
                     totalTokens: 1000 * index,
-                    costMicros: index === 7 ? 0 : 10000 * index,
-                    partial: index === 7
+                    costMicros: 10000 * index,
+                    partial: false
                 }));
-        const breakdown = Breakdown.modelBreakdown("en", models);
+        const other = {
+            count: 2,
+            totalTokens: 13000,
+            costMicros: 60000,
+            partial: true
+        };
+        const breakdown = Breakdown.modelBreakdown("en", models, other);
         compare(breakdown.rows.length, 6);
-        compare(breakdown.rows[5].name, "Other (2)");
-        compare(breakdown.rows[5].cost, "$0.06");
+        compare(breakdown.rows[5], {
+            name: "Other (2)",
+            tokens: "13K",
+            cost: "$0.06",
+            partial: true
+        });
         compare(breakdown.partial, true);
-        compare(Breakdown.modelBreakdown("ru", models.slice(6)).rows[0].cost, "без цены");
-        compare(Breakdown.modelBreakdown("en", models.slice(0, 6)).rows.length, 6);
-        compare(Breakdown.modelBreakdown("en", []), null);
+        compare(Breakdown.modelBreakdown("ru", models, other).rows[5].name, "Другие (2)");
+        const exact = Breakdown.modelBreakdown("en", models, null);
+        compare(exact.rows.length, 5);
+        compare(exact.partial, false);
+        compare(Breakdown.modelBreakdown("ru", [
+            {
+                model: "claude-next",
+                totalTokens: 412000,
+                costMicros: 0,
+                partial: true
+            }
+        ], null).rows[0].cost, "без цены");
+        compare(Breakdown.modelBreakdown("en", [], other), null);
         compare(Breakdown.totalLine("en", {
             costMicros: 1234567890,
             totalTokens: 1203448

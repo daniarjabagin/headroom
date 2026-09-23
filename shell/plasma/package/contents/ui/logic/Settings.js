@@ -131,10 +131,6 @@ function fromRaw(raw) {
     };
 }
 
-function parseSettings(json) {
-    return fromRaw(decode(json));
-}
-
 function isSettingsError(error) {
     return error instanceof SettingsError;
 }
@@ -143,38 +139,46 @@ function renamed(patch, keys) {
     return fromPairs(Object.entries(patch).filter(([key]) => key in keys).map(([key, value]) => [keys[key], value]));
 }
 
-function withSection(raw, section, values) {
-    const current = isObject(raw[section]) ? raw[section] : {};
-    return Object.assign({}, raw, {
-        [section]: Object.assign({}, current, values)
-    });
+function mergePatch(target, patch) {
+    if (!isObject(patch))
+        return patch;
+    const result = Object.assign({}, isObject(target) ? target : {});
+    for (const [key, value] of Object.entries(patch)) {
+        if (value === null)
+            delete result[key];
+        else
+            result[key] = mergePatch(result[key], value);
+    }
+    return result;
 }
 
-function patchDisplay(raw, patch) {
-    return withSection(raw, "display", renamed(patch, DISPLAY_KEYS));
-}
-
-function patchNotifications(raw, patch) {
-    return withSection(raw, "notifications", renamed(patch, NOTIFICATION_KEYS));
-}
-
-function withRefreshInterval(raw, seconds) {
-    return Object.assign({}, raw, {
-        refresh_interval_secs: refreshInterval(seconds)
-    });
-}
-
-function withHeadline(raw, headline) {
-    const value = headline.mode === "pinned" ? {
-        mode: "pinned",
-        account_id: headline.accountId,
-        window: headline.window
-    } : {
-        mode: "auto"
+function displayPatch(patch) {
+    return {
+        display: renamed(patch, DISPLAY_KEYS)
     };
-    return Object.assign({}, raw, {
-        headline: value
-    });
+}
+
+function notificationsPatch(patch) {
+    return {
+        notifications: renamed(patch, NOTIFICATION_KEYS)
+    };
+}
+
+function refreshIntervalPatch(seconds) {
+    return {
+        refresh_interval_secs: refreshInterval(seconds)
+    };
+}
+
+function headlinePatch(headline) {
+    const pinned = headline.mode === "pinned";
+    return {
+        headline: {
+            mode: pinned ? "pinned" : "auto",
+            account_id: pinned ? headline.accountId : null,
+            window: pinned ? headline.window : null
+        }
+    };
 }
 
 function toggledValueMode(display) {
@@ -193,15 +197,12 @@ function isWindowHidden(display, accountId, windowId) {
     return (display.hiddenWindows[accountId] ?? []).includes(windowId);
 }
 
-function withWindowHidden(display, accountId, windowId, hidden) {
+function windowHiddenPatch(display, accountId, windowId, hidden) {
     const current = (display.hiddenWindows[accountId] ?? []).filter(id => id !== windowId);
     const next = hidden ? current.concat([windowId]) : current;
-    const hiddenWindows = Object.assign({}, display.hiddenWindows, {
-        [accountId]: next
-    });
-    if (next.length === 0)
-        delete hiddenWindows[accountId];
     return {
-        hiddenWindows
+        hiddenWindows: {
+            [accountId]: next.length > 0 ? next : null
+        }
     };
 }

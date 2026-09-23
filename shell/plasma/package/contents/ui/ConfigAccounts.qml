@@ -50,7 +50,7 @@ ConfigScaffold {
     }
 
     function setWindowHidden(accountId, windowId, hidden) {
-        updateSettings(raw => Settings.patchDisplay(raw, Settings.withWindowHidden(Settings.parseDisplay(raw.display), accountId, windowId, hidden)));
+        updateSettings(Settings.displayPatch(Settings.windowHiddenPatch(current.display, accountId, windowId, hidden)));
     }
 
     function signIn(provider, label) {

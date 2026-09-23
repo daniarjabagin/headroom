@@ -28,7 +28,7 @@ TestCase {
         const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
         if (!isObject(sample) || !isObject(daemon) || path.endsWith(".hidden_windows"))
             return [];
-        const sampleKeys = Object.keys(sample).sort().join(",");
+        const sampleKeys = Object.keys(sample).filter(key => key !== "models_other" || key in daemon).sort().join(",");
         const daemonKeys = Object.keys(daemon).sort().join(",");
         if (sampleKeys !== daemonKeys)
             return [`${path}: ${sampleKeys} vs ${daemonKeys}`];
@@ -81,8 +81,16 @@ TestCase {
         compare(state.spend.today.providers.map(spend => spend.provider), ["codex", "claude"]);
         compare(state.spend.today.providers[0].models[0].model, "gpt-5.5");
         compare(state.spend.last30Days.partial, true);
-        const models = state.accounts[2].usage.last30Days.models;
-        compare(models[models.length - 1].partial, true);
+        const totals = state.accounts[2].usage.last30Days;
+        compare(totals.models.length, 5);
+        compare(totals.modelsOther, {
+            count: 2,
+            totalTokens: 2182045,
+            costMicros: 964000,
+            partial: true
+        });
+        compare(state.accounts[0].usage.today.modelsOther, null);
+        compare(state.spend.last30Days.providers[1].modelsOther.count, 2);
     }
 
     function test_daemon_snapshot() {

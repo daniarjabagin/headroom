@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.workspace.dbus as DBus
+import "logic/PatchQueue.js" as PatchQueue
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
 
@@ -15,23 +16,27 @@ Item {
     property bool active: false
     property bool trackSettings: false
     property var settings: null
+    property var rawSettings: null
     property var view: ({
             kind: "loading",
             state: null
         })
     readonly property bool signalsLive: signalLoader.status === Loader.Ready
     property var registration: null
+    property var patchQueue: PatchQueue.idle()
 
     signal openRequested
     signal commandFailed(string message)
 
-    function call(message, onReply) {
+    function call(message, onReply, onSettled) {
         const reply = DBus.SessionBus.asyncCall(message);
         reply.finished.connect(() => {
             if (reply.isError)
                 client.reportError(reply.error.message);
             else if (onReply)
                 onReply(reply.value);
+            if (onSettled)
+                onSettled();
             reply.destroy();
         });
     }
@@ -46,7 +51,7 @@ Item {
         });
     }
 
-    function daemonCall(member, signature, args, onReply) {
+    function daemonCall(member, signature, args, onReply, onSettled) {
         call({
             service: busName,
             path: objectPath,
@@ -54,7 +59,7 @@ Item {
             member,
             signature,
             arguments: args
-        }, onReply);
+        }, onReply, onSettled);
     }
 
     function load() {
@@ -66,8 +71,11 @@ Item {
     }
 
     function acceptSettings(json) {
+        if (patchQueue.busy)
+            return;
         try {
-            settings = Settings.parseSettings(json);
+            rawSettings = Settings.decode(json);
+            settings = Settings.fromRaw(rawSettings);
         } catch (error) {
             if (!Settings.isSettingsError(error))
                 throw error;
@@ -144,22 +152,28 @@ Item {
         command("SetAccountOrder", "(as)", [ids]);
     }
 
-    function updateSettings(change) {
+    function updateSettings(patch) {
         if (!watcher.registered)
             return;
-        daemonCall("GetSettings", "", [], json => {
-            try {
-                const raw = Settings.decode(json);
-                command("SetSettings", "(s)", [JSON.stringify(change(raw))], () => {
-                    if (trackSettings)
-                        loadSettings();
-                });
-            } catch (error) {
-                if (!Settings.isSettingsError(error))
-                    throw error;
-                commandFailed(error.message);
-            }
-        });
+        if (rawSettings !== null) {
+            rawSettings = Settings.mergePatch(rawSettings, patch);
+            settings = Settings.fromRaw(rawSettings);
+        }
+        advancePatches(PatchQueue.enqueue(patchQueue, patch));
+    }
+
+    function advancePatches(step) {
+        patchQueue = step.queue;
+        if (step.send !== null)
+            daemonCall("UpdateSettings", "(s)", [JSON.stringify(step.send)], null, () => client.advancePatches(PatchQueue.settle(client.patchQueue)));
+        else if (step.drained && watcher.registered)
+            patchesApplied();
+    }
+
+    function patchesApplied() {
+        afterCommand();
+        if (trackSettings)
+            loadSettings();
     }
 
     function patchDisplay(patch) {
@@ -168,7 +182,7 @@ Item {
                 kind: "ready",
                 state: State.withDisplay(view.state, patch)
             };
-        updateSettings(raw => Settings.patchDisplay(raw, patch));
+        updateSettings(Settings.displayPatch(patch));
     }
 
     function startService() {
@@ -200,6 +214,8 @@ Item {
             load();
         } else {
             settings = null;
+            rawSettings = null;
+            patchQueue = PatchQueue.idle();
             view = {
                 kind: "unavailable",
                 state: null
