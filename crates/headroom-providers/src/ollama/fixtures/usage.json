@@ -1,0 +1,19 @@
+{
+  "activity": {
+    "cost": "1.25000",
+    "period": {
+      "type": "last_4_weeks",
+      "start": "2026-08-26T00:00:00Z",
+      "end": "2026-09-23T00:00:00Z"
+    },
+    "models": []
+  },
+  "limits": {
+    "session": {
+      "usage": 0.349,
+      "models": [{ "name": "gpt-oss:120b-cloud", "usage": 0.349 }]
+    },
+    "weekly": { "usage": 0.25, "models": [] },
+    "monthly": { "usage": 0.053, "models": [] }
+  }
+}

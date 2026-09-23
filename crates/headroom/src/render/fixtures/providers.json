@@ -24,6 +24,30 @@
       ],
       "multi_account": true,
       "local_usage": true
+    },
+    {
+      "id": "antigravity",
+      "display_name": "Antigravity",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Headroom reads quota from the running Antigravity app or `agy`, or from the sign-in Antigravity keeps in the keyring"
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "ollama",
+      "display_name": "Ollama Cloud",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Headroom signs requests with the key Ollama keeps in ~/.ollama/id_ed25519; run `ollama signin` to link it to your ollama.com account"
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
     }
   ]
 }

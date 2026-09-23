@@ -4,8 +4,10 @@ use headroom_core::descriptor::ProviderDescriptor;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::secret::SecretReader;
 
+use crate::antigravity::{self, AntigravityConfig, AntigravityProvider};
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::ollama::{self, OllamaConfig, OllamaProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -20,7 +22,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 4] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +30,14 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &antigravity::DESCRIPTOR,
+        build: build_antigravity,
+    },
+    Entry {
+        descriptor: &ollama::DESCRIPTOR,
+        build: build_ollama,
     },
 ];
 
@@ -82,6 +92,22 @@ fn build_codex(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderE
 fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = ClaudeConfig::from_env()?;
     Ok(Arc::new(ClaudeProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_antigravity(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = AntigravityConfig::from_env()?;
+    Ok(Arc::new(AntigravityProvider::with_http(
+        config,
+        context.http.clone(),
+    )?))
+}
+
+fn build_ollama(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = OllamaConfig::from_env()?;
+    Ok(Arc::new(OllamaProvider::with_http(
         config,
         context.http.clone(),
     )))
