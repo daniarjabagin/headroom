@@ -1,0 +1,117 @@
+use headroom_core::account::ProviderKind;
+
+use super::*;
+use crate::state::payload::TokensView;
+
+fn totals(tokens: u64, cost: i64, partial: bool) -> TotalsView {
+    TotalsView {
+        tokens: TokensView {
+            input: tokens,
+            cache_read: 0,
+            cache_write: 0,
+            output: 0,
+            reasoning: 0,
+            total: tokens,
+        },
+        cost_usd_micros: cost,
+        partial,
+        unpriced_tokens: 0,
+        unpriced_models: Vec::new(),
+    }
+}
+
+fn usage(provider: ProviderKind, home: &str, today: TotalsView) -> UsageView {
+    UsageView {
+        provider,
+        usage_home: home.into(),
+        today,
+        yesterday: totals(0, 0, false),
+        last_30_days: totals(10, 20, false),
+        daily: Vec::new(),
+        models: Vec::new(),
+    }
+}
+
+fn provider_rows(period: &PeriodSpendView) -> Vec<(ProviderKind, i64, u64, bool)> {
+    period
+        .by_provider
+        .iter()
+        .map(|p| (p.provider, p.cost_usd_micros, p.total_tokens, p.partial))
+        .collect()
+}
+
+#[test]
+fn homes_of_one_provider_are_summed() {
+    let entries = [
+        usage(ProviderKind::Codex, "~/.codex", totals(1_000, 2_000, false)),
+        usage(ProviderKind::Codex, "/srv/codex", totals(500, 1_000, false)),
+        usage(
+            ProviderKind::Claude,
+            "~/.claude",
+            totals(4_000, 9_000, false),
+        ),
+    ];
+    let today = spend(&entries).today;
+    assert_eq!(today.cost_usd_micros, 12_000);
+    assert_eq!(today.total_tokens, 5_500);
+    assert!(!today.partial);
+    assert_eq!(
+        provider_rows(&today),
+        [
+            (ProviderKind::Claude, 9_000, 4_000, false),
+            (ProviderKind::Codex, 3_000, 1_500, false),
+        ]
+    );
+}
+
+#[test]
+fn equal_costs_are_ordered_by_provider_name() {
+    let entries = [
+        usage(ProviderKind::Codex, "~/.codex", totals(1, 7, false)),
+        usage(ProviderKind::Claude, "~/.claude", totals(2, 7, false)),
+    ];
+    let names: Vec<_> = spend(&entries)
+        .today
+        .by_provider
+        .iter()
+        .map(|p| p.provider)
+        .collect();
+    assert_eq!(names, [ProviderKind::Claude, ProviderKind::Codex]);
+}
+
+#[test]
+fn partial_propagates_to_provider_and_period() {
+    let entries = [
+        usage(ProviderKind::Codex, "~/.codex", totals(1_000, 2_000, false)),
+        usage(ProviderKind::Codex, "/srv/codex", totals(300, 0, true)),
+        usage(ProviderKind::Claude, "~/.claude", totals(10, 30, false)),
+    ];
+    let result = spend(&entries);
+    assert!(result.today.partial);
+    assert_eq!(
+        provider_rows(&result.today),
+        [
+            (ProviderKind::Codex, 2_000, 1_300, true),
+            (ProviderKind::Claude, 30, 10, false),
+        ]
+    );
+    assert!(!result.last_30_days.partial);
+}
+
+#[test]
+fn providers_without_usage_in_a_period_are_left_out() {
+    let entries = [usage(
+        ProviderKind::Codex,
+        "~/.codex",
+        totals(1_000, 2_000, false),
+    )];
+    let result = spend(&entries);
+    assert_eq!(result.yesterday, PeriodSpendView::default());
+    assert_eq!(result.last_30_days.by_provider.len(), 1);
+    assert_eq!(result.last_30_days.cost_usd_micros, 20);
+}
+
+#[test]
+fn no_usage_gives_empty_periods() {
+    assert_eq!(spend(&[]), SpendView::default());
+}

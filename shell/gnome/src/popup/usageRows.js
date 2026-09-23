@@ -60,13 +60,14 @@ function spendRows(ctx, usage) {
     return [
         ['Today', usage.today],
         ['Yesterday', usage.yesterday],
-        ['Last 30 Days', usage.month],
+        ['Last 30 Days', usage.last30Days],
     ].map(([title, totals]) => valueRow(ctx, title, spendLine(totals), spendTooltip(totals)));
 }
 
 function balanceValue(balance) {
-    if (balance.usdMicros !== null) return usd(balance.usdMicros);
-    if (balance.value !== null) return `${exactTokens(balance.value)} ${balance.unit ?? ''}`.trim();
+    if (balance.kind === 'usd' && balance.usdMicros !== null) return usd(balance.usdMicros);
+    if (balance.kind === 'count' && balance.value !== null)
+        return `${exactTokens(balance.value)} ${balance.unit ?? ''}`.trim();
     return 'No data';
 }
 

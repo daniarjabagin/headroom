@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { DaemonClient } from './dbus.js';
 import { panelPercent } from './format.js';
@@ -14,6 +15,7 @@ import { fileIcon, label, row } from './widgets.js';
 
 const TICK_SECONDS = 30;
 const STALE_OPACITY = 140;
+const WORK_AREA_GAP = 16;
 
 function isStale(state) {
     if (state.offline) return true;
@@ -120,12 +122,21 @@ export const Indicator = GObject.registerClass(
         _onMenuToggled(open) {
             if (open) {
                 this._client.refresh('');
+                this._fitToWorkArea();
                 this._popup.onOpen();
                 this._startTicking();
             } else {
                 this._stopTicking();
                 this._popup.onClose();
             }
+        }
+
+        _fitToWorkArea() {
+            const monitor = Main.layoutManager.findIndexForActor(this);
+            const workArea = Main.layoutManager.getWorkAreaForMonitor(monitor);
+            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const margins = this.menu.actor.margin_top + this.menu.actor.margin_bottom;
+            this._popup.setMaxHeight(Math.floor((workArea.height - margins) / scale) - WORK_AREA_GAP);
         }
 
         _startTicking() {

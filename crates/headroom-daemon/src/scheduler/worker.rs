@@ -48,12 +48,17 @@ async fn run(core: Arc<Core>, account: AccountRef, mut triggers: mpsc::Receiver<
 }
 
 fn first_delay(core: &Core, account: &AccountRef) -> SignedDuration {
-    let model = core.model();
+    let now = core.clock.now();
+    let mut model = core.model();
     let fetched = model
         .snapshots
         .get(&account.id)
         .map(|e| e.snapshot.fetched_at);
-    policy::initial_delay(fetched, core.clock.now(), model.settings.refresh_interval())
+    let delay = policy::initial_delay(fetched, now, model.settings.refresh_interval());
+    model.runtime_mut(&account.id).next_refresh_at = now.checked_add(delay).ok();
+    drop(model);
+    core.mark_changed();
+    delay
 }
 
 fn to_std(delay: SignedDuration) -> Duration {

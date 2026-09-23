@@ -27,6 +27,18 @@
     font-feature-settings: 'tnum';
 }
 
+.headroom-scroll .vhandle,
+.headroom-scroll #vhandle {
+    background-color: transparent;
+}
+
+.headroom-scroll.scrolling .vhandle,
+.headroom-scroll.scrolling #vhandle,
+.headroom-scroll .vhandle:hover,
+.headroom-scroll #vhandle:hover {
+    background-color: var(--scrollbar);
+}
+
 .headroom-content {
     padding: 14px 14px 12px;
     spacing: 14px;

@@ -8,23 +8,23 @@ import { Donut } from './donut.js';
 const PERIODS = [
     ['today', 'Today'],
     ['yesterday', 'Yesterday'],
-    ['month', '30 Days'],
+    ['last30Days', '30 Days'],
 ];
 
-function sliceName(slice, slices) {
-    const name = providerInfo(slice.provider).name;
-    const shared = slices.filter(other => other.provider === slice.provider).length > 1;
-    return shared && slice.usageHome ? `${name} (${slice.usageHome})` : name;
+function spendTooltip(spend) {
+    const partial = spend.partial ? ' · some models unpriced' : '';
+    return `${exactUsd(spend.costMicros)} · ${exactTokens(spend.totalTokens)} tokens${partial}`;
 }
 
-function legendRow(ctx, slice, slices) {
+function legendRow(ctx, spend) {
+    const info = providerInfo(spend.provider);
     const actor = row({ style_class: 'headroom-legend-row' });
     const dot = new St.Widget({ style_class: 'headroom-legend-dot', y_align: Clutter.ActorAlign.CENTER });
-    dot.style = `background-color: ${providerInfo(slice.provider).ringColor};`;
+    dot.style = `background-color: ${info.ringColor};`;
     actor.add_child(dot);
-    actor.add_child(label(sliceName(slice, slices), 'headroom-legend-name', { x_expand: true }));
-    const value = label(usd(slice.costMicros), 'headroom-legend-value');
-    ctx.tooltips.attach(value, () => `${exactUsd(slice.costMicros)} · ${exactTokens(slice.totalTokens)} tokens`);
+    actor.add_child(label(info.name, 'headroom-legend-name', { x_expand: true }));
+    const value = label(usd(spend.costMicros), 'headroom-legend-value');
+    ctx.tooltips.attach(value, () => spendTooltip(spend));
     actor.add_child(value);
     return actor;
 }
@@ -33,11 +33,11 @@ function ringBody(ctx, period) {
     const actor = row({ style_class: 'headroom-spend-body' });
     const donut = new Donut();
     donut.update(
-        period.slices.map(slice => ({ value: slice.costMicros, color: providerInfo(slice.provider).ringColor })),
+        period.providers.map(spend => ({ value: spend.costMicros, color: providerInfo(spend.provider).ringColor })),
         ringUsd(period.costMicros)
     );
     const legend = column({ style_class: 'headroom-legend', x_expand: true, y_align: Clutter.ActorAlign.CENTER });
-    for (const slice of period.slices) legend.add_child(legendRow(ctx, slice, period.slices));
+    for (const spend of period.providers) legend.add_child(legendRow(ctx, spend));
     actor.add_child(donut.actor);
     actor.add_child(legend);
     return actor;
@@ -53,7 +53,7 @@ function statColumn(value, caption) {
 function statsBody(period) {
     const actor = row({ style_class: 'headroom-spend-stats' });
     actor.add_child(
-        statColumn(exactUsd(period.costMicros), `dollars · ${providerInfo(period.slices[0].provider).name}`)
+        statColumn(exactUsd(period.costMicros), `dollars · ${providerInfo(period.providers[0].provider).name}`)
     );
     actor.add_child(statColumn(exactTokens(period.totalTokens), 'tokens'));
     return actor;
@@ -64,8 +64,8 @@ function emptyBody() {
 }
 
 function periodBody(ctx, period) {
-    if (period.slices.length === 0) return emptyBody();
-    if (period.slices.length === 1) return statsBody(period);
+    if (period.providers.length === 0) return emptyBody();
+    if (period.providers.length === 1) return statsBody(period);
     return ringBody(ctx, period);
 }
 

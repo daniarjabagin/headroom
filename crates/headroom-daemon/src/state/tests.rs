@@ -75,6 +75,17 @@ fn codex_usage() -> headroom_core::usage::UsageSummary {
     aggregate(&events, &FlatPrices, &TimeZone::UTC, ts(NOW))
 }
 
+fn claude_usage() -> headroom_core::usage::UsageSummary {
+    let events = [event(
+        "d",
+        "2026-09-23T07:00:00Z",
+        "claude-opus",
+        4_000,
+        1_000,
+    )];
+    aggregate(&events, &FlatPrices, &TimeZone::UTC, ts(NOW))
+}
+
 fn sample_model() -> Model {
     let mut work = record(ProviderKind::Codex, "work", 0);
     work.label = Some("Work".into());
@@ -100,9 +111,20 @@ fn sample_model() -> Model {
             ..AccountRuntime::default()
         },
     );
+    model.runtime.insert(
+        work.id().clone(),
+        AccountRuntime {
+            last_attempt: Some(ts("2026-09-23T09:58:00Z")),
+            next_refresh_at: Some(ts("2026-09-23T10:03:00Z")),
+            ..AccountRuntime::default()
+        },
+    );
     model
         .usage
         .insert(UsageHome::of(&work.reference), codex_usage());
+    model
+        .usage
+        .insert(UsageHome::of(&claude.reference), claude_usage());
     model
 }
 
@@ -210,6 +232,7 @@ fn window(id: &str, remaining: f64, tone: Tone) -> WindowView {
             severity: headroom_core::pace::Severity::Untracked,
             even_pace_percent: None,
             projected_percent: None,
+            spare_percent: None,
             runs_out_at: None,
         },
     }
@@ -268,7 +291,12 @@ fn pinned_headline_falls_back_to_auto_when_missing() {
 #[test]
 fn daily_trend_is_dense_over_thirty_days() {
     let payload = assemble_sample(&sample_model());
-    let daily = &payload.usage[0].daily;
+    let daily = &payload
+        .usage
+        .iter()
+        .find(|u| u.provider == ProviderKind::Codex)
+        .unwrap()
+        .daily;
     assert_eq!(daily.len(), 30);
     assert_eq!(daily[0].date.to_string(), "2026-08-25");
     assert_eq!(daily[29].date.to_string(), "2026-09-23");
@@ -288,5 +316,49 @@ fn usage_of_homes_without_active_accounts_is_omitted() {
     model
         .accounts
         .retain(|a| a.id() != &AccountId("codex:work".into()));
-    assert!(assemble_sample(&model).usage.is_empty());
+    let homes: Vec<_> = assemble_sample(&model)
+        .usage
+        .iter()
+        .map(|u| u.usage_home.clone())
+        .collect();
+    assert_eq!(homes, ["~/.claude"]);
+}
+
+#[test]
+fn top_level_activity_and_spend_are_reported() {
+    let payload = assemble_sample(&sample_model());
+    assert_eq!(payload.next_refresh_at, Some(ts("2026-09-23T10:03:00Z")));
+    assert_eq!(payload.last_success_at, Some(ts("2026-09-23T09:58:00Z")));
+    assert!(!payload.offline);
+    let today = &payload.spend.today;
+    assert_eq!(today.cost_usd_micros, 12_400);
+    assert_eq!(today.total_tokens, 6_200);
+    let providers: Vec<_> = today.by_provider.iter().map(|p| p.provider).collect();
+    assert_eq!(providers, [ProviderKind::Claude, ProviderKind::Codex]);
+    assert!(payload.spend.yesterday.partial);
+}
+
+#[test]
+fn spare_is_reported_only_for_healthy_and_close_windows() {
+    let payload = assemble_sample(&sample_model());
+    let spare: Vec<_> = payload
+        .accounts
+        .iter()
+        .flat_map(|a| a.windows.iter())
+        .map(|w| (w.pace.severity, w.pace.spare_percent))
+        .collect();
+    let close = spare[0].1.unwrap();
+    assert_eq!(spare[0].0, headroom_core::pace::Severity::Close);
+    assert!(
+        (close
+            - (100.0
+                - payload.accounts[0].windows[0]
+                    .pace
+                    .projected_percent
+                    .unwrap()))
+        .abs()
+            < 1e-9
+    );
+    assert_eq!(spare[2].0, headroom_core::pace::Severity::RunningOut);
+    assert_eq!(spare[2].1, None);
 }

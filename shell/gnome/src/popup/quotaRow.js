@@ -20,12 +20,12 @@ function tickPosition(window, alwaysShowPacing) {
 }
 
 function paceNote(window, now, alwaysShowPacing) {
-    const { severity, projectedPercent, runsOutAt } = window.pace;
+    const { severity, sparePercent, runsOutAt } = window.pace;
     if (severity === 'spent') return { flame: true, text: 'Limit reached' };
     if (severity === 'running_out') return { flame: true, text: limitText(runsOutAt, now) };
-    if (severity === 'close' && projectedPercent !== null) return { flame: false, text: spareText(projectedPercent) };
-    if (alwaysShowPacing && severity === 'healthy' && projectedPercent !== null)
-        return { flame: false, text: leftAtResetText(projectedPercent) };
+    if (severity === 'close' && sparePercent !== null) return { flame: false, text: spareText(sparePercent) };
+    if (alwaysShowPacing && severity === 'healthy' && sparePercent !== null)
+        return { flame: false, text: leftAtResetText(sparePercent) };
     return null;
 }
 

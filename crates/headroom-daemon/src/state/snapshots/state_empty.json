@@ -1,7 +1,30 @@
 {
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
+  "next_refresh_at": null,
+  "last_success_at": null,
+  "offline": false,
   "headline": null,
   "accounts": [],
-  "usage": []
+  "usage": [],
+  "spend": {
+    "today": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    },
+    "yesterday": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    },
+    "last_30_days": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    }
+  }
 }

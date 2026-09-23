@@ -10,9 +10,13 @@ pub const STATE_VERSION: u32 = 1;
 pub struct StatePayload {
     pub version: u32,
     pub generated_at: Timestamp,
+    pub next_refresh_at: Option<Timestamp>,
+    pub last_success_at: Option<Timestamp>,
+    pub offline: bool,
     pub headline: Option<Headline>,
     pub accounts: Vec<AccountView>,
     pub usage: Vec<UsageView>,
+    pub spend: SpendView,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -82,6 +86,7 @@ pub struct PaceView {
     pub severity: Severity,
     pub even_pace_percent: Option<f64>,
     pub projected_percent: Option<f64>,
+    pub spare_percent: Option<f64>,
     pub runs_out_at: Option<Timestamp>,
 }
 
@@ -149,5 +154,28 @@ pub struct ModelView {
     pub model: String,
     pub total_tokens: u64,
     pub cost_usd_micros: i64,
+    pub partial: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpendView {
+    pub today: PeriodSpendView,
+    pub yesterday: PeriodSpendView,
+    pub last_30_days: PeriodSpendView,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeriodSpendView {
+    pub cost_usd_micros: i64,
+    pub total_tokens: u64,
+    pub partial: bool,
+    pub by_provider: Vec<ProviderSpendView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderSpendView {
+    pub provider: ProviderKind,
+    pub cost_usd_micros: i64,
+    pub total_tokens: u64,
     pub partial: bool,
 }

@@ -15,7 +15,7 @@ function statusLine(view, now) {
     if (state.accounts.some(account => account.status === 'refreshing'))
         return { text: 'Updating…', notice: false, busy: true };
     if (state.nextRefreshAt) return { text: nextUpdateText(state.nextRefreshAt, now), notice: false, busy: false };
-    if (state.generatedAt) return { text: `Updated ${clockTime(state.generatedAt)}`, notice: false, busy: false };
+    if (state.lastSuccessAt) return { text: `Updated ${clockTime(state.lastSuccessAt)}`, notice: false, busy: false };
     return { text: '', notice: false, busy: false };
 }
 

@@ -21,6 +21,16 @@ export function accountTitle(account, showName) {
     return who ? `${name}: ${who}` : name;
 }
 
+function failedOffline(ctx, account) {
+    return ctx.offline && account.error?.kind === 'network';
+}
+
+function outdatedTag(ctx, account) {
+    const tag = label('Outdated', 'headroom-stale-tag');
+    ctx.tooltips.attach(tag, () => account.updatedAt && `Last updated ${agoText(account.updatedAt, ctx.now())}`);
+    return tag;
+}
+
 function statusSlot(ctx, account) {
     if (account.status === 'refreshing') {
         const spinner = new Animation.Spinner(12, { animate: true });
@@ -29,15 +39,12 @@ function statusSlot(ctx, account) {
         spinner.play();
         return spinner;
     }
+    if (account.status === 'stale' || (account.status === 'error' && failedOffline(ctx, account)))
+        return outdatedTag(ctx, account);
     if (account.status === 'error') {
         const icon = themeIcon('dialog-warning-symbolic', 'headroom-header-warning');
-        ctx.tooltips.attach(icon, () => account.error ?? 'Refresh failed');
+        ctx.tooltips.attach(icon, () => account.error?.message ?? 'Refresh failed');
         return icon;
-    }
-    if (account.status === 'stale') {
-        const tag = label('Outdated', 'headroom-stale-tag');
-        ctx.tooltips.attach(tag, () => account.updatedAt && `Last updated ${agoText(account.updatedAt, ctx.now())}`);
-        return tag;
     }
     return null;
 }
@@ -73,7 +80,7 @@ function errorNotice(ctx, account) {
     return noticeRow({
         kind: 'error',
         title: `Couldn't refresh ${providerInfo(account.provider).name}`,
-        detail: account.error,
+        detail: account.error?.message ?? null,
         actions: [{ label: 'Retry', run: () => ctx.actions.refresh(account.id) }],
     });
 }
@@ -83,7 +90,7 @@ function noticeRows(ctx, account) {
     const rows = account.notices.map(notice =>
         noticeRow({ kind: notice.tone === 'critical' ? 'error' : 'warning', title: notice.text })
     );
-    if (account.status === 'error') rows.unshift(errorNotice(ctx, account));
+    if (account.status === 'error' && !failedOffline(ctx, account)) rows.unshift(errorNotice(ctx, account));
     return rows;
 }
 

@@ -40,12 +40,12 @@ export function resetText(resetsAt, now) {
     return `Resets in ${duration(left)}`;
 }
 
-export function spareText(projectedPercent) {
-    return `~${roundPercent(100 - projectedPercent)}% spare`;
+export function spareText(sparePercent) {
+    return `~${roundPercent(sparePercent)}% spare`;
 }
 
-export function leftAtResetText(projectedPercent) {
-    return `~${roundPercent(100 - projectedPercent)}% left at reset`;
+export function leftAtResetText(sparePercent) {
+    return `~${roundPercent(sparePercent)}% left at reset`;
 }
 
 export function limitText(runsOutAt, now) {
