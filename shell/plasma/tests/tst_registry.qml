@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Commands.js" as Commands
+import "../package/contents/ui/logic/I18n.js" as I18n
 import "../package/contents/ui/logic/Providers.js" as Providers
 import "../package/contents/ui/logic/Registry.js" as Registry
 
@@ -108,6 +109,31 @@ TestCase {
         }
     }
 
+    function test_registry_errors_are_translated() {
+        try {
+            Registry.parseRegistry("{\"version\": 3, \"providers\": []}");
+            fail("expected a registry error");
+        } catch (error) {
+            compare(error.message, "Headroom service speaks provider list version 3, expected 1");
+            compare(I18n.errorText("en", error), error.message);
+            compare(I18n.errorText("ru", error), "Служба Headroom использует версию списка сервисов 3, ожидалась 1");
+        }
+    }
+
+    function test_rejects_ids_that_look_like_flags() {
+        const providers = Registry.parseRegistry(registryJson([
+            {
+                id: "-h",
+                add_account: [
+                    {
+                        kind: "api_key"
+                    }
+                ]
+            }
+        ]));
+        compare(providers, []);
+    }
+
     function test_method_hints() {
         compare(Registry.methodHint("en", provider("claude")), "Signs in with the claude CLI in a terminal");
         compare(Registry.methodHint("ru", provider("claude")), "Вход через CLI claude в терминале");
@@ -160,6 +186,7 @@ TestCase {
             compare(Providers.iconFile(id), `${id}.svg`);
             verify(read(`../package/contents/icons/${id}.svg`).includes("<svg"), id);
         }
+        compare(Providers.iconFile("antigravity"), "antigravity.svg");
         compare(Providers.iconFile("devin"), "provider-generic.svg");
         verify(read("../package/contents/icons/provider-generic.svg").includes("<svg"));
         verify(!Providers.isTinted("claude"));

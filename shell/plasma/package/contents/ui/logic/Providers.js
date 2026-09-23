@@ -1,6 +1,6 @@
 .pragma library
 
-const ICONS = ["claude", "cline", "codex", "copilot", "cursor", "kimi", "minimax", "ollama", "opencode", "openrouter", "zai"];
+const ICONS = ["antigravity", "claude", "cline", "codex", "copilot", "cursor", "kimi", "minimax", "ollama", "opencode", "openrouter", "zai"];
 const BRANDED = ["claude"];
 const GENERIC_ICON = "provider-generic.svg";
 
@@ -22,11 +22,6 @@ const COLORS = {
 };
 
 const FALLBACK_COLORS = [["#0891B2", "#22D3EE"], ["#C026D3", "#E879F9"], ["#EA580C", "#FB923C"], ["#4F46E5", "#A5B4FC"], ["#059669", "#34D399"]];
-
-const SIGN_IN_COMMANDS = {
-    codex: "codex login",
-    claude: "claude"
-};
 
 function stableHash(value) {
     let hash = 0;
@@ -53,10 +48,6 @@ function colorPair(id) {
 
 function ringColor(id, dark) {
     return colorPair(id)[dark ? 1 : 0];
-}
-
-function signInCommand(id) {
-    return SIGN_IN_COMMANDS[id] ?? null;
 }
 
 function accountName(account) {

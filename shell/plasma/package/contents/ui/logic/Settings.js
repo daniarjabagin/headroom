@@ -1,5 +1,7 @@
 .pragma library
 
+.import "I18n.js" as I18n
+
 const THEMES = ["system", "light", "dark"];
 const VALUE_MODES = ["left", "used"];
 const RESET_FORMATS = ["countdown", "exact"];
@@ -30,7 +32,7 @@ const NOTIFICATION_KEYS = {
     reset: "reset"
 };
 
-class SettingsError extends Error {}
+class SettingsError extends I18n.LocalizedError {}
 
 function fromPairs(pairs) {
     return pairs.reduce((result, [key, value]) => Object.assign(result, {
@@ -114,10 +116,12 @@ function decode(json) {
     try {
         raw = JSON.parse(json);
     } catch (error) {
-        throw new SettingsError(`Unreadable settings from the Headroom service: ${error.message}`);
+        throw new SettingsError(I18n.N("Unreadable settings from the Headroom service: {reason}"), {
+            reason: error.message
+        });
     }
     if (!isObject(raw))
-        throw new SettingsError("Unexpected settings from the Headroom service");
+        throw new SettingsError(I18n.N("Unexpected settings from the Headroom service"));
     return raw;
 }
 

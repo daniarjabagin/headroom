@@ -20,6 +20,18 @@ function entry(lang, msgid) {
     return Russian.MESSAGES[msgid] ?? null;
 }
 
+class LocalizedError extends Error {
+    constructor(msgid, values) {
+        super(fill(msgid, values));
+        this.msgid = msgid;
+        this.values = values ?? {};
+    }
+}
+
+function errorText(lang, error) {
+    return tr(lang, error.msgid, error.values);
+}
+
 function N(msgid) {
     return msgid;
 }

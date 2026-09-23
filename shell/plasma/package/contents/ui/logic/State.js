@@ -1,5 +1,6 @@
 .pragma library
 
+.import "I18n.js" as I18n
 .import "Settings.js" as Settings
 
 const SCHEMA_VERSION = 1;
@@ -13,7 +14,7 @@ const SEVERITIES = ["untracked", "healthy", "close", "running_out", "spent"];
 const BALANCE_KINDS = ["usd", "count"];
 const OWNERS = ["cli", "headroom"];
 
-class StateError extends Error {}
+class StateError extends I18n.LocalizedError {}
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -253,16 +254,21 @@ function decode(json) {
     try {
         return JSON.parse(json);
     } catch (error) {
-        throw new StateError(`Unreadable state from the Headroom service: ${error.message}`);
+        throw new StateError(I18n.N("Unreadable state from the Headroom service: {reason}"), {
+            reason: error.message
+        });
     }
 }
 
 function parseState(json) {
     const raw = decode(json);
     if (!isObject(raw))
-        throw new StateError("Unexpected state from the Headroom service");
+        throw new StateError(I18n.N("Unexpected state from the Headroom service"));
     if (raw.version !== SCHEMA_VERSION)
-        throw new StateError(`Headroom service speaks state version ${raw.version}, expected ${SCHEMA_VERSION}`);
+        throw new StateError(I18n.N("Headroom service speaks state version {version}, expected {expected}"), {
+            version: raw.version,
+            expected: SCHEMA_VERSION
+        });
     const usage = list(raw.usage).map(parseUsage);
     return {
         generatedAt: timestamp(raw.generated_at),

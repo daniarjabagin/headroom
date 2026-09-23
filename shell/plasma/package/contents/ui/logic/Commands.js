@@ -1,24 +1,28 @@
 .pragma library
 
-const PROVIDER_ID = /^[a-z0-9_-]+$/;
-const TERMINAL_METHODS = ["cli_login", "api_key"];
-const ACCOUNT_ID = /^[a-z0-9_-]+:[0-9a-f]+$/;
+.import "I18n.js" as I18n
 
-class CommandError extends Error {}
+const PROVIDER_ID = /^[a-z0-9][a-z0-9_-]*$/;
+const TERMINAL_METHODS = ["cli_login", "api_key"];
+const ACCOUNT_ID = /^[a-z0-9][a-z0-9_-]*:[0-9a-f]+$/;
+
+class CommandError extends I18n.LocalizedError {}
 
 function shellQuote(value) {
     return `'${String(value).replace(/'/g, "'\\''")}'`;
 }
 
 function loginScript(provider, label, closePrompt) {
-    const labelPart = label.trim() === "" ? "" : ` --label ${shellQuote(label.trim())}`;
+    const labelPart = label.trim() === "" ? "" : ` --label=${shellQuote(label.trim())}`;
     const add = `headroom accounts add ${provider}${labelPart}`;
     return `${add}; status=$?; printf '\\n%s ' ${shellQuote(closePrompt)}; read -r _; exit $status`;
 }
 
 function addAccountCommand(provider, label, closePrompt) {
     if (!PROVIDER_ID.test(provider))
-        throw new CommandError(`Unexpected provider id ${provider}`);
+        throw new CommandError(I18n.N("Unexpected provider id {provider}"), {
+            provider
+        });
     const script = shellQuote(loginScript(provider, label, closePrompt));
     return `if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c ${script}; else exec konsole -e sh -c ${script}; fi`;
 }
@@ -37,7 +41,9 @@ function addPlan(provider, label, closePrompt) {
 
 function removeAccountCommand(accountId) {
     if (!ACCOUNT_ID.test(accountId))
-        throw new CommandError(`Unexpected account id ${accountId}`);
+        throw new CommandError(I18n.N("Unexpected account id {account}"), {
+            account: accountId
+        });
     return `headroom accounts remove ${shellQuote(accountId)} --yes --progress json`;
 }
 
@@ -62,6 +68,21 @@ function progressOutcome(stdout, exitCode) {
     return {
         ok: false,
         message: typeof failure?.message === "string" ? failure.message : ""
+    };
+}
+
+function track(pending, command, kind) {
+    return Object.assign({}, pending, {
+        [command]: kind
+    });
+}
+
+function settle(pending, command) {
+    const rest = Object.assign({}, pending);
+    delete rest[command];
+    return {
+        kind: Object.prototype.hasOwnProperty.call(pending, command) ? pending[command] : "",
+        pending: rest
     };
 }
 

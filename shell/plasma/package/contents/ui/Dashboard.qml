@@ -13,6 +13,7 @@ ColumnLayout {
     id: dashboard
 
     required property var snapshot
+    required property var providers
     required property var now
     required property bool live
     required property var display
@@ -30,7 +31,7 @@ ColumnLayout {
     readonly property var dropSlot: Order.indicatorSlot(dragIndex, dropTarget, accounts.length)
 
     signal refreshRequested(string accountId)
-    signal copyRequested(string text)
+    signal signInRequested(string providerId)
     signal orderRequested(var ids)
     signal displayPatched(var patch)
 
@@ -96,6 +97,7 @@ ColumnLayout {
             required property int index
 
             account: dashboard.accounts[index]
+            providers: dashboard.providers
             showName: State.showsName(account, dashboard.accounts)
             offline: dashboard.snapshot.offline
             now: dashboard.now
@@ -110,7 +112,7 @@ ColumnLayout {
             indicator: dashboard.dropSlot?.index === index ? (dashboard.dropSlot.below ? "below" : "above") : ""
             gap: dashboard.spacing
             onRefreshRequested: accountId => dashboard.refreshRequested(accountId)
-            onCopyRequested: text => dashboard.copyRequested(text)
+            onSignInRequested: providerId => dashboard.signInRequested(providerId)
             onExpandToggled: accountId => dashboard.toggleExpanded(accountId)
             onDragMoved: offset => dashboard.dragMoved(index, offset)
             onDragFinished: dashboard.dragFinished(index)

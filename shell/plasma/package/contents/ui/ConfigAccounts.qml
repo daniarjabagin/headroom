@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import "logic/Commands.js" as Commands
+import "logic/I18n.js" as I18n
 import "logic/Order.js" as Order
 import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
@@ -17,6 +18,7 @@ ConfigScaffold {
     readonly property var chosenProvider: Registry.findProvider(providers, selectedProvider) ?? providers[0] ?? null
     property var expandedIds: []
     property string launchedProvider: ""
+    property var pendingKinds: ({})
     property int dragIndex: -1
     property real dragOffset: 0
     property int dropTarget: -1
@@ -59,42 +61,58 @@ ConfigScaffold {
         updateSettings(Settings.displayPatch(Settings.windowHiddenPatch(current.display, accountId, windowId, hidden)));
     }
 
+    function launch(command, kind) {
+        pendingKinds = Commands.track(pendingKinds, command, kind);
+        runner.run(command);
+    }
+
+    function showCommandError(error) {
+        if (!Commands.isCommandError(error))
+            throw error;
+        message = I18n.errorText(lang, error);
+    }
+
     function add(provider, label) {
         message = "";
         try {
             const plan = Commands.addPlan(provider, label, tr("Press Enter to close this window"));
             launchedProvider = provider.id;
             if (plan.kind === "terminal")
-                runner.run(plan.command);
+                launch(plan.command, "add");
             else
                 daemon.rescan();
         } catch (error) {
-            if (!Commands.isCommandError(error))
-                throw error;
-            message = error.message;
+            showCommandError(error);
         }
     }
 
     function remove(accountId) {
         message = "";
         try {
-            runner.run(Commands.removeAccountCommand(accountId));
+            launch(Commands.removeAccountCommand(accountId), "remove");
         } catch (error) {
-            if (!Commands.isCommandError(error))
-                throw error;
-            message = error.message;
+            showCommandError(error);
         }
     }
 
-    function commandExited(command, exitCode, stdout) {
-        if (command.includes("accounts remove")) {
-            const outcome = Commands.progressOutcome(stdout, exitCode);
-            message = outcome.ok ? "" : (outcome.message || tr("Couldn't remove the account"));
-        } else if (exitCode === 127) {
+    function removeFinished(exitCode, stdout) {
+        const outcome = Commands.progressOutcome(stdout, exitCode);
+        message = outcome.ok ? "" : (outcome.message || tr("Couldn't remove the account"));
+    }
+
+    function addFinished(exitCode) {
+        if (exitCode === 127)
             message = tr("No terminal found. Install xdg-terminal-exec or Konsole, or run \"headroom accounts add\" yourself.");
-        }
-        if (!command.includes("accounts remove"))
-            launchedProvider = "";
+        launchedProvider = "";
+    }
+
+    function commandExited(command, exitCode, stdout) {
+        const settled = Commands.settle(pendingKinds, command);
+        pendingKinds = settled.pending;
+        if (settled.kind === "remove")
+            removeFinished(exitCode, stdout);
+        else if (settled.kind === "add")
+            addFinished(exitCode);
         daemon.rescan();
     }
 

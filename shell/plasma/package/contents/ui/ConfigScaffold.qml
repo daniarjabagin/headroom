@@ -13,6 +13,7 @@ KCM.SimpleKCM {
     readonly property DaemonClient daemon: DaemonClient {
         trackSettings: true
         trackProviders: scaffold.trackProviders
+        lang: scaffold.lang
         onCommandFailed: message => scaffold.message = message
     }
     readonly property var settings: daemon.settings
