@@ -1,5 +1,6 @@
 mod display;
 mod migrate;
+mod patch;
 
 use std::ops::RangeInclusive;
 

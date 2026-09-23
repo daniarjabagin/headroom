@@ -25,6 +25,12 @@ pub fn create_home(root: &Path, provider: ProviderKind) -> Result<PathBuf> {
     Ok(home)
 }
 
+pub fn discard_home(home: &Path) {
+    if let Err(error) = fs::remove_dir_all(home) {
+        tracing::warn!(home = %home.display(), %error, "could not remove the new home");
+    }
+}
+
 pub fn headroom_home(root: &Path, provider: ProviderKind, home: &Path) -> Result<PathBuf> {
     let parent = root.join(provider.as_str());
     let refuse = || format!("{} is not a Headroom-owned account home", home.display());

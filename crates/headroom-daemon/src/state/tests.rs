@@ -357,3 +357,42 @@ fn translucent_display_setting_is_copied_into_the_payload() {
     let json = serde_json::to_value(&payload).unwrap();
     assert_eq!(json["display"]["translucent"], serde_json::json!(true));
 }
+
+#[test]
+fn usage_models_are_cut_to_the_top_five_after_spend_is_merged() {
+    let mut model = sample_model();
+    let names = ["m1", "m2", "m3", "m4", "m5", "m6", "unknown"];
+    let events: Vec<_> = names
+        .iter()
+        .zip(1_u64..)
+        .map(|(name, n)| event(name, "2026-09-23T08:00:00Z", name, n * 100, 0))
+        .collect();
+    let home = model.usage_homes.iter().next().unwrap().clone();
+    let summary = aggregate(&events, &FlatPrices, &TimeZone::UTC, ts(NOW));
+    model.usage.insert(home.clone(), summary);
+    let payload = assemble_sample(&model);
+    let usage = payload
+        .usage
+        .iter()
+        .find(|u| u.provider == home.provider)
+        .unwrap();
+    let today = &usage.today;
+    assert_eq!(today.models.len(), 5);
+    assert_eq!(today.models[0].model, "m6");
+    let other = today.models_other.as_ref().unwrap();
+    assert_eq!((other.count, other.total_tokens), (2, 800));
+    assert_eq!(other.cost_usd_micros, 200);
+    assert!(other.partial);
+    let listed: u64 = today.models.iter().map(|m| m.total_tokens).sum();
+    assert_eq!(listed + other.total_tokens, today.tokens.total);
+    let spend = payload
+        .spend
+        .today
+        .by_provider
+        .iter()
+        .find(|p| p.provider == home.provider)
+        .unwrap();
+    assert_eq!(spend.models, today.models);
+    assert_eq!(spend.models_other.as_ref(), Some(other));
+    assert_eq!(usage.yesterday.models_other, None);
+}

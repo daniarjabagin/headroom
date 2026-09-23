@@ -26,12 +26,14 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .active_accounts()
         .map(|record| account::account_view(record, model, ctx))
         .collect();
-    let usage: Vec<_> = model
+    let full_usage: Vec<_> = model
         .usage
         .iter()
         .filter(|(home, _)| model.usage_homes.contains(home))
         .map(|(home, summary)| usage::usage_view(home, summary, ctx))
         .collect();
+    let spend = spend::spend(&full_usage);
+    let usage = full_usage.into_iter().map(usage::with_top_models).collect();
     StatePayload {
         version: STATE_VERSION,
         generated_at: ctx.now,
@@ -41,7 +43,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         display: model.settings.display.clone(),
         headline: headline::headline(&accounts, &model.settings.headline),
         accounts,
-        spend: spend::spend(&usage),
+        spend,
         usage,
     }
 }

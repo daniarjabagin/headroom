@@ -138,6 +138,7 @@ pub struct TotalsView {
     pub unpriced_tokens: u64,
     pub unpriced_models: Vec<String>,
     pub models: Vec<ModelView>,
+    pub models_other: Option<OtherModelsView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -167,6 +168,14 @@ pub struct ModelView {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OtherModelsView {
+    pub count: usize,
+    pub total_tokens: u64,
+    pub cost_usd_micros: i64,
+    pub partial: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpendView {
     pub today: PeriodSpendView,
     pub yesterday: PeriodSpendView,
@@ -188,4 +197,5 @@ pub struct ProviderSpendView {
     pub total_tokens: u64,
     pub partial: bool,
     pub models: Vec<ModelView>,
+    pub models_other: Option<OtherModelsView>,
 }

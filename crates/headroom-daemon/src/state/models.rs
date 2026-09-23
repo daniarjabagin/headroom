@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use headroom_core::usage::ModelUsage;
 
-use super::payload::ModelView;
+use super::payload::{ModelView, OtherModelsView};
+
+pub const TOP_MODELS: usize = 5;
 
 #[must_use]
 pub fn model_view(usage: &ModelUsage) -> ModelView {
@@ -45,6 +47,28 @@ impl ModelMerge {
     }
 }
 
+#[must_use]
+pub fn top_models(mut ranked: Vec<ModelView>) -> (Vec<ModelView>, Option<OtherModelsView>) {
+    if ranked.len() <= TOP_MODELS {
+        return (ranked, None);
+    }
+    let rest = ranked.split_off(TOP_MODELS);
+    (ranked, Some(other_models(&rest)))
+}
+
+fn other_models(rest: &[ModelView]) -> OtherModelsView {
+    let start = OtherModelsView {
+        count: rest.len(),
+        ..OtherModelsView::default()
+    };
+    rest.iter().fold(start, |mut other, row| {
+        other.total_tokens = other.total_tokens.saturating_add(row.total_tokens);
+        other.cost_usd_micros = other.cost_usd_micros.saturating_add(row.cost_usd_micros);
+        other.partial |= row.partial;
+        other
+    })
+}
+
 fn empty(model: &str) -> ModelView {
     ModelView {
         model: model.to_owned(),
@@ -53,3 +77,7 @@ fn empty(model: &str) -> ModelView {
         partial: false,
     }
 }
+
+#[cfg(test)]
+#[path = "models_tests.rs"]
+mod tests;

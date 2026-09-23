@@ -1,11 +1,14 @@
 use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::process::CommandExt;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
+use rustix::process::{Pid, Signal, kill_process_group};
 
+use super::cancel::{CANCELLED, Cancel};
 use super::login::not_started;
 
 const QUIET_FLUSH: Duration = Duration::from_millis(100);
@@ -18,8 +21,10 @@ pub fn run_streamed(
     mut command: Command,
     input: Box<dyn Read + Send>,
     on_line: &mut LineSink<'_>,
+    cancel: &Cancel,
 ) -> Result<ExitStatus> {
     command
+        .process_group(0)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -29,7 +34,7 @@ pub fn run_streamed(
         thread::spawn(move || forward_input(input, stdin));
     }
     let mut lines = Lines::default();
-    match pump(&mut child, &chunks, &mut lines, on_line) {
+    match pump(&mut child, &chunks, &mut lines, on_line, cancel) {
         Ok(status) => Ok(status),
         Err(error) => {
             stop(&mut child);
@@ -130,8 +135,12 @@ fn pump(
     chunks: &Receiver<Chunk>,
     lines: &mut Lines,
     on_line: &mut LineSink<'_>,
+    cancel: &Cancel,
 ) -> Result<ExitStatus> {
     loop {
+        if cancel.is_cancelled() {
+            bail!(CANCELLED);
+        }
         match chunks.recv_timeout(QUIET_FLUSH) {
             Ok(chunk) => lines.push(&chunk, on_line)?,
             Err(RecvTimeoutError::Disconnected) => {
@@ -157,8 +166,8 @@ fn drain(chunks: &Receiver<Chunk>, lines: &mut Lines, on_line: &mut LineSink<'_>
 }
 
 fn stop(child: &mut Child) {
-    if let Err(error) = child.kill() {
-        tracing::debug!(%error, "login process already gone");
+    if let Err(error) = kill_process_group(Pid::from_child(child), Signal::KILL) {
+        tracing::debug!(%error, "login process group already gone");
     }
     if let Err(error) = child.wait() {
         tracing::debug!(%error, "could not reap the login process");
@@ -215,7 +224,8 @@ mod tests {
             seen.push(line.to_owned());
             Ok(())
         };
-        let status = run_streamed(command, Box::new(reader), &mut sink).unwrap();
+        let status =
+            run_streamed(command, Box::new(reader), &mut sink, &Cancel::default()).unwrap();
         assert!(status.success());
         assert_eq!(seen, ["Code: ", "got 42"]);
     }

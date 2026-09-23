@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use headroom_core::account::ProviderKind;
 
-use super::models::ModelMerge;
+use super::models::{ModelMerge, top_models};
 use super::payload::{PeriodSpendView, ProviderSpendView, SpendView, TotalsView, UsageView};
 
 #[must_use]
@@ -24,7 +24,7 @@ fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> Pe
         models.add(&totals(entry).models);
     }
     let providers = by_kind.into_values().map(|(mut spend, models)| {
-        spend.models = models.ranked();
+        (spend.models, spend.models_other) = top_models(models.ranked());
         spend
     });
     let by_provider = ranked(providers.filter(has_usage).collect());
@@ -47,6 +47,7 @@ fn empty(provider: ProviderKind) -> ProviderSpendView {
         total_tokens: 0,
         partial: false,
         models: Vec::new(),
+        models_other: None,
     }
 }
 

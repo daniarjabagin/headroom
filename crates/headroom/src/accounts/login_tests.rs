@@ -62,6 +62,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         ProviderKind::Codex,
         &launcher,
         Console::Terminal,
+        &Cancel::default(),
     )
     .unwrap();
     assert_eq!(home.parent().unwrap(), root.path().join("codex"));
@@ -80,6 +81,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         ProviderKind::Claude,
         &launcher,
         Console::Terminal,
+        &Cancel::default(),
     )
     .unwrap();
     assert_eq!(home.parent().unwrap(), root.path().join("claude"));
@@ -97,6 +99,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         ProviderKind::Claude,
         &launcher,
         Console::Terminal,
+        &Cancel::default(),
     )
     .unwrap_err();
     assert!(
@@ -111,6 +114,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         ProviderKind::Codex,
         &launcher,
         Console::Terminal,
+        &Cancel::default(),
     )
     .unwrap_err();
     assert!(error.to_string().contains("wrote no auth.json"), "{error}");
@@ -122,6 +126,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         ProviderKind::Codex,
         &empty.launcher(),
         Console::Terminal,
+        &Cancel::default(),
     )
     .unwrap_err();
     assert!(error.to_string().contains("is it installed"), "{error}");
@@ -153,7 +158,7 @@ fn streamed_sign_in(
         input: Box::new(std::io::Cursor::new(input.to_owned())),
         events: &mut record,
     };
-    let result = sign_in(root, provider, launcher, console);
+    let result = sign_in(root, provider, launcher, console, &Cancel::default());
     (result, events)
 }
 
@@ -241,8 +246,106 @@ fn a_failing_sink_stops_the_login() {
         events: &mut failing,
     };
     let started = std::time::Instant::now();
-    let error = sign_in(root.path(), ProviderKind::Codex, &bin.launcher(), console).unwrap_err();
+    let error = sign_in(
+        root.path(),
+        ProviderKind::Codex,
+        &bin.launcher(),
+        console,
+        &Cancel::default(),
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("stdout closed"), "{error}");
     assert!(started.elapsed() < std::time::Duration::from_secs(10));
     assert!(homes(root.path(), "codex").is_empty());
+}
+
+fn running(pid: &str) -> bool {
+    fs::read_to_string(format!("/proc/{}/stat", pid.trim()))
+        .ok()
+        .and_then(|stat| {
+            stat.rsplit_once(") ")
+                .map(|(_, rest)| !rest.starts_with('Z'))
+        })
+        .unwrap_or(false)
+}
+
+fn wait_for_file(path: &Path) -> String {
+    for _ in 0..200 {
+        if let Ok(text) = fs::read_to_string(path)
+            && text.ends_with('\n')
+        {
+            return text;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    panic!("{} never appeared", path.display());
+}
+
+fn eventually_stopped(pid: &str) -> bool {
+    (0..200).any(|_| {
+        std::thread::sleep(std::time::Duration::from_millis(25));
+        !running(pid)
+    })
+}
+
+fn install_hanging_login(bin: &FakeBin, pids: &Path) {
+    let pids = pids.display();
+    bin.install(
+        "codex",
+        &format!("PATH=/usr/bin:/bin\nsleep 300 &\necho $! > {pids}/grandchild\necho $$ > {pids}/child\nwait"),
+    );
+}
+
+fn cancelled_sign_in(
+    console: Console<'_>,
+    bin: &FakeBin,
+    root: &Path,
+    pids: &Path,
+) -> Result<PathBuf> {
+    let cancel = Cancel::default();
+    let remote = cancel.clone();
+    let child_file = pids.join("child");
+    let watcher = std::thread::spawn(move || {
+        wait_for_file(&child_file);
+        remote.cancel();
+    });
+    let result = sign_in(root, ProviderKind::Codex, &bin.launcher(), console, &cancel);
+    watcher.join().unwrap();
+    result
+}
+
+#[test]
+fn cancelling_a_streamed_login_kills_its_process_group_and_home() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    let pids = tempfile::tempdir().unwrap();
+    install_hanging_login(&bin, pids.path());
+    let mut ignore = |_: LoginEvent| Ok(());
+    let console = Console::Streamed {
+        input: Box::new(std::io::empty()),
+        events: &mut ignore,
+    };
+    let error = cancelled_sign_in(console, &bin, root.path(), pids.path()).unwrap_err();
+    assert_eq!(error.to_string(), "cancelled");
+    assert!(homes(root.path(), "codex").is_empty());
+    let child = fs::read_to_string(pids.path().join("child")).unwrap();
+    let grandchild = wait_for_file(&pids.path().join("grandchild"));
+    assert!(!running(&child));
+    assert!(eventually_stopped(&grandchild));
+}
+
+#[test]
+fn cancelling_a_terminal_login_stops_the_cli_and_removes_the_home() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    let pids = tempfile::tempdir().unwrap();
+    install_hanging_login(&bin, pids.path());
+    let error = cancelled_sign_in(Console::Terminal, &bin, root.path(), pids.path()).unwrap_err();
+    assert_eq!(error.to_string(), "cancelled");
+    assert!(homes(root.path(), "codex").is_empty());
+    let child = fs::read_to_string(pids.path().join("child")).unwrap();
+    assert!(!running(&child));
+    let grandchild = wait_for_file(&pids.path().join("grandchild"));
+    let pid = rustix::process::Pid::from_raw(grandchild.trim().parse().unwrap()).unwrap();
+    rustix::process::kill_process(pid, rustix::process::Signal::KILL).ok();
 }

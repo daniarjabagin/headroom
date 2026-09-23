@@ -795,6 +795,7 @@ dependencies = [
  "headroom-providers",
  "jiff",
  "reqwest",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",

@@ -22,7 +22,8 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit hold. An account id: force a refresh of that account now. |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
-| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. |
+| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
+| `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
@@ -50,7 +51,7 @@ Rescan semantics:
 
 | D-Bus error | when |
 | --- | --- |
-| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON |
+| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
 | `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
@@ -240,13 +241,18 @@ Totals:
 | `partial` | bool | Some events had no known price; `cost_usd_micros` excludes them. |
 | `unpriced_tokens` | integer | Tokens of unpriced events. |
 | `unpriced_models` | string[] | Models without a price, sorted. |
-| `models` | ModelUsage[] | Breakdown of this period per model. Empty when the period has no usage. |
+| `models` | ModelUsage[] | The top 5 models of this period, sorted as below. Empty when the period has no usage. |
+| `models_other` | OtherModels \| null | The models after the top 5 added together; `null` when the period has 5 models or fewer. |
 
 Daily: `date` (`YYYY-MM-DD`), `total_tokens`, `cost_usd_micros`, `partial`.
 
 ModelUsage: `model` (as logged), `total_tokens`, `cost_usd_micros`, `partial` (the model has no known
 price; its cost is excluded). Sorted by `cost_usd_micros` descending, then `total_tokens` descending,
-then `model` ascending. The models of a period add up exactly to its totals.
+then `model` ascending. `models` plus `models_other` add up exactly to the period's totals.
+
+OtherModels: `count` (number of models folded in, at least 1), `total_tokens`, `cost_usd_micros`
+(integer sums of those models), `partial` (any of them is `partial`). Shells show it as one
+"N other models" row and never compute it themselves.
 
 ### Spend
 
@@ -265,7 +271,7 @@ PeriodSpend:
 | `partial` | bool | Any provider in the period is `partial`. |
 | `by_provider` | ProviderSpend[] | One entry per provider with tokens or cost in the period (homes of one provider are added together), highest cost first, then by provider name. Empty when the period has no usage. |
 
-ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's `models` of that provider's homes merged by model name, summed and sorted as above).
+ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 5 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
 
 ### Example
 
@@ -394,7 +400,8 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
         "unpriced_models": [],
         "models": [
           { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
-        ]
+        ],
+        "models_other": null
       },
       "yesterday": { "…": "same shape as today" },
       "last_30_days": { "…": "same shape as today" },
@@ -414,13 +421,15 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
           "provider": "claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false,
           "models": [
             { "model": "claude-opus", "total_tokens": 5000, "cost_usd_micros": 10000, "partial": false }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false,
           "models": [
             { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
-          ]
+          ],
+          "models_other": null
         }
       ]
     },
@@ -483,6 +492,35 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 }
 ```
 
+### Updating settings
+
+`UpdateSettings(s patch)` changes only the fields named in `patch`, following JSON Merge Patch
+(RFC 7386):
+
+- `patch` must be a JSON object.
+- Objects merge recursively: `{"display":{"theme":"dark"}}` changes the theme and keeps every other
+  field.
+- `null` deletes a key, so the field falls back to its default: `{"refresh_interval_secs":null}` →
+  `300`, `{"display":null}` → all display defaults.
+- `display.hidden_windows` merges per account id: `{"display":{"hidden_windows":{"codex:1a2b":["weekly"]}}}`
+  sets that account's list (other accounts keep theirs) and `{"display":{"hidden_windows":{"codex:1a2b":null}}}`
+  removes that account's entry.
+- Arrays are replaced whole, e.g. one account's hidden window list.
+- `headline` is a tagged union and is replaced whole when the patch gives it an object:
+  `{"headline":{"mode":"auto"}}` unpins even though the current value has `account_id` and `window`.
+  `{"headline":null}` also resets it to auto.
+- The result is validated like `SetSettings` (unknown fields, unknown enum values, ranges). Deleting a
+  key that does not exist is a no-op.
+
+The read, merge, validation and store run inside the daemon under one lock that `SetSettings` shares,
+so concurrent patches from several shells never lose each other's changes. An invalid patch or an
+invalid result fails with `InvalidArgs` and leaves the settings unchanged; a successful patch emits
+`StateChanged` even if nothing changed.
+
+```
+UpdateSettings('{"display":{"translucent":true,"hidden_windows":{"claude:9f8e":null}}}')
+```
+
 The former top-level `show_usage` is gone. Settings stored by an older daemon are migrated on load
 (`show_usage` becomes `display.show_spend` unless that is set), but `SetSettings` with `show_usage` is
 invalid.
@@ -535,7 +573,7 @@ headroom accounts remove <ID> --yes --progress json
 | `url` | `url` | The first `http(s)` URL of an output line, reported once per distinct URL. Loopback URLs (`localhost`, `127.0.0.1`, `[::1]`: the CLI's own callback server) are skipped. Also taken from OSC 8 terminal hyperlinks. `add` only. |
 | `output` | `line` | Every stdout and stderr line of the login CLI, ANSI escapes removed. A prompt without a trailing newline is reported after 100 ms of silence. `add` only. |
 | `done` | `account_id`, `label` | Success. For `add`, `label` is the label that was applied, or `null` when none was requested or the daemon was not running or did not list the account yet. For `remove`, `label` is always `null`. |
-| `error` | `message` | Failure; the process exits with a non-zero code. A failed `add` deletes the new home. |
+| `error` | `message` | Failure; the process exits with a non-zero code. A failed `add` deletes the new home. A cancelled `add` reports `"cancelled"`. |
 
 ```
 {"event":"started","provider":"codex","home":"/home/ada/.local/share/headroom/accounts/codex/2f0c…"}
@@ -548,5 +586,14 @@ headroom accounts remove <ID> --yes --progress json
 
 Lines written to the command's stdin are forwarded to the login CLI line by line, so a shell can paste
 a code when the CLI asks for one. `remove` without `--yes` fails with an `error` event instead of
-prompting. Without `--progress` both commands keep their interactive terminal behaviour. After a
+prompting. Without `--progress` both commands keep their interactive terminal behaviour.
+
+Cancelling `add`: a shell stops a running `add` by sending `SIGTERM` (or `SIGINT`) to `headroom`, or,
+with `--progress json`, by closing the read end of its stdout pipe. `headroom` then kills the login
+CLI's whole process group with `SIGKILL` (the CLI is started as the leader of its own process group,
+so helpers it spawned go too), waits for it, deletes the new home, prints
+`{"event":"error","message":"cancelled"}` if stdout is still open and exits non-zero. A signal that
+arrives after the login finished but before `done` also deletes the new home. Without `--progress`
+the CLI shares the terminal's process group so it can read the keyboard; there `SIGTERM` stops only
+the CLI process itself (Ctrl+C reaches the whole foreground group anyway). After a
 successful `add` or `remove` the command asks a running daemon to `Rescan`, so `StateChanged` follows.
