@@ -20,7 +20,6 @@ const PERIODS = [
 
 const MIN_SLICE = 0.025;
 const START_DEGREES = -90;
-const DOT_SWEEP = 0.1;
 
 function periodOptions(lang) {
     return PERIODS.map(period => ({
@@ -69,20 +68,18 @@ function fullRing(spend) {
     };
 }
 
-function slices(providers, gapDegrees, capDegrees) {
+function slices(providers, minDegrees) {
     if (providers.length === 1)
         return [fullRing(providers[0])];
-    const inset = gapDegrees / 2 + capDegrees;
-    const fractions = visibleFractions(providers.map(spend => spend.costMicros), (inset * 2 + DOT_SWEEP) / 360);
+    const fractions = visibleFractions(providers.map(spend => spend.costMicros), minDegrees / 360);
     let start = START_DEGREES;
     return providers.map((spend, index) => {
-        const sweep = fractions[index] * 360;
         const slice = {
-            start: start + inset,
-            sweep: Math.max(DOT_SWEEP, sweep - inset * 2),
+            start,
+            sweep: fractions[index] * 360,
             color: Providers.providerInfo(spend.provider).ringColor
         };
-        start += sweep;
+        start += slice.sweep;
         return slice;
     });
 }
