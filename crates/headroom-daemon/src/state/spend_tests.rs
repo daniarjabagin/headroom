@@ -1,7 +1,16 @@
 use headroom_core::account::ProviderKind;
 
 use super::*;
-use crate::state::payload::TokensView;
+use crate::state::payload::{ModelView, TokensView};
+
+fn model(name: &str, tokens: u64, cost: i64, partial: bool) -> ModelView {
+    ModelView {
+        model: name.into(),
+        total_tokens: tokens,
+        cost_usd_micros: cost,
+        partial,
+    }
+}
 
 fn totals(tokens: u64, cost: i64, partial: bool) -> TotalsView {
     TotalsView {
@@ -17,6 +26,7 @@ fn totals(tokens: u64, cost: i64, partial: bool) -> TotalsView {
         partial,
         unpriced_tokens: 0,
         unpriced_models: Vec::new(),
+        models: Vec::new(),
     }
 }
 
@@ -28,7 +38,6 @@ fn usage(provider: ProviderKind, home: &str, today: TotalsView) -> UsageView {
         yesterday: totals(0, 0, false),
         last_30_days: totals(10, 20, false),
         daily: Vec::new(),
-        models: Vec::new(),
     }
 }
 
@@ -114,4 +123,33 @@ fn providers_without_usage_in_a_period_are_left_out() {
 #[test]
 fn no_usage_gives_empty_periods() {
     assert_eq!(spend(&[]), SpendView::default());
+}
+
+#[test]
+fn provider_models_are_merged_across_homes_and_ranked() {
+    let mut main = totals(1_000, 2_000, false);
+    main.models = vec![
+        model("gpt-5.5", 800, 1_800, false),
+        model("gpt-5.5-mini", 200, 200, false),
+    ];
+    let mut spare = totals(700, 300, true);
+    spare.models = vec![
+        model("gpt-5.5-mini", 400, 300, false),
+        model("mystery", 300, 0, true),
+        model("free", 300, 0, false),
+    ];
+    let entries = [
+        usage(ProviderKind::Codex, "~/.codex", main),
+        usage(ProviderKind::Codex, "/srv/codex", spare),
+    ];
+    let today = spend(&entries).today;
+    assert_eq!(
+        today.by_provider[0].models,
+        [
+            model("gpt-5.5", 800, 1_800, false),
+            model("gpt-5.5-mini", 600, 500, false),
+            model("free", 300, 0, false),
+            model("mystery", 300, 0, true),
+        ]
+    );
 }

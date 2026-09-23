@@ -209,6 +209,7 @@ pub async fn harness(providers: Vec<Arc<dyn Provider>>) -> Harness {
         tz: TimeZone::UTC,
         homes: HomeDisplay::new(Some(PathBuf::from("/home/ada"))),
         notifier: notifier.clone(),
+        system_locale: crate::notify::text::Locale::En,
     };
     let core = Arc::new(Core::load(parts).await.unwrap());
     crate::registry::discover_all(&core).await;

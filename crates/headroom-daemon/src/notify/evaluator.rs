@@ -42,7 +42,7 @@ impl Observation {
         Observation {
             remaining: window.used.remaining().value(),
             severity: pace.severity,
-            tone: tone(window, &pace),
+            tone: tone(window, &pace, now),
             resets_at: window.resets_at,
             runs_out_at: pace.runs_out_at,
         }

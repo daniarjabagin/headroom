@@ -57,10 +57,14 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
         AccountsAction::Hide { id } => commands::hide_account(globals, &id, true).await,
         AccountsAction::Show { id } => commands::hide_account(globals, &id, false).await,
         AccountsAction::Order { ids } => commands::order_accounts(globals, &ids).await,
-        AccountsAction::Add { provider, label } => {
-            accounts::add(globals, provider.kind(), label.as_deref()).await
+        AccountsAction::Add {
+            provider,
+            label,
+            progress,
+        } => accounts::add(globals, provider.kind(), label.as_deref(), progress).await,
+        AccountsAction::Remove { id, yes, progress } => {
+            accounts::remove(globals, &id, yes, progress).await
         }
-        AccountsAction::Remove { id, yes } => accounts::remove(globals, &id, yes).await,
     }
 }
 

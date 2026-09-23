@@ -35,6 +35,8 @@ pub enum SettingsError {
     RefreshInterval(u64),
     #[error("a pinned headline needs an account id and a window")]
     EmptyHeadlineTarget,
+    #[error("hidden windows need non-empty account and window ids")]
+    BlankHiddenWindow,
 }
 
 #[derive(Debug, thiserror::Error)]

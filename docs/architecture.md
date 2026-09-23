@@ -11,7 +11,7 @@ visual design in `docs/design/`.
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
 | `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, `codex/`, `claude/` | core |
 | `headroom-daemon` | lib | account registry, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core, pricing, providers |
-| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts`, `refresh`, `tui`, `waybar` | all |
+| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `refresh`, `tui`, `waybar` | all |
 
 Time library: `jiff` everywhere. Async runtime: `tokio`. HTTP: `reqwest` + `rustls`. D-Bus: `zbus`.
 Storage: `rusqlite` with `bundled`. File watching: `notify`.
@@ -169,17 +169,22 @@ pub enum Severity { Untracked, Healthy, Close, RunningOut, Spent }
 pub enum Tone { Neutral, Good, Warning, Critical }
 ```
 
-Formula (from OpenQuota, see `docs/research/providers-codex-claude.md` §5.1):
+Formula (based on OpenQuota, see `docs/research/providers-codex-claude.md` §5.1, softened so an
+early burst in a long window does not look alarming):
 
 ```
 spent      remaining rounds to 0                                   → Spent
 untracked  used == 0 | no reset | no period | reset in past        → Untracked
 start = reset − period; elapsed = now − start; progress = clamp(elapsed / period, 0, 1)
-elapsed < max(60 s, 1 % of period)                                 → Untracked
+elapsed < max(60 s, min(15 % of period, 24 h))                     → Untracked (too young)
 projected = used / progress
 projected ≤ 90 → Healthy;  used < 5 → Untracked;  projected ≤ 100 → Close;  else RunningOut
 runs_out_at = start + elapsed · 100 / used   (only if now < runs_out_at < reset)
 ```
+
+The young-window threshold is 45 min for a 5 h session and 24 h for a weekly window. Examples: weekly,
+13 % used after 18 h → Untracked (tone Good by level); the same after 30 h → projected ≈ 73 % →
+Healthy.
 
 `even_pace = progress · 100` whenever reset and period are valid (also for Untracked). `projected` and
 `runs_out_at` are `None` for Untracked and Spent. Spent means `round(100 − used) ≤ 0`, i.e. less than
@@ -189,7 +194,10 @@ One function maps a window to `Tone`, used by every surface (panel, popup, tray,
 
 | condition | tone |
 | --- | --- |
-| Spent or RunningOut | Critical |
+| Spent | Critical |
+| RunningOut, `runs_out_at − now ≤ max(15 % of period, 1 h)` | Critical |
+| RunningOut, used ≥ 90 % | Critical |
+| RunningOut, otherwise (run-out far away or unknown) | Warning |
 | Close | Warning |
 | Healthy | Good |
 | Untracked, used ≥ 90 % | Critical |
@@ -197,7 +205,8 @@ One function maps a window to `Tone`, used by every surface (panel, popup, tray,
 | Untracked, otherwise | Good |
 | no data (no window) | Neutral (`Tone::default()`) |
 
-`tone(window: &QuotaWindow, pace: &Pace) -> Tone` implements the rows with data.
+`tone(window: &QuotaWindow, pace: &Pace, now: Timestamp) -> Tone` implements the rows with data.
+Example: 5 h session, 77 % used after 2.5 h → runs out in ~44 min, within the 1 h horizon → Critical.
 
 ## Usage summary (`headroom-core::usage`)
 
@@ -206,17 +215,18 @@ pub trait PriceBook: Send + Sync {
     fn cost(&self, event: &UsageEvent) -> Option<MicroUsd>;
 }
 pub struct UsageTotals { pub tokens: TokenCounts, pub cost: MicroUsd, pub unpriced_tokens: Tokens, pub unpriced_models: BTreeSet<String> }
+pub struct PeriodUsage { pub totals: UsageTotals, pub models: Vec<ModelUsage> }
 pub struct UsageSummary {
-    pub today: UsageTotals,
-    pub yesterday: UsageTotals,
-    pub last_30_days: UsageTotals,
+    pub today: PeriodUsage,
+    pub yesterday: PeriodUsage,
+    pub last_30_days: PeriodUsage,
     pub daily: Vec<(jiff::civil::Date, UsageTotals)>,
-    pub models: Vec<ModelUsage>,
 }
 ```
 
 - `aggregate(events, &dyn PriceBook, &TimeZone, now) -> UsageSummary`. Day bucketing uses the given
   time zone. 30 days = today and the 29 previous days.
+- Every period carries its per-model breakdown, sorted by cost desc, then tokens desc, then name.
 - Unpriced events still count their tokens; their cost is excluded and reported via `unpriced_*` so
   the UI can mark the total as partial. Never price with a guessed default model.
 - The price book sees the whole event so prices can depend on its time. The supplement's
@@ -283,7 +293,9 @@ pub enum ProviderError {
   `CuttingItClose` (severity rises to Close), `WillRunOut` (rises to RunningOut/Spent), `Reset` (a
   window that was Warning or worse has reset). First observation primes without alerting. State
   (fired set per window + `resets_at`) is persisted so restarts do not re-alert. Default action opens
-  the popup via the shell.
+  the popup via the shell. Hidden accounts and hidden windows (`display.hidden_windows`) are skipped.
+  Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
+  `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`.
 
 ## D-Bus API
 
@@ -303,22 +315,27 @@ State payload outline:
 {
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
-  "headline": { "account_id": "codex:…", "window": "session", "remaining_percent": 38.0, "tone": "warning" },
+  "display": { "theme": "system", "language": "system", "value_mode": "left", "…": "copy of settings.display" },
+  "headline": { "account_id": "codex:…", "provider": "codex", "account_label": "Work", "window": "session",
+                "window_label": "Session", "used_percent": 62.0, "remaining_percent": 38.0, "tone": "warning" },
   "accounts": [{
-    "id": "codex:1a2b3c4d5e6f", "provider": "codex", "label": "Work", "email": "…", "plan": "Pro",
+    "id": "codex:1a2b3c4d5e6f", "provider": "codex", "label": "Work", "email": "…", "plan": "Pro", "owner": "cli|headroom",
     "status": "fresh|stale|refreshing|error|signed_out", "error": null, "updated_at": "…", "source": "live|local_log|cache",
     "windows": [{ "id": "session", "label": "Session", "used_percent": 62.0, "remaining_percent": 38.0,
                   "resets_at": "…", "period_seconds": 18000, "tone": "warning",
-                  "pace": { "severity": "close", "even_pace_percent": 55.0, "projected_percent": 97.0, "runs_out_at": null } }],
+                  "pace": { "severity": "close", "even_pace_percent": 55.0, "projected_percent": 97.0, "runs_out_at": null },
+                  "hidden": false }],
     "balances": [{ "id": "credits", "label": "Credits", "usd_micros": 12500000 }],
     "notices": [],
     "usage_home": "~/.codex"
   }],
   "usage": [{ "provider": "codex", "usage_home": "~/.codex",
-              "today": { "tokens": { "input": 0, "cache_read": 0, "cache_write": 0, "output": 0, "reasoning": 0, "total": 0 }, "cost_usd_micros": 0, "partial": false },
+              "today": { "tokens": { "input": 0, "cache_read": 0, "cache_write": 0, "output": 0, "reasoning": 0, "total": 0 }, "cost_usd_micros": 0, "partial": false,
+                         "models": [{ "model": "gpt-5.5", "total_tokens": 0, "cost_usd_micros": 0, "partial": false }] },
               "yesterday": { … }, "last_30_days": { … },
-              "daily": [{ "date": "2026-09-22", "total_tokens": 0, "cost_usd_micros": 0 }],
-              "models": [{ "model": "gpt-5.5", "total_tokens": 0, "cost_usd_micros": 0 }] }]
+              "daily": [{ "date": "2026-09-22", "total_tokens": 0, "cost_usd_micros": 0 }] }],
+  "spend": { "today": { "cost_usd_micros": 0, "total_tokens": 0, "partial": false,
+                        "by_provider": [{ "provider": "codex", "…": "…", "models": [ … ] }] }, "yesterday": { … }, "last_30_days": { … } }
 }
 ```
 

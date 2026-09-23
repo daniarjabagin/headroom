@@ -45,12 +45,17 @@ pub struct ModelUsage {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UsageSummary {
-    pub today: UsageTotals,
-    pub yesterday: UsageTotals,
-    pub last_30_days: UsageTotals,
-    pub daily: Vec<(Date, UsageTotals)>,
+pub struct PeriodUsage {
+    pub totals: UsageTotals,
     pub models: Vec<ModelUsage>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsageSummary {
+    pub today: PeriodUsage,
+    pub yesterday: PeriodUsage,
+    pub last_30_days: PeriodUsage,
+    pub daily: Vec<(Date, UsageTotals)>,
 }
 
 const WINDOW_DAYS: i64 = 30;
@@ -98,21 +103,16 @@ impl DayRange {
 
 #[derive(Default)]
 struct SummaryBuilder {
-    today: UsageTotals,
-    yesterday: UsageTotals,
-    last_30_days: UsageTotals,
+    today: PeriodBuilder,
+    yesterday: PeriodBuilder,
+    last_30_days: PeriodBuilder,
     daily: BTreeMap<Date, UsageTotals>,
-    models: BTreeMap<String, UsageTotals>,
 }
 
 impl SummaryBuilder {
     fn record(&mut self, days: &DayRange, date: Date, event: &UsageEvent, cost: Option<MicroUsd>) {
         self.last_30_days.record(event, cost);
         self.daily.entry(date).or_default().record(event, cost);
-        self.models
-            .entry(event.model.clone())
-            .or_default()
-            .record(event, cost);
         if date == days.today {
             self.today.record(event, cost);
         } else if Some(date) == days.yesterday {
@@ -121,6 +121,31 @@ impl SummaryBuilder {
     }
 
     fn finish(self) -> UsageSummary {
+        UsageSummary {
+            today: self.today.finish(),
+            yesterday: self.yesterday.finish(),
+            last_30_days: self.last_30_days.finish(),
+            daily: self.daily.into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Default)]
+struct PeriodBuilder {
+    totals: UsageTotals,
+    models: BTreeMap<String, UsageTotals>,
+}
+
+impl PeriodBuilder {
+    fn record(&mut self, event: &UsageEvent, cost: Option<MicroUsd>) {
+        self.totals.record(event, cost);
+        self.models
+            .entry(event.model.clone())
+            .or_default()
+            .record(event, cost);
+    }
+
+    fn finish(self) -> PeriodUsage {
         let mut models: Vec<ModelUsage> = self
             .models
             .into_iter()
@@ -133,11 +158,8 @@ impl SummaryBuilder {
                 .then_with(|| b.totals.tokens.total().cmp(&a.totals.tokens.total()))
                 .then_with(|| a.model.cmp(&b.model))
         });
-        UsageSummary {
-            today: self.today,
-            yesterday: self.yesterday,
-            last_30_days: self.last_30_days,
-            daily: self.daily.into_iter().collect(),
+        PeriodUsage {
+            totals: self.totals,
             models,
         }
     }

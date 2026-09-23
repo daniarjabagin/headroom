@@ -27,6 +27,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
         tz: config.tz,
         homes: HomeDisplay::new(dirs::home_dir()),
         notifier: notifier.clone(),
+        system_locale: config.system_locale,
     };
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();

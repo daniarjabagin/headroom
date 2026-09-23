@@ -64,7 +64,7 @@ fn reopening_a_file_database_keeps_data_and_uses_wal() {
             settings::save(
                 conn,
                 &Settings {
-                    show_usage: false,
+                    reduced_motion: true,
                     ..Settings::default()
                 },
             )
@@ -77,10 +77,10 @@ fn reopening_a_file_database_keeps_data_and_uses_wal() {
         .unwrap();
     assert_eq!(mode, "wal");
     assert!(
-        !second
+        second
             .blocking(|conn| settings::load(conn))
             .unwrap()
-            .show_usage
+            .reduced_motion
     );
 }
 
@@ -321,6 +321,22 @@ fn settings_default_when_absent() {
         storage.blocking(|conn| settings::load(conn)).unwrap(),
         Settings::default()
     );
+}
+
+#[test]
+fn legacy_settings_rows_are_migrated_on_load() {
+    let storage = memory();
+    let loaded = storage
+        .blocking(|conn| {
+            conn.execute(
+                "INSERT INTO settings (id, payload) VALUES (1, ?1)",
+                [r#"{"refresh_interval_secs":120,"show_usage":false}"#],
+            )?;
+            settings::load(conn)
+        })
+        .unwrap();
+    assert_eq!(loaded.refresh_interval_secs, 120);
+    assert!(!loaded.display.show_spend);
 }
 
 #[test]

@@ -1,8 +1,10 @@
-use headroom_core::account::ProviderKind;
+use headroom_core::account::{CredentialOwner, ProviderKind};
 use headroom_core::pace::{Severity, Tone};
 use jiff::Timestamp;
 use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
+
+use crate::settings::DisplaySettings;
 
 pub const STATE_VERSION: u32 = 1;
 
@@ -13,6 +15,7 @@ pub struct StatePayload {
     pub next_refresh_at: Option<Timestamp>,
     pub last_success_at: Option<Timestamp>,
     pub offline: bool,
+    pub display: DisplaySettings,
     pub headline: Option<Headline>,
     pub accounts: Vec<AccountView>,
     pub usage: Vec<UsageView>,
@@ -22,7 +25,11 @@ pub struct StatePayload {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Headline {
     pub account_id: String,
+    pub provider: ProviderKind,
+    pub account_label: String,
     pub window: String,
+    pub window_label: String,
+    pub used_percent: f64,
     pub remaining_percent: f64,
     pub tone: Tone,
 }
@@ -35,6 +42,7 @@ pub struct AccountView {
     pub email: Option<String>,
     pub plan: Option<String>,
     pub hidden: bool,
+    pub owner: CredentialOwner,
     pub status: AccountStatus,
     pub error: Option<AccountError>,
     pub updated_at: Option<Timestamp>,
@@ -79,6 +87,7 @@ pub struct WindowView {
     pub period_seconds: Option<i64>,
     pub tone: Tone,
     pub pace: PaceView,
+    pub hidden: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -119,7 +128,6 @@ pub struct UsageView {
     pub yesterday: TotalsView,
     pub last_30_days: TotalsView,
     pub daily: Vec<DailyView>,
-    pub models: Vec<ModelView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -129,6 +137,7 @@ pub struct TotalsView {
     pub partial: bool,
     pub unpriced_tokens: u64,
     pub unpriced_models: Vec<String>,
+    pub models: Vec<ModelView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -178,4 +187,5 @@ pub struct ProviderSpendView {
     pub cost_usd_micros: i64,
     pub total_tokens: u64,
     pub partial: bool,
+    pub models: Vec<ModelView>,
 }

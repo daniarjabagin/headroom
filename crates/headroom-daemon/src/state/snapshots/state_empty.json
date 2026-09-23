@@ -4,6 +4,18 @@
   "next_refresh_at": null,
   "last_success_at": null,
   "offline": false,
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "hidden_windows": {}
+  },
   "headline": null,
   "accounts": [],
   "usage": [],

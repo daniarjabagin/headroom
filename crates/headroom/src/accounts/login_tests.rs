@@ -57,7 +57,13 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         "codex",
         r#"printf '%s\n' "$@" > "$CODEX_HOME/args"; echo '{}' > "$CODEX_HOME/auth.json""#,
     );
-    let home = sign_in(root.path(), ProviderKind::Codex, &launcher).unwrap();
+    let home = sign_in(
+        root.path(),
+        ProviderKind::Codex,
+        &launcher,
+        Console::Terminal,
+    )
+    .unwrap();
     assert_eq!(home.parent().unwrap(), root.path().join("codex"));
     assert_eq!(fs::read_to_string(home.join("args")).unwrap(), "login\n");
     assert_eq!(
@@ -69,7 +75,13 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         "claude",
         r#"printf '%s\n' "$@" > "$CLAUDE_CONFIG_DIR/args"; echo '{}' > "$CLAUDE_CONFIG_DIR/.credentials.json""#,
     );
-    let home = sign_in(root.path(), ProviderKind::Claude, &launcher).unwrap();
+    let home = sign_in(
+        root.path(),
+        ProviderKind::Claude,
+        &launcher,
+        Console::Terminal,
+    )
+    .unwrap();
     assert_eq!(home.parent().unwrap(), root.path().join("claude"));
     assert_eq!(
         fs::read_to_string(home.join("args")).unwrap(),
@@ -80,7 +92,13 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
         "claude",
         r#"echo partial > "$CLAUDE_CONFIG_DIR/log"; exit 3"#,
     );
-    let error = sign_in(root.path(), ProviderKind::Claude, &launcher).unwrap_err();
+    let error = sign_in(
+        root.path(),
+        ProviderKind::Claude,
+        &launcher,
+        Console::Terminal,
+    )
+    .unwrap_err();
     assert!(
         error.to_string().contains("did not finish successfully"),
         "{error}"
@@ -88,12 +106,143 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     assert_eq!(homes(root.path(), "claude").len(), 1);
 
     bin.install("codex", "exit 0");
-    let error = sign_in(root.path(), ProviderKind::Codex, &launcher).unwrap_err();
+    let error = sign_in(
+        root.path(),
+        ProviderKind::Codex,
+        &launcher,
+        Console::Terminal,
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("wrote no auth.json"), "{error}");
     assert_eq!(homes(root.path(), "codex").len(), 1);
 
     let empty = FakeBin::new();
-    let error = sign_in(root.path(), ProviderKind::Codex, &empty.launcher()).unwrap_err();
+    let error = sign_in(
+        root.path(),
+        ProviderKind::Codex,
+        &empty.launcher(),
+        Console::Terminal,
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("is it installed"), "{error}");
     assert_eq!(homes(root.path(), "codex").len(), 1);
+}
+
+const FAKE_CODEX_LOGIN: &str = r#"
+printf '\033[1mStarting local login server on http://localhost:1455.\033[0m\n'
+echo "If your browser did not open, navigate to this URL to authenticate:"
+echo "https://auth.openai.com/oauth/authorize?client_id=x&state=1"
+echo "https://auth.openai.com/oauth/authorize?client_id=x&state=1" >&2
+read code
+echo "got $code"
+echo '{}' > "$CODEX_HOME/auth.json"
+"#;
+
+fn streamed_sign_in(
+    root: &Path,
+    provider: ProviderKind,
+    launcher: &Launcher,
+    input: &str,
+) -> (Result<PathBuf>, Vec<LoginEvent>) {
+    let mut events = Vec::new();
+    let mut record = |event: LoginEvent| {
+        events.push(event);
+        Ok(())
+    };
+    let console = Console::Streamed {
+        input: Box::new(std::io::Cursor::new(input.to_owned())),
+        events: &mut record,
+    };
+    let result = sign_in(root, provider, launcher, console);
+    (result, events)
+}
+
+fn outputs(events: &[LoginEvent]) -> Vec<&str> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            LoginEvent::Output(line) => Some(line.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn streamed_sign_in_reports_output_urls_and_forwards_input() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    bin.install("codex", FAKE_CODEX_LOGIN);
+    let (result, events) = streamed_sign_in(
+        root.path(),
+        ProviderKind::Codex,
+        &bin.launcher(),
+        "abc123\n",
+    );
+    let home = result.unwrap();
+    assert_eq!(events[0], LoginEvent::Started(home.clone()));
+    let urls: Vec<&LoginEvent> = events
+        .iter()
+        .filter(|event| matches!(event, LoginEvent::Url(_)))
+        .collect();
+    assert_eq!(
+        urls,
+        [&LoginEvent::Url(
+            "https://auth.openai.com/oauth/authorize?client_id=x&state=1".into()
+        )]
+    );
+    let lines = outputs(&events);
+    assert!(lines.contains(&"Starting local login server on http://localhost:1455."));
+    assert!(lines.contains(&"got abc123"), "{lines:?}");
+    let repeated = lines
+        .iter()
+        .filter(|line| line.starts_with("https://auth.openai.com"))
+        .count();
+    assert_eq!(repeated, 2);
+    assert!(home.join("auth.json").is_file());
+}
+
+#[test]
+fn streamed_failures_keep_the_output_and_clean_up() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    bin.install("claude", r#"echo "Login failed: denied" >&2; exit 3"#);
+    let (result, events) = streamed_sign_in(root.path(), ProviderKind::Claude, &bin.launcher(), "");
+    let error = result.unwrap_err();
+    assert!(
+        error.to_string().contains("did not finish successfully"),
+        "{error}"
+    );
+    assert_eq!(outputs(&events), ["Login failed: denied"]);
+    assert!(homes(root.path(), "claude").is_empty());
+
+    let empty = FakeBin::new();
+    let (result, events) =
+        streamed_sign_in(root.path(), ProviderKind::Codex, &empty.launcher(), "");
+    let error = result.unwrap_err();
+    assert!(
+        format!("{error:#}").contains("is it installed"),
+        "{error:#}"
+    );
+    assert_eq!(events.len(), 1);
+    assert!(homes(root.path(), "codex").is_empty());
+}
+
+#[test]
+fn a_failing_sink_stops_the_login() {
+    let bin = FakeBin::new();
+    let root = tempfile::tempdir().unwrap();
+    bin.install("codex", "echo first\nexec sleep 30");
+    let mut failing = |event: LoginEvent| match event {
+        LoginEvent::Output(_) => Err(anyhow::anyhow!("stdout closed")),
+        LoginEvent::Started(_) | LoginEvent::Url(_) => Ok(()),
+    };
+    let console = Console::Streamed {
+        input: Box::new(std::io::empty()),
+        events: &mut failing,
+    };
+    let started = std::time::Instant::now();
+    let error = sign_in(root.path(), ProviderKind::Codex, &bin.launcher(), console).unwrap_err();
+    assert!(error.to_string().contains("stdout closed"), "{error}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
+    assert!(homes(root.path(), "codex").is_empty());
 }

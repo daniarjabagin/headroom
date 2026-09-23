@@ -6,6 +6,7 @@ use super::policy::{self, FETCH_TIMEOUT};
 use crate::core::Core;
 use crate::model::RefreshFailure;
 use crate::notify::alerts::Review;
+use crate::notify::text::Locale;
 use crate::storage::{accounts, snapshots};
 
 pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuration {
@@ -95,7 +96,7 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
         let model = core.model();
         let record = model.account(&account.id).cloned();
         let snapshot = model.snapshots.get(&account.id).map(|e| e.snapshot.clone());
-        (record, snapshot, model.settings.notifications)
+        (record, snapshot, model.settings.clone())
     };
     let (Some(record), Some(snapshot)) = (record, snapshot) else {
         return;
@@ -103,7 +104,9 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
     let review = Review {
         account: &record,
         snapshot: &snapshot,
-        settings,
+        settings: settings.notifications,
+        display: &settings.display,
+        locale: Locale::resolve(settings.display.language, core.system_locale),
         now,
     };
     if let Err(error) = core.alerts.review(&review).await {

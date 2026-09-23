@@ -97,6 +97,7 @@ mod tests {
                 spare_percent: None,
                 runs_out_at: None,
             },
+            hidden: false,
         }
     }
 

@@ -2,6 +2,8 @@ use super::*;
 use crate::quota::WindowId;
 
 const FIVE_HOURS: SignedDuration = SignedDuration::from_hours(5);
+const WEEK: SignedDuration = SignedDuration::from_hours(7 * 24);
+const MONTH: SignedDuration = SignedDuration::from_hours(30 * 24);
 
 fn now() -> Timestamp {
     "2026-09-23T10:00:00Z".parse().unwrap()
@@ -81,20 +83,47 @@ fn reset_in_past_or_now_is_untracked() {
 }
 
 #[test]
-fn young_window_uses_one_percent_of_period() {
-    let young = window(50.0, SignedDuration::from_secs(179), FIVE_HOURS);
-    let old_enough = window(0.5, SignedDuration::from_secs(180), FIVE_HOURS);
+fn young_window_uses_fifteen_percent_of_period() {
+    let young = window(50.0, SignedDuration::from_secs(2_699), FIVE_HOURS);
+    let old_enough = window(10.0, SignedDuration::from_secs(2_700), FIVE_HOURS);
+    assert_eq!(severity(&young), Severity::Untracked);
+    assert_eq!(severity(&old_enough), Severity::Healthy);
+}
+
+#[test]
+fn young_window_is_capped_at_a_day() {
+    let young = window(10.0, SignedDuration::from_secs(86_399), WEEK);
+    let old_enough = window(10.0, SignedDuration::from_hours(24), WEEK);
     assert_eq!(severity(&young), Severity::Untracked);
     assert_eq!(severity(&old_enough), Severity::Healthy);
 }
 
 #[test]
 fn young_window_uses_sixty_seconds_minimum() {
-    let hour = SignedDuration::from_hours(1);
-    let young = window(0.5, SignedDuration::from_secs(59), hour);
-    let old_enough = window(0.5, SignedDuration::from_secs(60), hour);
+    let five_minutes = SignedDuration::from_mins(5);
+    let young = window(0.5, SignedDuration::from_secs(59), five_minutes);
+    let old_enough = window(0.5, SignedDuration::from_secs(60), five_minutes);
     assert_eq!(severity(&young), Severity::Untracked);
     assert_eq!(severity(&old_enough), Severity::Healthy);
+}
+
+#[test]
+fn early_weekly_burst_is_untracked_and_good() {
+    let early = window(13.0, SignedDuration::from_hours(18), WEEK);
+    let result = pace(&early, now());
+    assert_eq!(result.severity, Severity::Untracked);
+    assert_eq!(result.projected, None);
+    assert_eq!(tone(&early, &result, now()), Tone::Good);
+}
+
+#[test]
+fn settled_weekly_window_is_healthy() {
+    let settled = window(13.0, SignedDuration::from_hours(30), WEEK);
+    let result = pace(&settled, now());
+    assert_eq!(result.severity, Severity::Healthy);
+    let projected = f64::from(result.projected.unwrap());
+    assert!((projected - 72.8).abs() < 1e-9, "{projected}");
+    assert_eq!(tone(&settled, &result, now()), Tone::Good);
 }
 
 #[test]
@@ -113,7 +142,7 @@ fn projection_of_exactly_ninety_is_healthy() {
 
 #[test]
 fn small_usage_with_fast_burn_is_untracked() {
-    let result = pace(&session(4.0, 6), now());
+    let result = pace(&window(4.0, SignedDuration::from_hours(25), MONTH), now());
     assert_eq!(result.severity, Severity::Untracked);
     assert_eq!(result.projected, None);
 }
@@ -140,58 +169,85 @@ fn fast_burn_runs_out_before_reset() {
 
 #[test]
 fn minimum_tracked_usage_can_run_out() {
-    let result = pace(&session(5.0, 6), now());
+    let result = pace(&window(5.0, SignedDuration::from_hours(25), MONTH), now());
     assert_eq!(result.severity, Severity::RunningOut);
     assert_eq!(
         result.runs_out_at,
-        Some(now() + SignedDuration::from_mins(114))
+        Some(now() + SignedDuration::from_hours(475))
     );
 }
 
-fn tone_for(severity: Severity, used: f64) -> Tone {
+fn tone_for(severity: Severity, used: f64, runs_out_in: Option<SignedDuration>) -> Tone {
     let pace = Pace {
         severity,
         even_pace: None,
         projected: None,
-        runs_out_at: None,
+        runs_out_at: runs_out_in.map(|d| now() + d),
     };
-    tone(&session(used, 150), &pace)
+    tone(&session(used, 150), &pace, now())
 }
 
 #[test]
-fn spent_and_running_out_are_critical_regardless_of_usage() {
-    assert_eq!(tone_for(Severity::Spent, 100.0), Tone::Critical);
-    assert_eq!(tone_for(Severity::RunningOut, 20.0), Tone::Critical);
+fn tone_table_covers_every_branch() {
+    let mins = |m: i64| Some(SignedDuration::from_mins(m));
+    let cases = [
+        (Severity::Spent, 100.0, None, Tone::Critical),
+        (Severity::Spent, 99.6, mins(10), Tone::Critical),
+        (Severity::RunningOut, 60.0, mins(60), Tone::Critical),
+        (Severity::RunningOut, 60.0, mins(61), Tone::Warning),
+        (Severity::RunningOut, 20.0, mins(5), Tone::Critical),
+        (Severity::RunningOut, 20.0, None, Tone::Warning),
+        (Severity::RunningOut, 90.0, None, Tone::Critical),
+        (Severity::RunningOut, 89.9, mins(120), Tone::Warning),
+        (Severity::Close, 10.0, None, Tone::Warning),
+        (Severity::Close, 95.0, None, Tone::Warning),
+        (Severity::Healthy, 10.0, None, Tone::Good),
+        (Severity::Healthy, 89.0, None, Tone::Good),
+        (Severity::Untracked, 95.0, None, Tone::Critical),
+        (Severity::Untracked, 90.0, None, Tone::Critical),
+        (Severity::Untracked, 89.9, None, Tone::Warning),
+        (Severity::Untracked, 80.0, None, Tone::Warning),
+        (Severity::Untracked, 79.9, None, Tone::Good),
+        (Severity::Untracked, 0.0, None, Tone::Good),
+    ];
+    for (severity, used, runs_out_in, expected) in cases {
+        assert_eq!(
+            tone_for(severity, used, runs_out_in),
+            expected,
+            "{severity:?} used {used} runs out in {runs_out_in:?}"
+        );
+    }
 }
 
 #[test]
-fn close_is_warning_regardless_of_usage() {
-    assert_eq!(tone_for(Severity::Close, 10.0), Tone::Warning);
-    assert_eq!(tone_for(Severity::Close, 95.0), Tone::Warning);
+fn imminence_scales_with_long_periods() {
+    let weekly = window(40.0, SignedDuration::from_hours(48), WEEK);
+    let pace_at = |hours: i64| Pace {
+        severity: Severity::RunningOut,
+        even_pace: None,
+        projected: None,
+        runs_out_at: Some(now() + SignedDuration::from_hours(hours)),
+    };
+    assert_eq!(tone(&weekly, &pace_at(25), now()), Tone::Critical);
+    assert_eq!(tone(&weekly, &pace_at(26), now()), Tone::Warning);
 }
 
 #[test]
-fn healthy_is_good_regardless_of_usage() {
-    assert_eq!(tone_for(Severity::Healthy, 10.0), Tone::Good);
-    assert_eq!(tone_for(Severity::Healthy, 89.0), Tone::Good);
+fn imminent_session_run_out_is_critical() {
+    let busy = window(77.0, SignedDuration::from_mins(150), FIVE_HOURS);
+    let result = pace(&busy, now());
+    assert_eq!(result.severity, Severity::RunningOut);
+    let left = result.runs_out_at.unwrap().duration_since(now());
+    assert_eq!(left.as_secs() / 60, 44);
+    assert_eq!(tone(&busy, &result, now()), Tone::Critical);
 }
 
 #[test]
-fn untracked_at_ninety_used_is_critical() {
-    assert_eq!(tone_for(Severity::Untracked, 90.0), Tone::Critical);
-    assert_eq!(tone_for(Severity::Untracked, 95.0), Tone::Critical);
-}
-
-#[test]
-fn untracked_at_eighty_used_is_warning() {
-    assert_eq!(tone_for(Severity::Untracked, 80.0), Tone::Warning);
-    assert_eq!(tone_for(Severity::Untracked, 89.9), Tone::Warning);
-}
-
-#[test]
-fn untracked_below_eighty_used_is_good() {
-    assert_eq!(tone_for(Severity::Untracked, 79.9), Tone::Good);
-    assert_eq!(tone_for(Severity::Untracked, 0.0), Tone::Good);
+fn distant_run_out_is_a_warning() {
+    let weekly = window(40.0, SignedDuration::from_hours(48), WEEK);
+    let result = pace(&weekly, now());
+    assert_eq!(result.severity, Severity::RunningOut);
+    assert_eq!(tone(&weekly, &result, now()), Tone::Warning);
 }
 
 #[test]
@@ -201,13 +257,18 @@ fn tone_without_data_is_neutral() {
 
 #[test]
 fn tone_follows_pace_end_to_end() {
-    let running = session(60.0, 150);
-    assert_eq!(tone(&running, &pace(&running, now())), Tone::Critical);
+    let running = session(75.0, 150);
+    assert_eq!(
+        tone(&running, &pace(&running, now()), now()),
+        Tone::Critical
+    );
+    let later = session(60.0, 150);
+    assert_eq!(tone(&later, &pace(&later, now()), now()), Tone::Warning);
     let healthy = session(40.0, 150);
-    assert_eq!(tone(&healthy, &pace(&healthy, now())), Tone::Good);
+    assert_eq!(tone(&healthy, &pace(&healthy, now()), now()), Tone::Good);
     let young_heavy = window(85.0, SignedDuration::from_secs(10), FIVE_HOURS);
     assert_eq!(
-        tone(&young_heavy, &pace(&young_heavy, now())),
+        tone(&young_heavy, &pace(&young_heavy, now()), now()),
         Tone::Warning
     );
 }

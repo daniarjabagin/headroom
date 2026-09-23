@@ -3,7 +3,9 @@ use headroom_daemon::state::payload::{AccountView, Headline, StatePayload, Windo
 use jiff::Timestamp;
 use serde::Serialize;
 
-use super::format::{account_title, pace_note, percent_left, reset_text, rounded_percent};
+use super::format::{
+    account_title, pace_note, percent_left, reset_text, rounded_percent, shown_windows,
+};
 use super::spend::{PERIODS, summary};
 
 const DAEMON_ABSENT: &str = "Headroom daemon is not running";
@@ -91,12 +93,7 @@ fn account_lines(account: &AccountView, now: Timestamp) -> Vec<String> {
     if let Some(error) = &account.error {
         lines.push(format!("  {}", error.message));
     }
-    lines.extend(
-        account
-            .windows
-            .iter()
-            .map(|window| window_line(window, now)),
-    );
+    lines.extend(shown_windows(account).map(|window| window_line(window, now)));
     lines
 }
 

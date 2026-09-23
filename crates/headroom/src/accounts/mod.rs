@@ -1,23 +1,52 @@
+mod ansi;
 mod discovery;
 mod home;
 mod login;
+mod progress;
+mod stream;
 
 use std::io::{self, BufRead, IsTerminal, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use headroom_core::account::{AccountRef, CredentialOwner, ProviderKind};
 
+use crate::cli::ProgressFormat;
 use crate::client::{self, DaemonProxy, call_error};
 use crate::paths::{Globals, accounts_root};
 use crate::render::format::provider_name;
 use discovery::{account_at, discover_local};
 use home::headroom_home;
-use login::{Launcher, login_spec, sign_in};
+use login::{Console, Launcher, LoginEvent, login_spec, sign_in};
+use progress::{JsonLines, ProgressEvent};
 
 const NOT_DISCOVERED: &str = "The daemon did not find this account; check `headroom accounts`.";
 
-pub async fn add(globals: &Globals, provider: ProviderKind, label: Option<&str>) -> Result<()> {
+pub async fn add(
+    globals: &Globals,
+    provider: ProviderKind,
+    label: Option<&str>,
+    progress: Option<ProgressFormat>,
+) -> Result<()> {
+    match progress {
+        None => add_in_terminal(globals, provider, label).await,
+        Some(ProgressFormat::Json) => {
+            let result = add_streamed(globals, provider, label).await;
+            let done = |(id, label): &(String, Option<String>)| ProgressEvent::Done {
+                account_id: id.clone(),
+                label: label.clone(),
+            };
+            JsonLines::new(io::stdout()).finish(result, done)?;
+            Ok(())
+        }
+    }
+}
+
+async fn add_in_terminal(
+    globals: &Globals,
+    provider: ProviderKind,
+    label: Option<&str>,
+) -> Result<()> {
     let root = accounts_root()?;
     let preview = root.join(provider.as_str()).join("<new>");
     writeln!(
@@ -25,14 +54,11 @@ pub async fn add(globals: &Globals, provider: ProviderKind, label: Option<&str>)
         "Running {}",
         login_spec(provider).display(&preview)
     )?;
-    let home = tokio::task::spawn_blocking(move || sign_in(&root, provider, &Launcher::default()))
-        .await??;
-    let account = account_at(provider, &home).await?.with_context(|| {
-        format!(
-            "signed in, but Headroom cannot read the account in {}",
-            home.display()
-        )
-    })?;
+    let launcher = Launcher::default();
+    let home =
+        tokio::task::spawn_blocking(move || sign_in(&root, provider, &launcher, Console::Terminal))
+            .await??;
+    let account = signed_in_account(provider, &home).await?;
     writeln!(
         io::stdout(),
         "Added {} account {}",
@@ -40,7 +66,52 @@ pub async fn add(globals: &Globals, provider: ProviderKind, label: Option<&str>)
         account.id.0
     )?;
     warn_if_duplicate(&account).await?;
-    announce(globals, &account, label).await
+    if let Some(label) = announce(globals, &account, label).await? {
+        writeln!(io::stdout(), "Labelled {} as {label}", account.id.0)?;
+    }
+    Ok(())
+}
+
+async fn add_streamed(
+    globals: &Globals,
+    provider: ProviderKind,
+    label: Option<&str>,
+) -> Result<(String, Option<String>)> {
+    let root = accounts_root()?;
+    let home = tokio::task::spawn_blocking(move || {
+        let mut out = JsonLines::new(io::stdout());
+        let mut events = |event: LoginEvent| out.emit(&progress_event(provider, event));
+        let console = Console::Streamed {
+            input: Box::new(io::stdin()),
+            events: &mut events,
+        };
+        sign_in(&root, provider, &Launcher::default(), console)
+    })
+    .await??;
+    let account = signed_in_account(provider, &home).await?;
+    warn_if_duplicate(&account).await?;
+    let labelled = announce(globals, &account, label).await?;
+    Ok((account.id.0, labelled))
+}
+
+fn progress_event(provider: ProviderKind, event: LoginEvent) -> ProgressEvent {
+    match event {
+        LoginEvent::Started(home) => ProgressEvent::Started {
+            provider,
+            home: home.display().to_string(),
+        },
+        LoginEvent::Output(line) => ProgressEvent::Output { line },
+        LoginEvent::Url(url) => ProgressEvent::Url { url },
+    }
+}
+
+async fn signed_in_account(provider: ProviderKind, home: &Path) -> Result<AccountRef> {
+    account_at(provider, home).await?.with_context(|| {
+        format!(
+            "signed in, but Headroom cannot read the account in {}",
+            home.display()
+        )
+    })
 }
 
 async fn warn_if_duplicate(account: &AccountRef) -> Result<()> {
@@ -58,7 +129,11 @@ async fn warn_if_duplicate(account: &AccountRef) -> Result<()> {
     Ok(())
 }
 
-async fn announce(globals: &Globals, account: &AccountRef, label: Option<&str>) -> Result<()> {
+async fn announce(
+    globals: &Globals,
+    account: &AccountRef,
+    label: Option<&str>,
+) -> Result<Option<String>> {
     let id = &account.id.0;
     let Ok(proxy) = client::require_daemon(&globals.bus).await else {
         if let Some(label) = label {
@@ -67,7 +142,7 @@ async fn announce(globals: &Globals, account: &AccountRef, label: Option<&str>) 
                 "Start the daemon, then run: headroom accounts label {id} {label:?}"
             )?;
         }
-        return Ok(());
+        return Ok(None);
     };
     proxy.rescan().await.map_err(call_error)?;
     if !daemon_knows(&proxy, id).await? {
@@ -78,16 +153,16 @@ async fn announce(globals: &Globals, account: &AccountRef, label: Option<&str>) 
                 "Once it is listed, run: headroom accounts label {id} {label:?}"
             )?;
         }
-        return Ok(());
+        return Ok(None);
     }
-    if let Some(label) = label {
-        proxy
-            .set_account_label(id, label)
-            .await
-            .map_err(call_error)?;
-        writeln!(io::stdout(), "Labelled {id} as {label}")?;
-    }
-    Ok(())
+    let Some(label) = label else {
+        return Ok(None);
+    };
+    proxy
+        .set_account_label(id, label)
+        .await
+        .map_err(call_error)?;
+    Ok(Some(label.to_owned()))
 }
 
 async fn daemon_knows(proxy: &DaemonProxy<'_>, id: &str) -> Result<bool> {
@@ -95,7 +170,37 @@ async fn daemon_knows(proxy: &DaemonProxy<'_>, id: &str) -> Result<bool> {
     Ok(state.accounts.iter().any(|account| account.id == id))
 }
 
-pub async fn remove(globals: &Globals, id: &str, assume_yes: bool) -> Result<()> {
+pub async fn remove(
+    globals: &Globals,
+    id: &str,
+    assume_yes: bool,
+    progress: Option<ProgressFormat>,
+) -> Result<()> {
+    match progress {
+        None => {
+            let approve = |home: &Path| Ok(assume_yes || confirm(id, home)?);
+            let home = delete_account(globals, id, approve).await?;
+            writeln!(io::stdout(), "Removed {id} and deleted {}", home.display())?;
+            Ok(())
+        }
+        Some(ProgressFormat::Json) => {
+            let approve = |home: &Path| Ok(assume_yes || refuse_without_yes(home)?);
+            let result = delete_account(globals, id, approve).await;
+            let done = |_: &PathBuf| ProgressEvent::Done {
+                account_id: id.to_owned(),
+                label: None,
+            };
+            JsonLines::new(io::stdout()).finish(result, done)?;
+            Ok(())
+        }
+    }
+}
+
+async fn delete_account(
+    globals: &Globals,
+    id: &str,
+    approve: impl FnOnce(&Path) -> Result<bool>,
+) -> Result<PathBuf> {
     let accounts = discover_local().await;
     let Some(account) = accounts.iter().find(|account| account.id.0 == id) else {
         bail!("no signed-in account {id} found");
@@ -108,22 +213,25 @@ pub async fn remove(globals: &Globals, id: &str, assume_yes: bool) -> Result<()>
         );
     }
     let home = headroom_home(&accounts_root()?, account.provider, &account.home)?;
-    if !assume_yes && !confirm(id, &home)? {
+    if !approve(&home)? {
         bail!("cancelled");
     }
     std::fs::remove_dir_all(&home)
         .with_context(|| format!("could not delete {}", home.display()))?;
-    writeln!(io::stdout(), "Removed {id} and deleted {}", home.display())?;
     if let Ok(proxy) = client::require_daemon(&globals.bus).await {
         proxy.rescan().await.map_err(call_error)?;
     }
-    Ok(())
+    Ok(home)
+}
+
+fn refuse_without_yes(home: &Path) -> Result<bool> {
+    bail!("refusing to delete {} without --yes", home.display())
 }
 
 fn confirm(id: &str, home: &Path) -> Result<bool> {
     let stdin = io::stdin();
     if !stdin.is_terminal() {
-        bail!("refusing to delete {} without --yes", home.display());
+        return refuse_without_yes(home);
     }
     write!(
         io::stderr(),

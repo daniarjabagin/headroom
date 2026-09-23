@@ -17,6 +17,7 @@ use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
 use headroom_core::units::{MicroUsd, Percent};
 use headroom_core::usage::PriceBook;
 use headroom_daemon::clock::SystemClock;
+use headroom_daemon::notify::text::Locale;
 use headroom_daemon::{BusTarget, DaemonConfig, DaemonError, StatePayload};
 use jiff::{SignedDuration, Timestamp};
 use tokio::sync::oneshot;
@@ -166,6 +167,7 @@ fn config(
         clock: Arc::new(SystemClock),
         tz: jiff::tz::TimeZone::UTC,
         bus: BusTarget::Address(bus.address.clone()),
+        system_locale: Locale::En,
         shutdown: Box::pin(async move {
             shutdown.await.ok();
         }),

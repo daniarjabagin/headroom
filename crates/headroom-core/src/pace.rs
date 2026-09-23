@@ -38,6 +38,10 @@ const HEALTHY_PROJECTION: f64 = 90.0;
 const CLOSE_PROJECTION: f64 = 100.0;
 const MIN_TRACKED_USED: f64 = 5.0;
 const MIN_ELAPSED: SignedDuration = SignedDuration::from_secs(60);
+const YOUNG_SHARE_PERCENT: i32 = 15;
+const YOUNG_CAP: SignedDuration = SignedDuration::from_hours(24);
+const IMMINENT_SHARE_PERCENT: i32 = 15;
+const IMMINENT_FLOOR: SignedDuration = SignedDuration::from_hours(1);
 const WARNING_USED: f64 = 80.0;
 const CRITICAL_USED: f64 = 90.0;
 
@@ -55,13 +59,45 @@ pub fn pace(window: &QuotaWindow, now: Timestamp) -> Pace {
 }
 
 #[must_use]
-pub fn tone(window: &QuotaWindow, pace: &Pace) -> Tone {
+pub fn tone(window: &QuotaWindow, pace: &Pace, now: Timestamp) -> Tone {
     match pace.severity {
-        Severity::Spent | Severity::RunningOut => Tone::Critical,
+        Severity::Spent => Tone::Critical,
+        Severity::RunningOut => running_out_tone(window, pace, now),
         Severity::Close => Tone::Warning,
         Severity::Healthy => Tone::Good,
         Severity::Untracked => tone_by_usage(window.used),
     }
+}
+
+fn running_out_tone(window: &QuotaWindow, pace: &Pace, now: Timestamp) -> Tone {
+    let imminent = pace
+        .runs_out_at
+        .is_some_and(|at| at.duration_since(now) <= imminent_within(window.period));
+    if imminent || window.used.value() >= CRITICAL_USED {
+        Tone::Critical
+    } else {
+        Tone::Warning
+    }
+}
+
+fn imminent_within(period: Option<SignedDuration>) -> SignedDuration {
+    period
+        .map_or(SignedDuration::ZERO, |p| {
+            share_of(p, IMMINENT_SHARE_PERCENT)
+        })
+        .max(IMMINENT_FLOOR)
+}
+
+fn young_until(period: SignedDuration) -> SignedDuration {
+    share_of(period, YOUNG_SHARE_PERCENT)
+        .min(YOUNG_CAP)
+        .max(MIN_ELAPSED)
+}
+
+fn share_of(period: SignedDuration, percent: i32) -> SignedDuration {
+    (period / 100)
+        .checked_mul(percent)
+        .unwrap_or(SignedDuration::MAX)
 }
 
 fn tone_by_usage(used: Percent) -> Tone {
@@ -94,7 +130,7 @@ impl Timing {
         let start = reset.checked_sub(period).ok()?;
         let elapsed = now.duration_since(start).max(SignedDuration::ZERO);
         let progress = (elapsed.as_secs_f64() / period.as_secs_f64()).clamp(0.0, 1.0);
-        let young = elapsed < MIN_ELAPSED.max(period / 100);
+        let young = elapsed < young_until(period);
         Some(Timing {
             start,
             reset,

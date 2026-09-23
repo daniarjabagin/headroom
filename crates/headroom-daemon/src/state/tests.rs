@@ -1,17 +1,16 @@
 use std::path::PathBuf;
 
-use headroom_core::account::{AccountId, ProviderKind};
+use headroom_core::account::{AccountId, CredentialOwner, ProviderKind};
 use headroom_core::pace::Tone;
 use headroom_core::provider::ProviderError;
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSource, Notice};
 use headroom_core::units::MicroUsd;
 use headroom_core::usage::aggregate;
 
-use super::payload::{AccountStatus, AccountView, DataSource, PaceView, WindowView};
+use super::payload::{AccountStatus, DataSource};
 use super::*;
 use crate::home::UsageHome;
 use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin};
-use crate::settings::HeadlineMode;
 use crate::storage::accounts::AccountRecord;
 use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
 
@@ -125,6 +124,11 @@ fn sample_model() -> Model {
     model.usage.insert(codex_home, codex_usage());
     model.usage.insert(claude_home, claude_usage());
     model
+        .settings
+        .display
+        .hidden_windows
+        .insert("codex:work".into(), vec!["weekly".into()]);
+    model
 }
 
 fn assemble_sample(model: &Model) -> StatePayload {
@@ -197,94 +201,6 @@ fn gone_accounts_are_left_out_and_hidden_are_flagged() {
     assert_eq!(payload.accounts[1].status, AccountStatus::SignedOut);
     assert_eq!(payload.accounts[1].source, Some(DataSource::Cache));
     assert_eq!(payload.accounts[2].status, AccountStatus::Stale);
-}
-
-fn view(id: &str, hidden: bool, windows: Vec<WindowView>) -> AccountView {
-    AccountView {
-        id: id.into(),
-        provider: ProviderKind::Codex,
-        label: None,
-        email: None,
-        plan: None,
-        hidden,
-        status: AccountStatus::Fresh,
-        error: None,
-        updated_at: None,
-        source: None,
-        windows,
-        balances: Vec::new(),
-        notices: Vec::new(),
-        usage_home: "~/.codex".into(),
-    }
-}
-
-fn window(id: &str, remaining: f64, tone: Tone) -> WindowView {
-    WindowView {
-        id: id.into(),
-        label: id.into(),
-        used_percent: 100.0 - remaining,
-        remaining_percent: remaining,
-        resets_at: None,
-        period_seconds: None,
-        tone,
-        pace: PaceView {
-            severity: headroom_core::pace::Severity::Untracked,
-            even_pace_percent: None,
-            projected_percent: None,
-            spare_percent: None,
-            runs_out_at: None,
-        },
-    }
-}
-
-#[test]
-fn headline_prefers_highest_tone_then_lowest_remaining() {
-    let accounts = [
-        view(
-            "a",
-            false,
-            vec![
-                window("session", 5.0, Tone::Good),
-                window("weekly", 40.0, Tone::Warning),
-            ],
-        ),
-        view("b", false, vec![window("session", 30.0, Tone::Warning)]),
-        view("c", true, vec![window("session", 1.0, Tone::Critical)]),
-    ];
-    let chosen = headline::headline(&accounts, &HeadlineMode::Auto).unwrap();
-    assert_eq!(
-        (chosen.account_id.as_str(), chosen.window.as_str()),
-        ("b", "session")
-    );
-    assert_eq!(chosen.tone, Tone::Warning);
-    assert!((chosen.remaining_percent - 30.0).abs() < f64::EPSILON);
-}
-
-#[test]
-fn headline_ties_keep_account_order() {
-    let accounts = [
-        view("a", false, vec![window("session", 50.0, Tone::Good)]),
-        view("b", false, vec![window("session", 50.0, Tone::Good)]),
-    ];
-    let chosen = headline::headline(&accounts, &HeadlineMode::Auto).unwrap();
-    assert_eq!(chosen.account_id, "a");
-}
-
-#[test]
-fn pinned_headline_falls_back_to_auto_when_missing() {
-    let accounts = [
-        view("a", false, vec![window("session", 90.0, Tone::Good)]),
-        view("b", false, vec![window("weekly", 10.0, Tone::Critical)]),
-    ];
-    let pin = |account: &str, window: &str| HeadlineMode::Pinned {
-        account_id: account.into(),
-        window: window.into(),
-    };
-    let chosen = headline::headline(&accounts, &pin("a", "session")).unwrap();
-    assert_eq!(chosen.account_id, "a");
-    let fallback = headline::headline(&accounts, &pin("a", "weekly")).unwrap();
-    assert_eq!(fallback.account_id, "b");
-    assert!(headline::headline(&[], &HeadlineMode::Auto).is_none());
 }
 
 #[test]
@@ -383,4 +299,50 @@ fn spare_is_reported_only_for_healthy_and_close_windows() {
     );
     assert_eq!(spare[2].0, headroom_core::pace::Severity::RunningOut);
     assert_eq!(spare[2].1, None);
+}
+
+#[test]
+fn accounts_report_their_credential_owner() {
+    let mut model = sample_model();
+    model.accounts[1].reference.owner = CredentialOwner::Headroom;
+    let owners: Vec<_> = assemble_sample(&model)
+        .accounts
+        .iter()
+        .map(|a| a.owner)
+        .collect();
+    assert_eq!(
+        owners,
+        [
+            CredentialOwner::Cli,
+            CredentialOwner::Headroom,
+            CredentialOwner::Cli
+        ]
+    );
+}
+
+#[test]
+fn usage_totals_carry_models_per_period() {
+    let payload = assemble_sample(&sample_model());
+    let codex = &payload.usage[0];
+    let names = |models: &[super::payload::ModelView]| -> Vec<String> {
+        models.iter().map(|m| m.model.clone()).collect()
+    };
+    assert_eq!(names(&codex.today.models), ["gpt-5.5"]);
+    assert_eq!(names(&codex.yesterday.models), ["gpt-5.5", "unknown"]);
+    assert!(codex.yesterday.models[1].partial);
+    let spend_codex = &payload.spend.last_30_days.by_provider[1];
+    assert_eq!(spend_codex.provider, ProviderKind::Codex);
+    assert_eq!(spend_codex.models[0].total_tokens, 1_800);
+}
+
+#[test]
+fn hidden_windows_are_flagged_in_the_payload() {
+    let payload = assemble_sample(&sample_model());
+    let flags: Vec<_> = payload.accounts[0]
+        .windows
+        .iter()
+        .map(|w| (w.id.as_str(), w.hidden))
+        .collect();
+    assert_eq!(flags, [("session", false), ("weekly", true)]);
+    assert!(payload.display.is_hidden("codex:work", "weekly"));
 }

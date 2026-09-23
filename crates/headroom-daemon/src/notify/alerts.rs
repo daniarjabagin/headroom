@@ -8,10 +8,10 @@ use rusqlite::Connection;
 
 use super::Notifier;
 use super::evaluator::{AlertState, Evaluation, Milestone, Observation, evaluate, rollback};
-use super::text::{Subject, compose};
+use super::text::{Locale, Subject, compose};
 use crate::error::StorageError;
 use crate::model::window_key;
-use crate::settings::NotificationSettings;
+use crate::settings::{DisplaySettings, NotificationSettings};
 use crate::storage::Storage;
 use crate::storage::accounts::AccountRecord;
 use crate::storage::alerts;
@@ -28,6 +28,8 @@ pub struct Review<'a> {
     pub account: &'a AccountRecord,
     pub snapshot: &'a LimitsSnapshot,
     pub settings: NotificationSettings,
+    pub display: &'a DisplaySettings,
+    pub locale: Locale,
     pub now: Timestamp,
 }
 
@@ -52,8 +54,11 @@ impl Alerts {
         if !review.account.is_visible() {
             return Ok(());
         }
+        let id = &review.account.id().0;
         for window in &review.snapshot.windows {
-            self.review_window(review, window).await?;
+            if !review.display.is_hidden(id, &window_key(&window.id)) {
+                self.review_window(review, window).await?;
+            }
         }
         Ok(())
     }
@@ -90,13 +95,13 @@ impl Alerts {
         let subject = Subject {
             provider: account.reference.provider,
             account_name: account.label.as_deref().or(account.email.as_deref()),
-            window_label: &window.label,
+            window,
         };
         for milestone in evaluation.alerts.clone() {
             if !enabled(review.settings, milestone) {
                 continue;
             }
-            let notification = compose(milestone, &subject, observed, review.now);
+            let notification = compose(review.locale, milestone, &subject, observed, review.now);
             if let Err(error) = self.notifier.notify(&notification).await {
                 tracing::warn!(%error, ?milestone, "notification not delivered, will retry");
                 rollback(&mut evaluation.state, milestone);
