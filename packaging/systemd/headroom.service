@@ -1,0 +1,13 @@
+[Unit]
+Description=Headroom AI coding limits daemon
+After=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=io.github.headroom.Daemon
+ExecStart=%h/.local/bin/headroom daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
