@@ -1,0 +1,135 @@
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+
+use headroom_core::account::{AccountId, AccountRef, ProviderKind};
+use headroom_core::provider::Provider;
+use headroom_core::usage::PriceBook;
+use jiff::tz::TimeZone;
+use tokio::sync::{Notify, mpsc};
+
+use crate::clock::Clock;
+use crate::error::StorageError;
+use crate::home::HomeDisplay;
+use crate::model::Model;
+use crate::notify::Notifier;
+use crate::notify::alerts::Alerts;
+use crate::random::Random;
+use crate::state::payload::StatePayload;
+use crate::state::{self, AssembleContext};
+use crate::storage::Storage;
+use crate::storage::accounts;
+
+pub struct CoreParts {
+    pub storage: Storage,
+    pub providers: Vec<Arc<dyn Provider>>,
+    pub price_book: Arc<dyn PriceBook>,
+    pub clock: Arc<dyn Clock>,
+    pub random: Arc<dyn Random>,
+    pub tz: TimeZone,
+    pub homes: HomeDisplay,
+    pub notifier: Arc<dyn Notifier>,
+}
+
+pub struct Core {
+    pub(crate) storage: Storage,
+    pub(crate) providers: Vec<Arc<dyn Provider>>,
+    pub(crate) price_book: Arc<dyn PriceBook>,
+    pub(crate) clock: Arc<dyn Clock>,
+    pub(crate) random: Arc<dyn Random>,
+    pub(crate) tz: TimeZone,
+    pub(crate) alerts: Alerts,
+    homes: HomeDisplay,
+    model: Mutex<Model>,
+    changes: Notify,
+    triggers: Mutex<HashMap<AccountId, mpsc::Sender<()>>>,
+}
+
+impl Core {
+    pub async fn load(parts: CoreParts) -> Result<Core, StorageError> {
+        let storage = parts.storage.clone();
+        let notifier = parts.notifier.clone();
+        let (model, alerts) = parts
+            .storage
+            .run(move |conn| Ok((Model::load(conn)?, Alerts::load(conn, storage, notifier)?)))
+            .await?;
+        Ok(Core {
+            storage: parts.storage,
+            providers: parts.providers,
+            price_book: parts.price_book,
+            clock: parts.clock,
+            random: parts.random,
+            tz: parts.tz,
+            alerts,
+            homes: parts.homes,
+            model: Mutex::new(model),
+            changes: Notify::new(),
+            triggers: Mutex::new(HashMap::new()),
+        })
+    }
+
+    pub fn model(&self) -> MutexGuard<'_, Model> {
+        self.model.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn mark_changed(&self) {
+        self.changes.notify_one();
+    }
+
+    pub async fn changed(&self) {
+        self.changes.notified().await;
+    }
+
+    #[must_use]
+    pub fn state(&self) -> StatePayload {
+        let ctx = AssembleContext {
+            now: self.clock.now(),
+            tz: &self.tz,
+            homes: &self.homes,
+        };
+        state::assemble(&self.model(), &ctx)
+    }
+
+    pub fn state_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self.state())
+    }
+
+    #[must_use]
+    pub fn provider(&self, kind: ProviderKind) -> Option<Arc<dyn Provider>> {
+        self.providers.iter().find(|p| p.kind() == kind).cloned()
+    }
+
+    #[must_use]
+    pub fn active_accounts(&self) -> Vec<AccountRef> {
+        self.model()
+            .active_accounts()
+            .map(|a| a.reference.clone())
+            .collect()
+    }
+
+    pub async fn reload_accounts(&self) -> Result<(), StorageError> {
+        let accounts = self.storage.run(|conn| accounts::load_all(conn)).await?;
+        self.model().accounts = accounts;
+        self.mark_changed();
+        Ok(())
+    }
+
+    pub(crate) fn register_trigger(&self, id: AccountId, trigger: mpsc::Sender<()>) {
+        self.triggers().insert(id, trigger);
+    }
+
+    pub(crate) fn remove_trigger(&self, id: &AccountId) {
+        self.triggers().remove(id);
+    }
+
+    pub(crate) fn trigger(&self, id: &AccountId) {
+        if let Some(sender) = self.triggers().get(id)
+            && let Err(mpsc::error::TrySendError::Closed(())) = sender.try_send(())
+        {
+            tracing::debug!(account = %id, "refresh worker is gone");
+        }
+    }
+
+    fn triggers(&self) -> MutexGuard<'_, HashMap<AccountId, mpsc::Sender<()>>> {
+        self.triggers.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}

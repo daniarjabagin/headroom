@@ -1,0 +1,228 @@
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+
+use async_trait::async_trait;
+use headroom_core::account::{
+    AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderKind,
+};
+use headroom_core::cursor::LogCursors;
+use headroom_core::event::{EventKey, ServiceTier, UsageEvent};
+use headroom_core::provider::{Provider, ProviderError};
+use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
+use headroom_core::tokens::TokenCounts;
+use headroom_core::units::{MicroUsd, Percent, Tokens};
+use headroom_core::usage::PriceBook;
+use jiff::tz::TimeZone;
+use jiff::{SignedDuration, Timestamp};
+
+use crate::clock::testing::ManualClock;
+use crate::core::{Core, CoreParts};
+use crate::home::HomeDisplay;
+use crate::notify::{Notification, Notifier, NotifyError};
+use crate::random::FixedRandom;
+use crate::storage::Storage;
+
+pub fn ts(text: &str) -> Timestamp {
+    text.parse().unwrap()
+}
+
+pub fn account(provider: ProviderKind, name: &str) -> AccountRef {
+    AccountRef {
+        id: AccountId(format!("{provider}:{name}")),
+        provider,
+        home: PathBuf::from(format!("/home/ada/.{provider}")),
+        owner: CredentialOwner::Cli,
+    }
+}
+
+pub fn session(used: f64, resets_at: &str) -> QuotaWindow {
+    QuotaWindow {
+        id: WindowId::Session,
+        label: "Session".into(),
+        used: Percent::new(used),
+        resets_at: Some(ts(resets_at)),
+        period: Some(SignedDuration::from_hours(5)),
+    }
+}
+
+pub fn weekly(used: f64, resets_at: &str) -> QuotaWindow {
+    QuotaWindow {
+        id: WindowId::Weekly,
+        label: "Weekly".into(),
+        used: Percent::new(used),
+        resets_at: Some(ts(resets_at)),
+        period: Some(SignedDuration::from_hours(7 * 24)),
+    }
+}
+
+pub fn snapshot(windows: Vec<QuotaWindow>, fetched_at: &str) -> LimitsSnapshot {
+    LimitsSnapshot {
+        identity: AccountIdentity {
+            email: Some("ada@example.com".into()),
+            plan: Some("Pro".into()),
+            stable_key: "user/account".into(),
+        },
+        windows,
+        balances: Vec::new(),
+        notices: Vec::new(),
+        fetched_at: ts(fetched_at),
+        source: LimitsSource::Live,
+    }
+}
+
+pub fn event(key: &str, at: &str, model: &str, input: u64, output: u64) -> UsageEvent {
+    UsageEvent {
+        key: EventKey(key.into()),
+        at: ts(at),
+        model: model.into(),
+        tier: ServiceTier::Standard,
+        tokens: TokenCounts {
+            input: Tokens(input),
+            output: Tokens(output),
+            ..TokenCounts::default()
+        },
+        web_search_requests: 0,
+    }
+}
+
+pub struct FlatPrices;
+
+impl PriceBook for FlatPrices {
+    fn cost(
+        &self,
+        model: &str,
+        _tier: ServiceTier,
+        tokens: &TokenCounts,
+        _web_search: u32,
+    ) -> Option<MicroUsd> {
+        if model == "unknown" {
+            return None;
+        }
+        Some(MicroUsd(i64::try_from(tokens.total().0).ok()? * 2))
+    }
+}
+
+pub struct FakeProvider {
+    pub kind: ProviderKind,
+    pub accounts: Mutex<Vec<AccountRef>>,
+    pub limits: Mutex<Result<LimitsSnapshot, ProviderError>>,
+    pub usage: Mutex<Vec<UsageEvent>>,
+}
+
+impl FakeProvider {
+    pub fn new(kind: ProviderKind, accounts: Vec<AccountRef>, limits: LimitsSnapshot) -> Self {
+        FakeProvider {
+            kind,
+            accounts: Mutex::new(accounts),
+            limits: Mutex::new(Ok(limits)),
+            usage: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+#[async_trait]
+impl Provider for FakeProvider {
+    fn kind(&self) -> ProviderKind {
+        self.kind
+    }
+
+    async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+        Ok(self.accounts.lock().unwrap().clone())
+    }
+
+    async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
+        self.limits.lock().unwrap().clone()
+    }
+
+    fn read_usage(
+        &self,
+        home: &Path,
+        cursors: &mut LogCursors,
+    ) -> Result<Vec<UsageEvent>, ProviderError> {
+        let events = std::mem::take(&mut *self.usage.lock().unwrap());
+        cursors.cursor_mut(&home.join("log.jsonl")).offset += events.len() as u64;
+        Ok(events)
+    }
+}
+
+#[derive(Default)]
+pub struct RecordingNotifier {
+    pub sent: Mutex<Vec<Notification>>,
+    pub failing: AtomicBool,
+}
+
+impl RecordingNotifier {
+    pub fn texts(&self) -> Vec<(String, String)> {
+        self.sent
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|n| (n.title.clone(), n.body.clone()))
+            .collect()
+    }
+
+    pub fn fail(&self, failing: bool) {
+        self.failing.store(failing, Ordering::SeqCst);
+    }
+}
+
+#[async_trait]
+impl Notifier for RecordingNotifier {
+    async fn notify(&self, notification: &Notification) -> Result<(), NotifyError> {
+        if self.failing.load(Ordering::SeqCst) {
+            return Err(NotifyError::Bus(zbus::Error::Failure("no server".into())));
+        }
+        self.sent.lock().unwrap().push(notification.clone());
+        Ok(())
+    }
+}
+
+pub struct Harness {
+    pub core: Arc<Core>,
+    pub storage: Storage,
+    pub clock: Arc<ManualClock>,
+    pub notifier: Arc<RecordingNotifier>,
+}
+
+pub async fn harness(providers: Vec<Arc<dyn Provider>>) -> Harness {
+    let storage = Storage::open_in_memory().unwrap();
+    let clock = Arc::new(ManualClock::at("2026-09-23T10:00:00Z"));
+    let notifier = Arc::new(RecordingNotifier::default());
+    let parts = CoreParts {
+        storage: storage.clone(),
+        providers,
+        price_book: Arc::new(FlatPrices),
+        clock: clock.clone(),
+        random: Arc::new(FixedRandom(0.5)),
+        tz: TimeZone::UTC,
+        homes: HomeDisplay::new(Some(PathBuf::from("/home/ada"))),
+        notifier: notifier.clone(),
+    };
+    let core = Arc::new(Core::load(parts).await.unwrap());
+    crate::registry::discover_all(&core).await;
+    Harness {
+        core,
+        storage,
+        clock,
+        notifier,
+    }
+}
+
+pub async fn eventually(condition: impl FnMut() -> bool) {
+    poll_until(condition, std::time::Duration::from_millis(10), 500).await;
+}
+
+pub async fn eventually_virtual(condition: impl FnMut() -> bool) {
+    poll_until(condition, std::time::Duration::from_secs(1), 7_200).await;
+}
+
+async fn poll_until(mut condition: impl FnMut() -> bool, step: std::time::Duration, tries: u32) {
+    for _ in 0..tries {
+        if condition() {
+            return;
+        }
+        tokio::time::sleep(step).await;
+    }
+    panic!("condition not reached");
+}

@@ -1,0 +1,133 @@
+use headroom_core::account::ProviderKind;
+
+use super::*;
+use crate::testing::{RecordingNotifier, account, session, snapshot, ts};
+
+const NOW: &str = "2026-09-23T10:00:00Z";
+const RESET: &str = "2026-09-23T12:00:00Z";
+
+fn work() -> AccountRecord {
+    AccountRecord {
+        reference: account(ProviderKind::Codex, "work"),
+        label: Some("Work".into()),
+        hidden: false,
+        sort_order: 0,
+        email: None,
+        plan: None,
+        last_seen: ts(NOW),
+        gone: false,
+    }
+}
+
+fn load(storage: &Storage, notifier: &Arc<RecordingNotifier>) -> Alerts {
+    let notifier: Arc<dyn Notifier> = notifier.clone();
+    storage
+        .blocking(|conn| Alerts::load(conn, storage.clone(), notifier))
+        .unwrap()
+}
+
+async fn observe(alerts: &Alerts, account: &AccountRecord, used: f64) {
+    observe_with(alerts, account, used, NotificationSettings::default()).await;
+}
+
+async fn observe_with(
+    alerts: &Alerts,
+    account: &AccountRecord,
+    used: f64,
+    settings: NotificationSettings,
+) {
+    let limits = snapshot(vec![session(used, RESET)], NOW);
+    let review = Review {
+        account,
+        snapshot: &limits,
+        settings,
+        now: ts(NOW),
+    };
+    alerts.review(&review).await.unwrap();
+}
+
+#[tokio::test]
+async fn delivers_rising_edges_after_priming() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    observe(&alerts, &work(), 10.0).await;
+    assert!(notifier.texts().is_empty());
+    observe(&alerts, &work(), 58.0).await;
+    observe(&alerts, &work(), 59.0).await;
+    assert_eq!(
+        notifier.texts(),
+        [(
+            "Codex · Work — Session".to_owned(),
+            "Projected to finish close to the limit · resets in 2h".to_owned()
+        )]
+    );
+}
+
+#[tokio::test]
+async fn disabled_milestones_advance_silently() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    let quiet = NotificationSettings {
+        cutting_it_close: false,
+        ..NotificationSettings::default()
+    };
+    observe_with(&alerts, &work(), 10.0, quiet).await;
+    observe_with(&alerts, &work(), 58.0, quiet).await;
+    observe(&alerts, &work(), 58.0).await;
+    assert!(notifier.texts().is_empty());
+}
+
+#[tokio::test]
+async fn failed_delivery_is_rolled_back_and_retried() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    observe(&alerts, &work(), 10.0).await;
+    notifier.fail(true);
+    observe(&alerts, &work(), 58.0).await;
+    assert!(notifier.texts().is_empty());
+    notifier.fail(false);
+    observe(&alerts, &work(), 58.0).await;
+    assert_eq!(notifier.texts().len(), 1);
+    observe(&alerts, &work(), 58.0).await;
+    assert_eq!(notifier.texts().len(), 1);
+}
+
+#[tokio::test]
+async fn state_survives_a_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("headroom.db");
+    let notifier = Arc::new(RecordingNotifier::default());
+    let first = Storage::open(&path).unwrap();
+    observe(&load(&first, &notifier), &work(), 95.0).await;
+    drop(first);
+    let second = Storage::open(&path).unwrap();
+    observe(&load(&second, &notifier), &work(), 95.0).await;
+    assert!(notifier.texts().is_empty());
+    drop(second);
+    let third = Storage::open(&path).unwrap();
+    let alerts = load(&third, &notifier);
+    observe(&alerts, &work(), 20.0).await;
+    observe(&alerts, &work(), 95.0).await;
+    let bodies: Vec<String> = notifier.texts().into_iter().map(|(_, body)| body).collect();
+    assert_eq!(bodies.len(), 2);
+    assert!(bodies[0].starts_with("Projected to run out"));
+    assert!(bodies[1].starts_with("Under 10% left"));
+}
+
+#[tokio::test]
+async fn hidden_accounts_are_not_reviewed() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    let mut hidden = work();
+    hidden.hidden = true;
+    observe(&alerts, &hidden, 10.0).await;
+    observe(&alerts, &hidden, 95.0).await;
+    assert!(notifier.texts().is_empty());
+    let stored: Vec<(AccountId, String, AlertState)> =
+        storage.blocking(|conn| alerts::load_all(conn)).unwrap();
+    assert!(stored.is_empty());
+}
