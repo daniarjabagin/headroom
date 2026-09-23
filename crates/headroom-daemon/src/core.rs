@@ -6,7 +6,7 @@ use headroom_core::account::{AccountId, AccountRef, ProviderKind};
 use headroom_core::provider::Provider;
 use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
-use tokio::sync::{Mutex as AsyncMutex, Notify, mpsc};
+use tokio::sync::{Mutex as AsyncMutex, Notify, mpsc, watch};
 
 use crate::clock::Clock;
 use crate::error::StorageError;
@@ -48,6 +48,7 @@ pub struct Core {
     pub(crate) log_reads: AsyncMutex<()>,
     changes: Notify,
     triggers: Mutex<HashMap<AccountId, mpsc::Sender<()>>>,
+    ingest_requests: watch::Sender<u64>,
 }
 
 impl Core {
@@ -73,6 +74,7 @@ impl Core {
             log_reads: AsyncMutex::new(()),
             changes: Notify::new(),
             triggers: Mutex::new(HashMap::new()),
+            ingest_requests: watch::Sender::new(0),
         })
     }
 
@@ -141,11 +143,33 @@ impl Core {
     }
 
     pub(crate) fn trigger(&self, id: &AccountId) {
-        if let Some(sender) = self.triggers().get(id)
-            && let Err(mpsc::error::TrySendError::Closed(())) = sender.try_send(())
-        {
-            tracing::debug!(account = %id, "refresh worker is gone");
+        self.send_trigger(id);
+    }
+
+    pub(crate) fn has_trigger(&self, id: &AccountId) -> bool {
+        self.triggers().contains_key(id)
+    }
+
+    pub(crate) fn send_trigger(&self, id: &AccountId) -> bool {
+        let Some(sender) = self.triggers().get(id).cloned() else {
+            return false;
+        };
+        match sender.try_send(()) {
+            Ok(()) | Err(mpsc::error::TrySendError::Full(())) => true,
+            Err(mpsc::error::TrySendError::Closed(())) => {
+                tracing::debug!(account = %id, "refresh worker is gone");
+                false
+            }
         }
+    }
+
+    pub(crate) fn request_ingest(&self) {
+        self.ingest_requests
+            .send_modify(|count| *count = count.wrapping_add(1));
+    }
+
+    pub(crate) fn ingest_requests(&self) -> watch::Receiver<u64> {
+        self.ingest_requests.subscribe()
     }
 
     fn triggers(&self) -> MutexGuard<'_, HashMap<AccountId, mpsc::Sender<()>>> {

@@ -24,7 +24,7 @@ pub enum Command {
     Daemon,
     #[command(about = "Show limits and spend for every account")]
     Status(StatusArgs),
-    #[command(about = "Ask the daemon to refresh one account or all due accounts")]
+    #[command(about = "Ask the daemon to refresh one account, all due accounts or everything now")]
     Refresh(RefreshArgs),
     #[command(about = "List and manage accounts")]
     Accounts(AccountsArgs),
@@ -45,6 +45,12 @@ pub struct RefreshArgs {
         help = "Account to refresh now; all due accounts when omitted"
     )]
     pub account_id: Option<String>,
+    #[arg(
+        long,
+        conflicts_with = "account_id",
+        help = "Refresh every account now, even if refreshed within the last minute"
+    )]
+    pub now: bool,
 }
 
 #[derive(Debug, Args)]
@@ -113,5 +119,29 @@ impl ProviderArg {
             ProviderArg::Codex => ProviderKind::Codex,
             ProviderArg::Claude => ProviderKind::Claude,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn refresh_args(args: &[&str]) -> Result<RefreshArgs, clap::Error> {
+        let parsed = Cli::try_parse_from([&["headroom", "refresh"], args].concat())?;
+        match parsed.command {
+            Command::Refresh(refresh) => Ok(refresh),
+            other => panic!("parsed {other:?}"),
+        }
+    }
+
+    #[test]
+    fn refresh_now_is_a_flag_that_excludes_an_account_id() {
+        let now = refresh_args(&["--now"]).unwrap();
+        assert!(now.now && now.account_id.is_none());
+        let due = refresh_args(&[]).unwrap();
+        assert!(!due.now && due.account_id.is_none());
+        let one = refresh_args(&["codex:work"]).unwrap();
+        assert_eq!(one.account_id.as_deref(), Some("codex:work"));
+        assert!(refresh_args(&["--now", "codex:work"]).is_err());
     }
 }

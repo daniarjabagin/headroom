@@ -4,6 +4,7 @@ use headroom_core::account::AccountId;
 
 use crate::core::Core;
 use crate::error::CommandError;
+use crate::model::AccountRuntime;
 use crate::scheduler::policy;
 use crate::settings::Settings;
 use crate::storage::accounts;
@@ -34,6 +35,35 @@ impl Core {
         for id in &due {
             self.trigger(id);
         }
+    }
+
+    pub fn refresh_now(&self) {
+        let now = self.clock.now();
+        let allowed: Vec<AccountId> = {
+            let model = self.model();
+            model
+                .active_accounts()
+                .filter(|a| policy::forced_refresh_allowed(model.runtime.get(a.id()), now))
+                .map(|a| a.id().clone())
+                .collect()
+        };
+        for id in allowed.iter().filter(|id| self.has_trigger(id)) {
+            let before = self.mark_refreshing(id);
+            if !self.send_trigger(id) {
+                *self.model().runtime_mut(id) = before;
+            }
+        }
+        self.request_ingest();
+        self.mark_changed();
+    }
+
+    fn mark_refreshing(&self, id: &AccountId) -> AccountRuntime {
+        let mut model = self.model();
+        let runtime = model.runtime_mut(id);
+        let before = runtime.clone();
+        runtime.refreshing = true;
+        runtime.next_refresh_at = None;
+        before
     }
 
     pub fn settings_json(&self) -> Result<String, CommandError> {

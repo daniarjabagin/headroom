@@ -104,3 +104,37 @@ fn soft_refresh_skips_recent_refreshing_and_held_accounts() {
     };
     assert!(!soft_refresh_due(Some(&held), now));
 }
+
+#[test]
+fn forced_refresh_ignores_recency_and_lapses_but_keeps_rate_limit_holds() {
+    let now = ts("2026-09-23T10:00:00Z");
+    let failing = |failure: ProviderError, hold_until: &str| AccountRuntime {
+        last_attempt: Some(ts("2026-09-23T09:59:50Z")),
+        failure: Some(RefreshFailure::Provider(failure)),
+        hold_until: Some(ts(hold_until)),
+        ..AccountRuntime::default()
+    };
+    let limited = || ProviderError::RateLimited { retry_after: None };
+    let lapsed = ProviderError::NoSubscription {
+        detail: "free plan".into(),
+    };
+    let recent = AccountRuntime {
+        last_attempt: Some(ts("2026-09-23T09:59:50Z")),
+        refreshing: true,
+        ..AccountRuntime::default()
+    };
+    assert!(forced_refresh_allowed(None, now));
+    assert!(forced_refresh_allowed(Some(&recent), now));
+    assert!(forced_refresh_allowed(
+        Some(&failing(lapsed, "2026-09-23T11:00:00Z")),
+        now
+    ));
+    assert!(!forced_refresh_allowed(
+        Some(&failing(limited(), "2026-09-23T10:02:00Z")),
+        now
+    ));
+    assert!(forced_refresh_allowed(
+        Some(&failing(limited(), "2026-09-23T10:00:00Z")),
+        now
+    ));
+}

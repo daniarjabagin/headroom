@@ -88,6 +88,18 @@ pub fn soft_refresh_due(runtime: Option<&AccountRuntime>, now: Timestamp) -> boo
     !runtime.refreshing && !held && !recent
 }
 
+#[must_use]
+pub fn forced_refresh_allowed(runtime: Option<&AccountRuntime>, now: Timestamp) -> bool {
+    runtime.is_none_or(|runtime| {
+        let held = runtime.hold_until.is_some_and(|until| until > now);
+        let rate_limited = runtime
+            .failure
+            .as_ref()
+            .is_some_and(RefreshFailure::is_rate_limited);
+        !(held && rate_limited)
+    })
+}
+
 #[cfg(test)]
 #[path = "policy_tests.rs"]
 mod tests;

@@ -18,6 +18,7 @@ use headroom_core::units::{MicroUsd, Percent};
 use headroom_core::usage::PriceBook;
 use headroom_daemon::clock::SystemClock;
 use headroom_daemon::notify::text::Locale;
+use headroom_daemon::state::payload::AccountStatus;
 use headroom_daemon::{BusTarget, DaemonConfig, DaemonError, StatePayload};
 use jiff::{SignedDuration, Timestamp};
 use tokio::sync::oneshot;
@@ -55,6 +56,7 @@ impl Drop for PrivateBus {
 #[derive(Default)]
 struct StaticProvider {
     accounts: Mutex<Vec<AccountRef>>,
+    stall: Mutex<Duration>,
 }
 
 fn codex(name: &str) -> AccountRef {
@@ -78,6 +80,16 @@ impl StaticProvider {
             *current = accounts;
         }
     }
+
+    fn set_stall(&self, stall: Duration) {
+        if let Ok(mut current) = self.stall.lock() {
+            *current = stall;
+        }
+    }
+
+    fn stall(&self) -> Duration {
+        self.stall.lock().map(|stall| *stall).unwrap_or_default()
+    }
 }
 
 #[async_trait]
@@ -98,6 +110,7 @@ impl Provider for StaticProvider {
     }
 
     async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
+        tokio::time::sleep(self.stall()).await;
         let now = Timestamp::now();
         Ok(LimitsSnapshot {
             identity: AccountIdentity {
@@ -144,6 +157,7 @@ impl PriceBook for NoPrices {
 trait Daemon {
     fn get_state(&self) -> zbus::Result<String>;
     fn refresh(&self, account_id: &str) -> zbus::Result<()>;
+    fn refresh_now(&self) -> zbus::Result<()>;
     fn rescan(&self) -> zbus::Result<()>;
     fn get_settings(&self) -> zbus::Result<String>;
     fn set_settings(&self, json: &str) -> zbus::Result<()>;
@@ -253,6 +267,41 @@ async fn refresh_accepts_known_accounts(proxy: &DaemonProxy<'_>) -> Checked {
     Ok(unknown_rejected)
 }
 
+async fn refresh_now_is_signalled_as_refreshing(
+    proxy: &DaemonProxy<'_>,
+    provider: &StaticProvider,
+) -> Checked {
+    let before = state(proxy).await.ok_or("no state")?;
+    let mut changes = proxy.receive_state_changed().await?;
+    provider.set_stall(Duration::from_secs(1));
+    proxy.refresh_now().await?;
+    let immediate = state(proxy).await.ok_or("no state")?;
+    let mut signalled = false;
+    while let Some(signal) = next_signal(&mut changes).await {
+        let payload: StatePayload = serde_json::from_str(signal.args()?.state())?;
+        if payload.accounts[0].status == AccountStatus::Refreshing {
+            signalled = true;
+            break;
+        }
+    }
+    provider.set_stall(Duration::ZERO);
+    let refreshed = wait_for_refresh_after(proxy, before.accounts[0].updated_at).await;
+    Ok(immediate.accounts[0].status == AccountStatus::Refreshing && signalled && refreshed)
+}
+
+async fn wait_for_refresh_after(proxy: &DaemonProxy<'_>, previous: Option<Timestamp>) -> bool {
+    for _ in 0..100 {
+        if let Some(state) = state(proxy).await
+            && state.accounts[0].status == AccountStatus::Fresh
+            && state.accounts[0].updated_at > previous
+        {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    false
+}
+
 async fn label_change_is_signalled(proxy: &DaemonProxy<'_>) -> Checked {
     let mut changes = proxy.receive_state_changed().await?;
     proxy.set_account_label("codex:work", "Work").await?;
@@ -319,6 +368,11 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
     assert!(settings_are_validated(&proxy).await.unwrap());
     assert!(settings_are_patched(&proxy).await.unwrap());
     assert!(refresh_accepts_known_accounts(&proxy).await.unwrap());
+    assert!(
+        refresh_now_is_signalled_as_refreshing(&proxy, &provider)
+            .await
+            .unwrap()
+    );
     assert!(
         rescan_picks_up_added_and_removed_accounts(&proxy, &provider)
             .await

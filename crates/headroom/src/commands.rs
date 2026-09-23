@@ -2,7 +2,7 @@ use std::io::{self, IsTerminal, Write};
 
 use anyhow::Result;
 
-use crate::cli::StatusArgs;
+use crate::cli::{RefreshArgs, StatusArgs};
 use crate::client::{self, call_error};
 use crate::paths::Globals;
 use crate::render::accounts::render_accounts;
@@ -28,13 +28,19 @@ pub async fn status(globals: &Globals, args: &StatusArgs) -> Result<()> {
     Ok(())
 }
 
-pub async fn refresh(globals: &Globals, account_id: Option<&str>) -> Result<()> {
+pub async fn refresh(globals: &Globals, args: &RefreshArgs) -> Result<()> {
     let proxy = client::require_daemon(&globals.bus).await?;
-    proxy
-        .refresh(account_id.unwrap_or(""))
-        .await
-        .map_err(call_error)?;
-    let target = account_id.unwrap_or("all due accounts");
+    let account_id = args.account_id.as_deref();
+    let target = if args.now {
+        proxy.refresh_now().await.map_err(call_error)?;
+        "every account now"
+    } else {
+        proxy
+            .refresh(account_id.unwrap_or(""))
+            .await
+            .map_err(call_error)?;
+        account_id.unwrap_or("all due accounts")
+    };
     writeln!(io::stdout(), "Refresh requested for {target}")?;
     Ok(())
 }
