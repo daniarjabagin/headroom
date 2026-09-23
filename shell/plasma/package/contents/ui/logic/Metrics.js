@@ -84,6 +84,14 @@ function donutSize(units) {
     return Math.round(units.gridUnit * 5.75);
 }
 
+function compactControl(units) {
+    return units.smallSpacing * 6;
+}
+
+function compactIcon(units) {
+    return Math.round(units.iconSizes.small * 0.875);
+}
+
 function controlHeight(units) {
     return units.smallSpacing * 7;
 }

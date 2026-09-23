@@ -5,7 +5,8 @@ const SPREAD = 0.45;
 const OPEN_FACTOR = 3;
 const PULSE_FACTOR = 6;
 const SHIMMER_FACTOR = 7;
-const SPIN_FACTOR = 4.5;
+const SPIN_FACTOR = 7;
+const TURN = 360;
 
 function enabled(units, reduced) {
     return units.longDuration > 0 && reduced !== true;
@@ -41,4 +42,20 @@ function shimmerDuration(units) {
 
 function spinDuration(units) {
     return units.longDuration * SPIN_FACTOR;
+}
+
+function spinRampAngle() {
+    return TURN / 2;
+}
+
+function turnAngle() {
+    return TURN;
+}
+
+function nextTurn(angle) {
+    return Math.ceil(angle / TURN) * TURN;
+}
+
+function settleDuration(remaining, turnMs) {
+    return Math.round(2 * Math.max(0, remaining) * turnMs / TURN);
 }

@@ -9,6 +9,7 @@ QtObject {
     property string metadataPath: Qt.resolvedUrl("../../../../../package/metadata.json")
     property var displayPatch: ({})
     property var appliedSettings: null
+    property var failingMembers: []
     property bool wallpaper: false
     readonly property int dialogPadding: 8
     readonly property int dialogRadius: 8
