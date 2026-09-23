@@ -7,6 +7,7 @@ import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
 import { testProgressProcess } from './processTests.js';
 import { testSerialQueue } from './queueTests.js';
+import { testRefresh } from './refreshTests.js';
 import { testSettings, testSettingsUpdates } from './settingsTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testStatus } from './statusTests.js';
@@ -179,6 +180,7 @@ testDaemonSnapshot();
 testEdgeStates();
 testStatus();
 testDonut();
+testRefresh();
 await testSerialQueue();
 await testProgressProcess();
 if (failures.length > 0) {

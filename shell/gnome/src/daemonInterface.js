@@ -12,6 +12,7 @@ const INTERFACE_XML = `
     <method name="Refresh">
       <arg type="s" name="account_id" direction="in"/>
     </method>
+    <method name="RefreshNow"/>
     <method name="Rescan"/>
     <method name="GetSettings">
       <arg type="s" name="settings" direction="out"/>

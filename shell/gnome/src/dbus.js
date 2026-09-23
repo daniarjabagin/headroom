@@ -25,6 +25,10 @@ export class DaemonClient {
         this._connection.enqueue(proxy => proxy.RefreshAsync(accountId));
     }
 
+    refreshNow() {
+        return this._connection.enqueue(proxy => proxy.RefreshNowAsync());
+    }
+
     setAccountOrder(ids) {
         this._connection.enqueue(proxy => proxy.SetAccountOrderAsync(ids));
     }
