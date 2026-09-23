@@ -243,25 +243,63 @@ TestCase {
         compare(Quota.forecast("en", window({}), now, display), null);
     }
 
+    function spendOf(costs) {
+        return costs.map((costMicros, index) => ({
+                    provider: ["codex", "claude", "cursor", "grok"][index],
+                    costMicros
+                }));
+    }
+
+    function assertSeparated(slices, gap, cap) {
+        const edges = slices.map(slice => [slice.start - cap, slice.start + slice.sweep + cap]);
+        for (let index = 0; index < edges.length; index++) {
+            const next = index + 1 < edges.length ? edges[index + 1][0] : edges[0][0] + 360;
+            verify(next - edges[index][1] >= gap - 1e-9, `gap after slice ${index}`);
+        }
+    }
+
     function test_spend_slices() {
-        const slices = Spend.slices([
-            {
-                provider: "codex",
-                costMicros: 900
-            },
-            {
-                provider: "claude",
-                costMicros: 100
-            }
-        ], 2);
-        compare(slices[0].start, -89);
-        compare(slices[0].sweep, 322);
+        const slices = Spend.slices(spendOf([900, 100]), 2, 10);
+        compare(slices[0].start, -79);
+        compare(slices[0].sweep, 302);
+        compare(slices[1].start, 245);
+        fuzzyCompare(slices[1].sweep, 14, 1e-9);
         compare(slices[1].color, "#DE7356");
+        assertSeparated(slices, 2, 10);
         compare(Spend.revealed(slices[0], 0), 0);
-        compare(Spend.revealed(slices[0], 1), 322);
+        compare(Spend.revealed(slices[0], 1), 302);
         compare(Spend.revealed(slices[1], 0.5), 0);
+    }
+
+    function test_spend_slices_keep_tiny_segments_as_dots() {
+        const slices = Spend.slices(spendOf([1000000, 1, 0]), 3, 12);
+        fuzzyCompare(slices[1].sweep, Spend.DOT_SWEEP, 1e-9);
+        fuzzyCompare(slices[2].sweep, Spend.DOT_SWEEP, 1e-9);
+        assertSeparated(slices, 3, 12);
+        verify(Spend.revealed(slices[2], 1) > 0);
+        const fractions = Spend.visibleFractions([1000000, 1, 0], 0.1);
+        fuzzyCompare(fractions.reduce((sum, value) => sum + value, 0), 1, 1e-9);
+        compare(fractions.slice(1).map(value => Math.round(value * 1000)), [100, 100]);
+    }
+
+    function test_spend_slices_single_provider_is_full_ring() {
+        compare(Spend.slices(spendOf([5]), 3, 12), [
+            {
+                start: -90,
+                sweep: 360,
+                color: "#10A37F"
+            }
+        ]);
+        compare(Spend.visibleFractions([0, 0], 0.1), [0.5, 0.5]);
+    }
+
+    function test_spend_slices_many_providers_stay_separated() {
+        assertSeparated(Spend.slices(spendOf([50, 30, 2, 18]), 3, 12), 3, 12);
+    }
+
+    function test_spend_titles() {
         compare(Spend.periodTitle("ru", "last30Days"), "30 дней");
-        compare(Spend.breakdownTitle("en", "today", "claude"), "Today · Claude Code");
+        compare(Spend.breakdownTitle("en", "today", "claude"), "Today · Claude");
         compare(Spend.bodyKind({
             providers: []
         }), "empty");

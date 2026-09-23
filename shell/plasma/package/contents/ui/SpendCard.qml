@@ -71,7 +71,6 @@ ColumnLayout {
 
             Donut {
                 period: spendCard.current
-                lang: spendCard.lang
                 progress: spendCard.appear
             }
 

@@ -17,7 +17,6 @@ PlasmaExtras.PlasmoidHeading {
     readonly property var status: Summary.footerLine(lang, view, now)
 
     signal refreshRequested
-    signal hiddenRequested(string accountId, bool hidden)
     signal settingsRequested
 
     position: PlasmaExtras.PlasmoidHeading.Footer
@@ -44,6 +43,9 @@ PlasmaExtras.PlasmoidHeading {
                 enabled: footer.view.kind === "ready"
                 implicitWidth: statusRow.implicitWidth
                 implicitHeight: statusRow.implicitHeight
+                Accessible.role: Accessible.Button
+                Accessible.name: footer.status.text
+                Accessible.description: I18n.tr(footer.lang, "Refresh")
                 onClicked: footer.refreshRequested()
 
                 contentItem: RowLayout {
@@ -70,24 +72,12 @@ PlasmaExtras.PlasmoidHeading {
             }
         }
 
-        OptionsButton {
-            id: optionsButton
-
+        IconButton {
+            objectName: "settingsButton"
             Layout.alignment: Qt.AlignVCenter
-            text: I18n.tr(footer.lang, "Options")
-            onClicked: optionsMenu.open()
-
-            OptionsMenu {
-                id: optionsMenu
-
-                x: optionsButton.width - width
-                y: -height - Kirigami.Units.smallSpacing
-                accounts: footer.view.kind === "ready" ? footer.view.state.accounts : []
-                lang: footer.lang
-                onRefreshRequested: footer.refreshRequested()
-                onHiddenRequested: (accountId, hidden) => footer.hiddenRequested(accountId, hidden)
-                onSettingsRequested: footer.settingsRequested()
-            }
+            iconName: "configure"
+            text: I18n.tr(footer.lang, "Settings")
+            onClicked: footer.settingsRequested()
         }
     }
 }

@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Motion.js" as Motion
 import "logic/State.js" as State
@@ -25,12 +26,11 @@ Item {
     readonly property bool ready: view.kind === "ready"
     readonly property bool empty: ready && State.visibleAccounts(view.state).length === 0 && !(display.showSpend && view.state.spend !== null)
     readonly property var popupColors: Tokens.popupPalette(systemTheme, display.theme, display.translucent)
-    readonly property real contentHeight: content.implicitHeight + footer.implicitHeight
+    readonly property real contentHeight: refreshButton.implicitHeight + refreshButton.Layout.bottomMargin + content.implicitHeight + footer.implicitHeight
     property bool themed: false
     property real reveal: 1
 
     signal refreshRequested(string accountId)
-    signal hiddenRequested(string accountId, bool hidden)
     signal orderRequested(var ids)
     signal displayPatched(var patch)
     signal startServiceRequested
@@ -87,6 +87,20 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+
+        IconButton {
+            id: refreshButton
+
+            objectName: "refreshButton"
+            Layout.alignment: Qt.AlignRight
+            Layout.bottomMargin: Kirigami.Units.smallSpacing
+            iconName: "view-refresh"
+            text: I18n.tr(full.lang, "Refresh")
+            enabled: full.view.kind !== "unavailable"
+            spinning: full.ready && State.isRefreshing(full.view.state)
+            animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
+            onClicked: full.refreshRequested("")
+        }
 
         PlasmaComponents3.ScrollView {
             id: scroll
@@ -153,7 +167,6 @@ Item {
             lang: full.lang
             versionText: full.versionText
             onRefreshRequested: full.refreshRequested("")
-            onHiddenRequested: (accountId, hidden) => full.hiddenRequested(accountId, hidden)
             onSettingsRequested: full.settingsRequested()
         }
     }

@@ -37,7 +37,7 @@ TestCase {
 
     function test_sample_accounts() {
         const state = sample();
-        compare(state.accounts.length, 4);
+        compare(state.accounts.length, 5);
         compare(state.headline, {
             accountId: "codex:1a2b3c4d5e6f",
             windowId: "session",
@@ -64,6 +64,11 @@ TestCase {
         compare(state.accounts[0].balances[0].usdMicros, 12500000);
         compare(state.accounts[2].balances[0].unit, "requests");
         compare(state.accounts[3].status, "signed_out");
+        compare(state.accounts[4].status, "no_subscription");
+        compare(state.accounts[4].error, {
+            kind: "no_subscription",
+            message: "the account has no active Codex plan"
+        });
     }
 
     function test_sample_display() {
@@ -137,7 +142,7 @@ TestCase {
         const state = sample();
         const ids = state.accounts.map(account => account.id);
         const reordered = State.withOrder(state, [ids[2], ids[0]]);
-        compare(reordered.accounts.map(account => account.id), [ids[2], ids[0], ids[1], ids[3]]);
+        compare(reordered.accounts.map(account => account.id), [ids[2], ids[0], ids[1], ids[3], ids[4]]);
         compare(State.withDisplay(state, {
             valueMode: "used"
         }).display.valueMode, "used");
@@ -204,8 +209,8 @@ TestCase {
         const state = sample();
         compare(Account.statusSlot(state.accounts[1], false), "outdated");
         compare(Account.statusSlot(state.accounts[2], false), "warning");
-        compare(Account.notices("en", state.accounts[2], false)[0].title, "Couldn't refresh Claude Code");
-        compare(Account.notices("ru", state.accounts[2], false)[0].title, "Не удалось обновить Claude Code");
+        compare(Account.notices("en", state.accounts[2], false)[0].title, "Couldn't refresh Claude");
+        compare(Account.notices("ru", state.accounts[2], false)[0].title, "Не удалось обновить Claude");
         compare(Account.notices("en", state.accounts[1], false)[0].kind, "warning");
         const signedOut = Account.notices("en", state.accounts[3], false);
         compare(signedOut.length, 1);
@@ -219,6 +224,52 @@ TestCase {
         });
         compare(Account.statusSlot(offline, true), "outdated");
         compare(Account.notices("en", offline, true), []);
+    }
+
+    function test_no_subscription_notice() {
+        const account = sample().accounts[4];
+        compare(Account.statusSlot(account, false), "");
+        verify(!Account.showsQuotas(account));
+        verify(!Account.hasExtras(account, sample().display));
+        compare(Account.notices("en", account, false), [
+            {
+                kind: "warning",
+                title: "No active subscription",
+                detail: "Limits aren't available for this account. Renew the plan or sign in with another account.",
+                note: "the account has no active Codex plan",
+                actions: [
+                    {
+                        kind: "retry",
+                        label: "Retry",
+                        value: "codex:3c4d5e6f7a8b"
+                    }
+                ]
+            }
+        ]);
+        const russian = Account.notices("ru", account, false)[0];
+        compare(russian.title, "Подписка неактивна");
+        compare(russian.detail, "Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт.");
+        const bare = Object.assign({}, account, {
+            error: {
+                kind: "no_subscription",
+                message: "no_subscription"
+            }
+        });
+        compare(Account.notices("en", bare, false)[0].note, "");
+    }
+
+    function test_no_subscription_needs_no_live_clock() {
+        const state = sample();
+        const account = Object.assign({}, state.accounts[0], {
+            status: "no_subscription"
+        });
+        const only = Object.assign({}, state, {
+            accounts: [account]
+        });
+        verify(!State.needsLiveClock(only, new Date(account.windows[0].resetsAt.getTime() - 60000)));
+        verify(State.needsLiveClock(Object.assign({}, only, {
+            accounts: [state.accounts[0]]
+        }), new Date(account.windows[0].resetsAt.getTime() - 60000)));
     }
 
     function test_account_sections() {

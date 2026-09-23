@@ -6,7 +6,7 @@
 The logos are trademarks of OpenAI and Anthropic. Headroom uses them only to identify the service
 whose usage is shown, and is not affiliated with or endorsed by either company.
 
-Usage in Headroom: Codex → `openai.svg` (monochrome, follows the text color), Claude Code →
+Usage in Headroom: Codex → `openai.svg` (monochrome, follows the text color), Claude →
 `claude.svg` (brand color `#D97757`).
 
 `headroom-symbolic.svg` and `flame-symbolic.svg` are Headroom's own glyphs, shared with the GNOME

@@ -2,6 +2,7 @@
 
 .import "I18n.js" as I18n
 .import "Providers.js" as Providers
+.import "State.js" as State
 
 const SPEND_PERIODS = [[I18n.N("Today"), "today"], [I18n.N("Yesterday"), "yesterday"], [I18n.N("Last 30 Days"), "last30Days"]];
 
@@ -44,7 +45,23 @@ function signedOutNotice(lang, account) {
         detail: info.signInCommand ? I18n.tr(lang, "Run \"{command}\" and sign in, then Retry", {
             command: info.signInCommand
         }) : I18n.tr(lang, "Sign in again, then Retry"),
+        note: "",
         actions
+    };
+}
+
+function daemonNote(account) {
+    const error = account.error;
+    return error === null || error.message === error.kind ? "" : error.message;
+}
+
+function noSubscriptionNotice(lang, account) {
+    return {
+        kind: "warning",
+        title: I18n.tr(lang, "No active subscription"),
+        detail: I18n.tr(lang, "Limits aren't available for this account. Renew the plan or sign in with another account."),
+        note: daemonNote(account),
+        actions: [retryAction(lang, account)]
     };
 }
 
@@ -55,6 +72,7 @@ function errorNotice(lang, account) {
             provider: Providers.providerInfo(account.provider).name
         }),
         detail: account.error?.message ?? "",
+        note: "",
         actions: [retryAction(lang, account)]
     };
 }
@@ -64,6 +82,7 @@ function providerNotice(notice) {
         kind: notice.tone === "critical" ? "error" : "warning",
         title: notice.text,
         detail: "",
+        note: "",
         actions: []
     };
 }
@@ -71,6 +90,8 @@ function providerNotice(notice) {
 function notices(lang, account, offline) {
     if (account.status === "signed_out")
         return [signedOutNotice(lang, account)];
+    if (account.status === "no_subscription")
+        return [noSubscriptionNotice(lang, account)];
     const rows = account.notices.map(providerNotice);
     if (account.status === "error" && !failedOffline(account, offline))
         rows.unshift(errorNotice(lang, account));
@@ -78,7 +99,7 @@ function notices(lang, account, offline) {
 }
 
 function showsQuotas(account) {
-    return account.status !== "signed_out";
+    return State.hasQuotas(account);
 }
 
 function showsSpend(account, display) {

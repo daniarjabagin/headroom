@@ -3,6 +3,7 @@
 const CARD = 0.03;
 const CARD_HOVER = 0.06;
 const CHIP = 0.08;
+const PRESSED = 0.14;
 const CONTROL = 0.07;
 const TRACK = 0.13;
 const SEPARATOR = 0.1;
@@ -54,6 +55,10 @@ function cardHover(theme) {
 
 function chip(theme) {
     return surface(theme, CHIP);
+}
+
+function pressed(theme) {
+    return surface(theme, PRESSED);
 }
 
 function control(theme) {

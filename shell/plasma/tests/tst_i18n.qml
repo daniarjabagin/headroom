@@ -19,7 +19,8 @@ TestCase {
         compare(I18n.tr("ru", "{percent}% left", {
             percent: 62
         }), "Осталось 62%");
-        compare(I18n.tr("ru", "Settings…"), "Настройки…");
+        compare(I18n.tr("ru", "Settings"), "Настройки");
+        compare(I18n.tr("ru", "Refresh"), "Обновить");
         compare(I18n.tr("ru", "Accounts"), "Аккаунты");
         compare(I18n.tr("ru", "Notifications"), "Уведомления");
         compare(I18n.tr("ru", "not in the catalog {x}", {
