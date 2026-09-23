@@ -1,0 +1,8 @@
+{
+  "userStatus": {
+    "name": "Someone",
+    "userTier": { "id": "g1-pro-tier", "name": "Google AI Pro" },
+    "planStatus": { "planInfo": { "planName": "Pro", "teamsTier": "TEAMS_TIER_PRO" } },
+    "cascadeModelConfigData": { "clientModelConfigs": [] }
+  }
+}

@@ -30,6 +30,7 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
     assert_eq!(
         seen.into_iter().collect::<Vec<_>>(),
         [
+            "antigravity",
             "claude",
             "cline",
             "codex",
@@ -39,6 +40,7 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
             "grok",
             "kimi",
             "minimax",
+            "ollama",
             "opencode",
             "openrouter",
             "zai"
@@ -77,7 +79,9 @@ fn built_providers_follow_the_registry_order() {
             "cline",
             "devin",
             "copilot",
-            "cursor"
+            "cursor",
+            "antigravity",
+            "ollama"
         ]
     );
     for provider in &providers {

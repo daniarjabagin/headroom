@@ -1,0 +1,21 @@
+{
+  "response": {
+    "groups": [
+      {
+        "displayName": "Claude and other models",
+        "buckets": [
+          { "bucketId": "3p-weekly", "displayName": "Weekly", "window": "weekly", "remainingFraction": 1, "resetTime": "2026-09-28T07:00:00Z" },
+          { "bucketId": "3p-5h", "displayName": "5-hour", "window": "5h", "remainingFraction": 0.4, "resetTime": "2026-09-23T12:30:00Z" }
+        ]
+      },
+      {
+        "displayName": "Gemini models",
+        "buckets": [
+          { "bucketId": "gemini-5h", "displayName": "5-hour", "window": "5h", "remainingFraction": 0.75, "resetTime": "2026-09-23T13:00:00Z" },
+          { "bucketId": "gemini-weekly", "displayName": "Weekly", "window": "weekly", "remainingFraction": 0.9, "resetTime": "2026-09-28T07:00:00Z" },
+          { "bucketId": "gemini-image-5h", "displayName": "Images", "window": "5h", "remainingFraction": 0.1 }
+        ]
+      }
+    ]
+  }
+}

@@ -44,6 +44,7 @@ headroom-daemon = { path = "crates/headroom-daemon" }
 
 anyhow = "1.0.104"
 async-trait = "0.1.92"
+aws-lc-rs = { version = "1.18.1", default-features = false, features = ["aws-lc-sys"] }
 base64 = "0.23.1"
 clap = { version = "4.6.7", features = ["derive"] }
 dirs = "7.0.0"

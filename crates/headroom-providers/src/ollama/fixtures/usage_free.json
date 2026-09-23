@@ -1,0 +1,10 @@
+{
+  "activity": {
+    "cost": "0.00000",
+    "period": { "type": "last_4_weeks" },
+    "models": []
+  },
+  "limits": {
+    "monthly": { "usage": 0.5, "models": [] }
+  }
+}

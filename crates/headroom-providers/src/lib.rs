@@ -1,3 +1,4 @@
+pub mod antigravity;
 pub mod claude;
 pub mod cline;
 pub mod codex;
@@ -12,6 +13,7 @@ pub mod jsonl;
 pub mod key_accounts;
 pub mod kimi;
 pub mod minimax;
+pub mod ollama;
 pub mod opencode;
 pub mod openrouter;
 mod plan_error;

@@ -4,6 +4,7 @@ use headroom_core::descriptor::ProviderDescriptor;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::secret::SecretReader;
 
+use crate::antigravity::{self, AntigravityConfig, AntigravityProvider};
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::cline::{self, ClineConfig, ClineProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
@@ -13,6 +14,7 @@ use crate::devin::{self, DevinConfig, DevinProvider};
 use crate::grok::{self, GrokConfig, GrokProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
 use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
+use crate::ollama::{self, OllamaConfig, OllamaProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
 use crate::openrouter::{self, OpenRouterConfig, OpenRouterProvider};
 use crate::zai::{self, ZaiConfig, ZaiProvider};
@@ -30,7 +32,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 12] = [
+static ENTRIES: [Entry; 14] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -78,6 +80,14 @@ static ENTRIES: [Entry; 12] = [
     Entry {
         descriptor: &cursor::DESCRIPTOR,
         build: build_cursor,
+    },
+    Entry {
+        descriptor: &antigravity::DESCRIPTOR,
+        build: build_antigravity,
+    },
+    Entry {
+        descriptor: &ollama::DESCRIPTOR,
+        build: build_ollama,
     },
 ];
 
@@ -221,6 +231,22 @@ fn build_copilot(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provide
 fn build_cursor(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = CursorConfig::from_env()?;
     Ok(Arc::new(CursorProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_antigravity(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = AntigravityConfig::from_env()?;
+    Ok(Arc::new(AntigravityProvider::with_http(
+        config,
+        context.http.clone(),
+    )?))
+}
+
+fn build_ollama(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = OllamaConfig::from_env()?;
+    Ok(Arc::new(OllamaProvider::with_http(
         config,
         context.http.clone(),
     )))
