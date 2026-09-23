@@ -11,8 +11,8 @@ use crate::error::{DaemonError, StorageError};
 use crate::home::HomeDisplay;
 use crate::notify::desktop::DesktopNotifier;
 use crate::random::ThreadRandom;
-use crate::registry;
 use crate::storage::Storage;
+use crate::{registry, rescan};
 
 pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let storage = open_storage(config.db_path).await?;
@@ -29,10 +29,11 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
         notifier: notifier.clone(),
     };
     let core = Arc::new(Core::load(parts).await?);
-    dbus::serve(&conn, core.clone()).await?;
+    let (rescans, rescan_requests) = rescan::channel();
+    dbus::serve(&conn, core.clone(), rescans).await?;
     let sink: Arc<dyn SignalSink> = Arc::new(BusSignals::new(conn.clone()));
     let mut tasks = JoinSet::new();
-    tasks.spawn(registry::supervise(core.clone()));
+    tasks.spawn(registry::supervise(core.clone(), rescan_requests));
     tasks.spawn(publisher::publish_changes(core.clone(), sink.clone()));
     tasks.spawn(forward_actions(notifier, sink));
     tracing::info!(name = dbus::BUS_NAME, "headroom daemon running");

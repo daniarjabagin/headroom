@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -108,6 +108,7 @@ pub struct FakeProvider {
     pub accounts: Mutex<Vec<AccountRef>>,
     pub limits: Mutex<Result<LimitsSnapshot, ProviderError>>,
     pub usage: Mutex<Vec<UsageEvent>>,
+    pub discoveries: AtomicUsize,
 }
 
 impl FakeProvider {
@@ -117,6 +118,7 @@ impl FakeProvider {
             accounts: Mutex::new(accounts),
             limits: Mutex::new(Ok(limits)),
             usage: Mutex::new(Vec::new()),
+            discoveries: AtomicUsize::new(0),
         }
     }
 }
@@ -128,6 +130,7 @@ impl Provider for FakeProvider {
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+        self.discoveries.fetch_add(1, Ordering::SeqCst);
         Ok(self.accounts.lock().unwrap().clone())
     }
 

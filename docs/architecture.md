@@ -249,6 +249,9 @@ pub enum ProviderError {
   `Refresh`) refresh accounts older than 60 s. Single-flight per account; a forced request during a
   refresh queues one follow-up. Failures back off exponentially 60 s → 30 min with jitter; 429 honours
   `retry_after` (default 5 min). Per-call timeout 30 s.
+- **Discovery**: every 10 min and on D-Bus `Rescan` (coalesced; a request during a running discovery
+  waits for one follow-up). Accounts found by a rescan refresh at once; `headroom accounts add|remove`
+  call it.
 - **Usage**: inotify on each usage home's log directories, debounced 2 s, plus a 60 s poll fallback.
 - **Storage** (`$XDG_STATE_HOME/headroom/headroom.db`, WAL): `accounts`, `limits_snapshots` (last good per
   account), `usage_events`, `log_cursors`, `notification_state`, `settings`. Migrations are numbered
@@ -265,7 +268,8 @@ pub enum ProviderError {
 
 - Bus name `io.github.headroom.Daemon`, object `/io/github/headroom/Daemon`, interface
   `io.github.headroom.Daemon1`.
-- Methods: `GetState() -> s`, `Refresh(account_id: s)` (`""` = all), `GetSettings() -> s`,
+- Methods: `GetState() -> s`, `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts
+  now), `GetSettings() -> s`,
   `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
   `SetAccountHidden(account_id: s, hidden: b)`.
 - Signal: `StateChanged(state: s)`.

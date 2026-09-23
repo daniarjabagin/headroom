@@ -11,6 +11,7 @@ pub mod notify;
 mod once;
 pub mod random;
 pub mod registry;
+pub mod rescan;
 pub mod scheduler;
 pub mod settings;
 pub mod state;

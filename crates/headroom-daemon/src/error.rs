@@ -51,6 +51,8 @@ pub enum CommandError {
     Storage(#[from] StorageError),
     #[error("could not encode JSON: {0}")]
     Encode(#[from] serde_json::Error),
+    #[error("the daemon is shutting down")]
+    Stopping,
 }
 
 #[derive(Debug, thiserror::Error)]

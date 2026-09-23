@@ -8,7 +8,7 @@ use headroom_core::provider::Provider;
 use super::*;
 use crate::dbus::publisher::publish_changes;
 use crate::dbus::signals::SignalSink;
-use crate::scheduler::Scheduler;
+use crate::scheduler::{FirstRefresh, Scheduler};
 use crate::testing::{FakeProvider, Harness, account, eventually, harness, session, snapshot};
 
 async fn two_accounts() -> (Harness, Arc<FakeProvider>) {
@@ -98,7 +98,7 @@ async fn refresh_results_drive_notifications() {
         .await
         .unwrap();
     let mut scheduler = Scheduler::new(harness.core.clone());
-    scheduler.sync(&harness.core.active_accounts());
+    scheduler.sync(&harness.core.active_accounts(), FirstRefresh::Scheduled);
     eventually(|| settled(&harness, 2)).await;
     *provider.limits.lock().unwrap() = Ok(snapshot(
         vec![session(58.0, "2026-09-23T12:00:00Z")],

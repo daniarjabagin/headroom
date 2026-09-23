@@ -15,8 +15,7 @@ use discovery::{account_at, discover_local};
 use home::headroom_home;
 use login::{Launcher, login_spec, sign_in};
 
-const DISCOVERY_HINT: &str = "The daemon picks up new accounts within 10 minutes, or right away \
-     after `systemctl --user restart headroom`.";
+const NOT_DISCOVERED: &str = "The daemon did not find this account; check `headroom accounts`.";
 
 pub async fn add(globals: &Globals, provider: ProviderKind, label: Option<&str>) -> Result<()> {
     let root = accounts_root()?;
@@ -70,13 +69,13 @@ async fn announce(globals: &Globals, account: &AccountRef, label: Option<&str>) 
         }
         return Ok(());
     };
-    proxy.refresh("").await.map_err(call_error)?;
+    proxy.rescan().await.map_err(call_error)?;
     if !daemon_knows(&proxy, id).await? {
-        writeln!(io::stderr(), "{DISCOVERY_HINT}")?;
+        writeln!(io::stderr(), "{NOT_DISCOVERED}")?;
         if let Some(label) = label {
             writeln!(
                 io::stderr(),
-                "Then run: headroom accounts label {id} {label:?}"
+                "Once it is listed, run: headroom accounts label {id} {label:?}"
             )?;
         }
         return Ok(());
@@ -96,7 +95,7 @@ async fn daemon_knows(proxy: &DaemonProxy<'_>, id: &str) -> Result<bool> {
     Ok(state.accounts.iter().any(|account| account.id == id))
 }
 
-pub async fn remove(id: &str, assume_yes: bool) -> Result<()> {
+pub async fn remove(globals: &Globals, id: &str, assume_yes: bool) -> Result<()> {
     let accounts = discover_local().await;
     let Some(account) = accounts.iter().find(|account| account.id.0 == id) else {
         bail!("no signed-in account {id} found");
@@ -115,6 +114,9 @@ pub async fn remove(id: &str, assume_yes: bool) -> Result<()> {
     std::fs::remove_dir_all(&home)
         .with_context(|| format!("could not delete {}", home.display()))?;
     writeln!(io::stdout(), "Removed {id} and deleted {}", home.display())?;
+    if let Ok(proxy) = client::require_daemon(&globals.bus).await {
+        proxy.rescan().await.map_err(call_error)?;
+    }
     Ok(())
 }
 

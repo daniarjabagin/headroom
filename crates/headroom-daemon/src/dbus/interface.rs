@@ -5,15 +5,17 @@ use zbus::object_server::SignalEmitter;
 
 use crate::core::Core;
 use crate::error::CommandError;
+use crate::rescan::Rescans;
 
 pub struct DaemonInterface {
     core: Arc<Core>,
+    rescans: Rescans,
 }
 
 impl DaemonInterface {
     #[must_use]
-    pub fn new(core: Arc<Core>) -> DaemonInterface {
-        DaemonInterface { core }
+    pub fn new(core: Arc<Core>, rescans: Rescans) -> DaemonInterface {
+        DaemonInterface { core, rescans }
     }
 }
 
@@ -29,6 +31,10 @@ impl DaemonInterface {
         self.core
             .refresh(account_id)
             .map_err(|error| to_fdo(&error))
+    }
+
+    async fn rescan(&self) -> fdo::Result<()> {
+        self.rescans.rescan().await.map_err(|error| to_fdo(&error))
     }
 
     fn get_settings(&self) -> fdo::Result<String> {
@@ -76,6 +82,8 @@ fn to_fdo(error: &CommandError) -> fdo::Error {
         | CommandError::DuplicateAccount(_)
         | CommandError::LabelTooLong(_)
         | CommandError::Settings(_) => fdo::Error::InvalidArgs(error.to_string()),
-        CommandError::Storage(_) | CommandError::Encode(_) => fdo::Error::Failed(error.to_string()),
+        CommandError::Storage(_) | CommandError::Encode(_) | CommandError::Stopping => {
+            fdo::Error::Failed(error.to_string())
+        }
     }
 }

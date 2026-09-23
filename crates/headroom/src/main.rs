@@ -60,7 +60,7 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
         AccountsAction::Add { provider, label } => {
             accounts::add(globals, provider.kind(), label.as_deref()).await
         }
-        AccountsAction::Remove { id, yes } => accounts::remove(&id, yes).await,
+        AccountsAction::Remove { id, yes } => accounts::remove(globals, &id, yes).await,
     }
 }
 

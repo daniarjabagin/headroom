@@ -4,7 +4,8 @@ use std::time::Duration;
 use headroom_core::provider::Provider;
 
 use crate::core::Core;
-use crate::scheduler::Scheduler;
+use crate::rescan::{self, RescanRequests};
+use crate::scheduler::{FirstRefresh, Scheduler};
 use crate::storage::accounts;
 use crate::usage::UsageWatchers;
 use crate::usage::summary;
@@ -12,17 +13,39 @@ use crate::usage::summary;
 pub const DISCOVERY_EVERY: Duration = Duration::from_secs(600);
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(30);
 
-pub async fn supervise(core: Arc<Core>) {
-    let mut scheduler = Scheduler::new(core.clone());
-    let mut watchers = UsageWatchers::new(core.clone());
+struct Supervisor {
+    core: Arc<Core>,
+    scheduler: Scheduler,
+    watchers: UsageWatchers,
+}
+
+pub async fn supervise(core: Arc<Core>, mut requests: RescanRequests) {
+    let mut supervisor = Supervisor {
+        scheduler: Scheduler::new(core.clone()),
+        watchers: UsageWatchers::new(core.clone()),
+        core,
+    };
     let mut tick = tokio::time::interval(DISCOVERY_EVERY);
     loop {
-        tick.tick().await;
-        discover_all(&core).await;
-        prune_usage(&core).await;
-        scheduler.sync(&core.active_accounts());
-        let homes = core.model().usage_homes();
-        watchers.sync(&homes);
+        tokio::select! {
+            biased;
+            Some(waiters) = requests.next() => {
+                supervisor.pass(FirstRefresh::Now).await;
+                tick.reset();
+                rescan::release(waiters);
+            }
+            _ = tick.tick() => supervisor.pass(FirstRefresh::Scheduled).await,
+        }
+    }
+}
+
+impl Supervisor {
+    async fn pass(&mut self, first: FirstRefresh) {
+        discover_all(&self.core).await;
+        prune_usage(&self.core).await;
+        self.scheduler.sync(&self.core.active_accounts(), first);
+        let homes = self.core.model().usage_homes();
+        self.watchers.sync(&homes);
     }
 }
 
@@ -70,3 +93,7 @@ async fn prune_usage(core: &Core) {
         Err(error) => tracing::warn!(%error, "could not prune usage events"),
     }
 }
+
+#[cfg(test)]
+#[path = "registry_tests.rs"]
+mod tests;

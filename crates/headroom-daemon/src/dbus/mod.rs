@@ -11,6 +11,7 @@ use zbus::fdo::{RequestNameFlags, RequestNameReply};
 use crate::config::BusTarget;
 use crate::core::Core;
 use crate::error::DaemonError;
+use crate::rescan::Rescans;
 use interface::DaemonInterface;
 
 pub const BUS_NAME: &str = "io.github.headroom.Daemon";
@@ -24,9 +25,13 @@ pub async fn connect(target: &BusTarget) -> Result<Connection, DaemonError> {
     Ok(builder.build().await?)
 }
 
-pub async fn serve(conn: &Connection, core: Arc<Core>) -> Result<(), DaemonError> {
+pub async fn serve(
+    conn: &Connection,
+    core: Arc<Core>,
+    rescans: Rescans,
+) -> Result<(), DaemonError> {
     conn.object_server()
-        .at(OBJECT_PATH, DaemonInterface::new(core))
+        .at(OBJECT_PATH, DaemonInterface::new(core, rescans))
         .await?;
     let reply = conn
         .request_name_with_flags(BUS_NAME, RequestNameFlags::DoNotQueue.into())

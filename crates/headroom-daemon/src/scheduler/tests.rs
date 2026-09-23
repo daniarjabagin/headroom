@@ -104,7 +104,7 @@ async fn start(provider: &Arc<ScriptedProvider>) -> (Harness, Scheduler) {
     let dynamic: Arc<dyn Provider> = provider.clone();
     let harness = harness(vec![dynamic]).await;
     let mut scheduler = Scheduler::new(harness.core.clone());
-    scheduler.sync(&harness.core.active_accounts());
+    scheduler.sync(&harness.core.active_accounts(), FirstRefresh::Scheduled);
     (harness, scheduler)
 }
 
@@ -257,7 +257,7 @@ async fn vanished_accounts_lose_their_worker() {
     let provider = Arc::new(ScriptedProvider::new(Vec::new()));
     let (harness, mut scheduler) = start(&provider).await;
     eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Fresh).await;
-    scheduler.sync(&[]);
+    scheduler.sync(&[], FirstRefresh::Scheduled);
     harness.core.trigger(&work_id());
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(provider.calls(), 1);

@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::{Child, Command, Stdio};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -52,14 +52,31 @@ impl Drop for PrivateBus {
     }
 }
 
-struct StaticProvider;
+#[derive(Default)]
+struct StaticProvider {
+    accounts: Mutex<Vec<AccountRef>>,
+}
 
-fn work() -> AccountRef {
+fn codex(name: &str) -> AccountRef {
     AccountRef {
-        id: AccountId("codex:work".into()),
+        id: AccountId(format!("codex:{name}")),
         provider: ProviderKind::Codex,
-        home: PathBuf::from("/nonexistent/headroom-test/.codex"),
+        home: PathBuf::from(format!("/nonexistent/headroom-test/{name}")),
         owner: CredentialOwner::Cli,
+    }
+}
+
+impl StaticProvider {
+    fn with_work() -> Arc<StaticProvider> {
+        let provider = StaticProvider::default();
+        provider.set_accounts(vec![codex("work")]);
+        Arc::new(provider)
+    }
+
+    fn set_accounts(&self, accounts: Vec<AccountRef>) {
+        if let Ok(mut current) = self.accounts.lock() {
+            *current = accounts;
+        }
     }
 }
 
@@ -70,7 +87,10 @@ impl Provider for StaticProvider {
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
-        Ok(vec![work()])
+        self.accounts
+            .lock()
+            .map(|accounts| accounts.clone())
+            .map_err(|_| ProviderError::LocalData("poisoned".into()))
     }
 
     async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
@@ -120,6 +140,7 @@ impl PriceBook for NoPrices {
 trait Daemon {
     fn get_state(&self) -> zbus::Result<String>;
     fn refresh(&self, account_id: &str) -> zbus::Result<()>;
+    fn rescan(&self) -> zbus::Result<()>;
     fn get_settings(&self) -> zbus::Result<String>;
     fn set_settings(&self, json: &str) -> zbus::Result<()>;
     fn set_account_label(&self, account_id: &str, label: &str) -> zbus::Result<()>;
@@ -129,9 +150,14 @@ trait Daemon {
     fn state_changed(&self, state: String) -> zbus::Result<()>;
 }
 
-fn config(bus: &PrivateBus, db: &Path, shutdown: oneshot::Receiver<()>) -> DaemonConfig {
+fn config(
+    bus: &PrivateBus,
+    db: &Path,
+    provider: Arc<StaticProvider>,
+    shutdown: oneshot::Receiver<()>,
+) -> DaemonConfig {
     DaemonConfig {
-        providers: vec![Arc::new(StaticProvider)],
+        providers: vec![provider],
         price_book: Arc::new(NoPrices),
         db_path: db.to_path_buf(),
         clock: Arc::new(SystemClock),
@@ -212,6 +238,22 @@ async fn order_and_visibility_apply(proxy: &DaemonProxy<'_>) -> Checked {
     Ok(duplicate.is_err() && hidden.accounts[0].hidden && hidden.headline.is_none())
 }
 
+async fn rescan_picks_up_added_and_removed_accounts(
+    proxy: &DaemonProxy<'_>,
+    provider: &StaticProvider,
+) -> Checked {
+    provider.set_accounts(vec![codex("work"), codex("home")]);
+    proxy.rescan().await?;
+    let added = state(proxy).await.ok_or("no state")?;
+    provider.set_accounts(vec![codex("work")]);
+    proxy.rescan().await?;
+    let removed = state(proxy).await.ok_or("no state")?;
+    let ids = |state: &StatePayload| -> Vec<String> {
+        state.accounts.iter().map(|a| a.id.clone()).collect()
+    };
+    Ok(ids(&added) == ["codex:work", "codex:home"] && ids(&removed) == ["codex:work"])
+}
+
 #[tokio::test]
 async fn serves_state_settings_and_signals_on_a_private_bus() {
     let Some(bus) = PrivateBus::start() else {
@@ -220,9 +262,11 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
     };
     let dir = tempfile::tempdir().unwrap();
     let (stop, stopped) = oneshot::channel();
+    let provider = StaticProvider::with_work();
     let daemon = tokio::spawn(headroom_daemon::run(config(
         &bus,
         &dir.path().join("a.db"),
+        provider.clone(),
         stopped,
     )));
     let client = zbus::connection::Builder::address(bus.address.as_str())
@@ -239,10 +283,21 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
     );
     assert!(settings_are_validated(&proxy).await.unwrap());
     assert!(refresh_accepts_known_accounts(&proxy).await.unwrap());
+    assert!(
+        rescan_picks_up_added_and_removed_accounts(&proxy, &provider)
+            .await
+            .unwrap()
+    );
     assert!(label_change_is_signalled(&proxy).await.unwrap());
     assert!(order_and_visibility_apply(&proxy).await.unwrap());
     let (_keep, second_stopped) = oneshot::channel();
-    let second = headroom_daemon::run(config(&bus, &dir.path().join("b.db"), second_stopped)).await;
+    let second = headroom_daemon::run(config(
+        &bus,
+        &dir.path().join("b.db"),
+        StaticProvider::with_work(),
+        second_stopped,
+    ))
+    .await;
     assert!(matches!(second, Err(DaemonError::AlreadyRunning)));
     stop.send(()).unwrap();
     daemon.await.unwrap().unwrap();

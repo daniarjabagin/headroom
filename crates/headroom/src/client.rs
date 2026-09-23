@@ -20,6 +20,8 @@ pub trait Daemon {
 
     fn refresh(&self, account_id: &str) -> zbus::Result<()>;
 
+    fn rescan(&self) -> zbus::Result<()>;
+
     fn set_account_label(&self, account_id: &str, label: &str) -> zbus::Result<()>;
 
     fn set_account_order(&self, ids: &[&str]) -> zbus::Result<()>;

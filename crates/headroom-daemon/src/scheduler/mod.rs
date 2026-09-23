@@ -10,6 +10,12 @@ use headroom_core::account::{AccountId, AccountRef};
 use crate::core::Core;
 use worker::Worker;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FirstRefresh {
+    Scheduled,
+    Now,
+}
+
 pub struct Scheduler {
     core: Arc<Core>,
     workers: HashMap<AccountId, Worker>,
@@ -24,7 +30,7 @@ impl Scheduler {
         }
     }
 
-    pub fn sync(&mut self, accounts: &[AccountRef]) {
+    pub fn sync(&mut self, accounts: &[AccountRef], first: FirstRefresh) {
         self.workers.retain(|id, worker| {
             let keep = accounts.contains(&worker.account);
             if !keep {
@@ -34,7 +40,7 @@ impl Scheduler {
         });
         for account in accounts {
             if !self.workers.contains_key(&account.id) {
-                let worker = Worker::spawn(self.core.clone(), account.clone());
+                let worker = Worker::spawn(self.core.clone(), account.clone(), first);
                 self.workers.insert(account.id.clone(), worker);
             }
         }

@@ -7,8 +7,8 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, sleep_until};
 
-use super::policy;
 use super::refresh::refresh_account;
+use super::{FirstRefresh, policy};
 use crate::core::Core;
 
 pub struct Worker {
@@ -17,10 +17,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn spawn(core: Arc<Core>, account: AccountRef) -> Worker {
+    pub fn spawn(core: Arc<Core>, account: AccountRef, first: FirstRefresh) -> Worker {
         let (sender, receiver) = mpsc::channel(1);
         core.register_trigger(account.id.clone(), sender);
-        let task = tokio::spawn(run(core, account.clone(), receiver));
+        let task = tokio::spawn(run(core, account.clone(), first, receiver));
         Worker { account, task }
     }
 }
@@ -31,8 +31,13 @@ impl Drop for Worker {
     }
 }
 
-async fn run(core: Arc<Core>, account: AccountRef, mut triggers: mpsc::Receiver<()>) {
-    let mut deadline = Instant::now() + to_std(first_delay(&core, &account));
+async fn run(
+    core: Arc<Core>,
+    account: AccountRef,
+    first: FirstRefresh,
+    mut triggers: mpsc::Receiver<()>,
+) {
+    let mut deadline = Instant::now() + to_std(first_delay(&core, &account, first));
     loop {
         tokio::select! {
             () = sleep_until(deadline) => {}
@@ -47,14 +52,19 @@ async fn run(core: Arc<Core>, account: AccountRef, mut triggers: mpsc::Receiver<
     }
 }
 
-fn first_delay(core: &Core, account: &AccountRef) -> SignedDuration {
+fn first_delay(core: &Core, account: &AccountRef, first: FirstRefresh) -> SignedDuration {
     let now = core.clock.now();
     let mut model = core.model();
-    let fetched = model
-        .snapshots
-        .get(&account.id)
-        .map(|e| e.snapshot.fetched_at);
-    let delay = policy::initial_delay(fetched, now, model.settings.refresh_interval());
+    let delay = match first {
+        FirstRefresh::Now => SignedDuration::ZERO,
+        FirstRefresh::Scheduled => {
+            let fetched = model
+                .snapshots
+                .get(&account.id)
+                .map(|e| e.snapshot.fetched_at);
+            policy::initial_delay(fetched, now, model.settings.refresh_interval())
+        }
+    };
     model.runtime_mut(&account.id).next_refresh_at = now.checked_add(delay).ok();
     drop(model);
     core.mark_changed();

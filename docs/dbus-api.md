@@ -20,6 +20,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit hold. An account id: force a refresh of that account now. |
+| `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults. Validated before it is stored. |
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
@@ -35,12 +36,22 @@ Refresh semantics:
   up to 30 min (± 10 %). A provider rate limit waits `retry_after`, or 5 min when none is given.
 - Each provider call has a 30 s timeout.
 
+Rescan semantics:
+
+- Discovery runs every 10 minutes and on `Rescan`. A rescan also re-syncs the usage homes and resets
+  the 10-minute timer.
+- Rescans are coalesced: requests that arrive while a discovery is running wait for one follow-up
+  discovery that starts after the current one, and all of them return when it finishes.
+- Accounts found by a rescan (new ones and ones that come back) refresh immediately; accounts that
+  disappeared stop being refreshed and leave `accounts[]`.
+- `headroom accounts add` and `headroom accounts remove` call `Rescan`, so the change shows up at once.
+
 ### Errors
 
 | D-Bus error | when |
 | --- | --- |
 | `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON |
-| `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon |
+| `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
 
