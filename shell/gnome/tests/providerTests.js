@@ -1,13 +1,26 @@
 import {
     addAccountArgs,
+    LABEL_MAX_CHARS,
     methodSummary,
     parseProviders,
     providerSummary,
     RegistryError,
 } from '../src/prefs/registry.js';
+import { setLanguage } from '../src/i18n.js';
 import { accountName, accountTitle, iconCandidates, seriesKey, showsName } from '../src/providers.js';
 import { parseState } from '../src/state.js';
 import { check, throws } from './check.js';
+
+const RU_VERSION_MESSAGE = 'Служба Headroom передаёт список сервисов в версии 2, ожидалась 1';
+
+function registryMessage(json) {
+    try {
+        parseProviders(json);
+        return null;
+    } catch (error) {
+        return error.message;
+    }
+}
 
 const REGISTRY = JSON.stringify({
     version: 1,
@@ -61,6 +74,13 @@ function testRegistry() {
     check('auto summary', methodSummary(providers[2].methods[0]), 'Detected automatically');
     throws('registry bad json', () => parseProviders('{'), RegistryError);
     throws('registry version', () => parseProviders('{"version": 2, "providers": []}'), RegistryError);
+    setLanguage('ru');
+    try {
+        throws('ru registry version', () => parseProviders('{"version": 2}'), RegistryError);
+        check('ru registry version message', registryMessage('{"version": 2}'), RU_VERSION_MESSAGE);
+    } finally {
+        setLanguage('en');
+    }
     check('registry empty', parseProviders('{"version": 1}'), []);
 }
 
@@ -73,10 +93,18 @@ function testAddArgs() {
         'add',
         'grok',
         '--api-key-stdin',
-        '--label',
-        'Work',
+        '--label=Work',
     ]);
     check('login args', addAccountArgs('codex', login, ''), ['accounts', 'add', 'codex']);
+    check('dash label stays a value', addAccountArgs('codex', login, '-work'), [
+        'accounts',
+        'add',
+        'codex',
+        '--label=-work',
+    ]);
+    check('label trimmed', addAccountArgs('codex', login, '  Home  '), ['accounts', 'add', 'codex', '--label=Home']);
+    check('blank label dropped', addAccountArgs('codex', login, '   '), ['accounts', 'add', 'codex']);
+    check('label limit matches daemon', LABEL_MAX_CHARS, 64);
 }
 
 function testLookups() {

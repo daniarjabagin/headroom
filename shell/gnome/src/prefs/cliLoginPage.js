@@ -5,7 +5,7 @@ import { _, fill } from '../i18n.js';
 import { ProgressProcess } from './cli.js';
 import { flowBody, navigationPage, pageStack, resultPage, stack } from './flowPage.js';
 import { LogView } from './logView.js';
-import { addAccountArgs } from './registry.js';
+import { addAccountArgs, LABEL_MAX_CHARS } from './registry.js';
 import { pillButton, spinner } from './widgets.js';
 
 export class CliLoginPage {
@@ -44,7 +44,7 @@ export class CliLoginPage {
     }
 
     _formPage() {
-        this._labelEntry = new Adw.EntryRow({ title: _('Label (optional)') });
+        this._labelEntry = new Adw.EntryRow({ title: _('Label (optional)'), max_length: LABEL_MAX_CHARS });
         this._labelEntry.connect('entry-activated', () => this._start());
         const group = new Adw.PreferencesGroup();
         group.add(this._labelEntry);
@@ -77,7 +77,7 @@ export class CliLoginPage {
     }
 
     _start() {
-        const args = addAccountArgs(this._provider.id, this._method, this._labelEntry.text.trim());
+        const args = addAccountArgs(this._provider.id, this._method, this._labelEntry.text);
         this._url = null;
         this._openButton.visible = false;
         this._codeGroup.visible = false;

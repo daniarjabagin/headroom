@@ -233,4 +233,9 @@ export const RU = {
     'Scan finished. Accounts that were found appear in the list.':
         'Поиск завершён. Найденные аккаунты появятся в списке.',
     "Couldn't reach the Headroom service.": 'Не удалось связаться со службой Headroom.',
+    'Unreadable provider list from the Headroom service: {reason}':
+        'Не удалось прочитать список сервисов от службы Headroom: {reason}',
+    'Unexpected provider list from the Headroom service': 'Служба Headroom передала неожиданный список сервисов',
+    'Headroom service lists providers in version {actual}, expected {expected}':
+        'Служба Headroom передаёт список сервисов в версии {actual}, ожидалась {expected}',
 };
