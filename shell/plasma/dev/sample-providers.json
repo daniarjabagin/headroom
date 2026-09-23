@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "codex",
+      "display_name": "Codex",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "codex"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "claude",
+      "display_name": "Claude",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "claude"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Found from OpenCode's local logs; nothing to sign in to."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": true
+    },
+    {
+      "id": "openrouter",
+      "display_name": "OpenRouter",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "OpenRouter API key",
+          "console_url": "https://openrouter.ai/settings/keys",
+          "hint": "Starts with sk-or-"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "zai",
+      "display_name": "Z.ai",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Z.ai API key",
+          "console_url": "https://z.ai/manage-apikey/apikey-list",
+          "hint": "A 32-character key"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "kimi",
+      "display_name": "Kimi",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Moonshot API key",
+          "console_url": "https://platform.moonshot.ai/console/api-keys",
+          "hint": "Starts with sk-"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "minimax",
+      "display_name": "MiniMax",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "MiniMax API key",
+          "console_url": "https://www.minimax.io/platform/user-center/basic-information/interface-key",
+          "hint": "A long JWT-style key"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "grok",
+      "display_name": "Grok",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "xAI API key",
+          "console_url": "https://console.x.ai",
+          "hint": "Starts with xai-"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "cline",
+      "display_name": "Cline",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Found from Cline's task history in VS Code; sign in to Cline there."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": true
+    },
+    {
+      "id": "devin",
+      "display_name": "Devin",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Devin API key",
+          "console_url": "https://app.devin.ai/settings/api-keys",
+          "hint": "Starts with apk_"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "copilot",
+      "display_name": "GitHub Copilot",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Found from the GitHub CLI or your editor's Copilot sign-in."
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "cursor",
+      "display_name": "Cursor",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Found from Cursor's local sign-in; sign in to Cursor there."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "antigravity",
+      "display_name": "Antigravity",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Found while Antigravity is running; sign in to Antigravity there."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "ollama",
+      "display_name": "Ollama",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Ollama API key",
+          "console_url": "https://ollama.com/settings/keys",
+          "hint": "Your ollama.com key"
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    }
+  ]
+}

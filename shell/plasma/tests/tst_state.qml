@@ -37,11 +37,12 @@ TestCase {
 
     function test_sample_accounts() {
         const state = sample();
-        compare(state.accounts.length, 5);
+        compare(state.accounts.length, 7);
         compare(state.headline, {
             accountId: "codex:1a2b3c4d5e6f",
             windowId: "session",
             provider: "codex",
+            providerName: "Codex",
             accountLabel: "work",
             windowLabel: "Session",
             usedPercent: 38,
@@ -82,8 +83,9 @@ TestCase {
     function test_sample_spend() {
         const state = sample();
         compare(state.accounts[2].usage.last30Days.unpricedModels, ["claude-next"]);
-        compare(state.spend.today.costMicros, 18420000);
-        compare(state.spend.today.providers.map(spend => spend.provider), ["codex", "claude"]);
+        compare(state.spend.today.costMicros, 23675400);
+        compare(state.spend.today.providers.map(spend => spend.provider), ["codex", "claude", "opencode", "cline"]);
+        compare(state.spend.today.providers.map(spend => spend.providerName), ["Codex", "Claude", "OpenCode", "Cline"]);
         compare(state.spend.today.providers[0].models[0].model, "gpt-5.5");
         compare(state.spend.last30Days.partial, true);
         const totals = state.accounts[2].usage.last30Days;
@@ -142,7 +144,7 @@ TestCase {
         const state = sample();
         const ids = state.accounts.map(account => account.id);
         const reordered = State.withOrder(state, [ids[2], ids[0]]);
-        compare(reordered.accounts.map(account => account.id), [ids[2], ids[0], ids[1], ids[3], ids[4]]);
+        compare(reordered.accounts.map(account => account.id), [ids[2], ids[0], ids[1]].concat(ids.slice(3)));
         compare(State.withDisplay(state, {
             valueMode: "used"
         }).display.valueMode, "used");
@@ -224,6 +226,49 @@ TestCase {
         });
         compare(Account.statusSlot(offline, true), "outdated");
         compare(Account.notices("en", offline, true), []);
+    }
+
+    function test_new_provider_notices() {
+        const zai = sample().accounts[5];
+        const signedOut = Object.assign({}, zai, {
+            status: "signed_out"
+        });
+        const notice = Account.notices("en", signedOut, false)[0];
+        compare(notice.title, "Signed out of Z.ai");
+        compare(notice.detail, "Sign in again, then Retry");
+        compare(notice.actions.map(action => action.kind), ["retry"]);
+        for (const kind of ["unsupported", "no_provider"]) {
+            const failed = Object.assign({}, zai, {
+                status: "error",
+                error: {
+                    kind,
+                    message: "not available"
+                }
+            });
+            compare(Account.notices("en", failed, false)[0].actions, []);
+        }
+    }
+
+    function test_balance_only_account_opens_extras() {
+        const state = sample();
+        verify(Account.extrasAlwaysOpen(state.accounts[6]));
+        verify(!Account.extrasAlwaysOpen(state.accounts[0]));
+        verify(!Account.extrasAlwaysOpen(state.accounts[5]));
+        verify(!Account.extrasAlwaysOpen(state.accounts[3]));
+    }
+
+    function test_provider_names() {
+        const state = sample();
+        compare(state.accounts.map(account => account.providerName), ["Codex", "Codex", "Claude", "Claude", "Codex", "Z.ai", "OpenRouter"]);
+        compare(state.accounts[5].windows.map(window => window.label), ["Session", "Web searches"]);
+        compare(state.accounts[6].balances[0].usdMicros, 23750000);
+        compare(State.showsName(state.accounts[5], state.accounts), false);
+        const raw = JSON.parse(read("../dev/sample-state.json"));
+        delete raw.accounts[5].provider_name;
+        delete raw.headline.provider_name;
+        const bare = State.parseState(JSON.stringify(raw));
+        compare(bare.accounts[5].providerName, "zai");
+        compare(bare.headline.providerName, "codex");
     }
 
     function test_no_subscription_notice() {

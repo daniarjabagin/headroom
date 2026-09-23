@@ -71,6 +71,39 @@ TestCase {
         compare(client.settings.display.resetFormat, "exact");
     }
 
+    function test_lists_providers_once() {
+        DBus.SessionBus.messages = [];
+        const tracking = providersComponent.createObject(suite) as DaemonClient;
+        tryVerify(() => tracking.providers !== null, settleMs);
+        const calls = DBus.SessionBus.messages.filter(message => message.member === "ListProviders");
+        compare(calls.length, 1);
+        compare(calls[0].signature, "");
+        compare(calls[0].arguments, []);
+        compare(tracking.providers.length, 14);
+        compare(tracking.providers[1].name, "Claude");
+        tracking.load();
+        tryVerify(() => DBus.SessionBus.messages.filter(message => message.member === "GetState").length >= 2, settleMs);
+        wait(50);
+        compare(members().filter(member => member === "ListProviders").length, 1);
+        tracking.destroy();
+    }
+
+    function test_skips_providers_unless_tracked() {
+        client.load();
+        tryVerify(() => members().includes("GetState"), settleMs);
+        wait(50);
+        verify(!members().includes("ListProviders"));
+        compare(client.providers, null);
+    }
+
+    Component {
+        id: providersComponent
+
+        DaemonClient {
+            trackProviders: true
+        }
+    }
+
     Component {
         id: clientComponent
 

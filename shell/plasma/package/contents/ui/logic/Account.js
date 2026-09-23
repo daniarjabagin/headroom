@@ -4,6 +4,7 @@
 .import "Providers.js" as Providers
 .import "State.js" as State
 
+const PERMANENT_ERRORS = ["unsupported", "no_provider"];
 const SPEND_PERIODS = [[I18n.N("Today"), "today"], [I18n.N("Yesterday"), "yesterday"], [I18n.N("Last 30 Days"), "last30Days"]];
 
 function failedOffline(account, offline) {
@@ -29,21 +30,21 @@ function retryAction(lang, account) {
 }
 
 function signedOutNotice(lang, account) {
-    const info = Providers.providerInfo(account.provider);
+    const command = Providers.signInCommand(account.provider);
     const actions = [retryAction(lang, account)];
-    if (info.signInCommand)
+    if (command)
         actions.unshift({
             kind: "copy",
             label: I18n.tr(lang, "Copy command"),
-            value: info.signInCommand
+            value: command
         });
     return {
         kind: "signin",
         title: I18n.tr(lang, "Signed out of {provider}", {
-            provider: info.name
+            provider: account.providerName
         }),
-        detail: info.signInCommand ? I18n.tr(lang, "Run \"{command}\" and sign in, then Retry", {
-            command: info.signInCommand
+        detail: command ? I18n.tr(lang, "Run \"{command}\" and sign in, then Retry", {
+            command
         }) : I18n.tr(lang, "Sign in again, then Retry"),
         note: "",
         actions
@@ -69,11 +70,11 @@ function errorNotice(lang, account) {
     return {
         kind: "error",
         title: I18n.tr(lang, "Couldn't refresh {provider}", {
-            provider: Providers.providerInfo(account.provider).name
+            provider: account.providerName
         }),
         detail: account.error?.message ?? "",
         note: "",
-        actions: [retryAction(lang, account)]
+        actions: PERMANENT_ERRORS.includes(account.error?.kind) ? [] : [retryAction(lang, account)]
     };
 }
 
@@ -114,10 +115,14 @@ function hasExtras(account, display) {
     return showsQuotas(account) && (showsSpend(account, display) || account.balances.length > 0);
 }
 
+function extrasAlwaysOpen(account) {
+    return showsQuotas(account) && State.shownWindows(account).length === 0 && account.balances.length > 0;
+}
+
 function spendRows(lang, account, display) {
     if (!showsSpend(account, display))
         return [];
-    const provider = Providers.providerInfo(account.provider).name;
+    const provider = account.providerName;
     return SPEND_PERIODS.map(([msgid, key]) => {
         const title = I18n.tr(lang, msgid);
         return {

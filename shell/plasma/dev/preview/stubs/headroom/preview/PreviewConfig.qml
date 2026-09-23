@@ -6,6 +6,7 @@ import "../../../../../package/contents/ui/logic/Settings.js" as Settings
 QtObject {
     property string scenario: "ready"
     property string statePath: Qt.resolvedUrl("../../../../sample-state.json")
+    property string providersPath: Qt.resolvedUrl("../../../../sample-providers.json")
     property string metadataPath: Qt.resolvedUrl("../../../../../package/metadata.json")
     property var displayPatch: ({})
     property var appliedSettings: null
@@ -32,6 +33,10 @@ QtObject {
         if (scenario === "refreshing")
             shifted.accounts.filter(account => refreshingFrom.includes(account.status)).forEach(account => account.status = "refreshing");
         return JSON.stringify(shifted);
+    }
+
+    function providersJson() {
+        return readFile(providersPath);
     }
 
     function baseSettings() {

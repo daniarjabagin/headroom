@@ -26,6 +26,7 @@ Item {
     required property real gap
     readonly property var notices: Account.notices(lang, account, offline)
     readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
+    readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
     signal refreshRequested(string accountId)
     signal copyRequested(string text)
@@ -71,7 +72,7 @@ Item {
         }
 
         Card {
-            visible: section.notices.length > 0 || section.windows.length > 0 || trend.active
+            visible: section.notices.length > 0 || section.windows.length > 0 || trend.active || section.extrasOpen
             hoverable: true
             lifted: section.lifted
 
@@ -117,7 +118,7 @@ Item {
             }
 
             Caret {
-                visible: Account.hasExtras(section.account, section.display)
+                visible: Account.hasExtras(section.account, section.display) && !section.extrasOpen
                 expanded: section.expanded
                 onClicked: section.expandToggled(section.account.id)
             }
@@ -126,7 +127,7 @@ Item {
                 account: section.account
                 display: section.display
                 lang: section.lang
-                expanded: section.expanded && Account.hasExtras(section.account, section.display)
+                expanded: section.extrasOpen || (section.expanded && Account.hasExtras(section.account, section.display))
             }
         }
     }

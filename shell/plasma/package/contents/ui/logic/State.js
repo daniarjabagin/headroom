@@ -157,9 +157,15 @@ function parseDay(raw) {
     };
 }
 
+function providerName(raw, provider) {
+    return text(raw.provider_name) ?? provider;
+}
+
 function parseUsage(raw) {
+    const provider = text(raw.provider) ?? "unknown";
     return {
-        provider: text(raw.provider) ?? "unknown",
+        provider,
+        providerName: providerName(raw, provider),
         usageHome: text(raw.usage_home),
         today: parseTotals(raw.today),
         yesterday: parseTotals(raw.yesterday),
@@ -174,6 +180,7 @@ function parseAccount(raw, usage) {
     return {
         id: text(raw.id) ?? "",
         provider,
+        providerName: providerName(raw, provider),
         label: text(raw.label),
         email: text(raw.email),
         plan: text(raw.plan),
@@ -195,10 +202,12 @@ function parseHeadline(raw) {
     const remainingPercent = number(raw.remaining_percent);
     if (remainingPercent === null)
         return null;
+    const provider = text(raw.provider);
     return {
         accountId: text(raw.account_id),
         windowId: text(raw.window),
-        provider: text(raw.provider),
+        provider,
+        providerName: text(raw.provider_name) ?? provider,
         accountLabel: text(raw.account_label),
         windowLabel: text(raw.window_label),
         usedPercent: number(raw.used_percent),
@@ -208,8 +217,10 @@ function parseHeadline(raw) {
 }
 
 function parseProviderSpend(raw) {
+    const provider = text(raw.provider) ?? "unknown";
     return {
-        provider: text(raw.provider) ?? "unknown",
+        provider,
+        providerName: providerName(raw, provider),
         costMicros: count(raw.cost_usd_micros),
         totalTokens: count(raw.total_tokens),
         partial: raw.partial === true,

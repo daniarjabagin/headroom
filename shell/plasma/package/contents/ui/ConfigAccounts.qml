@@ -1,14 +1,20 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import "logic/Commands.js" as Commands
 import "logic/Order.js" as Order
+import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
 
 ConfigScaffold {
     id: page
 
+    trackProviders: true
     readonly property var accounts: snapshot?.accounts ?? []
+    readonly property var providers: daemon.providers ?? []
+    property string selectedProvider: ""
+    readonly property var chosenProvider: Registry.findProvider(providers, selectedProvider) ?? providers[0] ?? null
     property var expandedIds: []
     property string launchedProvider: ""
     property int dragIndex: -1
@@ -53,10 +59,20 @@ ConfigScaffold {
         updateSettings(Settings.displayPatch(Settings.windowHiddenPatch(current.display, accountId, windowId, hidden)));
     }
 
-    function signIn(provider, label) {
+    function add(provider, label) {
         message = "";
-        launchedProvider = provider;
-        runner.run(Commands.addAccountCommand(provider, label, tr("Press Enter to close this window")));
+        try {
+            const plan = Commands.addPlan(provider, label, tr("Press Enter to close this window"));
+            launchedProvider = provider.id;
+            if (plan.kind === "terminal")
+                runner.run(plan.command);
+            else
+                daemon.rescan();
+        } catch (error) {
+            if (!Commands.isCommandError(error))
+                throw error;
+            message = error.message;
+        }
     }
 
     function remove(accountId) {
@@ -77,7 +93,8 @@ ConfigScaffold {
         } else if (exitCode === 127) {
             message = tr("No terminal found. Install xdg-terminal-exec or Konsole, or run \"headroom accounts add\" yourself.");
         }
-        launchedProvider = "";
+        if (!command.includes("accounts remove"))
+            launchedProvider = "";
         daemon.rescan();
     }
 
@@ -89,7 +106,7 @@ ConfigScaffold {
             visible: page.accounts.length === 0
             separated: false
             title: page.tr("No accounts yet")
-            subtitle: page.tr("Sign in with the Codex or Claude CLI, or add an account below.")
+            subtitle: page.tr("Sign in with a supported CLI, or add an account below.")
         }
 
         Repeater {
@@ -122,20 +139,33 @@ ConfigScaffold {
 
     SettingsGroup {
         title: page.tr("Add Account")
-        description: page.tr("Sign in to another account without touching the one your CLI uses.")
+        description: page.tr("Pick a service. Accounts added here never touch the one your CLI uses.")
 
-        Repeater {
-            model: Commands.ADDABLE
+        SettingsRow {
+            visible: page.chosenProvider === null
+            separated: false
+            title: page.daemon.providersRequested ? page.tr("No providers available") : page.tr("Loading…")
+        }
 
-            AddAccountRow {
-                required property string modelData
-                required property int index
+        ProviderPicker {
+            visible: page.chosenProvider !== null
+            providers: page.providers
+            selected: page.chosenProvider?.id ?? ""
+            onPicked: providerId => {
+                page.selectedProvider = providerId;
+                page.launchedProvider = "";
+            }
+        }
 
-                provider: modelData
+        Loader {
+            Layout.fillWidth: true
+            active: page.chosenProvider !== null
+
+            sourceComponent: AddAccountRow {
+                provider: page.chosenProvider
                 lang: page.lang
-                separated: index > 0
-                launched: page.launchedProvider === modelData
-                onSignInRequested: (provider, label) => page.signIn(provider, label)
+                launched: page.launchedProvider === page.chosenProvider.id
+                onAddRequested: label => page.add(page.chosenProvider, label)
             }
         }
     }

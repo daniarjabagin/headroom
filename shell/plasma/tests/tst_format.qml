@@ -275,7 +275,8 @@ TestCase {
         fuzzyCompare(slices[0].sweep, 324, 1e-9);
         fuzzyCompare(slices[1].start, 234, 1e-9);
         fuzzyCompare(slices[1].sweep, 36, 1e-9);
-        compare(slices[1].color, "#DE7356");
+        compare(slices[1].color, "#D97757");
+        compare(Spend.slices(spendOf([900, 100]), 10, true)[0].color, "#19C37D");
         assertContiguous(slices);
         compare(Spend.revealed(slices[0], 0), 0);
         fuzzyCompare(Spend.revealed(slices[0], 1), 324, 1e-9);
@@ -356,7 +357,10 @@ TestCase {
 
     function test_spend_titles() {
         compare(Spend.periodTitle("ru", "last30Days"), "30 дней");
-        compare(Spend.breakdownTitle("en", "today", "claude"), "Today · Claude");
+        compare(Spend.breakdownTitle("en", "today", {
+            provider: "claude",
+            providerName: "Claude"
+        }), "Today · Claude");
         compare(Spend.bodyKind({
             providers: []
         }), "empty");
