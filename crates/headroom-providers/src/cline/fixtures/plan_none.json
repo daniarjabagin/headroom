@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "userId": "usr-0000000000000001",
+    "plan": null,
+    "currentPeriodStart": null,
+    "currentPeriodEnd": null,
+    "cancelAt": null,
+    "canceledAt": null,
+    "subscriptionId": null
+  }
+}

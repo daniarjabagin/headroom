@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "lastUsedProvider": "cline",
+  "modes": {},
+  "providers": {
+    "cline": {
+      "settings": {
+        "provider": "cline",
+        "auth": {
+          "accessToken": "workos:fake.jwt.token",
+          "refreshToken": "fake-refresh",
+          "expiresAt": 1790159400000,
+          "accountId": "usr-0000000000000001",
+          "metadata": {
+            "sessionStartedAtMs": 1790155860000,
+            "provider": "cline",
+            "tokenType": "Bearer",
+            "userInfo": {
+              "subject": "user_00000000000000000000000001",
+              "clineUserId": "usr-0000000000000001",
+              "email": "someone@example.com",
+              "firstName": "Some",
+              "lastName": "One",
+              "accounts": null,
+              "name": "Some One"
+            }
+          }
+        },
+        "model": "anthropic/claude-sonnet-4.6",
+        "reasoning": {
+          "enabled": false
+        }
+      },
+      "updatedAt": "2026-09-23T09:31:00.000Z",
+      "tokenSource": "oauth"
+    }
+  }
+}

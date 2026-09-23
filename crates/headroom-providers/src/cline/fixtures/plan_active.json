@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "data": {
+    "userId": "usr-0000000000000001",
+    "subscriptionId": "sub_000000000000000001",
+    "planHistoryId": "ph-1",
+    "currentPeriodStart": "2026-09-01T00:00:00.000Z",
+    "currentPeriodEnd": "2026-10-01T00:00:00.000Z",
+    "cancelAt": null,
+    "canceledAt": null,
+    "plan": {
+      "id": "plan-clinepass-pro",
+      "name": "clinepass_pro",
+      "displayName": "ClinePass Pro",
+      "interval": "month",
+      "type": "individual",
+      "pricePerSeatCents": 2000
+    }
+  }
+}

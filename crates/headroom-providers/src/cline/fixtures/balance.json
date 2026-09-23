@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "data": {
+    "balance": 12345678,
+    "userId": "usr-0000000000000001"
+  }
+}

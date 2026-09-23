@@ -16,7 +16,7 @@ headroom-pricing.workspace = true
 headroom-providers.workspace = true
 jiff.workspace = true
 reqwest.workspace = true
-rustix.workspace = true
+rustix = { workspace = true, features = ["pty", "termios"] }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

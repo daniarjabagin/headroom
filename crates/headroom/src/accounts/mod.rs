@@ -7,6 +7,7 @@ mod home;
 mod login;
 mod plan;
 mod progress;
+mod pty;
 mod remove;
 mod stream;
 

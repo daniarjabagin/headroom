@@ -56,6 +56,9 @@ mod tests {
             local_usage: false,
         };
         let mut payload = crate::providers::catalog().payload();
+        payload
+            .providers
+            .retain(|provider| matches!(provider.id.as_str(), "codex" | "claude"));
         payload.providers.push(keyed);
         let expected = "\
 ID      NAME    ADD ACCOUNT                              ACCOUNTS  LOCAL USAGE

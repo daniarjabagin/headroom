@@ -24,6 +24,22 @@
       ],
       "multi_account": true,
       "local_usage": true
+    },
+    {
+      "id": "cline",
+      "display_name": "Cline",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "cline"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "the Cline CLI sign-in in ~/.cline is picked up automatically, but it expires about an hour after Cline last ran"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

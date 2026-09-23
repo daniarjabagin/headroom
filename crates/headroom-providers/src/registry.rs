@@ -5,6 +5,7 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
+use crate::cline::{self, ClineConfig, ClineProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
@@ -20,7 +21,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 3] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +29,10 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &cline::DESCRIPTOR,
+        build: build_cline,
     },
 ];
 
@@ -82,6 +87,14 @@ fn build_codex(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderE
 fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = ClaudeConfig::from_env()?;
     Ok(Arc::new(ClaudeProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_cline(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = ClineConfig::from_env()?;
+    Ok(Arc::new(ClineProvider::with_http(
         config,
         context.http.clone(),
     )))
