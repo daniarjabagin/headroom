@@ -7,15 +7,16 @@ mod home;
 mod login;
 mod plan;
 mod progress;
+mod prompt;
 mod remove;
 mod stream;
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use headroom_core::account::AccountRef;
-use headroom_core::descriptor::ProviderDescriptor;
+use headroom_core::descriptor::{ApiKeyPrompt, ProviderDescriptor};
 use headroom_core::provider::Provider;
 
 use crate::cli::ProgressFormat;
@@ -27,7 +28,7 @@ use cancel::{CANCELLED, Cancel};
 use discovery::discover_local;
 use home::discard_home;
 use login::{Console, Launcher, LoginEvent, LoginSpec, sign_in};
-use plan::{AddPlan, plan};
+use plan::{AddPlan, KeyInput, plan};
 use progress::{JsonLines, ProgressEvent};
 
 pub use remove::remove;
@@ -50,7 +51,7 @@ struct Target {
 impl Target {
     fn resolve(globals: &Globals, request: &AddRequest<'_>) -> Result<Target> {
         let descriptor = providers::descriptor(request.provider)?;
-        let plan = plan(descriptor, request.api_key_stdin)?;
+        let plan = plan(descriptor, key_input(request))?;
         let registry = LocalRegistry::for_cli(globals)?;
         Ok(Target {
             descriptor,
@@ -87,8 +88,12 @@ async fn add_in_terminal(
     let mut quiet = |_: ProgressEvent| Ok(());
     let (id, label) = match target.plan {
         AddPlan::Login(spec) => login_in_terminal(globals, &target, spec, request, cancel).await?,
-        AddPlan::ApiKey => {
+        AddPlan::KeyFromStdin => {
             let input = io::stdin().lock();
+            add_with_key(globals, &target, input, request.label, &mut quiet, cancel).await?
+        }
+        AddPlan::KeyFromPrompt(prompt) => {
+            let input = io::Cursor::new(ask_for_key(prompt, cancel).await?);
             add_with_key(globals, &target, input, request.label, &mut quiet, cancel).await?
         }
     };
@@ -108,13 +113,36 @@ async fn add_streamed(
     let target = Target::resolve(globals, request)?;
     match target.plan {
         AddPlan::Login(spec) => login_streamed(globals, &target, spec, request, cancel).await,
-        AddPlan::ApiKey => {
+        AddPlan::KeyFromStdin | AddPlan::KeyFromPrompt(_) => {
             let mut out = JsonLines::new(io::stdout());
             let mut events = |event: ProgressEvent| out.emit(&event);
             let input = io::stdin().lock();
             add_with_key(globals, &target, input, request.label, &mut events, cancel).await
         }
     }
+}
+
+fn key_input(request: &AddRequest<'_>) -> KeyInput {
+    if request.api_key_stdin {
+        KeyInput::Stdin
+    } else if request.progress.is_none() && io::stdin().is_terminal() {
+        KeyInput::Terminal
+    } else {
+        KeyInput::Unavailable
+    }
+}
+
+async fn ask_for_key(prompt: &ApiKeyPrompt, cancel: &Cancel) -> Result<String> {
+    let mut stderr = io::stderr();
+    writeln!(
+        stderr,
+        "Create an {} at {}",
+        prompt.label, prompt.console_url
+    )?;
+    if !prompt.hint.is_empty() {
+        writeln!(stderr, "{}", prompt.hint)?;
+    }
+    prompt::read_hidden(io::stdin(), &mut stderr, cancel).await
 }
 
 async fn login_in_terminal(

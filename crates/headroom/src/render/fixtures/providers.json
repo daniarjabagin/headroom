@@ -24,6 +24,24 @@
       ],
       "multi_account": true,
       "local_usage": true
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://opencode.ai/auth",
+          "hint": "The key's workspace needs an OpenCode Go subscription"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "sign in to OpenCode Go with `opencode auth login`"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

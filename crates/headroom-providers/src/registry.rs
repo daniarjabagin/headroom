@@ -6,6 +6,7 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -20,7 +21,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 3] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +29,10 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &opencode::DESCRIPTOR,
+        build: build_opencode,
     },
 ];
 
@@ -84,6 +89,15 @@ fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provider
     Ok(Arc::new(ClaudeProvider::with_http(
         config,
         context.http.clone(),
+    )))
+}
+
+fn build_opencode(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = OpenCodeConfig::from_env()?;
+    Ok(Arc::new(OpenCodeProvider::with_http(
+        config,
+        context.http.clone(),
+        Arc::clone(&context.secrets),
     )))
 }
 
