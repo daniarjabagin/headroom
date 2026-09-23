@@ -6,6 +6,8 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::copilot::{self, CopilotConfig, CopilotProvider};
+use crate::devin::{self, DevinConfig, DevinProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -20,7 +22,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 4] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +30,14 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &copilot::DESCRIPTOR,
+        build: build_copilot,
+    },
+    Entry {
+        descriptor: &devin::DESCRIPTOR,
+        build: build_devin,
     },
 ];
 
@@ -82,6 +92,22 @@ fn build_codex(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderE
 fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = ClaudeConfig::from_env()?;
     Ok(Arc::new(ClaudeProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_copilot(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = CopilotConfig::from_env()?;
+    Ok(Arc::new(CopilotProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_devin(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = DevinConfig::from_env()?;
+    Ok(Arc::new(DevinProvider::with_http(
         config,
         context.http.clone(),
     )))

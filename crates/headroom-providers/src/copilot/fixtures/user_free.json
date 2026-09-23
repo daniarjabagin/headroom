@@ -1,0 +1,31 @@
+{
+  "login": "octocat",
+  "access_type_sku": "free_limited_copilot",
+  "chat_enabled": true,
+  "copilot_plan": "individual",
+  "quota_reset_date": "2026-10-01",
+  "token_based_billing": true,
+  "quota_snapshots": {
+    "chat": {
+      "entitlement": 200,
+      "remaining": 182,
+      "percent_remaining": 91.0,
+      "overage_permitted": false,
+      "token_based_billing": true
+    },
+    "completions": {
+      "entitlement": 2000,
+      "remaining": 1989,
+      "percent_remaining": 99.45,
+      "overage_permitted": false,
+      "token_based_billing": true
+    },
+    "premium_interactions": {
+      "entitlement": 0,
+      "remaining": 0,
+      "percent_remaining": 0.0,
+      "overage_permitted": false,
+      "token_based_billing": true
+    }
+  }
+}

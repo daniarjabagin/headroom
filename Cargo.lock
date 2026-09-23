@@ -869,6 +869,7 @@ dependencies = [
  "hex",
  "jiff",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2",

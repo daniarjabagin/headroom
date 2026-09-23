@@ -1,0 +1,32 @@
+{
+  "login": "octo-work",
+  "access_type_sku": "copilot_for_business_seat_quota",
+  "chat_enabled": true,
+  "copilot_plan": "business",
+  "organization_login_list": ["example-org"],
+  "token_based_billing": true,
+  "quota_snapshots": {
+    "chat": {
+      "entitlement": 0,
+      "remaining": 0,
+      "unlimited": true,
+      "overage_permitted": false,
+      "overage_count": 0
+    },
+    "completions": {
+      "entitlement": 0,
+      "remaining": 0,
+      "unlimited": true,
+      "overage_permitted": false,
+      "overage_count": 0
+    },
+    "premium_interactions": {
+      "entitlement": 0,
+      "remaining": 0,
+      "unlimited": true,
+      "overage_permitted": true,
+      "overage_count": 0,
+      "credits_used": 2111
+    }
+  }
+}

@@ -1,0 +1,4 @@
+github.com:
+    oauth_token: gho_fake_legacy_token
+    user: octocat
+    git_protocol: https
