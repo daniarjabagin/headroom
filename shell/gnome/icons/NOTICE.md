@@ -1,9 +1,9 @@
 # Provider logos
 
-`openai.svg` and `claude.svg` come from [Simple Icons](https://simpleicons.org) 16.32.0 (CC0-1.0).
+The provider logos are symbolic copies (single path, fill `#bebebe` so GNOME recolors them with the
+text color) of the [Simple Icons](https://simpleicons.org) originals in `assets/providers/`
+(CC0-1.0). `claude.svg` keeps the brand color `#D97757`. See `assets/providers/NOTICE.md` for sources
+and trademarks; Headroom is not affiliated with or endorsed by any of the providers.
 
-The logos are trademarks of OpenAI and Anthropic. Headroom uses them only to identify the service
-whose usage is shown, and is not affiliated with or endorsed by either company.
-
-Usage in Headroom: Codex → `openai.svg` (monochrome, follows the text color), Claude →
-`claude.svg` (brand color `#D97757`).
+Lookup by provider id: `<id>.svg` (full color) first, then `<id>-symbolic.svg` (follows the text
+color), else `provider-symbolic.svg`, the generic icon drawn for Headroom.

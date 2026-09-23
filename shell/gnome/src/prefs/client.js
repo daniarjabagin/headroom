@@ -1,6 +1,8 @@
 import { DaemonConnection } from '../daemonConnection.js';
+import { remoteMessage } from '../daemonInterface.js';
 import { decodeSettings, mergePatch, settingsFrom } from '../settings.js';
 import { parseState } from '../state.js';
+import { parseProviders, RegistryError } from './registry.js';
 
 export class PrefsClient {
     constructor({ onAvailable, onUnavailable, onState, onSettings, onError }) {
@@ -9,6 +11,8 @@ export class PrefsClient {
         this._patchSequence = 0;
         this.state = null;
         this.settings = null;
+        this.providers = null;
+        this.providersError = null;
         this._connection = new DaemonConnection({
             signals: { StateChanged: json => this._acceptState(json) },
             onReady: proxy => this._onReady(proxy),
@@ -49,7 +53,7 @@ export class PrefsClient {
     }
 
     rescan() {
-        this._connection.enqueue(proxy => proxy.RescanAsync());
+        return this._connection.enqueue(proxy => proxy.RescanAsync());
     }
 
     _onReady(proxy) {
@@ -58,8 +62,22 @@ export class PrefsClient {
             if (this._connection.proxy !== proxy) return;
             this._acceptState(json);
             await this._loadSettings(current);
+            await this._loadProviders(current);
             if (this._connection.proxy === proxy) this._handlers.onAvailable();
         });
+    }
+
+    async _loadProviders(proxy) {
+        try {
+            const [json] = await proxy.ListProvidersAsync();
+            if (this._connection.proxy !== proxy) return;
+            this.providers = parseProviders(json);
+            this.providersError = null;
+        } catch (error) {
+            if (this._connection.proxy !== proxy) return;
+            this.providers = [];
+            this.providersError = error instanceof RegistryError ? error.message : remoteMessage(error);
+        }
     }
 
     async _loadSettings(proxy) {
@@ -90,6 +108,8 @@ export class PrefsClient {
         this._rawSettings = null;
         this.state = null;
         this.settings = null;
+        this.providers = null;
+        this.providersError = null;
         this._handlers?.onUnavailable();
     }
 }

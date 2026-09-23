@@ -3,7 +3,7 @@ import Pango from 'gi://Pango';
 import St from 'gi://St';
 import { _ } from '../i18n.js';
 import { exactSpendLine, exactTokens, exactUsd, ringUsd, usd } from '../numbers.js';
-import { providerInfo } from '../providers.js';
+import { seriesKey } from '../providers.js';
 import { column, label, row } from '../widgets.js';
 import { Donut } from './donut.js';
 import { modelTooltip } from './modelTooltip.js';
@@ -36,15 +36,17 @@ class RingBody {
         const legend = column({ style_class: 'headroom-legend', x_expand: true, y_align: Clutter.ActorAlign.CENTER });
         this._values = period.providers.map((spend, index) => {
             const legendRow = row({ style_class: 'headroom-legend-row headroom-hover-chip' });
-            const dot = new St.Widget({ style_class: 'headroom-legend-dot', y_align: Clutter.ActorAlign.CENTER });
-            dot.style = `background-color: ${providerInfo(spend.provider).ringColor};`;
+            const dot = new St.Widget({
+                style_class: `headroom-legend-dot headroom-series-${seriesKey(spend.provider)}`,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
             legendRow.add_child(dot);
-            legendRow.add_child(label(providerInfo(spend.provider).name, 'headroom-legend-name', { x_expand: true }));
+            legendRow.add_child(label(spend.providerName, 'headroom-legend-name', { x_expand: true }));
             const value = tweenedLabel(ctx, 'headroom-legend-value', usd);
             value.actor.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
             legendRow.add_child(value.actor);
             const spendOf = () => this._period.providers[index];
-            attachBreakdown(ctx, legendRow, () => titleFor(spendOf().provider), spendOf);
+            attachBreakdown(ctx, legendRow, () => titleFor(spendOf()), spendOf);
             legend.add_child(legendRow);
             return value.tween;
         });
@@ -56,7 +58,7 @@ class RingBody {
         this._period = period;
         const slices = period.providers.map(spend => ({
             value: spend.costMicros,
-            color: providerInfo(spend.provider).ringColor,
+            series: seriesKey(spend.provider),
         }));
         this._donut.update(slices, { sweep, morph });
         this._center.set(period.costMicros, morph);
@@ -75,15 +77,14 @@ class StatsBody {
     constructor(ctx, period, titleFor) {
         this._period = period;
         this.actor = row({ style_class: 'headroom-spend-stats headroom-hover-chip' });
-        const provider = period.providers[0].provider;
         const cost = tweenedLabel(ctx, 'headroom-stat-value', exactUsd);
         const tokens = tweenedLabel(ctx, 'headroom-stat-value', exactTokens);
         this._cost = cost.tween;
         this._tokens = tokens.tween;
-        this.actor.add_child(statColumn(cost.actor, `${_('dollars')} · ${providerInfo(provider).name}`));
+        this.actor.add_child(statColumn(cost.actor, `${_('dollars')} · ${period.providers[0].providerName}`));
         this.actor.add_child(statColumn(tokens.actor, _('tokens')));
         const spendOf = () => this._period.providers[0];
-        attachBreakdown(ctx, this.actor, () => titleFor(provider), spendOf);
+        attachBreakdown(ctx, this.actor, () => titleFor(spendOf()), spendOf);
     }
 
     update(period, { morph }) {

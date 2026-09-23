@@ -87,9 +87,8 @@ export const RU = {
     'Last updated {ago}': 'Обновлено {ago}',
     'Refresh failed': 'Не удалось обновить',
     Retry: 'Повторить',
-    'Copy command': 'Скопировать команду',
+    Settings: 'Настройки',
     'Signed out of {provider}': 'Выполнен выход из {provider}',
-    'Run "{command}" and sign in, then Retry': 'Выполните «{command}», войдите и нажмите «Повторить»',
     'Sign in again, then Retry': 'Войдите снова и нажмите «Повторить»',
     "Couldn't refresh {provider}": 'Не удалось обновить {provider}',
     'No active subscription': 'Подписка неактивна',
@@ -124,12 +123,12 @@ export const RU = {
     'Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.':
         'Перетащите, чтобы изменить порядок. Скрытые аккаунты продолжают обновляться, но не появляются на панели и в уведомлениях.',
     'No accounts yet': 'Аккаунтов пока нет',
-    'Sign in with the Codex or Claude CLI, or add an account below.':
-        'Войдите через CLI Codex или Claude либо добавьте аккаунт ниже.',
+    'Sign in with a supported CLI, or add an account below.':
+        'Войдите через поддерживаемый CLI или добавьте аккаунт ниже.',
     'Add Account': 'Добавить аккаунт',
-    'Sign in to another account without touching the one your CLI uses.':
-        'Войдите в другой аккаунт, не затрагивая тот, что использует ваш CLI.',
-    'Add {provider} account': 'Добавить аккаунт {provider}',
+    'Sign in through a CLI, paste an API key, or let Headroom find the account.':
+        'Войдите через CLI, вставьте API-ключ или позвольте Headroom найти аккаунт.',
+    'Add account…': 'Добавить аккаунт…',
     'Remove {name}?': 'Удалить «{name}»?',
     'Headroom deletes the sign-in it created for this account. The account itself is not affected.':
         'Headroom удалит вход, который создал для этого аккаунта. Сам аккаунт не пострадает.',
@@ -213,4 +212,25 @@ export const RU = {
     'Connecting to Headroom…': 'Подключение к Headroom…',
     'Settings live in the Headroom service. Start it to change them.':
         'Настройки хранятся в службе Headroom. Запустите её, чтобы изменить их.',
+    'Sign in with {program}': 'Вход через {program}',
+    'Sign in': 'Вход',
+    'API key': 'API-ключ',
+    'Detected automatically': 'Находится автоматически',
+    'No providers available': 'Нет доступных сервисов',
+    'The Headroom service did not list any providers.': 'Служба Headroom не сообщила ни одного сервиса.',
+    'Choose the service to track.': 'Выберите сервис для отслеживания.',
+    'How do you want to add your {provider} account?': 'Как добавить аккаунт {provider}?',
+    'Connect {provider}': 'Подключение {provider}',
+    Add: 'Добавить',
+    'Get a Key': 'Получить ключ',
+    'Checking the key…': 'Проверяем ключ…',
+    'Headroom checks the key with {provider} and keeps it in your keyring. It never leaves this computer.':
+        'Headroom проверит ключ в {provider} и сохранит его в связке ключей. Ключ не покидает этот компьютер.',
+    'Headroom finds this account on its own.': 'Headroom находит этот аккаунт сам.',
+    Rescan: 'Искать снова',
+    'Already set up? Rescan to look for it now.': 'Уже настроили? Запустите поиск, чтобы найти его сейчас.',
+    'Looking for accounts…': 'Ищем аккаунты…',
+    'Scan finished. Accounts that were found appear in the list.':
+        'Поиск завершён. Найденные аккаунты появятся в списке.',
+    "Couldn't reach the Headroom service.": 'Не удалось связаться со службой Headroom.',
 };

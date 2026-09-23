@@ -1,0 +1,92 @@
+.headroom-donut-area {
+    -headroom-series-codex: var(--series-codex);
+    -headroom-series-claude: var(--series-claude);
+    -headroom-series-opencode: var(--series-opencode);
+    -headroom-series-openrouter: var(--series-openrouter);
+    -headroom-series-zai: var(--series-zai);
+    -headroom-series-kimi: var(--series-kimi);
+    -headroom-series-minimax: var(--series-minimax);
+    -headroom-series-grok: var(--series-grok);
+    -headroom-series-cline: var(--series-cline);
+    -headroom-series-devin: var(--series-devin);
+    -headroom-series-copilot: var(--series-copilot);
+    -headroom-series-cursor: var(--series-cursor);
+    -headroom-series-antigravity: var(--series-antigravity);
+    -headroom-series-ollama: var(--series-ollama);
+    -headroom-series-other-0: var(--series-other-0);
+    -headroom-series-other-1: var(--series-other-1);
+    -headroom-series-other-2: var(--series-other-2);
+    -headroom-series-other-3: var(--series-other-3);
+}
+
+.headroom-series-codex {
+    background-color: var(--series-codex);
+}
+
+.headroom-series-claude {
+    background-color: var(--series-claude);
+}
+
+.headroom-series-opencode {
+    background-color: var(--series-opencode);
+}
+
+.headroom-series-openrouter {
+    background-color: var(--series-openrouter);
+}
+
+.headroom-series-zai {
+    background-color: var(--series-zai);
+}
+
+.headroom-series-kimi {
+    background-color: var(--series-kimi);
+}
+
+.headroom-series-minimax {
+    background-color: var(--series-minimax);
+}
+
+.headroom-series-grok {
+    background-color: var(--series-grok);
+}
+
+.headroom-series-cline {
+    background-color: var(--series-cline);
+}
+
+.headroom-series-devin {
+    background-color: var(--series-devin);
+}
+
+.headroom-series-copilot {
+    background-color: var(--series-copilot);
+}
+
+.headroom-series-cursor {
+    background-color: var(--series-cursor);
+}
+
+.headroom-series-antigravity {
+    background-color: var(--series-antigravity);
+}
+
+.headroom-series-ollama {
+    background-color: var(--series-ollama);
+}
+
+.headroom-series-other-0 {
+    background-color: var(--series-other-0);
+}
+
+.headroom-series-other-1 {
+    background-color: var(--series-other-1);
+}
+
+.headroom-series-other-2 {
+    background-color: var(--series-other-2);
+}
+
+.headroom-series-other-3 {
+    background-color: var(--series-other-3);
+}

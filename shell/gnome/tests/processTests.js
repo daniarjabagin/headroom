@@ -9,6 +9,13 @@ case "$1" in
     graceful) trap 'echo term > "$marker.signal"; exit 0' TERM ;;
     stubborn) trap 'echo term > "$marker.signal"' TERM ;;
     failing) echo '{"event":"output","line":"bad"}'; exit 3 ;;
+    apikey)
+        printf '%s\n' "$@" > "$marker.args"
+        IFS= read -r key
+        printf '%s' "$key" > "$marker.key"
+        [ -z "$(cat)" ] || exit 4
+        echo '{"event":"done","account_id":"grok:1"}'
+        exit 0 ;;
 esac
 echo '{"event":"started","provider":"codex"}'
 while :; do sleep 0.05; done
@@ -91,10 +98,25 @@ async function testFailingExit() {
     check('failing status', exits, ['headroom exited with status 3']);
 }
 
+async function testKeyOnStdin(dir) {
+    const events = [];
+    const exits = [];
+    const process = start('apikey', events, exits);
+    process.write('sk-test-123');
+    process.closeInput();
+    process.write('ignored after close');
+    await until(() => exits.length > 0, 3000);
+    check('key arrives on stdin', readMarker(dir, 'apikey.key'), 'sk-test-123');
+    check('key never in argv', readMarker(dir, 'apikey.args').includes('sk-test'), false);
+    check('stdin closed after key', [events, exits], [['done'], [null]]);
+}
+
 function removeDir(dir) {
     const names = [
         'headroom',
-        ...['graceful', 'stubborn', 'failing'].flatMap(mode => [`${mode}.pid`, `${mode}.signal`]),
+        'apikey.key',
+        'apikey.args',
+        ...['graceful', 'stubborn', 'failing', 'apikey'].flatMap(mode => [`${mode}.pid`, `${mode}.signal`]),
     ];
     for (const name of names) GLib.unlink(GLib.build_filenamev([dir, name]));
     GLib.rmdir(dir);
@@ -106,6 +128,7 @@ export async function testProgressProcess() {
         await testGracefulCancel(dir);
         await testStubbornCancel(dir);
         await testFailingExit();
+        await testKeyOnStdin(dir);
     } finally {
         removeDir(dir);
     }

@@ -1,5 +1,4 @@
 import { _ } from '../i18n.js';
-import { providerInfo } from '../providers.js';
 import { column, label, row, spacer, textButton, themeIcon } from '../widgets.js';
 import { bodyKey, createBody } from './spendBody.js';
 
@@ -77,8 +76,8 @@ export class SpendSection {
         this._showPeriod(true);
     }
 
-    _titleFor(provider) {
-        return `${periodTitle(this._period)} · ${providerInfo(provider).name}`;
+    _titleFor(spend) {
+        return `${periodTitle(this._period)} · ${spend.providerName}`;
     }
 
     _showPeriod(animate) {
@@ -91,7 +90,7 @@ export class SpendSection {
         const morph = animate && this._ctx.motion.enabled && key === this._bodyKey;
         if (key !== this._bodyKey) {
             this._body?.actor.destroy();
-            this._body = createBody(this._ctx, period, provider => this._titleFor(provider));
+            this._body = createBody(this._ctx, period, spend => this._titleFor(spend));
             this._bodyKey = key;
             this._card.add_child(this._body.actor);
         }

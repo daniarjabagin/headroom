@@ -1,14 +1,9 @@
 import Adw from 'gi://Adw';
-import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
-import { providerInfo } from '../providers.js';
+import { providerIconFile } from '../providerIcons.js';
 
 export function providerImage(dir, provider, pixelSize) {
-    const info = providerInfo(provider);
-    if (info.icon === null)
-        return new Gtk.Image({ icon_name: 'application-x-executable-symbolic', pixel_size: pixelSize });
-    const gicon = new Gio.FileIcon({ file: dir.get_child('icons').get_child(info.icon) });
-    return new Gtk.Image({ gicon, pixel_size: pixelSize });
+    return new Gtk.Image({ gicon: providerIconFile(dir, provider).gicon, pixel_size: pixelSize });
 }
 
 export function pillButton(label, suggested, onClick) {

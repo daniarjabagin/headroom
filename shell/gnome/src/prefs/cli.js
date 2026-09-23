@@ -25,6 +25,7 @@ export class ProgressProcess {
         if (!binary) throw new MissingBinaryError();
         this._handlers = { onEvent, onExit };
         this._finished = false;
+        this._inputClosed = false;
         this._writing = 0;
         this._killTimer = 0;
         this._cancellable = new Gio.Cancellable();
@@ -39,12 +40,18 @@ export class ProgressProcess {
     }
 
     write(text) {
-        if (this._finished) return;
+        if (this._finished || this._inputClosed) return;
         const bytes = new GLib.Bytes(new TextEncoder().encode(`${text}\n`));
         this._writing += 1;
         this._stdin.write_bytes_async(bytes, GLib.PRIORITY_DEFAULT, this._cancellable, (stream, result) =>
             this._onWritten(stream, result)
         );
+    }
+
+    closeInput() {
+        if (this._finished || this._inputClosed) return;
+        this._inputClosed = true;
+        if (this._writing === 0) this._stdin.close(null);
     }
 
     cancel() {
@@ -63,7 +70,7 @@ export class ProgressProcess {
                 return;
             }
         }
-        if (this._finished && this._writing === 0) this._stdin.close(null);
+        if ((this._finished || this._inputClosed) && this._writing === 0) this._stdin.close(null);
     }
 
     _readLine() {

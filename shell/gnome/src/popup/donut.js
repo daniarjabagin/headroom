@@ -8,9 +8,9 @@ import { column, label } from '../widgets.js';
 
 const SWEEP_MS = 250;
 
-function parseHex(hex) {
-    const value = parseInt(hex.slice(1), 16);
-    return [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(channel => channel / 255);
+function seriesColor(node, series) {
+    const [found, color] = node.lookup_color(`-headroom-series-${series}`, false);
+    return found ? color : node.get_foreground_color();
 }
 
 function blend(from, to, progress) {
@@ -27,14 +27,14 @@ function tracePath(cr, arcs) {
     cr.closePath();
 }
 
-function drawSlices(cr, colors, fractions, reveal, size) {
+function drawSlices(cr, node, series, fractions, reveal, size) {
     const geometry = donutGeometry(size);
     cr.setAntialias(Cairo.Antialias.BEST);
     for (const segment of donutSegments(fractions, reveal)) {
         const arcs = sectorPath(geometry, segment);
         if (!arcs) continue;
-        const [red, green, blue] = parseHex(colors[segment.index]);
-        cr.setSourceRGBA(red, green, blue, 1);
+        const color = seriesColor(node, series[segment.index]);
+        cr.setSourceRGBA(color.red / 255, color.green / 255, color.blue / 255, color.alpha / 255);
         tracePath(cr, arcs);
         cr.fill();
     }
@@ -58,7 +58,7 @@ const DonutArea = GObject.registerClass(
         _init() {
             super._init({ style_class: 'headroom-donut-area', x_expand: true, y_expand: true });
             this._progress = 1;
-            this._colors = [];
+            this._series = [];
             this._from = [];
             this._to = [];
             this._reveal = { from: 1, to: 1 };
@@ -74,11 +74,11 @@ const DonutArea = GObject.registerClass(
             this.queue_repaint();
         }
 
-        setSlices(colors, fractions, { sweep, morph }) {
+        setSlices(series, fractions, { sweep, morph }) {
             this.remove_transition('progress');
             this._from = morph ? this._current() : fractions;
             this._to = fractions;
-            this._colors = colors;
+            this._series = series;
             this._reveal = { from: sweep ? 0 : 1, to: 1 };
             const animated = (sweep || morph) && this.mapped;
             this.progress = animated ? 0 : 1;
@@ -93,7 +93,8 @@ const DonutArea = GObject.registerClass(
             const cr = this.get_context();
             const [width, height] = this.get_surface_size();
             const reveal = this._reveal.from + (this._reveal.to - this._reveal.from) * this._progress;
-            drawSlices(cr, this._colors, this._current(), reveal, Math.min(width, height));
+            const size = Math.min(width, height);
+            drawSlices(cr, this.get_theme_node(), this._series, this._current(), reveal, size);
             cr.$dispose();
         }
     }
@@ -117,7 +118,7 @@ export class Donut {
     update(slices, { sweep = false, morph = false } = {}) {
         const fractions = visibleFractions(slices.map(slice => slice.value));
         this._area.setSlices(
-            slices.map(slice => slice.color),
+            slices.map(slice => slice.series),
             fractions,
             { sweep, morph }
         );
