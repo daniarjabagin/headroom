@@ -50,3 +50,6 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod lapse_tests;

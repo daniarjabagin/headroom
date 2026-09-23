@@ -58,6 +58,8 @@ struct Phrases {
     runs_out_before_reset: &'static str,
     limit_reset: &'static str,
     resets_in: &'static str,
+    subscription_inactive: &'static str,
+    subscription_inactive_body: &'static str,
     session: Option<&'static str>,
     weekly: Option<&'static str>,
     units: Units,
@@ -78,6 +80,8 @@ const EN: Phrases = Phrases {
     runs_out_before_reset: "Projected to run out before the reset",
     limit_reset: "Limit reset · {}% left",
     resets_in: "resets in {}",
+    subscription_inactive: "subscription inactive",
+    subscription_inactive_body: "Limits are unavailable until the plan is renewed.",
     session: None,
     weekly: None,
     units: Units {
@@ -96,6 +100,8 @@ const RU: Phrases = Phrases {
     runs_out_before_reset: "По прогнозу лимит закончится до сброса",
     limit_reset: "Лимит сброшен · осталось {}%",
     resets_in: "сброс через {}",
+    subscription_inactive: "подписка неактивна",
+    subscription_inactive_body: "Данные о лимитах недоступны, пока подписка не продлена.",
     session: Some("Сессия"),
     weekly: Some("Неделя"),
     units: Units {
@@ -133,12 +139,29 @@ pub fn compose(
     }
 }
 
+#[must_use]
+pub fn compose_lapse(
+    locale: Locale,
+    provider: ProviderKind,
+    account_name: Option<&str>,
+) -> Notification {
+    let phrases = locale.phrases();
+    Notification {
+        title: headed(provider, account_name, phrases.subscription_inactive),
+        body: phrases.subscription_inactive_body.to_owned(),
+    }
+}
+
 fn title(locale: Locale, subject: &Subject<'_>) -> String {
-    let provider = provider_name(subject.provider);
     let window = window_label(locale, subject.window);
-    match subject.account_name {
-        Some(name) => format!("{provider} · {name} — {window}"),
-        None => format!("{provider} — {window}"),
+    headed(subject.provider, subject.account_name, window)
+}
+
+fn headed(provider: ProviderKind, account_name: Option<&str>, topic: &str) -> String {
+    let provider = provider_name(provider);
+    match account_name {
+        Some(name) => format!("{provider} · {name} — {topic}"),
+        None => format!("{provider} — {topic}"),
     }
 }
 

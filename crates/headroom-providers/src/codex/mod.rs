@@ -7,6 +7,7 @@ mod local_usage;
 mod mapper;
 mod number;
 mod offline;
+mod plan;
 mod rate_limits;
 mod reverse;
 #[cfg(test)]
@@ -85,11 +86,8 @@ impl CodexProvider {
     ) -> Result<LimitsSnapshot, ProviderError> {
         credentials.ensure_fresh(now)?;
         let response = self.client.fetch_usage(credentials, now).await?;
-        Ok(mapper::map_usage(
-            &response,
-            credentials.identity.clone(),
-            now,
-        ))
+        let snapshot = mapper::map_usage(&response, credentials.identity.clone(), now);
+        plan::require_subscription(response.plan_type.as_deref(), snapshot)
     }
 }
 

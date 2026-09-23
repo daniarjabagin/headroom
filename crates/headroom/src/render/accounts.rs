@@ -35,6 +35,7 @@ fn status_name(status: AccountStatus) -> &'static str {
         AccountStatus::Refreshing => "refreshing",
         AccountStatus::Error => "error",
         AccountStatus::SignedOut => "signed out",
+        AccountStatus::NoSubscription => "no subscription",
     }
 }
 

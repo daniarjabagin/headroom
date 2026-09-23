@@ -61,6 +61,7 @@ pub enum AccountStatus {
     Refreshing,
     Error,
     SignedOut,
+    NoSubscription,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

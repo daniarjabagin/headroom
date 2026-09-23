@@ -8,6 +8,7 @@ pub const SOFT_REFRESH_AFTER: SignedDuration = SignedDuration::from_secs(60);
 pub const BACKOFF_BASE: SignedDuration = SignedDuration::from_secs(60);
 pub const BACKOFF_CAP: SignedDuration = SignedDuration::from_mins(30);
 pub const RATE_LIMIT_DEFAULT: SignedDuration = SignedDuration::from_mins(5);
+pub const NO_SUBSCRIPTION_RECHECK: SignedDuration = SignedDuration::from_hours(1);
 const JITTER: f64 = 0.1;
 const MAX_DOUBLINGS: u32 = 16;
 
@@ -47,15 +48,20 @@ pub fn next_delay(
         Err(RefreshFailure::Provider(ProviderError::RateLimited { retry_after })) => {
             rate_limit_delay(*retry_after)
         }
+        Err(RefreshFailure::Provider(ProviderError::NoSubscription { .. })) => {
+            jittered(NO_SUBSCRIPTION_RECHECK, sample)
+        }
         Err(_) => backoff(failures, sample),
     }
 }
 
 #[must_use]
-pub fn is_rate_limited(failure: &RefreshFailure) -> bool {
+pub fn holds_soft_refresh(failure: &RefreshFailure) -> bool {
     matches!(
         failure,
-        RefreshFailure::Provider(ProviderError::RateLimited { .. })
+        RefreshFailure::Provider(
+            ProviderError::RateLimited { .. } | ProviderError::NoSubscription { .. }
+        )
     )
 }
 

@@ -17,7 +17,7 @@ use tokio::time::Instant;
 use super::*;
 use crate::error::CommandError;
 use crate::state::payload::AccountStatus;
-use crate::storage::{accounts, snapshots};
+use crate::storage::{accounts, lapses, snapshots};
 use crate::testing::{
     Harness, account, eventually, eventually_virtual, harness, session, snapshot,
 };
@@ -221,6 +221,42 @@ async fn success_persists_snapshot_and_identity_and_failure_keeps_it() {
     let state = harness.core.state();
     assert_eq!(state.accounts[0].windows.len(), 1);
     assert_eq!(state.accounts[0].error.as_ref().unwrap().kind, "network");
+}
+
+fn lapsed() -> Outcome {
+    Err(ProviderError::NoSubscription {
+        detail: "No active ChatGPT subscription.".into(),
+    })
+}
+
+#[tokio::test]
+async fn lapsed_subscription_drops_data_notifies_once_and_rechecks_hourly() {
+    let provider = Arc::new(ScriptedProvider::new(vec![Ok(good()), lapsed(), lapsed()]));
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| status(&harness) == AccountStatus::Fresh).await;
+    harness.core.refresh("codex:work").unwrap();
+    eventually(|| status(&harness) == AccountStatus::NoSubscription).await;
+    let state = harness.core.state();
+    assert!(state.accounts[0].windows.is_empty());
+    assert_eq!(state.headline, None);
+    let recheck = state
+        .generated_at
+        .checked_add(SignedDuration::from_hours(1));
+    assert_eq!(state.next_refresh_at, recheck.ok());
+    let stored = harness.storage.blocking(|conn| snapshots::load_all(conn));
+    assert!(stored.unwrap().is_empty());
+    let expected = [(
+        "Codex · ada@example.com — subscription inactive".to_owned(),
+        "Limits are unavailable until the plan is renewed.".to_owned(),
+    )];
+    assert_eq!(harness.notifier.texts(), expected);
+    harness.core.refresh("codex:work").unwrap();
+    eventually(|| provider.calls() == 3 && status(&harness) == AccountStatus::NoSubscription).await;
+    assert_eq!(harness.notifier.texts(), expected);
+    harness.core.refresh("codex:work").unwrap();
+    eventually(|| status(&harness) == AccountStatus::Fresh).await;
+    let remaining = harness.storage.blocking(|conn| lapses::load_all(conn));
+    assert!(remaining.unwrap().is_empty());
 }
 
 #[tokio::test]

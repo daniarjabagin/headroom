@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use headroom_core::account::AccountId;
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
@@ -8,18 +8,19 @@ use rusqlite::Connection;
 
 use super::Notifier;
 use super::evaluator::{AlertState, Evaluation, Milestone, Observation, evaluate, rollback};
-use super::text::{Locale, Subject, compose};
+use super::text::{Locale, Subject, compose, compose_lapse};
 use crate::error::StorageError;
 use crate::model::window_key;
 use crate::settings::{DisplaySettings, NotificationSettings};
 use crate::storage::Storage;
 use crate::storage::accounts::AccountRecord;
-use crate::storage::alerts;
+use crate::storage::{alerts, lapses};
 
 type AlertKey = (AccountId, String);
 
 pub struct Alerts {
     states: Mutex<HashMap<AlertKey, AlertState>>,
+    lapses_notified: Mutex<HashSet<AccountId>>,
     notifier: Arc<dyn Notifier>,
     storage: Storage,
 }
@@ -43,8 +44,14 @@ impl Alerts {
             .into_iter()
             .map(|(account, window, state)| ((account, window), state))
             .collect();
+        let lapses_notified = lapses::load_all(conn)?
+            .into_iter()
+            .filter(|lapse| lapse.notified)
+            .map(|lapse| lapse.account)
+            .collect();
         Ok(Alerts {
             states: Mutex::new(states),
+            lapses_notified: Mutex::new(lapses_notified),
             notifier,
             storage,
         })
@@ -61,6 +68,39 @@ impl Alerts {
             }
         }
         Ok(())
+    }
+
+    pub async fn review_lapse(
+        &self,
+        account: &AccountRecord,
+        locale: Locale,
+    ) -> Result<(), StorageError> {
+        let id = account.id().clone();
+        if !account.is_visible() || self.lapse_notified().contains(&id) {
+            return Ok(());
+        }
+        let name = account.label.as_deref().or(account.email.as_deref());
+        let notification = compose_lapse(locale, account.reference.provider, name);
+        if let Err(error) = self.notifier.notify(&notification).await {
+            tracing::warn!(%error, "subscription notification not delivered, will retry");
+            return Ok(());
+        }
+        let stored = id.clone();
+        self.storage
+            .run(move |conn| lapses::mark_notified(conn, &stored))
+            .await?;
+        self.lapse_notified().insert(id);
+        Ok(())
+    }
+
+    pub fn renewed(&self, id: &AccountId) {
+        self.lapse_notified().remove(id);
+    }
+
+    fn lapse_notified(&self) -> MutexGuard<'_, HashSet<AccountId>> {
+        self.lapses_notified
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     async fn review_window(

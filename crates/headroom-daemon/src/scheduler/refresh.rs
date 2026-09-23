@@ -1,4 +1,5 @@
 use headroom_core::account::AccountRef;
+use headroom_core::provider::ProviderError;
 use headroom_core::quota::LimitsSnapshot;
 use jiff::{SignedDuration, Timestamp};
 
@@ -7,7 +8,7 @@ use crate::core::Core;
 use crate::model::RefreshFailure;
 use crate::notify::alerts::Review;
 use crate::notify::text::Locale;
-use crate::storage::{accounts, snapshots};
+use crate::storage::{accounts, lapses, snapshots};
 
 pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuration {
     begin_refresh(core, account);
@@ -16,9 +17,15 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
     let delay = match fetched {
         Ok(snapshot) => {
             persist(core, account, &snapshot).await;
+            core.alerts.renewed(&account.id);
             record_success(core, account, snapshot, now)
         }
-        Err(failure) => record_failure(core, account, failure, now),
+        Err(failure) => {
+            if let RefreshFailure::Provider(ProviderError::NoSubscription { detail }) = &failure {
+                persist_lapse(core, account, detail.clone()).await;
+            }
+            record_failure(core, account, failure, now)
+        }
     };
     review_alerts(core, account, now).await;
     finish_refresh(core, account, now.checked_add(delay).ok());
@@ -43,6 +50,7 @@ async fn persist(core: &Core, account: &AccountRef, snapshot: &LimitsSnapshot) {
         .storage
         .run(move |conn| {
             snapshots::save(conn, &id, &stored)?;
+            lapses::clear(conn, &id)?;
             let identity = &stored.identity;
             accounts::set_identity(
                 conn,
@@ -54,6 +62,20 @@ async fn persist(core: &Core, account: &AccountRef, snapshot: &LimitsSnapshot) {
         .await;
     if let Err(error) = result {
         tracing::warn!(account = %account.id, %error, "could not store limits snapshot");
+    }
+}
+
+async fn persist_lapse(core: &Core, account: &AccountRef, detail: String) {
+    let id = account.id.clone();
+    let result = core
+        .storage
+        .run(move |conn| {
+            snapshots::delete(conn, &id)?;
+            lapses::record(conn, &id, &detail)
+        })
+        .await;
+    if let Err(error) = result {
+        tracing::warn!(account = %account.id, %error, "could not store subscription lapse");
     }
 }
 
@@ -84,7 +106,7 @@ fn record_failure(
     let interval = model.settings.refresh_interval();
     let failures = model.runtime_mut(&account.id).failures.saturating_add(1);
     let delay = policy::next_delay(Err(&failure), failures, interval, core.random.unit());
-    let hold_until = policy::is_rate_limited(&failure)
+    let hold_until = policy::holds_soft_refresh(&failure)
         .then(|| now.checked_add(delay).ok())
         .flatten();
     model.record_failure(&account.id, failure, now, hold_until);
@@ -92,24 +114,37 @@ fn record_failure(
 }
 
 async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
-    let (record, snapshot, settings) = {
+    let (record, snapshot, settings, lapsed) = {
         let model = core.model();
         let record = model.account(&account.id).cloned();
         let snapshot = model.snapshots.get(&account.id).map(|e| e.snapshot.clone());
-        (record, snapshot, model.settings.clone())
+        let lapsed = model
+            .runtime
+            .get(&account.id)
+            .and_then(|runtime| runtime.failure.as_ref())
+            .is_some_and(RefreshFailure::is_no_subscription);
+        (record, snapshot, model.settings.clone(), lapsed)
     };
-    let (Some(record), Some(snapshot)) = (record, snapshot) else {
+    let Some(record) = record else {
         return;
     };
-    let review = Review {
-        account: &record,
-        snapshot: &snapshot,
-        settings: settings.notifications,
-        display: &settings.display,
-        locale: Locale::resolve(settings.display.language, core.system_locale),
-        now,
+    let locale = Locale::resolve(settings.display.language, core.system_locale);
+    let result = match snapshot {
+        _ if lapsed => core.alerts.review_lapse(&record, locale).await,
+        Some(snapshot) => {
+            let review = Review {
+                account: &record,
+                snapshot: &snapshot,
+                settings: settings.notifications,
+                display: &settings.display,
+                locale,
+                now,
+            };
+            core.alerts.review(&review).await
+        }
+        None => Ok(()),
     };
-    if let Err(error) = core.alerts.review(&review).await {
+    if let Err(error) = result {
         tracing::warn!(account = %account.id, %error, "could not store notification state");
     }
 }

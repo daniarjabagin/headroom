@@ -2,12 +2,14 @@ use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
 use jiff::{SignedDuration, Timestamp};
+use reqwest::StatusCode;
 use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, RETRY_AFTER, USER_AGENT};
-use reqwest::{Response, StatusCode};
 use serde::Deserialize;
 
 use super::auth::Credentials;
 use super::number::FlexNumber;
+use super::plan::no_subscription;
+use crate::plan_error::mentions_plan;
 
 pub const DEFAULT_API_BASE: &str = "https://chatgpt.com";
 const USAGE_PATH: &str = "/backend-api/wham/usage";
@@ -88,7 +90,12 @@ impl UsageClient {
             .send()
             .await
             .map_err(transport_error)?;
-        check_status(&response, now)?;
+        let status = response.status();
+        if !status.is_success() {
+            let headers = response.headers().clone();
+            let body = response.bytes().await.unwrap_or_default();
+            return Err(status_error(status, &headers, &body, now));
+        }
         let body = response.bytes().await.map_err(transport_error)?;
         serde_json::from_slice(&body)
             .map_err(|error| ProviderError::InvalidResponse(format!("usage body: {error}")))
@@ -109,21 +116,23 @@ fn request_headers(credentials: &Credentials) -> Result<HeaderMap, ProviderError
     Ok(headers)
 }
 
-fn check_status(response: &Response, now: Timestamp) -> Result<(), ProviderError> {
-    let status = response.status();
+fn status_error(
+    status: StatusCode,
+    headers: &HeaderMap,
+    body: &[u8],
+    now: Timestamp,
+) -> ProviderError {
     match status {
-        _ if status.is_success() => Ok(()),
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(ProviderError::SignInExpired),
-        StatusCode::TOO_MANY_REQUESTS => Err(ProviderError::RateLimited {
-            retry_after: response
-                .headers()
+        StatusCode::PAYMENT_REQUIRED => no_subscription(None),
+        StatusCode::FORBIDDEN if mentions_plan(body) => no_subscription(None),
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
+            retry_after: headers
                 .get(RETRY_AFTER)
                 .and_then(|value| value.to_str().ok())
                 .and_then(|value| parse_retry_after(value, now)),
-        }),
-        _ => Err(ProviderError::Network(format!(
-            "usage request returned HTTP {status}"
-        ))),
+        },
+        _ => ProviderError::Network(format!("usage request returned HTTP {status}")),
     }
 }
 

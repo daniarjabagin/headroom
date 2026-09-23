@@ -32,6 +32,8 @@ pub enum ProviderError {
     SignInExpired,
     #[error("signed in with an API key, which has no plan limits")]
     ApiKeyOnly,
+    #[error("{detail}")]
+    NoSubscription { detail: String },
     #[error("rate limited by the provider")]
     RateLimited { retry_after: Option<SignedDuration> },
     #[error("network error: {0}")]
@@ -53,6 +55,10 @@ mod tests {
             ProviderError::Network("timeout".into()).to_string(),
             "network error: timeout"
         );
+        let lapsed = ProviderError::NoSubscription {
+            detail: "no active plan".into(),
+        };
+        assert_eq!(lapsed.to_string(), "no active plan");
     }
 
     #[test]
@@ -68,6 +74,14 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ProviderError::LocalData("x".into())).unwrap(),
             "{\"kind\":\"local_data\",\"detail\":\"x\"}"
+        );
+        let lapsed = ProviderError::NoSubscription {
+            detail: "none".into(),
+        };
+        let json = serde_json::to_string(&lapsed).unwrap();
+        assert_eq!(
+            serde_json::from_str::<ProviderError>(&json).unwrap(),
+            lapsed
         );
     }
 }

@@ -5,6 +5,7 @@ use super::super::auth::parse_credentials;
 use super::*;
 
 const FULL: &str = include_str!("fixtures/usage_full.json");
+const FORBIDDEN_PLAN: &str = include_str!("fixtures/forbidden_plan.json");
 
 fn now() -> Timestamp {
     "2026-09-23T10:00:00Z".parse().unwrap()
@@ -59,6 +60,20 @@ async fn unauthorized_and_forbidden_mean_sign_in_expired() {
             fetch_from(&server).await.unwrap_err(),
             ProviderError::SignInExpired
         );
+    }
+}
+
+#[tokio::test]
+async fn plan_errors_mean_no_subscription() {
+    let expected = ProviderError::NoSubscription {
+        detail: "No active Claude subscription.".into(),
+    };
+    let payment = server_responding(ResponseTemplate::new(402)).await;
+    assert_eq!(fetch_from(&payment).await.unwrap_err(), expected);
+    for status in [403, 404] {
+        let response = ResponseTemplate::new(status).set_body_string(FORBIDDEN_PLAN);
+        let server = server_responding(response).await;
+        assert_eq!(fetch_from(&server).await.unwrap_err(), expected);
     }
 }
 

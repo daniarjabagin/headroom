@@ -9,6 +9,8 @@ use super::*;
 
 const FULL: &str = include_str!("fixtures/usage_full.json");
 const RECORDS: &str = include_str!("fixtures/rollout_records.jsonl");
+const FREE: &str = include_str!("fixtures/usage_free.json");
+const RATE_LIMITS: &str = include_str!("fixtures/rollout_rate_limits.jsonl");
 
 #[tokio::test]
 async fn discovers_cli_and_headroom_homes() {
@@ -74,6 +76,27 @@ async fn live_limits_come_from_the_usage_api() {
         Some("someone@example.com")
     );
     assert_eq!(snapshot.identity.plan.as_deref(), Some("Plus"));
+}
+
+#[tokio::test]
+async fn free_plan_without_limits_has_no_subscription_and_skips_local_logs() {
+    let setup = Setup::new();
+    setup.sign_in("2026-09-24T00:00:00Z");
+    write_rollout(&setup.cli_home(), "sessions/rollout.jsonl", RATE_LIMITS);
+    let server = server_with(
+        ResponseTemplate::new(200).set_body_raw(FREE.as_bytes().to_vec(), "application/json"),
+    )
+    .await;
+    let result = setup
+        .provider(&server.uri())
+        .fetch_limits(&setup.account())
+        .await;
+    assert_eq!(
+        result,
+        Err(ProviderError::NoSubscription {
+            detail: "No active ChatGPT subscription (Free plan).".into()
+        })
+    );
 }
 
 #[tokio::test]

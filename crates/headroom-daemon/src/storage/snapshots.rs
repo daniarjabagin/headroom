@@ -23,6 +23,14 @@ pub fn save(
     Ok(())
 }
 
+pub fn delete(conn: &Connection, id: &AccountId) -> Result<(), StorageError> {
+    conn.execute(
+        "DELETE FROM limits_snapshots WHERE account_id = ?1",
+        params![id.0],
+    )?;
+    Ok(())
+}
+
 pub fn load_all(conn: &Connection) -> Result<Vec<(AccountId, LimitsSnapshot)>, StorageError> {
     let mut statement =
         conn.prepare("SELECT account_id, payload FROM limits_snapshots ORDER BY account_id")?;

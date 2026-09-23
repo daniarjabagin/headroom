@@ -171,3 +171,18 @@ fn system_locale_follows_the_first_set_variable() {
         assert_eq!(Locale::from_env_values(values), expected, "{values:?}");
     }
 }
+
+#[test]
+fn lapse_notifications_are_translated() {
+    let en = compose_lapse(Locale::En, ProviderKind::Codex, Some("Work"));
+    assert_eq!(en.title, "Codex · Work — subscription inactive");
+    assert_eq!(en.body, "Limits are unavailable until the plan is renewed.");
+    let ru = compose_lapse(Locale::Ru, ProviderKind::Codex, Some("Work"));
+    assert_eq!(ru.title, "Codex · Work — подписка неактивна");
+    assert_eq!(
+        ru.body,
+        "Данные о лимитах недоступны, пока подписка не продлена."
+    );
+    let anonymous = compose_lapse(Locale::En, ProviderKind::Claude, None);
+    assert_eq!(anonymous.title, "Claude — subscription inactive");
+}

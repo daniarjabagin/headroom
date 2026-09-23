@@ -11,6 +11,7 @@ use super::number::whole_number;
 
 pub(super) const CREDENTIALS_FILE: &str = ".credentials.json";
 const PROFILE_SCOPE: &str = "user:profile";
+const FREE_SUBSCRIPTION: &str = "free";
 
 pub(super) struct AccessToken(String);
 
@@ -31,6 +32,7 @@ pub(super) struct Credentials {
     access_token: AccessToken,
     expires_at: Option<Timestamp>,
     pub(super) plan: Option<String>,
+    pub(super) subscribed: bool,
     has_profile_scope: bool,
 }
 
@@ -93,12 +95,19 @@ pub(super) fn parse_credentials(text: &str) -> Result<Credentials, ProviderError
             .subscription_type
             .as_deref()
             .and_then(|kind| plan_label(kind, oauth.rate_limit_tier.as_deref())),
+        subscribed: is_subscribed(oauth.subscription_type.as_deref()),
         has_profile_scope: has_profile_scope(oauth.scopes.as_deref()),
     })
 }
 
 fn millis_timestamp(millis: &serde_json::Number) -> Option<Timestamp> {
     Timestamp::from_millisecond(whole_number(millis)?).ok()
+}
+
+fn is_subscribed(subscription: Option<&str>) -> bool {
+    subscription
+        .map(str::trim)
+        .is_some_and(|kind| !kind.is_empty() && !kind.eq_ignore_ascii_case(FREE_SUBSCRIPTION))
 }
 
 fn has_profile_scope(scopes: Option<&[String]>) -> bool {

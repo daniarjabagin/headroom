@@ -7,6 +7,8 @@ use reqwest::{Client, StatusCode};
 
 use super::auth::AccessToken;
 use super::raw::RawUsage;
+use super::subscription::no_subscription;
+use crate::plan_error::mentions_plan;
 
 const USAGE_PATH: &str = "/api/oauth/usage";
 const BETA_HEADER: &str = "anthropic-beta";
@@ -48,7 +50,9 @@ impl UsageClient {
             .map_err(transport_error)?;
         let status = response.status();
         if !status.is_success() {
-            return Err(status_error(status, response.headers(), now));
+            let headers = response.headers().clone();
+            let body = response.bytes().await.unwrap_or_default();
+            return Err(status_error(status, &headers, &body, now));
         }
         let body = response.bytes().await.map_err(transport_error)?;
         parse_usage(&body)
@@ -69,8 +73,17 @@ pub(super) fn parse_usage(body: &[u8]) -> Result<RawUsage, ProviderError> {
     })
 }
 
-fn status_error(status: StatusCode, headers: &HeaderMap, now: Timestamp) -> ProviderError {
+fn status_error(
+    status: StatusCode,
+    headers: &HeaderMap,
+    body: &[u8],
+    now: Timestamp,
+) -> ProviderError {
     match status {
+        StatusCode::PAYMENT_REQUIRED => no_subscription(None),
+        StatusCode::FORBIDDEN | StatusCode::NOT_FOUND if mentions_plan(body) => {
+            no_subscription(None)
+        }
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
             retry_after: headers

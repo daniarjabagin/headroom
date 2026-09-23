@@ -53,8 +53,19 @@ fn next_delay_depends_on_the_outcome() {
         next_delay(Err(&RefreshFailure::Timeout), 1, interval, MID),
         secs(60)
     );
-    assert!(is_rate_limited(&limited));
-    assert!(!is_rate_limited(&network));
+    assert!(holds_soft_refresh(&limited));
+    assert!(!holds_soft_refresh(&network));
+}
+
+#[test]
+fn no_subscription_is_rechecked_hourly_and_holds_soft_refreshes() {
+    let lapsed = RefreshFailure::Provider(ProviderError::NoSubscription {
+        detail: "none".into(),
+    });
+    let interval = secs(300);
+    assert_eq!(next_delay(Err(&lapsed), 1, interval, MID), secs(3_600));
+    assert_eq!(next_delay(Err(&lapsed), 9, interval, 0.0), secs(3_240));
+    assert!(holds_soft_refresh(&lapsed));
 }
 
 #[test]
