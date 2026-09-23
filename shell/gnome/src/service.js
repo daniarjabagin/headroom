@@ -1,24 +1,32 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import { remoteMessage } from './daemonInterface.js';
 
-const START_COMMAND = ['systemctl', '--user', 'start', 'headroom.service'];
+const UNIT = 'headroom.service';
 
-function communicate(process, cancellable) {
+function callSystemd(method, parameters, cancellable) {
     return new Promise((resolve, reject) => {
-        process.communicate_utf8_async(null, cancellable, (source, result) => {
-            try {
-                resolve(source.communicate_utf8_finish(result));
-            } catch (error) {
-                reject(error);
+        Gio.DBus.session.call(
+            'org.freedesktop.systemd1',
+            '/org/freedesktop/systemd1',
+            'org.freedesktop.systemd1.Manager',
+            method,
+            parameters,
+            null,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            cancellable,
+            (connection, result) => {
+                try {
+                    resolve(connection.call_finish(result));
+                } catch (error) {
+                    reject(new Error(remoteMessage(error)));
+                }
             }
-        });
+        );
     });
 }
 
 export async function startService(cancellable) {
-    const process = Gio.Subprocess.new(
-        START_COMMAND,
-        Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_PIPE
-    );
-    const [, , stderr] = await communicate(process, cancellable);
-    if (!process.get_successful()) throw new Error(stderr?.trim() || 'systemctl could not start headroom.service');
+    await callSystemd('StartUnit', new GLib.Variant('(ss)', [UNIT, 'replace']), cancellable);
 }

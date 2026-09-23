@@ -1,35 +1,6 @@
 import Gio from 'gi://Gio';
-
-const BUS_NAME = 'io.github.headroom.Daemon';
-const OBJECT_PATH = '/io/github/headroom/Daemon';
-
-const INTERFACE_XML = `
-<node>
-  <interface name="io.github.headroom.Daemon1">
-    <method name="GetState">
-      <arg type="s" name="state" direction="out"/>
-    </method>
-    <method name="Refresh">
-      <arg type="s" name="account_id" direction="in"/>
-    </method>
-    <method name="SetAccountLabel">
-      <arg type="s" name="account_id" direction="in"/>
-      <arg type="s" name="label" direction="in"/>
-    </method>
-    <method name="SetAccountHidden">
-      <arg type="s" name="account_id" direction="in"/>
-      <arg type="b" name="hidden" direction="in"/>
-    </method>
-    <signal name="StateChanged">
-      <arg type="s" name="state"/>
-    </signal>
-    <signal name="OpenRequested"/>
-  </interface>
-</node>`;
-
-const DaemonProxy = Gio.DBusProxy.makeProxyWrapper(INTERFACE_XML);
-
-const PROXY_FLAGS = Gio.DBusProxyFlags.DO_NOT_AUTO_START | Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES;
+import { BUS_NAME, DaemonProxy, OBJECT_PATH, PROXY_FLAGS, remoteMessage } from './daemonInterface.js';
+import { parseSettings, serializeSettings, withDisplay } from './settings.js';
 
 export class DaemonClient {
     constructor({ onAvailable, onUnavailable, onState, onError, onOpenRequested }) {
@@ -61,6 +32,18 @@ export class DaemonClient {
         this._call(proxy => proxy.SetAccountHiddenAsync(accountId, hidden));
     }
 
+    setAccountOrder(ids) {
+        this._call(proxy => proxy.SetAccountOrderAsync(ids));
+    }
+
+    updateDisplay(patchFor) {
+        this._call(async proxy => {
+            const [json] = await proxy.GetSettingsAsync();
+            const settings = parseSettings(json);
+            await proxy.SetSettingsAsync(serializeSettings(withDisplay(settings, patchFor(settings.display))));
+        });
+    }
+
     _onNameAppeared() {
         if (this._proxy) return;
         DaemonProxy(
@@ -76,7 +59,7 @@ export class DaemonClient {
     _onProxyReady(proxy, error) {
         if (this._cancellable.is_cancelled()) return;
         if (error) {
-            this._handlers.onError(error.message);
+            this._handlers.onError(remoteMessage(error));
             return;
         }
         this._proxy = proxy;
@@ -94,7 +77,7 @@ export class DaemonClient {
             const [json] = await proxy.GetStateAsync();
             if (this._proxy === proxy) this._handlers.onState(json);
         } catch (error) {
-            if (this._proxy === proxy) this._handlers.onError(error.message);
+            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
         }
     }
 
@@ -116,7 +99,7 @@ export class DaemonClient {
         try {
             await invoke(proxy);
         } catch (error) {
-            if (this._proxy === proxy) this._handlers.onError(error.message);
+            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
         }
     }
 }

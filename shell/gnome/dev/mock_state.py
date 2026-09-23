@@ -31,6 +31,7 @@ def window(window_id, label, used, resets_in, period, tone, window_pace, now):
         "period_seconds": int(period.total_seconds()),
         "tone": tone,
         "pace": window_pace,
+        "hidden": False,
     }
 
 
@@ -47,15 +48,46 @@ def tokens(total):
     }
 
 
-def totals(total_tokens, cost_micros, unpriced=None):
+def model_usage(name, total_tokens, cost_micros, partial):
+    return {"model": name, "total_tokens": total_tokens, "cost_usd_micros": cost_micros, "partial": partial}
+
+
+def by_cost(models):
+    return sorted(models, key=lambda model: (-model["cost_usd_micros"], -model["total_tokens"], model["model"]))
+
+
+def split_models(priced_tokens, cost_micros, mix):
+    rows = []
+    for name, token_share, cost_share in mix:
+        rows.append(model_usage(name, priced_tokens * token_share // 100, cost_micros * cost_share // 100, False))
+    rows[0]["total_tokens"] += priced_tokens - sum(row["total_tokens"] for row in rows)
+    rows[0]["cost_usd_micros"] += cost_micros - sum(row["cost_usd_micros"] for row in rows)
+    return [row for row in rows if row["total_tokens"] > 0]
+
+
+def totals(total_tokens, cost_micros, mix, unpriced=None):
     unpriced_tokens, unpriced_models = unpriced or (0, [])
+    models = split_models(total_tokens - unpriced_tokens, cost_micros, mix)
+    models += [model_usage(name, unpriced_tokens // len(unpriced_models), 0, True) for name in unpriced_models]
     return {
         "tokens": tokens(total_tokens),
         "cost_usd_micros": cost_micros,
         "partial": unpriced_tokens > 0,
         "unpriced_tokens": unpriced_tokens,
         "unpriced_models": unpriced_models,
+        "models": by_cost(models),
     }
+
+
+def merge_models(groups):
+    merged = {}
+    for models in groups:
+        for model in models:
+            entry = merged.setdefault(model["model"], model_usage(model["model"], 0, 0, False))
+            entry["total_tokens"] += model["total_tokens"]
+            entry["cost_usd_micros"] += model["cost_usd_micros"]
+            entry["partial"] = entry["partial"] or model["partial"]
+    return by_cost(merged.values())
 
 
 def daily(now, seed, scale):
@@ -68,14 +100,11 @@ def daily(now, seed, scale):
     return days
 
 
-def usage_entry(provider, home, now, seed, periods, models, scale):
+def usage_entry(provider, home, now, seed, periods, scale):
     entry = {"provider": provider, "usage_home": home}
     entry.update(zip(PERIODS, periods))
     entry["daily"] = daily(now, seed, scale)
-    entry["models"] = [
-        {"model": name, "total_tokens": total, "cost_usd_micros": cost, "partial": cost == 0}
-        for name, total, cost in models
-    ]
+    entry["models"] = entry["last_30_days"]["models"]
     return entry
 
 
@@ -86,6 +115,7 @@ def provider_spend(usage, provider, period):
         "cost_usd_micros": sum(t["cost_usd_micros"] for t in entries),
         "total_tokens": sum(t["tokens"]["total"] for t in entries),
         "partial": any(t["partial"] for t in entries),
+        "models": merge_models(t["models"] for t in entries),
     }
 
 
@@ -109,6 +139,7 @@ def account(account_id, provider, label, email, plan, status, windows, now, **ex
         "label": label,
         "email": email,
         "plan": plan,
+        "owner": "cli",
         "hidden": False,
         "status": status,
         "error": None,
@@ -147,6 +178,8 @@ def codex_personal(now):
             window("model:spark", "Spark", 100.0, 4 * HOUR, 5 * HOUR, "critical", pace("spent", 20.0), now),
         ],
         now,
+        owner="headroom",
+        usage_home="~/.local/share/headroom/homes/codex-9f8e7d6c5b4a",
         notices=[{"tone": "warning", "text": "Weekly limit shared with Codex Cloud"}],
     )
 
@@ -173,27 +206,86 @@ def claude_team(now):
     )
 
 
+CODEX_MIX = [("gpt-5.5", 62, 78), ("gpt-5.5-mini", 21, 12), ("gpt-5.4-codex", 11, 8), ("o4-mini", 6, 2)]
+CLAUDE_MIX = [
+    ("claude-opus-4-5", 34, 61),
+    ("claude-sonnet-4-5", 38, 27),
+    ("claude-haiku-4-5", 12, 4),
+    ("claude-opus-4-1", 5, 5),
+    ("claude-sonnet-4", 6, 2),
+    ("claude-3-5-haiku", 5, 1),
+]
+
+
 def full_usage(now):
     return [
         usage_entry("codex", "~/.codex", now, 3,
-                    (totals(4_812_000, 14_370_000), totals(9_120_000, 21_880_000),
-                     totals(182_400_000, 463_120_000)),
-                    [("gpt-5.5", 150_000_000, 401_000_000), ("gpt-5.5-mini", 32_400_000, 62_120_000)], 61_000),
+                    (totals(4_812_000, 14_370_000, CODEX_MIX), totals(9_120_000, 21_880_000, CODEX_MIX),
+                     totals(182_400_000, 463_120_000, CODEX_MIX)), 61_000),
         usage_entry("claude", "~/.claude", now, 5,
-                    (totals(1_203_448, 4_050_000), totals(2_400_000, 8_300_000),
-                     totals(35_812_904, 96_400_000, (412_000, ["claude-next"]))),
-                    [("claude-opus", 30_000_000, 90_000_000), ("claude-next", 412_000, 0)], 23_000),
+                    (totals(1_203_448, 4_050_000, CLAUDE_MIX), totals(2_400_000, 8_300_000, CLAUDE_MIX),
+                     totals(35_812_904, 96_400_000, CLAUDE_MIX, (412_000, ["claude-next"]))), 23_000),
     ]
 
 
-def assemble(now, accounts, usage, headline, **extra):
+TONE_RANK = {"neutral": 0, "good": 1, "warning": 2, "critical": 3}
+DEFAULT_SETTINGS = {
+    "refresh_interval_secs": 300,
+    "notifications": {"almost_out": True, "cutting_it_close": True, "will_run_out": True, "reset": False},
+    "headline": {"mode": "auto"},
+    "reduced_motion": False,
+    "display": {
+        "theme": "system",
+        "language": "system",
+        "value_mode": "left",
+        "reset_format": "countdown",
+        "panel_label": "percent",
+        "show_spend": True,
+        "show_account_spend": True,
+        "show_trend": True,
+        "show_forecast": True,
+        "hidden_windows": {},
+    },
+}
+
+
+def headline_for(entry, window_entry):
+    return {
+        "account_id": entry["id"],
+        "window": window_entry["id"],
+        "provider": entry["provider"],
+        "account_label": entry["label"] or entry["email"],
+        "window_label": window_entry["label"],
+        "used_percent": window_entry["used_percent"],
+        "remaining_percent": window_entry["remaining_percent"],
+        "tone": window_entry["tone"],
+    }
+
+
+def candidates(accounts):
+    return [(entry, w) for entry in accounts if not entry["hidden"] for w in entry["windows"] if not w["hidden"]]
+
+
+def choose_headline(accounts, *targets):
+    pool = candidates(accounts)
+    for target in targets:
+        match = next((pair for pair in pool if (pair[0]["id"], pair[1]["id"]) == target), None)
+        if match:
+            return headline_for(*match)
+    if not pool:
+        return None
+    return headline_for(*max(pool, key=lambda pair: (TONE_RANK[pair[1]["tone"]], -pair[1]["remaining_percent"])))
+
+
+def assemble(now, accounts, usage, preferred, **extra):
     state = {
         "version": 1,
         "generated_at": iso(now),
         "next_refresh_at": iso(now + 3 * MINUTE + timedelta(seconds=10)),
         "last_success_at": iso(now - 2 * MINUTE),
         "offline": False,
-        "headline": headline,
+        "headline": choose_headline(accounts, preferred),
+        "display": DEFAULT_SETTINGS["display"],
         "accounts": accounts,
         "usage": usage,
         "spend": {period: period_spend(usage, period) for period in PERIODS},
@@ -202,8 +294,7 @@ def assemble(now, accounts, usage, headline, **extra):
     return state
 
 
-def headline(account_id, window_id, remaining, tone):
-    return {"account_id": account_id, "window": window_id, "remaining_percent": remaining, "tone": tone}
+WORK_SESSION = ("codex:1a2b3c4d5e6f", "session")
 
 
 def full_accounts(now):
@@ -211,11 +302,11 @@ def full_accounts(now):
 
 
 def full_state(now):
-    return assemble(now, full_accounts(now), full_usage(now), headline("codex:1a2b3c4d5e6f", "session", 62.0, "good"))
+    return assemble(now, full_accounts(now), full_usage(now), WORK_SESSION)
 
 
 def critical_state(now):
-    return assemble(now, full_accounts(now), full_usage(now), headline("codex:9f8e7d6c5b4a", "weekly", 17.0, "critical"))
+    return assemble(now, full_accounts(now), full_usage(now), ("codex:9f8e7d6c5b4a", "weekly"))
 
 
 def offline_state(now):
@@ -223,12 +314,12 @@ def offline_state(now):
     for entry in accounts:
         entry["status"] = "error"
         entry["error"] = {"kind": "network", "message": "network error: could not resolve host"}
-    return assemble(now, accounts, full_usage(now), headline("codex:1a2b3c4d5e6f", "session", 62.0, "good"),
+    return assemble(now, accounts, full_usage(now), WORK_SESSION,
                     offline=True, next_refresh_at=iso(now + 4 * MINUTE), last_success_at=iso(now - 47 * MINUTE))
 
 
 def single_state(now):
-    return assemble(now, [codex_work(now)], full_usage(now)[:1], headline("codex:1a2b3c4d5e6f", "session", 62.0, "good"))
+    return assemble(now, [codex_work(now)], full_usage(now)[:1], WORK_SESSION)
 
 
 def empty_state(now):

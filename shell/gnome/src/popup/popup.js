@@ -1,10 +1,14 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import { mergeOrder, moveItem } from '../order.js';
+import { showsName } from '../providers.js';
+import { parseDisplay } from '../settings.js';
 import { column } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
 import { Footer } from './footer.js';
 import { OptionsMenu } from './optionsMenu.js';
+import { Reorderer } from './reorder.js';
 import { SpendSection } from './spendCard.js';
 import { emptyView, errorView, loadingView, serviceView } from './statusViews.js';
 import { Tooltips } from './tooltip.js';
@@ -15,20 +19,34 @@ function visibleAccounts(state) {
     return state.accounts.filter(account => !account.hidden);
 }
 
-function showsName(account, accounts) {
-    return accounts.filter(other => other.provider === account.provider).length > 1;
+function applyOrder(state, order) {
+    const rank = new Map(order.map((id, index) => [id, index]));
+    state.accounts = [...state.accounts].sort(
+        (a, b) => (rank.get(a.id) ?? order.length) - (rank.get(b.id) ?? order.length)
+    );
+}
+
+function layoutKey(display) {
+    return JSON.stringify([display.showSpend, display.showAccountSpend, display.showTrend]);
+}
+
+function shownSpend(state) {
+    return state.display.showSpend ? state.spend : null;
 }
 
 export class PopupView {
-    constructor({ dir, versionText, actions, settings }) {
+    constructor({ dir, versionText, actions }) {
         this._view = { kind: 'loading', state: null };
         this._sections = [];
         this._spendSection = null;
+        this._layoutKey = null;
+        this._pendingView = null;
         this._scrollbarTimeoutId = 0;
         this._tooltips = new Tooltips();
         this._ctx = {
             dir,
-            settings,
+            display: parseDisplay(null),
+            canReorder: () => this._reorderer.enabled,
             tooltips: this._tooltips,
             now: () => new Date(),
             expanded: new Map(),
@@ -61,17 +79,45 @@ export class PopupView {
         this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
         this._footer = new Footer(this._ctx, versionText);
         this._options = new OptionsMenu(this._ctx);
+        const dragLayer = new St.Widget({
+            style_class: 'headroom-drag-layer',
+            layout_manager: new Clutter.FixedLayout(),
+            clip_to_allocation: true,
+            x_expand: true,
+            y_expand: true,
+        });
+        this._reorderer = new Reorderer({
+            layer: dragLayer,
+            onDrop: (from, to) => this._onDrop(from, to),
+            onSettled: () => this._renderPending(),
+        });
         main.add_child(this._scroll);
         main.add_child(this._footer.actor);
         this.actor.add_child(main);
+        this.actor.add_child(dragLayer);
         this.actor.add_child(this._options.actor);
     }
 
+    setTheme(themeClass) {
+        this._tooltips.setTheme(themeClass);
+    }
+
     render(view) {
+        if (this._reorderer.dragging) {
+            this._pendingView = view;
+            return;
+        }
         this._view = view;
+        if (view.kind === 'ready') this._ctx.display = view.state.display;
         this._footer.update(view);
         if (view.kind === 'ready') this._renderState(view.state);
         else this._replaceContent([this._statusView(view)]);
+    }
+
+    _renderPending() {
+        const view = this._pendingView;
+        this._pendingView = null;
+        if (view) this.render(view);
     }
 
     tick() {
@@ -91,12 +137,14 @@ export class PopupView {
     }
 
     onClose() {
+        this._reorderer.cancel();
         this._options.close();
         this._tooltips.hide();
         this._hideScrollbar();
     }
 
     destroy() {
+        this._reorderer.destroy();
         this._hideScrollbar();
         this._scroll.vadjustment.disconnectObject(this);
         this._tooltips.destroy();
@@ -132,7 +180,7 @@ export class PopupView {
 
     _renderState(state) {
         const accounts = visibleAccounts(state);
-        if (accounts.length === 0 && !state.spend) {
+        if (accounts.length === 0 && !shownSpend(state)) {
             this._replaceContent([emptyView(this._ctx)]);
             return;
         }
@@ -147,7 +195,8 @@ export class PopupView {
     }
 
     _canUpdateInPlace(state, accounts) {
-        if (Boolean(this._spendSection) !== Boolean(state.spend)) return false;
+        if (this._layoutKey !== layoutKey(state.display)) return false;
+        if (Boolean(this._spendSection) !== Boolean(shownSpend(state))) return false;
         if (this._sections.length !== accounts.length || this._sections.length === 0) return false;
         return accounts.every(
             (account, index) =>
@@ -157,19 +206,37 @@ export class PopupView {
     }
 
     _rebuild(state, accounts) {
-        const spend = state.spend ? new SpendSection(this._ctx, state.spend, this._ctx.period) : null;
+        const spendState = shownSpend(state);
+        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period) : null;
         const sections = accounts.map(account => new AccountSection(this._ctx, account, showsName(account, accounts)));
         this._replaceContent([...(spend ? [spend.actor] : []), ...sections.map(section => section.actor)]);
         this._spendSection = spend;
         this._sections = sections;
+        this._layoutKey = layoutKey(state.display);
+        this._reorderer.setSections(sections);
     }
 
     _replaceContent(actors) {
         this._tooltips.hide();
+        this._reorderer.setSections([]);
         this._content.destroy_all_children();
         this._spendSection = null;
         this._sections = [];
+        this._layoutKey = null;
         for (const actor of actors) this._content.add_child(actor);
+    }
+
+    _onDrop(from, to) {
+        const moved = this._sections[from];
+        this._sections = moveItem(this._sections, from, to);
+        const offset = this._spendSection ? 1 : 0;
+        this._content.set_child_at_index(moved.actor, to + offset);
+        const order = mergeOrder(
+            this._view.state.accounts.map(account => account.id),
+            this._sections.map(section => section.id)
+        );
+        for (const view of [this._view, this._pendingView]) if (view?.state) applyOrder(view.state, order);
+        this._ctx.actions.setOrder(order);
     }
 
     _toggleOptions() {

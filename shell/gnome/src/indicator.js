@@ -6,21 +6,36 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { DaemonClient } from './dbus.js';
-import { panelPercent } from './format.js';
+import { panelPercent, shortWindowLabel } from './format.js';
 import { PanelRing } from './panelRing.js';
 import { PopupView } from './popup/popup.js';
 import { startService } from './service.js';
+import { toggledResetFormat, toggledValueMode } from './settings.js';
 import { parseState, StateError } from './state.js';
-import { fileIcon, label, row } from './widgets.js';
+import { fileIcon, label, providerIcon, row } from './widgets.js';
 
 const TICK_SECONDS = 30;
 const STALE_OPACITY = 140;
 const WORK_AREA_GAP = 16;
+const WINDOW_LABEL_OPACITY = 170;
+const THEME_CLASSES = ['headroom-theme-light', 'headroom-theme-dark'];
+
+function headlineAccount(state) {
+    return state.accounts.find(candidate => candidate.id === state.headline.accountId) ?? null;
+}
 
 function isStale(state) {
     if (state.offline) return true;
-    const account = state.accounts.find(candidate => candidate.id === state.headline.accountId);
-    return account?.status === 'stale';
+    return headlineAccount(state)?.status === 'stale';
+}
+
+function panelValue(headline, display) {
+    if (display.valueMode === 'used' && headline.usedPercent !== null) return headline.usedPercent;
+    return headline.remainingPercent;
+}
+
+function themeClass(display) {
+    return display.theme === 'system' ? '' : `headroom-theme-${display.theme}`;
 }
 
 export const Indicator = GObject.registerClass(
@@ -28,7 +43,7 @@ export const Indicator = GObject.registerClass(
         _init(extension) {
             super._init(0.5, 'Headroom', false);
             this._extension = extension;
-            this._settings = extension.getSettings();
+            this._panelProvider = null;
             this._view = { kind: 'loading', state: null };
             this._tickId = 0;
             this._cancellable = new Gio.Cancellable();
@@ -37,7 +52,6 @@ export const Indicator = GObject.registerClass(
             this.menu.actor.add_style_class_name('headroom-menu');
             this.menu.box.add_child(this._popup.actor);
             this._menuToggledId = this.menu.connect('open-state-changed', (_menu, open) => this._onMenuToggled(open));
-            this._settings.connectObject('changed', () => this._render(), this);
             this._client = new DaemonClient({
                 onAvailable: () => this._setView({ kind: 'loading', state: null }),
                 onUnavailable: () => this._setView({ kind: 'unavailable', state: null }),
@@ -57,26 +71,28 @@ export const Indicator = GObject.registerClass(
             );
             this._ring = new PanelRing();
             this._ring.y_align = Clutter.ActorAlign.CENTER;
+            this._providerSlot = new St.Bin({
+                style_class: 'headroom-panel-provider',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            this._windowLabel = label('', 'headroom-panel-window');
+            this._windowLabel.opacity = WINDOW_LABEL_OPACITY;
             this._percent = label('', 'headroom-panel-label');
-            this._panelBox.add_child(this._mark);
-            this._panelBox.add_child(this._ring);
-            this._panelBox.add_child(this._percent);
+            for (const actor of [this._mark, this._ring, this._providerSlot, this._windowLabel, this._percent])
+                this._panelBox.add_child(actor);
             this.add_child(this._panelBox);
         }
 
         _createPopup() {
-            const settings = this._settings;
             return new PopupView({
                 dir: this._extension.dir,
                 versionText: `Headroom ${this._extension.metadata['version-name'] ?? ''}`.trim(),
-                settings: {
-                    get alwaysShowPacing() {
-                        return settings.get_boolean('always-show-pacing');
-                    },
-                },
                 actions: {
                     refresh: accountId => this._client.refresh(accountId),
                     setHidden: (accountId, hidden) => this._client.setAccountHidden(accountId, hidden),
+                    setOrder: ids => this._client.setAccountOrder(ids),
+                    toggleValueMode: () => this._patchDisplay(toggledValueMode),
+                    toggleResetFormat: () => this._patchDisplay(toggledResetFormat),
                     copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text),
                     openPreferences: () => this._openPreferences(),
                     startService: () => this._startService(),
@@ -103,20 +119,55 @@ export const Indicator = GObject.registerClass(
             this._render();
         }
 
+        _patchDisplay(patchFor) {
+            const state = this._view.state;
+            if (this._view.kind !== 'ready' || !state) return;
+            const patch = patchFor(state.display);
+            state.display = { ...state.display, ...patch };
+            this._render();
+            this._client.updateDisplay(() => patch);
+        }
+
         _render() {
+            this._applyTheme();
             this._renderPanel();
             this._popup.render(this._view);
         }
 
+        _applyTheme() {
+            const theme = this._view.state ? themeClass(this._view.state.display) : '';
+            for (const name of THEME_CLASSES) this.menu.actor.remove_style_class_name(name);
+            if (theme) this.menu.actor.add_style_class_name(theme);
+            this._popup.setTheme(theme);
+        }
+
         _renderPanel() {
-            const headline = this._view.state?.headline ?? null;
+            const state = this._view.state;
+            const headline = state?.headline ?? null;
             this._mark.visible = headline === null;
-            this._ring.visible = headline !== null;
-            this._percent.visible = headline !== null && this._settings.get_boolean('show-panel-percent');
-            this._panelBox.opacity = headline && isStale(this._view.state) ? STALE_OPACITY : 255;
+            this._percent.visible = headline !== null;
+            const windowMode = headline !== null && state.display.panelLabel === 'window';
+            this._ring.visible = headline !== null && !windowMode;
+            this._providerSlot.visible = windowMode;
+            this._windowLabel.visible = windowMode;
+            this._panelBox.opacity = headline && isStale(state) ? STALE_OPACITY : 255;
             if (headline === null) return;
-            this._ring.update(headline.remainingPercent / 100, headline.tone);
-            this._percent.text = panelPercent(headline.remainingPercent);
+            const value = panelValue(headline, state.display);
+            this._ring.update(value / 100, headline.tone);
+            this._percent.text = panelPercent(value);
+            if (windowMode) this._renderWindowLabel(state, headline);
+        }
+
+        _renderWindowLabel(state, headline) {
+            const provider = headline.provider ?? headlineAccount(state)?.provider ?? 'unknown';
+            if (provider !== this._panelProvider) {
+                this._providerSlot.child?.destroy();
+                this._providerSlot.set_child(
+                    providerIcon(this._extension.dir, provider, 'headroom-panel-provider-icon')
+                );
+                this._panelProvider = provider;
+            }
+            this._windowLabel.text = shortWindowLabel(headline.windowId, headline.windowLabel);
         }
 
         _onMenuToggled(open) {
@@ -175,7 +226,6 @@ export const Indicator = GObject.registerClass(
             this.menu.disconnect(this._menuToggledId);
             this._stopTicking();
             this._cancellable.cancel();
-            this._settings.disconnectObject(this);
             this._client.destroy();
             this._popup.destroy();
             super._onDestroy();

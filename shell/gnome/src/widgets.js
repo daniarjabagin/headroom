@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
+import { providerInfo } from './providers.js';
 
 export function column(params = {}) {
     const box = new St.BoxLayout(params);
@@ -36,6 +37,13 @@ export function themeIcon(iconName, styleClass) {
 export function fileIcon(dir, fileName, styleClass) {
     const gicon = new Gio.FileIcon({ file: dir.get_child('icons').get_child(fileName) });
     return new St.Icon({ gicon, style_class: styleClass, y_align: Clutter.ActorAlign.CENTER });
+}
+
+export function providerIcon(dir, provider, styleClass) {
+    const info = providerInfo(provider);
+    const classes = `${styleClass}${info.tinted ? ' tinted' : ''}`;
+    if (info.icon === null) return themeIcon('application-x-executable-symbolic', classes);
+    return fileIcon(dir, info.icon, classes);
 }
 
 export function button(child, styleClass, onClick) {

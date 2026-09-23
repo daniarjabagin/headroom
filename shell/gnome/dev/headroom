@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import select
+import sys
+import time
+
+SIGN_IN_URL = "https://auth.example.com/oauth/authorize?client_id=headroom-dev&state=mock"
+STEP_SECONDS = float(os.environ.get("HEADROOM_FAKE_STEP", "1.2"))
+
+
+def emit(event, **fields):
+    print(json.dumps({"event": event, **fields}), flush=True)
+
+
+def wait_for_code(timeout):
+    ready, _, _ = select.select([sys.stdin], [], [], timeout)
+    if not ready:
+        return None
+    return sys.stdin.readline().strip() or None
+
+
+def add(args):
+    emit("started", provider=args.provider, label=args.label)
+    time.sleep(STEP_SECONDS)
+    emit("output", line=f"Starting {args.provider} sign-in in a Headroom-owned home")
+    emit("url", url=SIGN_IN_URL)
+    emit("output", line="Open the link above, sign in, then paste the code if the page shows one.")
+    if os.environ.get("HEADROOM_FAKE_RESULT") == "error":
+        time.sleep(STEP_SECONDS)
+        emit("error", message="sign-in was cancelled in the browser")
+        return 1
+    code = wait_for_code(float(os.environ.get("HEADROOM_FAKE_WAIT", "30")))
+    emit("output", line=f"Received code {code}" if code else "Browser sign-in finished")
+    time.sleep(STEP_SECONDS)
+    emit("output", line="Verifying account…")
+    time.sleep(STEP_SECONDS)
+    emit("done", account_id=f"{args.provider}:0123456789ab")
+    return 0
+
+
+def remove(args):
+    emit("started", account_id=args.id)
+    time.sleep(STEP_SECONDS)
+    emit("output", line=f"Removed the Headroom-owned home of {args.id}")
+    emit("done", account_id=args.id)
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="headroom", description="Fake headroom CLI for the GNOME dev kit.")
+    commands = parser.add_subparsers(dest="command", required=True)
+    accounts = commands.add_parser("accounts").add_subparsers(dest="action", required=True)
+    add_parser = accounts.add_parser("add")
+    add_parser.add_argument("provider", choices=["codex", "claude"])
+    add_parser.add_argument("--label")
+    add_parser.add_argument("--progress", choices=["json"])
+    remove_parser = accounts.add_parser("remove")
+    remove_parser.add_argument("id")
+    remove_parser.add_argument("--yes", action="store_true")
+    remove_parser.add_argument("--progress", choices=["json"])
+    args = parser.parse_args()
+    sys.exit(add(args) if args.action == "add" else remove(args))
+
+
+if __name__ == "__main__":
+    main()

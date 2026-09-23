@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
-import { accountTitle } from './accountSection.js';
+import { _ } from '../i18n.js';
+import { accountTitle } from '../providers.js';
 import { button, column, label, row, spacer, themeIcon } from '../widgets.js';
 
 function menuItem(text, onActivate, leading = null) {
@@ -87,19 +88,19 @@ export class OptionsMenu {
 
     _mainPage(accounts) {
         const items = [
-            menuItem('Refresh now', () => this._run(() => this._ctx.actions.refresh(''))),
-            menuItem('Settings…', () => this._run(() => this._ctx.actions.openPreferences())),
+            menuItem(_('Refresh now'), () => this._run(() => this._ctx.actions.refresh(''))),
+            menuItem(_('Settings…'), () => this._run(() => this._ctx.actions.openPreferences())),
         ];
         if (accounts.length > 0) {
             items.push(separator());
-            items.push(menuItem('Hide accounts…', () => this._showPage(this._accountsPage)));
+            items.push(menuItem(_('Hide accounts…'), () => this._showPage(this._accountsPage)));
         }
         return this._page(items);
     }
 
     _buildAccountsPage(accounts) {
         const back = menuItem(
-            'Accounts',
+            _('Accounts'),
             () => this._showPage(this._main),
             themeIcon('go-previous-symbolic', 'headroom-menu-back')
         );

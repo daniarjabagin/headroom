@@ -1,0 +1,23 @@
+.headroom-panel-box {
+    spacing: 5px;
+}
+
+.headroom-panel-ring {
+    width: 15px;
+    height: 15px;
+    -headroom-warning-color: var(--warn);
+    -headroom-critical-color: var(--crit);
+}
+
+.headroom-panel-label {
+    font-feature-settings: 'tnum';
+}
+
+.headroom-panel-provider-icon {
+    icon-size: 16px;
+}
+
+.headroom-panel-window {
+    font-size: 7.5pt;
+    font-weight: 800;
+}

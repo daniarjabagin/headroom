@@ -1,22 +1,11 @@
 import GLib from 'gi://GLib';
 import * as format from '../src/format.js';
+import { parseDisplay } from '../src/settings.js';
 import { parseState, StateError } from '../src/state.js';
-
-const failures = [];
-
-function check(name, actual, expected) {
-    if (JSON.stringify(actual) !== JSON.stringify(expected))
-        failures.push(`${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-}
-
-function throws(name, run, type) {
-    try {
-        run();
-        failures.push(`${name}: expected ${type.name}`);
-    } catch (error) {
-        if (!(error instanceof type)) failures.push(`${name}: threw ${error}`);
-    }
-}
+import { check, failures, throws } from './check.js';
+import { testSettings, testSettingsUpdates } from './settingsTests.js';
+import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
+import { testExactReset, testForecast } from './timeTests.js';
 
 function readRelative(...parts) {
     const [testFile] = GLib.filename_from_uri(import.meta.url);
@@ -39,11 +28,9 @@ function shapeMismatches(sample, daemon, path) {
         return shapeMismatches(sample[0], daemon[0], `${path}[0]`);
     }
     if (!isPlainObject(sample) || !isPlainObject(daemon)) return [];
-    const sampleKeys = Object.keys(sample).sort();
-    const daemonKeys = Object.keys(daemon).sort();
-    if (JSON.stringify(sampleKeys) !== JSON.stringify(daemonKeys))
-        return [`${path}: sample keys ${sampleKeys} vs daemon keys ${daemonKeys}`];
-    return daemonKeys.flatMap(key => shapeMismatches(sample[key], daemon[key], `${path}.${key}`));
+    const missing = Object.keys(daemon).filter(key => !(key in sample));
+    if (missing.length > 0) return [`${path}: sample lacks daemon keys ${missing.sort()}`];
+    return Object.keys(daemon).flatMap(key => shapeMismatches(sample[key], daemon[key], `${path}.${key}`));
 }
 
 function testFormat() {
@@ -55,7 +42,12 @@ function testFormat() {
     check('reset soon', format.resetText(new Date('2026-09-23T10:00:30Z'), now), 'Resets soon');
     check('not started', format.resetText(null, now), 'Not started');
     check('spare', format.spareText(4.2), '~4% spare');
-    check('left at reset', format.leftAtResetText(18), '~18% left at reset');
+    check('percent used', format.percentUsed(38.4), '38% used');
+    check('reading left', format.reading({ usedPercent: 38, remainingPercent: 62 }, 'left'), '62% left');
+    check('reading used', format.reading({ usedPercent: 38, remainingPercent: 62 }, 'used'), '38% used');
+    check('short session', format.shortWindowLabel('session', 'Session'), 'S');
+    check('short weekly', format.shortWindowLabel('weekly', 'Weekly'), 'W');
+    check('short model', format.shortWindowLabel('model:opus', 'Opus'), 'Opus');
     check('limit', format.limitText(new Date('2026-09-24T19:00:00Z'), now), 'Limit in 1d 9h');
     check('next update', format.nextUpdateText(new Date('2026-09-23T10:03:10Z'), now), 'Next update in 3m');
     check('next update soon', format.nextUpdateText(new Date('2026-09-23T10:00:40Z'), now), 'Next update in <1m');
@@ -80,6 +72,10 @@ function testSampleAccounts() {
     check('headline', state.headline, {
         accountId: 'codex:1a2b3c4d5e6f',
         windowId: 'session',
+        provider: 'codex',
+        accountLabel: 'work',
+        windowLabel: 'Session',
+        usedPercent: 38,
         remainingPercent: 62,
         tone: 'good',
     });
@@ -94,7 +90,6 @@ function testSampleAccounts() {
     check('spare when close', personal.windows[0].pace.sparePercent, 4);
     check('model window id', personal.windows[2].id, 'model:spark');
     check('runs out', personal.windows[1].pace.runsOutAt.toISOString(), '2026-09-24T19:00:00.000Z');
-    check('shared usage', personal.usage.provider, 'codex');
     check('usd balance', state.accounts[0].balances[0], {
         id: 'credits',
         label: 'Credits',
@@ -110,6 +105,20 @@ function testSampleAccounts() {
         message: 'invalid response: HTTP 503 from api.anthropic.com',
     });
     check('signed out', state.accounts[3].status, 'signed_out');
+}
+
+function testSampleContract() {
+    const state = parseState(readSample());
+    check('display', state.display, parseDisplay(null));
+    check(
+        'owners',
+        state.accounts.map(account => account.owner),
+        ['cli', 'headroom', 'cli', 'cli']
+    );
+    check('window used', state.accounts[0].windows[0].usedPercent, 38);
+    check('window hidden', state.accounts[0].windows[0].hidden, false);
+    check('own home without logs', state.accounts[1].usage, null);
+    check('shared usage', state.accounts[3].usage.provider, 'claude');
     check('hidden flag', state.accounts[0].hidden, false);
 }
 
@@ -129,6 +138,17 @@ function testSampleUsage() {
         ['codex', 'claude']
     );
     check('partial month', state.spend.last30Days.partial, true);
+    const claudeModels = state.spend.last30Days.providers[1].models;
+    check('provider models sorted', claudeModels[0].model, 'claude-opus-4-5');
+    check('unpriced model', claudeModels[claudeModels.length - 1], {
+        model: 'claude-next',
+        totalTokens: 412_000,
+        costMicros: 0,
+        partial: true,
+    });
+    check('totals models', claudeMonth.models.length, 7);
+    const summed = claudeMonth.models.reduce((sum, entry) => sum + entry.totalTokens, 0);
+    check('models add up', summed, claudeMonth.tokens.total);
 }
 
 function testDaemonSnapshot() {
@@ -163,7 +183,15 @@ function testEdgeStates() {
 }
 
 testFormat();
+testExactReset();
+testForecast();
+testSettings();
+testSettingsUpdates();
+testModelBreakdown();
+testOrder();
+testProgress();
 testSampleAccounts();
+testSampleContract();
 testSampleUsage();
 testDaemonSnapshot();
 testEdgeStates();

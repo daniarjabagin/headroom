@@ -30,7 +30,6 @@ install_bundle() {
     rm -rf "$target"
     mkdir -p "$target"
     python3 -m zipfile -e "$1" "$target"
-    glib-compile-schemas --strict "$target/schemas"
 }
 
 configure_shell() {
@@ -41,6 +40,7 @@ configure_shell() {
 }
 
 run_inner() {
+    export PATH="$DEV_DIR:$PATH"
     configure_shell
     python3 "$DEV_DIR/mock-daemon.py" --scenario "${SCENARIO:-full}" --interval 30 &
     local mock=$!
