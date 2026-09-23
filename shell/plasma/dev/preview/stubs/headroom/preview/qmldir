@@ -1,0 +1,2 @@
+module headroom.preview
+singleton PreviewConfig 1.0 PreviewConfig.qml

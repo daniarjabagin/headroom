@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="showPercentage" type="Bool">
+      <label>Show the remaining percentage in the panel</label>
+      <default>true</default>
+    </entry>
+    <entry name="alwaysShowPacing" type="Bool">
+      <label>Show the even-pace tick and projection on healthy limits too</label>
+      <default>false</default>
+    </entry>
+  </group>
+</kcfg>
