@@ -24,7 +24,8 @@
     "show_account_spend": true,
     "show_trend": true,
     "show_forecast": true,
-    "hidden_windows": {}
+    "hidden_windows": {},
+    "translucent": false
   },
   "accounts": [
     {
