@@ -21,7 +21,7 @@ async fn server_responding(response: ResponseTemplate) -> MockServer {
 }
 
 async fn fetch_at(base: &str) -> Result<RawUsage, ProviderError> {
-    let client = UsageClient::new(base).unwrap();
+    let client = UsageClient::new(crate::http::client().unwrap(), base);
     let credentials =
         parse_credentials(r#"{"claudeAiOauth":{"accessToken":"fake-token"}}"#).unwrap();
     let token = credentials.usable_token(now()).unwrap();

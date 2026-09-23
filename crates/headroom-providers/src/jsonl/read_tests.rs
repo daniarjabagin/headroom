@@ -26,8 +26,16 @@ fn set_mtime(path: &Path, secs: u64) {
         .unwrap();
 }
 
+fn collect(lines: &mut Vec<String>, line: &str) {
+    lines.push(line.to_owned());
+}
+
 fn read(path: &Path, cursor: &mut FileCursor) -> Vec<String> {
-    read_new_lines(path, cursor).unwrap()
+    read_new_lines(path, cursor, |_| Vec::new(), collect).unwrap()
+}
+
+fn read_tracked(path: &Path, cursors: &mut LogCursors) -> Option<Vec<String>> {
+    read_new_lines_or_skip(path, cursors, |_| Vec::new(), collect)
 }
 
 #[test]
@@ -155,7 +163,7 @@ fn crlf_and_blank_lines_are_normalized() {
 fn missing_file_is_an_error_with_path() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("gone.jsonl");
-    let error = read_new_lines(&path, &mut FileCursor::default()).unwrap_err();
+    let error = read_new_lines(&path, &mut FileCursor::default(), |_| (), |(), _| {}).unwrap_err();
     assert!(error.to_string().contains("gone.jsonl"));
     let provider_error: headroom_core::provider::ProviderError = error.into();
     assert!(matches!(
@@ -194,7 +202,7 @@ fn skipped_read_restores_the_previous_cursor() {
         state: json!({ "model": "m" }),
     };
     *cursors.cursor_mut(&path) = previous.clone();
-    assert_eq!(read_new_lines_or_skip(&path, &mut cursors), None);
+    assert_eq!(read_tracked(&path, &mut cursors), None);
     assert_eq!(cursors.0.get(&path), Some(&previous));
 }
 
@@ -204,7 +212,7 @@ fn skipped_read_of_an_unknown_file_leaves_no_cursor() {
     let path = dir.path().join("directory.jsonl");
     fs::create_dir(&path).unwrap();
     let mut cursors = LogCursors::default();
-    assert_eq!(read_new_lines_or_skip(&path, &mut cursors), None);
+    assert_eq!(read_tracked(&path, &mut cursors), None);
     assert!(cursors.0.is_empty());
 }
 
@@ -213,8 +221,39 @@ fn successful_tracked_read_advances_the_cursor() {
     let (_dir, path) = log_file("a\nb\n");
     let mut cursors = LogCursors::default();
     assert_eq!(
-        read_new_lines_or_skip(&path, &mut cursors),
+        read_tracked(&path, &mut cursors),
         Some(vec!["a".to_owned(), "b".to_owned()])
     );
     assert_eq!(cursors.0[&path].offset, 4);
+}
+
+#[test]
+fn init_sees_the_state_after_a_reset() {
+    let (_dir, path) = log_file("a\nb\n");
+    let mut cursor = FileCursor::default();
+    read(&path, &mut cursor);
+    cursor.state = json!({ "prev": 2 });
+    let kept = read_new_lines(&path, &mut cursor, |c| c.state.clone(), |_, _| {}).unwrap();
+    assert_eq!(kept, json!({ "prev": 2 }));
+    fs::write(&path, "x\n").unwrap();
+    let reset = read_new_lines(&path, &mut cursor, |c| c.state.clone(), |_, _| {}).unwrap();
+    assert_eq!(reset, serde_json::Value::Null);
+}
+
+#[test]
+fn lines_longer_than_the_read_buffer_arrive_whole() {
+    let long = "x".repeat(READ_BUFFER * 3 + 17);
+    let (_dir, path) = log_file(&format!("{long}\nshort\n{long}"));
+    let mut cursor = FileCursor::default();
+    assert_eq!(read(&path, &mut cursor), [long.as_str(), "short"]);
+    assert_eq!(cursor.offset, (long.len() + 7) as u64);
+}
+
+#[test]
+fn invalid_utf8_is_replaced_not_dropped() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bytes.jsonl");
+    fs::write(&path, b"a\xffb\n").unwrap();
+    let mut cursor = FileCursor::default();
+    assert_eq!(read(&path, &mut cursor), ["a\u{fffd}b"]);
 }

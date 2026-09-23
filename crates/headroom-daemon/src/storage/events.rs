@@ -48,25 +48,22 @@ fn upsert(
     event: &UsageEvent,
 ) -> Result<usize, StorageError> {
     let tokens = &event.tokens;
-    Ok(tx.execute(
-        UPSERT,
-        params![
-            enum_to_sql(&home.provider)?,
-            path_to_sql(&home.home)?,
-            event.key.0,
-            timestamp_to_sql(event.at)?,
-            event.model,
-            enum_to_sql(&event.tier)?,
-            tokens_to_sql(tokens.input)?,
-            tokens_to_sql(tokens.cache_read)?,
-            tokens_to_sql(tokens.cache_write_5m)?,
-            tokens_to_sql(tokens.cache_write_1h)?,
-            tokens_to_sql(tokens.output)?,
-            tokens_to_sql(tokens.reasoning)?,
-            tokens_to_sql(tokens.total())?,
-            event.web_search_requests
-        ],
-    )?)
+    Ok(tx.prepare_cached(UPSERT)?.execute(params![
+        enum_to_sql(&home.provider)?,
+        path_to_sql(&home.home)?,
+        event.key.0,
+        timestamp_to_sql(event.at)?,
+        event.model,
+        enum_to_sql(&event.tier)?,
+        tokens_to_sql(tokens.input)?,
+        tokens_to_sql(tokens.cache_read)?,
+        tokens_to_sql(tokens.cache_write_5m)?,
+        tokens_to_sql(tokens.cache_write_1h)?,
+        tokens_to_sql(tokens.output)?,
+        tokens_to_sql(tokens.reasoning)?,
+        tokens_to_sql(tokens.total())?,
+        event.web_search_requests
+    ])?)
 }
 
 pub fn load_since(
@@ -74,18 +71,17 @@ pub fn load_since(
     home: &UsageHome,
     since: Timestamp,
 ) -> Result<Vec<UsageEvent>, StorageError> {
-    let mut statement = conn.prepare(SELECT_SINCE)?;
-    let raw = statement
-        .query_map(
-            params![
-                enum_to_sql(&home.provider)?,
-                path_to_sql(&home.home)?,
-                timestamp_to_sql(since)?
-            ],
-            read_raw,
-        )?
-        .collect::<Result<Vec<_>, _>>()?;
-    raw.into_iter().map(decode).collect()
+    let mut statement = conn.prepare_cached(SELECT_SINCE)?;
+    let mut rows = statement.query(params![
+        enum_to_sql(&home.provider)?,
+        path_to_sql(&home.home)?,
+        timestamp_to_sql(since)?
+    ])?;
+    let mut events = Vec::new();
+    while let Some(row) = rows.next()? {
+        events.push(decode(read_raw(row)?)?);
+    }
+    Ok(events)
 }
 
 pub fn prune_before(conn: &Connection, cutoff: Timestamp) -> Result<usize, StorageError> {

@@ -30,6 +30,8 @@ use jiff::Timestamp;
 use auth::{Credentials, load_credentials};
 use client::UsageClient;
 
+use crate::http;
+
 pub use client::DEFAULT_API_BASE;
 pub use env::CodexEnvironment;
 
@@ -70,8 +72,13 @@ pub struct CodexProvider {
 
 impl CodexProvider {
     pub fn new(config: CodexConfig) -> Result<CodexProvider, ProviderError> {
-        let client = UsageClient::new(&config.api_base)?;
-        Ok(CodexProvider { config, client })
+        Ok(CodexProvider::with_http(config, http::client()?))
+    }
+
+    #[must_use]
+    pub fn with_http(config: CodexConfig, http: reqwest::Client) -> CodexProvider {
+        let client = UsageClient::new(http, &config.api_base);
+        CodexProvider { config, client }
     }
 
     fn now(&self) -> Timestamp {

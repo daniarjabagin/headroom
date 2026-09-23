@@ -37,7 +37,10 @@ async fn fetch(
     server: &MockServer,
     account_id: Option<&str>,
 ) -> Result<UsageResponse, ProviderError> {
-    let client = UsageClient::new(&format!("{}/", server.uri())).unwrap();
+    let client = UsageClient::new(
+        crate::http::client().unwrap(),
+        &format!("{}/", server.uri()),
+    );
     client.fetch_usage(&credentials(account_id), at(NOW)).await
 }
 
@@ -165,7 +168,7 @@ async fn unreachable_server_is_network_error() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let uri = format!("http://{}", listener.local_addr().unwrap());
     drop(listener);
-    let client = UsageClient::new(&uri).unwrap();
+    let client = UsageClient::new(crate::http::client().unwrap(), &uri);
     let result = client.fetch_usage(&credentials(None), at(NOW)).await;
     assert!(matches!(result, Err(ProviderError::Network(_))));
 }

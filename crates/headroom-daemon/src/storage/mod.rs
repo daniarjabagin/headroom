@@ -16,6 +16,7 @@ use rusqlite::Connection;
 use crate::error::StorageError;
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+const PAGE_CACHE_KIB: i64 = 1024;
 
 #[derive(Clone)]
 pub struct Storage {
@@ -38,6 +39,7 @@ impl Storage {
     fn prepare(mut conn: Connection) -> Result<Storage, StorageError> {
         conn.busy_timeout(BUSY_TIMEOUT)?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "cache_size", -PAGE_CACHE_KIB)?;
         migrations::migrate(&mut conn)?;
         Ok(Storage {
             conn: Arc::new(Mutex::new(conn)),

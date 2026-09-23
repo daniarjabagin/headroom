@@ -13,7 +13,6 @@ pub const DEFAULT_API_BASE: &str = "https://chatgpt.com";
 const USAGE_PATH: &str = "/backend-api/wham/usage";
 const ACCOUNT_HEADER: &str = "ChatGPT-Account-Id";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub(super) struct UsageResponse {
@@ -64,16 +63,11 @@ pub(super) struct UsageClient {
 }
 
 impl UsageClient {
-    pub(super) fn new(api_base: &str) -> Result<UsageClient, ProviderError> {
-        let http = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .connect_timeout(CONNECT_TIMEOUT)
-            .build()
-            .map_err(|error| ProviderError::Network(error.without_url().to_string()))?;
-        Ok(UsageClient {
+    pub(super) fn new(http: reqwest::Client, api_base: &str) -> UsageClient {
+        UsageClient {
             http,
             api_base: api_base.trim_end_matches('/').to_owned(),
-        })
+        }
     }
 
     pub(super) async fn fetch_usage(
@@ -84,6 +78,7 @@ impl UsageClient {
         let response = self
             .http
             .get(format!("{}{USAGE_PATH}", self.api_base))
+            .timeout(REQUEST_TIMEOUT)
             .headers(request_headers(credentials)?)
             .send()
             .await

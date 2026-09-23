@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use headroom_core::cursor::LogCursors;
+use headroom_core::cursor::{FileCursor, LogCursors};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::ProviderError;
 use jiff::Timestamp;
@@ -41,16 +41,17 @@ fn read_file(
     now: Timestamp,
     events: &mut Vec<UsageEvent>,
 ) -> Result<(), ProviderError> {
-    let Some(lines) = jsonl::read_new_lines_or_skip(path, cursors) else {
+    let init = |cursor: &FileCursor| (ParserState::from_value(&cursor.state), Vec::new());
+    let consume = |(state, found): &mut (ParserState, Vec<UsageEvent>), line: &str| {
+        state.consume(line, found);
+    };
+    let Some((mut state, found)) = jsonl::read_new_lines_or_skip(path, cursors, init, consume)
+    else {
         return Ok(());
     };
-    let cursor = cursors.cursor_mut(path);
-    let mut state = ParserState::from_value(&cursor.state);
-    for line in &lines {
-        state.consume(line, events);
-    }
+    events.extend(found);
     state.settle(now, events);
-    cursor.state = state
+    cursors.cursor_mut(path).state = state
         .to_value()
         .map_err(|error| ProviderError::LocalData(format!("cannot store parser state: {error}")))?;
     Ok(())

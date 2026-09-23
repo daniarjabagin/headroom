@@ -20,16 +20,11 @@ pub(super) struct UsageClient {
 }
 
 impl UsageClient {
-    pub(super) fn new(api_base: &str) -> Result<UsageClient, ProviderError> {
-        let http = Client::builder()
-            .timeout(TIMEOUT)
-            .user_agent(concat!("headroom/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(|error| ProviderError::Network(error.without_url().to_string()))?;
-        Ok(UsageClient {
+    pub(super) fn new(http: Client, api_base: &str) -> UsageClient {
+        UsageClient {
             http,
             url: format!("{}{USAGE_PATH}", api_base.trim_end_matches('/')),
-        })
+        }
     }
 
     pub(super) async fn fetch(
@@ -40,6 +35,7 @@ impl UsageClient {
         let response = self
             .http
             .get(&self.url)
+            .timeout(TIMEOUT)
             .bearer_auth(token.secret())
             .header(BETA_HEADER, BETA_VALUE)
             .header(ACCEPT, "application/json")
