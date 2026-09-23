@@ -40,6 +40,10 @@ function providerInfo(id) {
     };
 }
 
+function accountName(account) {
+    return account.label ?? account.email ?? providerInfo(account.provider).name;
+}
+
 function accountTitle(account, showName) {
     const name = providerInfo(account.provider).name;
     if (!showName)

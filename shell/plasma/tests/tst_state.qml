@@ -26,7 +26,7 @@ TestCase {
         if (Array.isArray(sample) && Array.isArray(daemon))
             return sample.length === 0 || daemon.length === 0 ? [] : keyMismatches(sample[0], daemon[0], `${path}[0]`);
         const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
-        if (!isObject(sample) || !isObject(daemon))
+        if (!isObject(sample) || !isObject(daemon) || path.endsWith(".hidden_windows"))
             return [];
         const sampleKeys = Object.keys(sample).sort().join(",");
         const daemonKeys = Object.keys(daemon).sort().join(",");
@@ -41,21 +41,37 @@ TestCase {
         compare(state.headline, {
             accountId: "codex:1a2b3c4d5e6f",
             windowId: "session",
+            provider: "codex",
+            accountLabel: "work",
+            windowLabel: "Session",
+            usedPercent: 38,
             remainingPercent: 62,
             tone: "good"
         });
         compare(state.nextRefreshAt.toISOString(), "2026-09-23T10:03:10.000Z");
         compare(state.offline, false);
         const personal = state.accounts[1];
+        compare(personal.owner, "headroom");
+        compare(state.accounts[0].owner, "cli");
         compare(personal.status, "stale");
         compare(personal.windows[1].pace.severity, "running_out");
         compare(personal.windows[1].pace.sparePercent, null);
         compare(personal.windows[0].pace.sparePercent, 4);
-        compare(personal.windows[1].pace.runsOutAt.toISOString(), "2026-09-24T19:00:00.000Z");
-        compare(personal.usage.provider, "codex");
+        compare(personal.windows[0].usedPercent, 71);
+        compare(personal.windows[0].hidden, false);
+        compare(personal.usage, null);
+        compare(state.accounts[0].usage.provider, "codex");
         compare(state.accounts[0].balances[0].usdMicros, 12500000);
         compare(state.accounts[2].balances[0].unit, "requests");
         compare(state.accounts[3].status, "signed_out");
+    }
+
+    function test_sample_display() {
+        const display = sample().display;
+        compare(display.theme, "system");
+        compare(display.valueMode, "left");
+        compare(display.translucent, false);
+        compare(display.hiddenWindows, {});
     }
 
     function test_sample_spend() {
@@ -63,7 +79,10 @@ TestCase {
         compare(state.accounts[2].usage.last30Days.unpricedModels, ["claude-next"]);
         compare(state.spend.today.costMicros, 18420000);
         compare(state.spend.today.providers.map(spend => spend.provider), ["codex", "claude"]);
+        compare(state.spend.today.providers[0].models[0].model, "gpt-5.5");
         compare(state.spend.last30Days.partial, true);
+        const models = state.accounts[2].usage.last30Days.models;
+        compare(models[models.length - 1].partial, true);
     }
 
     function test_daemon_snapshot() {
@@ -75,6 +94,19 @@ TestCase {
         compare(state.accounts[1].error.kind, "sign_in_expired");
         compare(state.accounts[2].hidden, true);
         compare(keyMismatches(JSON.parse(read("../dev/sample-state.json")), JSON.parse(json), "$"), []);
+    }
+
+    function test_hidden_windows() {
+        const raw = JSON.parse(read("../dev/sample-state.json"));
+        raw.accounts[0].windows[1].hidden = true;
+        raw.display.hidden_windows = {
+            "codex:1a2b3c4d5e6f": ["weekly", "weekly", ""]
+        };
+        const state = State.parseState(JSON.stringify(raw));
+        compare(State.shownWindows(state.accounts[0]).map(window => window.id), ["session"]);
+        compare(state.display.hiddenWindows, {
+            "codex:1a2b3c4d5e6f": ["weekly"]
+        });
     }
 
     function test_edge_states() {
@@ -90,38 +122,71 @@ TestCase {
         compare(bare.accounts, []);
         compare(bare.spend, null);
         compare(bare.headline, null);
+        compare(bare.display.language, "system");
+    }
+
+    function test_order_and_display_patches() {
+        const state = sample();
+        const ids = state.accounts.map(account => account.id);
+        const reordered = State.withOrder(state, [ids[2], ids[0]]);
+        compare(reordered.accounts.map(account => account.id), [ids[2], ids[0], ids[1], ids[3]]);
+        compare(State.withDisplay(state, {
+            valueMode: "used"
+        }).display.valueMode, "used");
+        compare(state.display.valueMode, "left");
     }
 
     function test_headline() {
         const state = sample();
         compare(State.headlineWindow(state).label, "Session");
         compare(State.isHeadlineStale(state), false);
-        compare(Summary.tooltip({
+        compare(State.headlinePercent(state.headline, "used"), 38);
+        compare(State.headlinePercent(state.headline, "left"), 62);
+        compare(Summary.tooltip("en", {
             kind: "ready",
             state
         }, now), {
             main: "Codex: work · Session",
             sub: "62% left · Resets in 2h 41m"
         });
-        compare(Summary.tooltip({
+        compare(Summary.tooltip("ru", {
+            kind: "ready",
+            state: State.withDisplay(state, {
+                valueMode: "used"
+            })
+        }, now), {
+            main: "Codex: work · Сессия",
+            sub: "Использовано 38% · Сброс через 2 ч 41 мин"
+        });
+        compare(Summary.tooltip("en", {
             kind: "unavailable"
         }, now).sub, "Service not running");
     }
 
+    function test_live_clock() {
+        const state = sample();
+        verify(!State.needsLiveClock(state, now));
+        verify(State.needsLiveClock(state, new Date("2026-09-23T12:00:00Z")));
+    }
+
     function test_footer_line() {
         const state = sample();
-        compare(Summary.footerLine({
+        compare(Summary.footerLine("en", {
             kind: "ready",
             state
         }, now).text, "Next update in 3m");
+        compare(Summary.footerLine("ru", {
+            kind: "ready",
+            state
+        }, now).text, "Обновление через 3 мин");
         state.offline = true;
-        verify(Summary.footerLine({
+        verify(Summary.footerLine("en", {
             kind: "ready",
             state
         }, now).notice);
         state.accounts[0].status = "refreshing";
         state.offline = false;
-        compare(Summary.footerLine({
+        compare(Summary.footerLine("en", {
             kind: "ready",
             state
         }, now).busy, true);
@@ -131,9 +196,10 @@ TestCase {
         const state = sample();
         compare(Account.statusSlot(state.accounts[1], false), "outdated");
         compare(Account.statusSlot(state.accounts[2], false), "warning");
-        compare(Account.notices(state.accounts[2], false)[0].title, "Couldn't refresh Claude Code");
-        compare(Account.notices(state.accounts[1], false)[0].kind, "warning");
-        const signedOut = Account.notices(state.accounts[3], false);
+        compare(Account.notices("en", state.accounts[2], false)[0].title, "Couldn't refresh Claude Code");
+        compare(Account.notices("ru", state.accounts[2], false)[0].title, "Не удалось обновить Claude Code");
+        compare(Account.notices("en", state.accounts[1], false)[0].kind, "warning");
+        const signedOut = Account.notices("en", state.accounts[3], false);
         compare(signedOut.length, 1);
         compare(signedOut[0].actions.map(action => action.kind), ["copy", "retry"]);
         compare(signedOut[0].actions[0].value, "claude");
@@ -144,6 +210,24 @@ TestCase {
             }
         });
         compare(Account.statusSlot(offline, true), "outdated");
-        compare(Account.notices(offline, true), []);
+        compare(Account.notices("en", offline, true), []);
+    }
+
+    function test_account_sections() {
+        const state = sample();
+        const display = state.display;
+        const hiddenSpend = Object.assign({}, display, {
+            showAccountSpend: false,
+            showTrend: false
+        });
+        verify(Account.hasExtras(state.accounts[0], display));
+        verify(Account.hasExtras(state.accounts[0], hiddenSpend));
+        verify(!Account.hasExtras(state.accounts[3], display));
+        verify(Account.showsTrend(state.accounts[0], display));
+        verify(!Account.showsTrend(state.accounts[0], hiddenSpend));
+        compare(Account.spendRows("en", state.accounts[0], hiddenSpend), []);
+        const rows = Account.spendRows("ru", state.accounts[0], display);
+        compare(rows.map(row => row.title), ["Сегодня", "Вчера", "30 дней"]);
+        compare(rows[0].breakdownTitle, "Сегодня · Codex");
     }
 }

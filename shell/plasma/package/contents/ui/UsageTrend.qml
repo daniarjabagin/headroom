@@ -2,18 +2,26 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
+import org.kde.plasma.components as PlasmaComponents3
+import "logic/Format.js" as Format
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Tokens.js" as Tokens
 import "logic/Trend.js" as Trend
-import org.kde.kirigami as Kirigami
 
 Item {
     id: trend
 
     required property var usage
+    required property string lang
     readonly property var days: Trend.lastDays(usage.daily)
     readonly property int peak: Trend.peakOf(days)
     readonly property real stripHeight: Metrics.trendHeight(Kirigami.Units)
+    readonly property real barWidth: Kirigami.Units.smallSpacing
+    readonly property real barGap: Metrics.hairline(Kirigami.Units)
+    readonly property int hoveredIndex: stripHover.hovered ? Trend.indexAt(stripHover.point.position.x, barWidth + barGap, days.length) : -1
+    readonly property string tipText: hoveredIndex >= 0 ? Format.dayTooltip(lang, days[hoveredIndex]) : Trend.peakDescription(lang, days)
 
     Layout.fillWidth: true
     implicitHeight: content.implicitHeight + Metrics.textRowPadding(Kirigami.Units) * 2
@@ -29,31 +37,48 @@ Item {
         TextLabel {
             Layout.fillWidth: true
             weight: Font.DemiBold
-            text: "Usage Trend"
+            text: I18n.tr(trend.lang, "Usage Trend")
+            elide: Text.ElideRight
         }
 
         Row {
+            id: strip
+
             Layout.alignment: Qt.AlignVCenter
             Layout.preferredHeight: trend.stripHeight
-            spacing: Metrics.hairline(Kirigami.Units)
+            spacing: trend.barGap
 
             Repeater {
                 model: trend.days
 
                 Rectangle {
                     required property var modelData
+                    required property int index
                     readonly property real share: Trend.barShare(modelData.totalTokens, trend.peak)
 
                     anchors.bottom: parent.bottom
-                    width: Kirigami.Units.smallSpacing
+                    width: trend.barWidth
                     height: share > 0 ? Math.round(trend.stripHeight * share) : Kirigami.Units.smallSpacing / 2
                     radius: Metrics.hairline(Kirigami.Units)
                     color: Tokens.toneColor(Kirigami.Theme, "good")
+                    opacity: trend.hoveredIndex < 0 || trend.hoveredIndex === index ? 1 : 0.4
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Kirigami.Units.shortDuration
+                        }
+                    }
                 }
             }
 
-            HoverTip {
-                text: Trend.peakDescription(trend.days)
+            HoverHandler {
+                id: stripHover
+            }
+
+            PlasmaComponents3.ToolTip {
+                text: trend.tipText
+                visible: stripHover.hovered && trend.tipText !== ""
+                delay: 0
             }
         }
     }

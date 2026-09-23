@@ -6,7 +6,6 @@ QMLFORMAT := $(QT_BIN)/qmlformat
 QMLTESTRUNNER := $(QT_BIN)/qmltestrunner
 STUBS := dev/preview/stubs
 QML_SOURCES := $(shell find package dev tests -name '*.qml')
-LINT_SOURCES := $(filter-out package/contents/config/config.qml package/contents/ui/configGeneral.qml,$(QML_SOURCES))
 MOCK := ../gnome/dev/mock-daemon.py
 OUT ?= $(or $(XDG_RUNTIME_DIR),/tmp)/headroom-plasma-preview/shot
 SCENARIO ?= ready
@@ -23,13 +22,14 @@ uninstall:
 	kpackagetool6 --type Plasma/Applet --remove $(PLUGIN_ID)
 
 lint:
-	$(QMLLINT) --max-warnings 0 -I $(STUBS) $(LINT_SOURCES)
+	$(QMLLINT) --max-warnings 0 -I $(STUBS) $(QML_SOURCES)
 	@for file in $(QML_SOURCES); do $(QMLFORMAT) $$file | diff -q $$file - >/dev/null || { echo "not qmlformat-clean: $$file"; exit 1; }; done
 
 format:
 	$(QMLFORMAT) -i $(QML_SOURCES)
 
 test:
+	python3 tests/check_messages.py
 	QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen $(QMLTESTRUNNER) -input tests
 
 preview:

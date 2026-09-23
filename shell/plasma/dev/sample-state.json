@@ -7,8 +7,24 @@
   "headline": {
     "account_id": "codex:1a2b3c4d5e6f",
     "window": "session",
+    "provider": "codex",
+    "account_label": "work",
+    "window_label": "Session",
+    "used_percent": 38.0,
     "remaining_percent": 62.0,
     "tone": "good"
+  },
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "hidden_windows": {}
   },
   "accounts": [
     {
@@ -17,6 +33,7 @@
       "label": "work",
       "email": "dev@example.com",
       "plan": "Pro",
+      "owner": "cli",
       "hidden": false,
       "status": "fresh",
       "error": null,
@@ -37,7 +54,8 @@
             "projected_percent": 82.0,
             "spare_percent": 18.0,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         },
         {
           "id": "weekly",
@@ -53,7 +71,8 @@
             "projected_percent": 50.0,
             "spare_percent": 50.0,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         }
       ],
       "balances": [
@@ -73,6 +92,7 @@
       "label": "personal",
       "email": "me@example.org",
       "plan": "Plus",
+      "owner": "headroom",
       "hidden": false,
       "status": "stale",
       "error": null,
@@ -93,7 +113,8 @@
             "projected_percent": 96.0,
             "spare_percent": 4.0,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         },
         {
           "id": "weekly",
@@ -109,7 +130,8 @@
             "projected_percent": 151.0,
             "spare_percent": null,
             "runs_out_at": "2026-09-24T19:00:00Z"
-          }
+          },
+          "hidden": false
         },
         {
           "id": "model:spark",
@@ -125,7 +147,8 @@
             "projected_percent": null,
             "spare_percent": null,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         }
       ],
       "balances": [],
@@ -135,7 +158,7 @@
           "text": "Weekly limit shared with Codex Cloud"
         }
       ],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.local/share/headroom/homes/codex-9f8e7d6c5b4a"
     },
     {
       "id": "claude:0a1b2c3d4e5f",
@@ -143,6 +166,7 @@
       "label": "personal",
       "email": "me@example.org",
       "plan": "Max 5x",
+      "owner": "cli",
       "hidden": false,
       "status": "error",
       "error": {
@@ -166,7 +190,8 @@
             "projected_percent": null,
             "spare_percent": null,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         },
         {
           "id": "weekly",
@@ -182,7 +207,8 @@
             "projected_percent": 88.0,
             "spare_percent": 12.0,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         },
         {
           "id": "model:opus",
@@ -198,7 +224,8 @@
             "projected_percent": 17.0,
             "spare_percent": 83.0,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         }
       ],
       "balances": [
@@ -219,6 +246,7 @@
       "label": "team",
       "email": "dev@example.com",
       "plan": "Team",
+      "owner": "cli",
       "hidden": false,
       "status": "signed_out",
       "error": {
@@ -249,7 +277,33 @@
         "cost_usd_micros": 14370000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 2983440,
+            "cost_usd_micros": 11208600,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 1010520,
+            "cost_usd_micros": 1724400,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 529320,
+            "cost_usd_micros": 1149600,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 288720,
+            "cost_usd_micros": 287400,
+            "partial": false
+          }
+        ]
       },
       "yesterday": {
         "tokens": {
@@ -263,7 +317,33 @@
         "cost_usd_micros": 21880000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 5654400,
+            "cost_usd_micros": 17066400,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 1915200,
+            "cost_usd_micros": 2625600,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 1003200,
+            "cost_usd_micros": 1750400,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 547200,
+            "cost_usd_micros": 437600,
+            "partial": false
+          }
+        ]
       },
       "last_30_days": {
         "tokens": {
@@ -277,7 +357,33 @@
         "cost_usd_micros": 463120000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 113088000,
+            "cost_usd_micros": 361233600,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 38304000,
+            "cost_usd_micros": 55574400,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 20064000,
+            "cost_usd_micros": 37049600,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 10944000,
+            "cost_usd_micros": 9262400,
+            "partial": false
+          }
+        ]
       },
       "daily": [
         {
@@ -460,20 +566,6 @@
           "cost_usd_micros": 12993000,
           "partial": false
         }
-      ],
-      "models": [
-        {
-          "model": "gpt-5.5",
-          "total_tokens": 150000000,
-          "cost_usd_micros": 401000000,
-          "partial": false
-        },
-        {
-          "model": "gpt-5.5-mini",
-          "total_tokens": 32400000,
-          "cost_usd_micros": 62120000,
-          "partial": false
-        }
       ]
     },
     {
@@ -491,7 +583,45 @@
         "cost_usd_micros": 4050000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 409175,
+            "cost_usd_micros": 2470500,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 457310,
+            "cost_usd_micros": 1093500,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 60172,
+            "cost_usd_micros": 202500,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 144413,
+            "cost_usd_micros": 162000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 72206,
+            "cost_usd_micros": 81000,
+            "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 60172,
+            "cost_usd_micros": 40500,
+            "partial": false
+          }
+        ]
       },
       "yesterday": {
         "tokens": {
@@ -505,7 +635,45 @@
         "cost_usd_micros": 8300000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 816000,
+            "cost_usd_micros": 5063000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 912000,
+            "cost_usd_micros": 2241000,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 120000,
+            "cost_usd_micros": 415000,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 288000,
+            "cost_usd_micros": 332000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 144000,
+            "cost_usd_micros": 166000,
+            "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 120000,
+            "cost_usd_micros": 83000,
+            "partial": false
+          }
+        ]
       },
       "last_30_days": {
         "tokens": {
@@ -521,6 +689,50 @@
         "unpriced_tokens": 412000,
         "unpriced_models": [
           "claude-next"
+        ],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 12036309,
+            "cost_usd_micros": 58804000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 13452343,
+            "cost_usd_micros": 26028000,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 1770045,
+            "cost_usd_micros": 4820000,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 4248108,
+            "cost_usd_micros": 3856000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 2124054,
+            "cost_usd_micros": 1928000,
+            "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 1770045,
+            "cost_usd_micros": 964000,
+            "partial": false
+          },
+          {
+            "model": "claude-next",
+            "total_tokens": 412000,
+            "cost_usd_micros": 0,
+            "partial": true
+          }
         ]
       },
       "daily": [
@@ -704,20 +916,6 @@
           "cost_usd_micros": 5865000,
           "partial": false
         }
-      ],
-      "models": [
-        {
-          "model": "claude-opus",
-          "total_tokens": 30000000,
-          "cost_usd_micros": 90000000,
-          "partial": false
-        },
-        {
-          "model": "claude-next",
-          "total_tokens": 412000,
-          "cost_usd_micros": 0,
-          "partial": true
-        }
       ]
     }
   ],
@@ -731,13 +929,77 @@
           "provider": "codex",
           "cost_usd_micros": 14370000,
           "total_tokens": 4812000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 2983440,
+              "cost_usd_micros": 11208600,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 1010520,
+              "cost_usd_micros": 1724400,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 529320,
+              "cost_usd_micros": 1149600,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 288720,
+              "cost_usd_micros": 287400,
+              "partial": false
+            }
+          ]
         },
         {
           "provider": "claude",
           "cost_usd_micros": 4050000,
           "total_tokens": 1203448,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 409175,
+              "cost_usd_micros": 2470500,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 457310,
+              "cost_usd_micros": 1093500,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 60172,
+              "cost_usd_micros": 202500,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 144413,
+              "cost_usd_micros": 162000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 72206,
+              "cost_usd_micros": 81000,
+              "partial": false
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 60172,
+              "cost_usd_micros": 40500,
+              "partial": false
+            }
+          ]
         }
       ]
     },
@@ -750,13 +1012,77 @@
           "provider": "codex",
           "cost_usd_micros": 21880000,
           "total_tokens": 9120000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 5654400,
+              "cost_usd_micros": 17066400,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 1915200,
+              "cost_usd_micros": 2625600,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 1003200,
+              "cost_usd_micros": 1750400,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 547200,
+              "cost_usd_micros": 437600,
+              "partial": false
+            }
+          ]
         },
         {
           "provider": "claude",
           "cost_usd_micros": 8300000,
           "total_tokens": 2400000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 816000,
+              "cost_usd_micros": 5063000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 912000,
+              "cost_usd_micros": 2241000,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 120000,
+              "cost_usd_micros": 415000,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 288000,
+              "cost_usd_micros": 332000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 144000,
+              "cost_usd_micros": 166000,
+              "partial": false
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 120000,
+              "cost_usd_micros": 83000,
+              "partial": false
+            }
+          ]
         }
       ]
     },
@@ -769,13 +1095,83 @@
           "provider": "codex",
           "cost_usd_micros": 463120000,
           "total_tokens": 182400000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 113088000,
+              "cost_usd_micros": 361233600,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 38304000,
+              "cost_usd_micros": 55574400,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 20064000,
+              "cost_usd_micros": 37049600,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 10944000,
+              "cost_usd_micros": 9262400,
+              "partial": false
+            }
+          ]
         },
         {
           "provider": "claude",
           "cost_usd_micros": 96400000,
           "total_tokens": 35812904,
-          "partial": true
+          "partial": true,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 12036309,
+              "cost_usd_micros": 58804000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 13452343,
+              "cost_usd_micros": 26028000,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 1770045,
+              "cost_usd_micros": 4820000,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 4248108,
+              "cost_usd_micros": 3856000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 2124054,
+              "cost_usd_micros": 1928000,
+              "partial": false
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 1770045,
+              "cost_usd_micros": 964000,
+              "partial": false
+            },
+            {
+              "model": "claude-next",
+              "total_tokens": 412000,
+              "cost_usd_micros": 0,
+              "partial": true
+            }
+          ]
         }
       ]
     }

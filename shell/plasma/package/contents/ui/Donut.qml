@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Spend.js" as Spend
 
@@ -12,6 +13,8 @@ Item {
     id: donut
 
     required property var period
+    required property string lang
+    property real progress: 1
     readonly property real size: Metrics.donutSize(Kirigami.Units)
     readonly property real holeRatio: 0.618
     readonly property real thickness: size / 2 * (1 - holeRatio)
@@ -44,7 +47,7 @@ Item {
                     radiusX: donut.arcRadius
                     radiusY: donut.arcRadius
                     startAngle: slice.modelData.start
-                    sweepAngle: slice.modelData.sweep
+                    sweepAngle: Spend.revealed(slice.modelData, donut.progress)
                 }
             }
         }
@@ -53,6 +56,7 @@ Item {
     ColumnLayout {
         anchors.centerIn: parent
         spacing: 0
+        opacity: donut.progress
 
         TextLabel {
             Layout.alignment: Qt.AlignHCenter
@@ -65,7 +69,7 @@ Item {
             role: "micro"
             weight: Font.Medium
             emphasis: "secondary"
-            text: "dollars"
+            text: I18n.tr(donut.lang, "dollars")
         }
     }
 }

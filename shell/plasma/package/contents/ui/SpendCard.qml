@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Spend.js" as Spend
 import "logic/Tokens.js" as Tokens
@@ -10,6 +11,8 @@ ColumnLayout {
 
     required property var spend
     required property string period
+    required property string lang
+    required property real appear
     readonly property var current: spend[period]
     readonly property string body: Spend.bodyKind(current)
 
@@ -17,6 +20,13 @@ ColumnLayout {
 
     Layout.fillWidth: true
     spacing: Kirigami.Units.smallSpacing
+    opacity: appear
+
+    transform: [
+        Translate {
+            y: (1 - spendCard.appear) * Kirigami.Units.gridUnit * 0.75
+        }
+    ]
 
     RowLayout {
         Layout.leftMargin: Metrics.headerInset(Kirigami.Units)
@@ -24,7 +34,7 @@ ColumnLayout {
 
         TextLabel {
             role: "title"
-            text: "Total Spend"
+            text: I18n.tr(spendCard.lang, "Total Spend")
         }
 
         Kirigami.Icon {
@@ -35,7 +45,7 @@ ColumnLayout {
             color: Tokens.secondaryText(Kirigami.Theme)
 
             HoverTip {
-                text: Spend.infoText(spendCard.current)
+                text: Spend.infoText(spendCard.lang, spendCard.current)
             }
         }
     }
@@ -44,35 +54,43 @@ ColumnLayout {
         verticalPadding: Metrics.cardPadding(Kirigami.Units)
         spacing: Metrics.cardPadding(Kirigami.Units)
 
-        PeriodSwitcher {
+        SegmentedControl {
+            Layout.fillWidth: true
             Layout.leftMargin: Metrics.rowInset(Kirigami.Units)
             Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
+            options: Spend.periodOptions(spendCard.lang)
             current: spendCard.period
-            onSelected: key => spendCard.periodSelected(key)
+            onSelected: value => spendCard.periodSelected(value)
         }
 
         RowLayout {
             visible: spendCard.body === "ring"
             Layout.leftMargin: Metrics.rowInset(Kirigami.Units)
-            Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
-            spacing: Kirigami.Units.gridUnit
+            Layout.rightMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
+            spacing: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
             Donut {
                 period: spendCard.current
+                lang: spendCard.lang
+                progress: spendCard.appear
             }
 
             SpendLegend {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
                 period: spendCard.current
+                periodKey: spendCard.period
+                lang: spendCard.lang
             }
         }
 
         SpendStats {
             visible: spendCard.body === "stats"
-            Layout.leftMargin: Metrics.rowInset(Kirigami.Units)
-            Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
+            Layout.leftMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
+            Layout.rightMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
             period: spendCard.current
+            periodKey: spendCard.period
+            lang: spendCard.lang
         }
 
         TextLabel {
@@ -81,7 +99,7 @@ ColumnLayout {
             Layout.topMargin: Kirigami.Units.gridUnit - Metrics.cardPadding(Kirigami.Units)
             Layout.bottomMargin: Kirigami.Units.gridUnit - Metrics.cardPadding(Kirigami.Units)
             emphasis: "secondary"
-            text: "No usage in this period"
+            text: I18n.tr(spendCard.lang, "No usage in this period")
         }
     }
 }

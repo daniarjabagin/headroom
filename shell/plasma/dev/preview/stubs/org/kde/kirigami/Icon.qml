@@ -16,6 +16,10 @@ Item {
             "view-refresh": "actions/view-refresh-symbolic.svg",
             "configure": "legacy/emblem-system-symbolic.svg",
             "im-user": "status/avatar-default-symbolic.svg",
+            "handle-sort": "ui/list-drag-handle-symbolic.svg",
+            "list-add": "actions/list-add-symbolic.svg",
+            "edit-delete": "actions/edit-delete-symbolic.svg",
+            "utilities-terminal": "legacy/utilities-terminal-symbolic.svg",
             "application-x-executable": "legacy/system-users-symbolic.svg"
         })
     readonly property string url: {

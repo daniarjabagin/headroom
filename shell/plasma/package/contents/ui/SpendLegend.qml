@@ -4,46 +4,83 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
+import "logic/Metrics.js" as Metrics
 import "logic/Providers.js" as Providers
+import "logic/Spend.js" as Spend
+import "logic/Tokens.js" as Tokens
 
 ColumnLayout {
     id: legend
 
     required property var period
+    required property string periodKey
+    required property string lang
 
-    spacing: Math.round(Kirigami.Units.smallSpacing * 1.75)
+    spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
     Repeater {
         model: legend.period.providers
 
-        RowLayout {
+        Item {
             id: entry
 
             required property var modelData
 
             Layout.fillWidth: true
-            spacing: Kirigami.Units.largeSpacing
+            implicitHeight: row.implicitHeight + Kirigami.Units.smallSpacing * 1.5
 
             Rectangle {
-                implicitWidth: Kirigami.Units.largeSpacing
-                implicitHeight: implicitWidth
-                radius: width / 2
-                color: Providers.providerInfo(entry.modelData.provider).ringColor
-            }
+                anchors.fill: parent
+                radius: Metrics.chipRadius(Kirigami.Units)
+                color: Tokens.chip(Kirigami.Theme)
+                opacity: tip.hovered ? 1 : 0
 
-            TextLabel {
-                Layout.fillWidth: true
-                text: Providers.providerInfo(entry.modelData.provider).name
-                elide: Text.ElideRight
-            }
-
-            TextLabel {
-                weight: Font.Medium
-                text: Format.usd(entry.modelData.costMicros)
-
-                HoverTip {
-                    text: Format.spendTooltip(entry.modelData)
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Kirigami.Units.shortDuration
+                    }
                 }
+            }
+
+            RowLayout {
+                id: row
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Kirigami.Units.smallSpacing
+                anchors.rightMargin: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.mediumSpacing
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: Kirigami.Units.largeSpacing
+                    implicitHeight: implicitWidth
+                    radius: width / 2
+                    color: Providers.providerInfo(entry.modelData.provider).ringColor
+                }
+
+                TextLabel {
+                    Layout.fillWidth: true
+                    text: Providers.providerInfo(entry.modelData.provider).name
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 2
+                }
+
+                TextLabel {
+                    Layout.alignment: Qt.AlignVCenter
+                    weight: Font.Medium
+                    text: Format.usd(entry.modelData.costMicros)
+                }
+            }
+
+            ModelTip {
+                id: tip
+
+                lang: legend.lang
+                title: Spend.breakdownTitle(legend.lang, legend.periodKey, entry.modelData.provider)
+                totals: entry.modelData
+                fallback: Format.spendTooltip(legend.lang, entry.modelData)
             }
         }
     }

@@ -2,19 +2,21 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import org.kde.plasma.components as PlasmaComponents3
+import "logic/I18n.js" as I18n
 import "logic/Providers.js" as Providers
 
 PlasmaComponents3.Menu {
     id: optionsRoot
 
     property var accounts: []
+    property string lang: "en"
 
     signal refreshRequested
     signal hiddenRequested(string accountId, bool hidden)
     signal settingsRequested
 
     PlasmaComponents3.MenuItem {
-        text: "Refresh now"
+        text: I18n.tr(optionsRoot.lang, "Refresh now")
         icon.name: "view-refresh"
         onTriggered: optionsRoot.refreshRequested()
     }
@@ -22,7 +24,7 @@ PlasmaComponents3.Menu {
     PlasmaComponents3.Menu {
         id: accountsMenu
 
-        title: "Hide accounts…"
+        title: I18n.tr(optionsRoot.lang, "Hide accounts…")
         enabled: optionsRoot.accounts.length > 0
 
         Instantiator {
@@ -50,7 +52,7 @@ PlasmaComponents3.Menu {
     PlasmaComponents3.MenuSeparator {}
 
     PlasmaComponents3.MenuItem {
-        text: "Open settings…"
+        text: I18n.tr(optionsRoot.lang, "Settings…")
         icon.name: "configure"
         onTriggered: optionsRoot.settingsRequested()
     }

@@ -30,7 +30,7 @@ T.AbstractButton {
             Behavior on rotation {
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
-                    easing.type: Easing.InOutQuad
+                    easing.type: Easing.OutCubic
                 }
             }
         }

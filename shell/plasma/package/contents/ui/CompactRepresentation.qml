@@ -3,17 +3,23 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 import "logic/Format.js" as Format
+import "logic/Settings.js" as Settings
+import "logic/State.js" as State
 
 MouseArea {
     id: compact
 
     property var headline: null
+    property var display: Settings.parseDisplay(null)
+    property string lang: "en"
     property bool stale: false
-    property bool showPercentage: true
+    property bool reducedMotion: false
     property bool vertical: false
     property bool expanded: false
     property bool wasExpanded: false
     readonly property bool hasHeadline: headline !== null
+    readonly property bool windowMode: hasHeadline && display.panelLabel === "window"
+    readonly property real percent: hasHeadline ? State.headlinePercent(headline, display.valueMode) : 0
     readonly property real thickness: vertical ? width : height
     readonly property int glyphSize: thickness >= Kirigami.Units.iconSizes.medium ? Kirigami.Units.iconSizes.smallMedium : Kirigami.Units.iconSizes.small
 
@@ -47,17 +53,37 @@ MouseArea {
         }
 
         PanelRing {
-            visible: compact.hasHeadline
+            visible: compact.hasHeadline && !compact.windowMode
             Layout.alignment: Qt.AlignCenter
             size: compact.glyphSize - Kirigami.Units.smallSpacing / 4
-            fraction: compact.hasHeadline ? compact.headline.remainingPercent / 100 : 0
+            fraction: compact.percent / 100
             tone: compact.hasHeadline ? compact.headline.tone : "neutral"
+            reducedMotion: compact.reducedMotion
+        }
+
+        ProviderIcon {
+            visible: compact.windowMode
+            Layout.alignment: Qt.AlignCenter
+            implicitWidth: compact.glyphSize
+            implicitHeight: compact.glyphSize
+            provider: compact.headline?.provider ?? "unknown"
+            color: Kirigami.Theme.textColor
         }
 
         PlasmaComponents3.Label {
-            visible: compact.hasHeadline && compact.showPercentage
+            visible: compact.windowMode
             Layout.alignment: Qt.AlignCenter
-            text: compact.hasHeadline ? Format.panelPercent(compact.headline.remainingPercent) : ""
+            opacity: 0.7
+            text: compact.windowMode ? Format.shortWindowLabel(compact.lang, compact.headline.windowId, compact.headline.windowLabel) : ""
+            font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
+            font.weight: Font.DemiBold
+        }
+
+        PlasmaComponents3.Label {
+            visible: compact.hasHeadline
+            Layout.alignment: Qt.AlignCenter
+            text: compact.hasHeadline ? Format.panelPercent(compact.percent) : ""
+            color: compact.windowMode && compact.headline.tone === "critical" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
             font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
             font.weight: Font.DemiBold
             font.features: {
