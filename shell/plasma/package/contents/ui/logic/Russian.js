@@ -37,6 +37,7 @@ const MESSAGES = {
     "{day} at {time}": "{day} в {time}",
     "resets {moment}": "сброс {moment}",
     "resets soon": "скоро сброс",
+    "reset pending": "ожидается сброс",
     "resets in {duration}": "сброс через {duration}",
     "Not started": "Не начато",
     "~{percent}% spare": "~{percent}% запаса",

@@ -121,6 +121,17 @@ function parseModels(raw) {
     return list(raw).map(parseModel);
 }
 
+function parseModelsOther(raw) {
+    if (!isObject(raw) || count(raw.count) === 0)
+        return null;
+    return {
+        count: count(raw.count),
+        totalTokens: count(raw.total_tokens),
+        costMicros: count(raw.cost_usd_micros),
+        partial: raw.partial === true
+    };
+}
+
 function parseTotals(raw) {
     const totals = isObject(raw) ? raw : {};
     const tokens = parseTokens(totals.tokens);
@@ -131,7 +142,8 @@ function parseTotals(raw) {
         partial: totals.partial === true,
         unpricedTokens: count(totals.unpriced_tokens),
         unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : [],
-        models: parseModels(totals.models)
+        models: parseModels(totals.models),
+        modelsOther: parseModelsOther(totals.models_other)
     };
 }
 
@@ -200,7 +212,8 @@ function parseProviderSpend(raw) {
         costMicros: count(raw.cost_usd_micros),
         totalTokens: count(raw.total_tokens),
         partial: raw.partial === true,
-        models: parseModels(raw.models)
+        models: parseModels(raw.models),
+        modelsOther: parseModelsOther(raw.models_other)
     };
 }
 

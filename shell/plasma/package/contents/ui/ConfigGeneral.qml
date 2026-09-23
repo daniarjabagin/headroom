@@ -92,7 +92,7 @@ ConfigScaffold {
                 Layout.preferredWidth: page.controlWidth
                 options: Options.limitOptions(page.lang, page.snapshot, page.current.headline)
                 value: Options.headlineKey(page.current.headline)
-                onPicked: value => page.updateSettings(raw => Settings.withHeadline(raw, Options.headlineFor(value)))
+                onPicked: value => page.updateSettings(Settings.headlinePatch(Options.headlineFor(value)))
             }
         }
 
@@ -144,7 +144,7 @@ ConfigScaffold {
                 Layout.preferredWidth: page.controlWidth
                 options: Options.refreshOptions(page.lang, page.current.refreshIntervalSecs)
                 value: page.current.refreshIntervalSecs
-                onPicked: value => page.updateSettings(raw => Settings.withRefreshInterval(raw, value))
+                onPicked: value => page.updateSettings(Settings.refreshIntervalPatch(value))
             }
         }
     }

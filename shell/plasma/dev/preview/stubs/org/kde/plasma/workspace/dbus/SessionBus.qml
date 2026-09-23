@@ -6,7 +6,7 @@ import headroom.preview
 QtObject {
     id: bus
 
-    property var calls: []
+    property var messages: []
     readonly property Component replyComponent: Component {
         PendingReply {}
     }
@@ -20,13 +20,15 @@ QtObject {
             return {
                 value: PreviewConfig.settingsJson()
             };
+        if (message.member === "UpdateSettings")
+            PreviewConfig.applySettingsPatch(message.arguments[0]);
         return {
             value: null
         };
     }
 
     function asyncCall(message) {
-        calls = calls.concat([message.member]);
+        messages = messages.concat([message]);
         const reply = replyComponent.createObject(bus, answer(message)) as PendingReply;
         if (!(message.member === "GetState" && PreviewConfig.scenario === "loading"))
             reply.start();

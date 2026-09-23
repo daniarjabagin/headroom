@@ -27,9 +27,9 @@ ConfigScaffold {
 
                 QQC2.Switch {
                     checked: page.current.notifications[milestoneRow.modelData.key]
-                    onToggled: page.updateSettings(raw => Settings.patchNotifications(raw, {
-                            [milestoneRow.modelData.key]: checked
-                        }))
+                    onToggled: page.updateSettings(Settings.notificationsPatch({
+                        [milestoneRow.modelData.key]: checked
+                    }))
                 }
             }
         }

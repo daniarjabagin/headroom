@@ -20,15 +20,15 @@ KCM.SimpleKCM {
     readonly property string lang: I18n.resolve(current.display.language, Qt.locale().name)
     property string message: ""
 
-    function updateSettings(change) {
+    function updateSettings(patch) {
         message = "";
-        daemon.updateSettings(change);
+        daemon.updateSettings(patch);
     }
 
     function setDisplay(key, value) {
-        updateSettings(raw => Settings.patchDisplay(raw, {
-                [key]: value
-            }));
+        updateSettings(Settings.displayPatch({
+            [key]: value
+        }));
     }
 
     function tr(msgid, values) {

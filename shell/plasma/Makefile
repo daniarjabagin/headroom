@@ -30,7 +30,7 @@ format:
 
 test:
 	python3 tests/check_messages.py
-	QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen $(QMLTESTRUNNER) -input tests
+	QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen $(QMLTESTRUNNER) -import $(STUBS) -input tests
 
 preview:
 	mkdir -p $(dir $(OUT))

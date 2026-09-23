@@ -142,11 +142,17 @@ function exactMoment(lang, date, now) {
     });
 }
 
+function exactResetPhrase(lang, resetsAt, now) {
+    if (resetsAt <= now)
+        return I18n.tr(lang, "reset pending");
+    return I18n.tr(lang, "resets {moment}", {
+        moment: exactMoment(lang, resetsAt, now)
+    });
+}
+
 function resetPhrase(lang, resetsAt, now, resetFormat, live) {
     if (resetFormat === "exact")
-        return I18n.tr(lang, "resets {moment}", {
-            moment: exactMoment(lang, resetsAt, now)
-        });
+        return exactResetPhrase(lang, resetsAt, now);
     const left = resetsAt - now;
     if (left < (live === true ? SECOND : MINUTE))
         return I18n.tr(lang, "resets soon");

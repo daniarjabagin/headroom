@@ -16,7 +16,7 @@ HoverHandler {
     property string title: ""
     property var totals: null
     property string fallback: ""
-    readonly property var breakdown: totals === null ? null : Breakdown.modelBreakdown(lang, totals.models)
+    readonly property var breakdown: totals === null ? null : Breakdown.modelBreakdown(lang, totals.models, totals.modelsOther)
     readonly property string partialMark: "*"
 
     function cells(rows) {

@@ -3,8 +3,6 @@
 .import "Format.js" as Format
 .import "I18n.js" as I18n
 
-const TOP_MODELS = 5;
-
 function costText(lang, model) {
     if (model.partial && model.costMicros === 0)
         return I18n.tr(lang, "unpriced");
@@ -20,29 +18,26 @@ function modelRow(lang, model) {
     };
 }
 
-function otherRow(lang, models) {
+function otherRow(lang, other) {
     return modelRow(lang, {
         model: I18n.tr(lang, "Other ({count})", {
-            count: models.length
+            count: other.count
         }),
-        totalTokens: models.reduce((sum, model) => sum + model.totalTokens, 0),
-        costMicros: models.reduce((sum, model) => sum + model.costMicros, 0),
-        partial: models.some(model => model.partial)
+        totalTokens: other.totalTokens,
+        costMicros: other.costMicros,
+        partial: other.partial
     });
 }
 
-function modelBreakdown(lang, models, limit) {
-    const top = limit ?? TOP_MODELS;
+function modelBreakdown(lang, models, other) {
     if (!Array.isArray(models) || models.length === 0)
         return null;
-    const shown = models.length > top + 1 ? models.slice(0, top) : models;
-    const rest = models.slice(shown.length);
-    const rows = shown.map(model => modelRow(lang, model));
-    if (rest.length > 0)
-        rows.push(otherRow(lang, rest));
+    const rows = models.map(model => modelRow(lang, model));
+    if (other)
+        rows.push(otherRow(lang, other));
     return {
         rows,
-        partial: models.some(model => model.partial)
+        partial: models.some(model => model.partial) || (other?.partial ?? false)
     };
 }
 
