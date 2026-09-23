@@ -19,6 +19,14 @@ impl ProviderKind {
             ProviderKind::Claude => "claude",
         }
     }
+
+    #[must_use]
+    pub fn display_name(self) -> &'static str {
+        match self {
+            ProviderKind::Codex => "Codex",
+            ProviderKind::Claude => "Claude Code",
+        }
+    }
 }
 
 impl fmt::Display for ProviderKind {

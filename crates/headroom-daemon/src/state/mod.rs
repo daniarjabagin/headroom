@@ -1,6 +1,7 @@
 mod account;
 mod activity;
 mod headline;
+mod models;
 pub mod payload;
 mod spend;
 pub mod status;
@@ -37,6 +38,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         next_refresh_at: activity::next_refresh_at(model),
         last_success_at: activity::last_success_at(model),
         offline: activity::offline(model),
+        display: model.settings.display.clone(),
         headline: headline::headline(&accounts, &model.settings.headline),
         accounts,
         spend: spend::spend(&usage),

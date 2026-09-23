@@ -157,6 +157,46 @@ async fn state_changes_are_debounced_into_one_signal() {
     task.abort();
 }
 
+#[tokio::test(start_paused = true)]
+async fn settings_changes_emit_state_with_display_and_hidden_windows() {
+    let (harness, _) = two_accounts().await;
+    let sink = Arc::new(RecordingSink::default());
+    let dynamic: Arc<dyn SignalSink> = sink.clone();
+    for (name, used) in [("a", 90.0), ("b", 30.0)] {
+        let limits = snapshot(
+            vec![session(used, "2026-09-23T12:00:00Z")],
+            "2026-09-23T10:00:00Z",
+        );
+        let id = AccountId(format!("codex:{name}"));
+        let now = crate::testing::ts("2026-09-23T10:00:00Z");
+        harness.core.model().record_success(&id, limits, now);
+    }
+    let task = tokio::spawn(publish_changes(harness.core.clone(), dynamic));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    sink.states.lock().unwrap().clear();
+    harness
+        .core
+        .set_settings(r#"{"display":{"theme":"dark","hidden_windows":{"codex:a":["session"]}}}"#)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let states = sink.states.lock().unwrap().clone();
+    assert_eq!(states.len(), 1);
+    let parsed: crate::StatePayload = serde_json::from_str(&states[0]).unwrap();
+    assert_eq!(parsed.display.theme, crate::settings::Theme::Dark);
+    let hidden: Vec<(String, bool)> = parsed
+        .accounts
+        .iter()
+        .flat_map(|a| a.windows.iter().map(|w| (a.id.clone(), w.hidden)))
+        .collect();
+    assert_eq!(
+        hidden,
+        [("codex:a".to_owned(), true), ("codex:b".to_owned(), false)]
+    );
+    assert_eq!(parsed.headline.unwrap().account_id, "codex:b");
+    task.abort();
+}
+
 fn ids(names: &[&str]) -> Vec<AccountId> {
     names.iter().map(|n| AccountId((*n).to_owned())).collect()
 }

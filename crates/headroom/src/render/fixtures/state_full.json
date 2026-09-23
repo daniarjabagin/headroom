@@ -4,9 +4,29 @@
   "next_refresh_at": "2026-09-23T10:03:00Z",
   "last_success_at": "2026-09-23T09:58:00Z",
   "offline": false,
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "hidden_windows": {
+      "codex:work": [
+        "weekly"
+      ]
+    }
+  },
   "headline": {
     "account_id": "claude:main",
+    "provider": "claude",
+    "account_label": "ada@claude.example",
     "window": "session",
+    "window_label": "Session",
+    "used_percent": 92.0,
     "remaining_percent": 8.0,
     "tone": "critical"
   },
@@ -18,6 +38,7 @@
       "email": "ada@example.com",
       "plan": "Pro",
       "hidden": false,
+      "owner": "cli",
       "status": "fresh",
       "error": null,
       "updated_at": "2026-09-23T09:58:00Z",
@@ -37,7 +58,8 @@
             "projected_percent": 91.66666666666667,
             "spare_percent": 8.333333333333329,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
         },
         {
           "id": "weekly",
@@ -53,7 +75,8 @@
             "projected_percent": 52.5,
             "spare_percent": 47.5,
             "runs_out_at": null
-          }
+          },
+          "hidden": true
         }
       ],
       "balances": [
@@ -79,6 +102,7 @@
       "email": "ada@claude.example",
       "plan": "Pro",
       "hidden": false,
+      "owner": "cli",
       "status": "signed_out",
       "error": {
         "kind": "sign_in_expired",
@@ -101,7 +125,8 @@
             "projected_percent": 102.22222222222221,
             "spare_percent": null,
             "runs_out_at": "2026-09-23T10:23:28.695652174Z"
-          }
+          },
+          "hidden": false
         }
       ],
       "balances": [],
@@ -115,6 +140,7 @@
       "email": null,
       "plan": null,
       "hidden": true,
+      "owner": "cli",
       "status": "stale",
       "error": null,
       "updated_at": null,
@@ -141,7 +167,15 @@
         "cost_usd_micros": 2400,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 1200,
+            "cost_usd_micros": 2400,
+            "partial": false
+          }
+        ]
       },
       "yesterday": {
         "tokens": {
@@ -157,6 +191,20 @@
         "unpriced_tokens": 15,
         "unpriced_models": [
           "unknown"
+        ],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 600,
+            "cost_usd_micros": 1200,
+            "partial": false
+          },
+          {
+            "model": "unknown",
+            "total_tokens": 15,
+            "cost_usd_micros": 0,
+            "partial": true
+          }
         ]
       },
       "last_30_days": {
@@ -173,6 +221,20 @@
         "unpriced_tokens": 15,
         "unpriced_models": [
           "unknown"
+        ],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 1800,
+            "cost_usd_micros": 3600,
+            "partial": false
+          },
+          {
+            "model": "unknown",
+            "total_tokens": 15,
+            "cost_usd_micros": 0,
+            "partial": true
+          }
         ]
       },
       "daily": [
@@ -355,20 +417,6 @@
           "total_tokens": 1200,
           "cost_usd_micros": 2400,
           "partial": false
-        }
-      ],
-      "models": [
-        {
-          "model": "gpt-5.5",
-          "total_tokens": 1800,
-          "cost_usd_micros": 3600,
-          "partial": false
-        },
-        {
-          "model": "unknown",
-          "total_tokens": 15,
-          "cost_usd_micros": 0,
-          "partial": true
         }
       ]
     },
@@ -387,7 +435,15 @@
         "cost_usd_micros": 10000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus",
+            "total_tokens": 5000,
+            "cost_usd_micros": 10000,
+            "partial": false
+          }
+        ]
       },
       "yesterday": {
         "tokens": {
@@ -401,7 +457,8 @@
         "cost_usd_micros": 0,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": []
       },
       "last_30_days": {
         "tokens": {
@@ -415,7 +472,15 @@
         "cost_usd_micros": 10000,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus",
+            "total_tokens": 5000,
+            "cost_usd_micros": 10000,
+            "partial": false
+          }
+        ]
       },
       "daily": [
         {
@@ -598,14 +663,6 @@
           "cost_usd_micros": 10000,
           "partial": false
         }
-      ],
-      "models": [
-        {
-          "model": "claude-opus",
-          "total_tokens": 5000,
-          "cost_usd_micros": 10000,
-          "partial": false
-        }
       ]
     }
   ],
@@ -619,13 +676,29 @@
           "provider": "claude",
           "cost_usd_micros": 10000,
           "total_tokens": 5000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus",
+              "total_tokens": 5000,
+              "cost_usd_micros": 10000,
+              "partial": false
+            }
+          ]
         },
         {
           "provider": "codex",
           "cost_usd_micros": 2400,
           "total_tokens": 1200,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 1200,
+              "cost_usd_micros": 2400,
+              "partial": false
+            }
+          ]
         }
       ]
     },
@@ -638,7 +711,21 @@
           "provider": "codex",
           "cost_usd_micros": 1200,
           "total_tokens": 615,
-          "partial": true
+          "partial": true,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 600,
+              "cost_usd_micros": 1200,
+              "partial": false
+            },
+            {
+              "model": "unknown",
+              "total_tokens": 15,
+              "cost_usd_micros": 0,
+              "partial": true
+            }
+          ]
         }
       ]
     },
@@ -651,13 +738,35 @@
           "provider": "claude",
           "cost_usd_micros": 10000,
           "total_tokens": 5000,
-          "partial": false
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus",
+              "total_tokens": 5000,
+              "cost_usd_micros": 10000,
+              "partial": false
+            }
+          ]
         },
         {
           "provider": "codex",
           "cost_usd_micros": 3600,
           "total_tokens": 1815,
-          "partial": true
+          "partial": true,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 1800,
+              "cost_usd_micros": 3600,
+              "partial": false
+            },
+            {
+              "model": "unknown",
+              "total_tokens": 15,
+              "cost_usd_micros": 0,
+              "partial": true
+            }
+          ]
         }
       ]
     }

@@ -34,11 +34,12 @@ pub fn account_view(
             record.plan.as_deref(),
         ),
         hidden: record.hidden,
+        owner: record.reference.owner,
         status: status(runtime, entry, ctx.now),
         error: runtime.and_then(|r| r.failure.as_ref()).map(error_view),
         updated_at: entry.map(crate::model::SnapshotEntry::data_time),
         source: entry.map(source),
-        windows: snapshot.map_or_else(Vec::new, |s| windows(s, ctx.now)),
+        windows: snapshot.map_or_else(Vec::new, |s| windows(s, record, model, ctx.now)),
         balances: snapshot.map_or_else(Vec::new, |s| s.balances.iter().map(balance_view).collect()),
         notices: snapshot.map_or_else(Vec::new, |s| s.notices.iter().map(notice_view).collect()),
         usage_home: ctx.homes.show(&record.reference.home),
@@ -55,16 +56,24 @@ fn identity_field(
         .or_else(|| stored.map(str::to_owned))
 }
 
-fn windows(snapshot: &LimitsSnapshot, now: Timestamp) -> Vec<WindowView> {
+fn windows(
+    snapshot: &LimitsSnapshot,
+    record: &AccountRecord,
+    model: &Model,
+    now: Timestamp,
+) -> Vec<WindowView> {
+    let display = &model.settings.display;
     snapshot
         .windows
         .iter()
-        .map(|w| window_view(w, now))
+        .map(|w| {
+            let hidden = display.is_hidden(&record.id().0, &window_key(&w.id));
+            window_view(w, now, hidden)
+        })
         .collect()
 }
 
-#[must_use]
-pub fn window_view(window: &QuotaWindow, now: Timestamp) -> WindowView {
+fn window_view(window: &QuotaWindow, now: Timestamp, hidden: bool) -> WindowView {
     let pace = pace(window, now);
     WindowView {
         id: window_key(&window.id),
@@ -73,8 +82,9 @@ pub fn window_view(window: &QuotaWindow, now: Timestamp) -> WindowView {
         remaining_percent: window.used.remaining().value(),
         resets_at: window.resets_at,
         period_seconds: window.period.map(|p| p.as_secs()),
-        tone: tone(window, &pace),
+        tone: tone(window, &pace, now),
         pace: pace_view(&pace),
+        hidden,
     }
 }
 

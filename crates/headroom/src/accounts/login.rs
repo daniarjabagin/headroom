@@ -1,12 +1,16 @@
+use std::collections::HashSet;
 use std::ffi::OsString;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 use anyhow::{Context, Result, bail};
 use headroom_core::account::ProviderKind;
 
+use super::ansi::CleanLine;
 use super::home::create_home;
+use super::stream::run_streamed;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoginSpec {
@@ -43,6 +47,10 @@ impl LoginSpec {
             self.args.join(" ")
         )
     }
+
+    fn command_line(&self) -> String {
+        format!("{} {}", self.program, self.args.join(" "))
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -61,10 +69,32 @@ impl Launcher {
     }
 }
 
-pub fn sign_in(root: &Path, provider: ProviderKind, launcher: &Launcher) -> Result<PathBuf> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoginEvent {
+    Started(PathBuf),
+    Output(String),
+    Url(String),
+}
+
+pub type EventSink<'a> = dyn FnMut(LoginEvent) -> Result<()> + 'a;
+
+pub enum Console<'a> {
+    Terminal,
+    Streamed {
+        input: Box<dyn Read + Send>,
+        events: &'a mut EventSink<'a>,
+    },
+}
+
+pub fn sign_in(
+    root: &Path,
+    provider: ProviderKind,
+    launcher: &Launcher,
+    console: Console<'_>,
+) -> Result<PathBuf> {
     let home = create_home(root, provider)?;
     let spec = login_spec(provider);
-    match run_login(&spec, &home, launcher) {
+    match run_login(&spec, &home, launcher, console) {
         Ok(()) => Ok(home),
         Err(error) => {
             if let Err(cleanup) = fs::remove_dir_all(&home) {
@@ -75,12 +105,52 @@ pub fn sign_in(root: &Path, provider: ProviderKind, launcher: &Launcher) -> Resu
     }
 }
 
-fn run_login(spec: &LoginSpec, home: &Path, launcher: &Launcher) -> Result<()> {
-    let status = launcher
-        .command(spec, home)
-        .status()
-        .with_context(|| format!("could not start `{}`; is it installed?", spec.program))?;
-    let command = format!("{} {}", spec.program, spec.args.join(" "));
+fn run_login(
+    spec: &LoginSpec,
+    home: &Path,
+    launcher: &Launcher,
+    console: Console<'_>,
+) -> Result<()> {
+    let command = launcher.command(spec, home);
+    let status = match console {
+        Console::Terminal => spawn_attached(command)?,
+        Console::Streamed { input, events } => {
+            events(LoginEvent::Started(home.to_path_buf()))?;
+            spawn_streamed(command, input, events)?
+        }
+    };
+    check_outcome(spec, home, status)
+}
+
+fn spawn_attached(mut command: Command) -> Result<ExitStatus> {
+    command.status().with_context(|| not_started(&command))
+}
+
+pub fn not_started(command: &Command) -> String {
+    let program = command.get_program().to_string_lossy();
+    format!("could not start `{program}`; is it installed?")
+}
+
+fn spawn_streamed(
+    command: Command,
+    input: Box<dyn Read + Send>,
+    events: &mut EventSink<'_>,
+) -> Result<ExitStatus> {
+    let mut seen_urls = HashSet::new();
+    let mut on_line = |raw: &str| {
+        let line = CleanLine::parse(raw);
+        let url = line.url();
+        events(LoginEvent::Output(line.text))?;
+        match url {
+            Some(url) if seen_urls.insert(url.clone()) => events(LoginEvent::Url(url)),
+            _ => Ok(()),
+        }
+    };
+    run_streamed(command, input, &mut on_line)
+}
+
+fn check_outcome(spec: &LoginSpec, home: &Path, status: ExitStatus) -> Result<()> {
+    let command = spec.command_line();
     if !status.success() {
         bail!("`{command}` did not finish successfully ({status})");
     }

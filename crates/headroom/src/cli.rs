@@ -73,13 +73,32 @@ pub enum AccountsAction {
         provider: ProviderArg,
         #[arg(long, value_name = "NAME", help = "Label to give the new account")]
         label: Option<String>,
+        #[arg(
+            long,
+            value_enum,
+            value_name = "FORMAT",
+            help = "Report progress as JSON lines on stdout instead of using the terminal"
+        )]
+        progress: Option<ProgressFormat>,
     },
     #[command(about = "Delete the home of an account added with `accounts add`")]
     Remove {
         id: String,
         #[arg(long, help = "Do not ask for confirmation")]
         yes: bool,
+        #[arg(
+            long,
+            value_enum,
+            value_name = "FORMAT",
+            help = "Report the outcome as JSON lines on stdout"
+        )]
+        progress: Option<ProgressFormat>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ProgressFormat {
+    Json,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

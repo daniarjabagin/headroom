@@ -14,6 +14,7 @@ use crate::home::{HomeDisplay, UsageHome};
 use crate::model::Model;
 use crate::notify::Notifier;
 use crate::notify::alerts::Alerts;
+use crate::notify::text::Locale;
 use crate::random::Random;
 use crate::state::payload::StatePayload;
 use crate::state::{self, AssembleContext};
@@ -29,6 +30,7 @@ pub struct CoreParts {
     pub tz: TimeZone,
     pub homes: HomeDisplay,
     pub notifier: Arc<dyn Notifier>,
+    pub system_locale: Locale,
 }
 
 pub struct Core {
@@ -39,6 +41,7 @@ pub struct Core {
     pub(crate) random: Arc<dyn Random>,
     pub(crate) tz: TimeZone,
     pub(crate) alerts: Alerts,
+    pub(crate) system_locale: Locale,
     homes: HomeDisplay,
     model: Mutex<Model>,
     changes: Notify,
@@ -61,6 +64,7 @@ impl Core {
             random: parts.random,
             tz: parts.tz,
             alerts,
+            system_locale: parts.system_locale,
             homes: parts.homes,
             model: Mutex::new(model),
             changes: Notify::new(),

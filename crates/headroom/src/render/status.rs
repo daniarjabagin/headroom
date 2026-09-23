@@ -5,7 +5,9 @@ use headroom_daemon::state::payload::{
 use jiff::Timestamp;
 
 use super::bar;
-use super::format::{account_title, grouped, pace_note, percent_left, reset_text, usd};
+use super::format::{
+    account_title, grouped, pace_note, percent_left, reset_text, shown_windows, usd,
+};
 use super::spend::spend_lines;
 use super::style::Palette;
 use super::table::pad;
@@ -53,7 +55,7 @@ struct Layout {
 impl Layout {
     fn of(accounts: &[&AccountView]) -> Layout {
         let labels = accounts.iter().flat_map(|a| {
-            let windows = a.windows.iter().map(|w| w.label.chars().count());
+            let windows = shown_windows(a).map(|w| w.label.chars().count());
             windows.chain(a.balances.iter().map(|b| b.label.chars().count()))
         });
         Layout {
@@ -81,19 +83,15 @@ fn account_block(
             .iter()
             .map(|notice| format!("{INDENT}{}", palette.tone(&notice.text, notice.tone))),
     );
-    lines.extend(
-        account
-            .windows
-            .iter()
-            .map(|w| window_line(w, layout, now, palette)),
-    );
+    lines.extend(shown_windows(account).map(|w| window_line(w, layout, now, palette)));
     lines.extend(
         account
             .balances
             .iter()
             .map(|b| balance_line(b, layout, palette)),
     );
-    if account.windows.is_empty() && account.balances.is_empty() && account.error.is_none() {
+    let no_windows = shown_windows(account).next().is_none();
+    if no_windows && account.balances.is_empty() && account.error.is_none() {
         lines.push(format!("{INDENT}{}", palette.dim("no data yet")));
     }
     lines

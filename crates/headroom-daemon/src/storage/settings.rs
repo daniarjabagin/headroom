@@ -10,7 +10,7 @@ pub fn load(conn: &Connection) -> Result<Settings, StorageError> {
         })
         .optional()?;
     match payload {
-        Some(json) => Ok(serde_json::from_str(&json)?),
+        Some(json) => Ok(Settings::from_stored(&json)?),
         None => Ok(Settings::default()),
     }
 }

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use headroom_core::account::ProviderKind;
 
+use super::models::ModelMerge;
 use super::payload::{PeriodSpendView, ProviderSpendView, SpendView, TotalsView, UsageView};
 
 #[must_use]
@@ -14,14 +15,19 @@ pub fn spend(usage: &[UsageView]) -> SpendView {
 }
 
 fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> PeriodSpendView {
-    let mut by_kind: BTreeMap<ProviderKind, ProviderSpendView> = BTreeMap::new();
+    let mut by_kind: BTreeMap<ProviderKind, (ProviderSpendView, ModelMerge)> = BTreeMap::new();
     for entry in usage {
-        let slot = by_kind
+        let (slot, models) = by_kind
             .entry(entry.provider)
-            .or_insert_with(|| empty(entry.provider));
+            .or_insert_with(|| (empty(entry.provider), ModelMerge::default()));
         add(slot, totals(entry));
+        models.add(&totals(entry).models);
     }
-    let by_provider = ranked(by_kind.into_values().filter(has_usage).collect());
+    let providers = by_kind.into_values().map(|(mut spend, models)| {
+        spend.models = models.ranked();
+        spend
+    });
+    let by_provider = ranked(providers.filter(has_usage).collect());
     PeriodSpendView {
         cost_usd_micros: by_provider
             .iter()
@@ -40,6 +46,7 @@ fn empty(provider: ProviderKind) -> ProviderSpendView {
         cost_usd_micros: 0,
         total_tokens: 0,
         partial: false,
+        models: Vec::new(),
     }
 }
 

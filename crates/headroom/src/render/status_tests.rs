@@ -5,7 +5,6 @@ const FULL_PLAIN: &str = "\
 Codex · Work  Pro
   Weekly limit shared with Codex Cloud
   Session  ━━━━━━━━┃───────────   45% left  resets in 2h 0m    ~8% spare
-  Weekly   ━━━━━━━━━━━━━━──────   70% left  resets in 3d 0h
   Credits  $12.50
 
 Claude Code · ada@claude.example  Pro  signed out
@@ -29,7 +28,6 @@ fn renders_accounts_windows_and_spend() {
 fn colors_follow_the_daemon_tone() {
     let out = render_status(&full_state(), Palette::colored());
     assert!(out.contains("\x1b[38;2;255;214;10m 45% left\x1b[0m"));
-    assert!(out.contains("\x1b[38;2;0;145;255m 70% left\x1b[0m"));
     assert!(out.contains("\x1b[38;2;255;69;58m  8% left\x1b[0m"));
     assert!(out.contains("\x1b[1mCodex · Work\x1b[0m"));
 }

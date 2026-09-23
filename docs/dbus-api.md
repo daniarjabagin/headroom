@@ -22,7 +22,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit hold. An account id: force a refresh of that account now. |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
-| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults. Validated before it is stored. |
+| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. |
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
@@ -75,7 +75,8 @@ Top level:
 | `next_refresh_at` | timestamp \| null | Earliest scheduled refresh among visible accounts. Accounts that are refreshing have no schedule until they finish; `null` when nothing is scheduled. |
 | `last_success_at` | timestamp \| null | `fetched_at` of the newest live snapshot of a visible account (cached snapshots from an earlier daemon run count; data read from local logs does not). `null` when there is none. |
 | `offline` | bool | `true` when every listed account (hidden ones included) failed its most recent refresh with a `network` error. Any success, any other error or an account not tried yet makes it `false`. `false` without accounts. |
-| `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a window. |
+| `display` | Display | A copy of `settings.display` (see [Settings](#settings)), so shells get their display options with every `StateChanged`. |
+| `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a visible window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
 | `usage` | Usage[] | Local token usage, one entry per usage home the daemon reads (see [Usage](#usage)), whether or not an account belongs to it. |
 | `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
@@ -89,14 +90,19 @@ is always micro-USD (`12500000` = $12.50).
 | field | type | description |
 | --- | --- | --- |
 | `account_id` | string | Account the window belongs to. |
+| `provider` | Provider | Provider of that account. |
+| `account_label` | string | The account's user label, else its email, else the provider's display name (`Codex`, `Claude Code`). |
 | `window` | string | Window id, see [Window ids](#window-ids). |
+| `window_label` | string | Same as the window's `label`. |
+| `used_percent` | number | Same as the window's `used_percent`. |
 | `remaining_percent` | number | Same as the window's `remaining_percent`. |
 | `tone` | Tone | Same as the window's `tone`. |
 
-Selection: with `headline.mode = "pinned"` in settings the pinned window is used when that account is
-listed, not hidden and has that window. Otherwise (`"auto"`, or the pin is not available) the most
-critical window across visible accounts wins: highest `tone`, then lowest `remaining_percent`, then
-account order.
+Selection: hidden accounts and hidden windows (`display.hidden_windows`) are never chosen. With
+`headline.mode = "pinned"` in settings the pinned window is used when that account is listed, not
+hidden and has that window, and the window is not hidden. Otherwise (`"auto"`, or the pin is not
+available) the most critical visible window wins: highest `tone`, then lowest `remaining_percent`,
+then account order.
 
 ### Account
 
@@ -108,6 +114,7 @@ account order.
 | `email` | string \| null | From the last snapshot, else from storage. |
 | `plan` | string \| null | Plan name as reported by the provider. |
 | `hidden` | bool | Hidden by the user. |
+| `owner` | string | `cli` when the credentials belong to the provider's CLI home (read-only for Headroom, sign out with the CLI), `headroom` when the account was added with `headroom accounts add` and can be removed with `headroom accounts remove`. |
 | `status` | Status | See below. |
 | `error` | Error \| null | Last refresh error. Kept while the last good data is shown. |
 | `updated_at` | timestamp \| null | Time of the data: `fetched_at` for live data, the observation time for data read from local logs. `null` when no data exists yet. |
@@ -154,6 +161,7 @@ Error:
 | `period_seconds` | integer \| null | Window length. |
 | `tone` | Tone | Colour to use. Shells never compute tone themselves. |
 | `pace` | Pace | Burn-rate projection. |
+| `hidden` | bool | Listed in `display.hidden_windows` for this account. Hidden windows stay in the payload so a settings UI can list them, but shells should not show them, and they never drive the headline or notifications. |
 
 Pace:
 
@@ -217,7 +225,6 @@ already listed from another dir. Accounts that share a home share usage.
 | `yesterday` | Totals | Yesterday. |
 | `last_30_days` | Totals | Today and the 29 previous days. |
 | `daily` | Daily[] | Exactly 30 entries, oldest first, ending today; days without usage are zero. |
-| `models` | ModelUsage[] | Per model over the 30 days, highest cost first, then most tokens. |
 
 Totals:
 
@@ -233,10 +240,13 @@ Totals:
 | `partial` | bool | Some events had no known price; `cost_usd_micros` excludes them. |
 | `unpriced_tokens` | integer | Tokens of unpriced events. |
 | `unpriced_models` | string[] | Models without a price, sorted. |
+| `models` | ModelUsage[] | Breakdown of this period per model. Empty when the period has no usage. |
 
 Daily: `date` (`YYYY-MM-DD`), `total_tokens`, `cost_usd_micros`, `partial`.
 
-ModelUsage: `model`, `total_tokens`, `cost_usd_micros`, `partial`.
+ModelUsage: `model` (as logged), `total_tokens`, `cost_usd_micros`, `partial` (the model has no known
+price; its cost is excluded). Sorted by `cost_usd_micros` descending, then `total_tokens` descending,
+then `model` ascending. The models of a period add up exactly to its totals.
 
 ### Spend
 
@@ -255,7 +265,7 @@ PeriodSpend:
 | `partial` | bool | Any provider in the period is `partial`. |
 | `by_provider` | ProviderSpend[] | One entry per provider with tokens or cost in the period (homes of one provider are added together), highest cost first, then by provider name. Empty when the period has no usage. |
 
-ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial).
+ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's `models` of that provider's homes merged by model name, summed and sorted as above).
 
 ### Example
 
@@ -266,9 +276,25 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
   "next_refresh_at": "2026-09-23T10:03:00Z",
   "last_success_at": "2026-09-23T09:58:00Z",
   "offline": false,
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "hidden_windows": { "codex:work": ["weekly"] }
+  },
   "headline": {
     "account_id": "claude:main",
+    "provider": "claude",
+    "account_label": "ada@claude.example",
     "window": "session",
+    "window_label": "Session",
+    "used_percent": 92.0,
     "remaining_percent": 8.0,
     "tone": "critical"
   },
@@ -280,6 +306,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
       "email": "ada@example.com",
       "plan": "Pro",
       "hidden": false,
+      "owner": "cli",
       "status": "fresh",
       "error": null,
       "updated_at": "2026-09-23T09:58:00Z",
@@ -299,7 +326,14 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
             "projected_percent": 91.66666666666667,
             "spare_percent": 8.333333333333329,
             "runs_out_at": null
-          }
+          },
+          "hidden": false
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "…": "same shape as the session window",
+          "hidden": true
         }
       ],
       "balances": [
@@ -315,6 +349,7 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
       "email": "ada@claude.example",
       "plan": "Pro",
       "hidden": false,
+      "owner": "cli",
       "status": "signed_out",
       "error": {
         "kind": "sign_in_expired",
@@ -337,7 +372,8 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
             "projected_percent": 102.22222222222221,
             "spare_percent": null,
             "runs_out_at": "2026-09-23T10:23:28.695652174Z"
-          }
+          },
+          "hidden": false
         }
       ],
       "balances": [],
@@ -354,16 +390,16 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
         "cost_usd_micros": 2400,
         "partial": false,
         "unpriced_tokens": 0,
-        "unpriced_models": []
+        "unpriced_models": [],
+        "models": [
+          { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
+        ]
       },
       "yesterday": { "…": "same shape as today" },
       "last_30_days": { "…": "same shape as today" },
       "daily": [
         { "date": "2026-08-25", "total_tokens": 0, "cost_usd_micros": 0, "partial": false },
         { "date": "2026-09-23", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
-      ],
-      "models": [
-        { "model": "gpt-5.5", "total_tokens": 1800, "cost_usd_micros": 3600, "partial": false }
       ]
     }
   ],
@@ -373,8 +409,18 @@ ProviderSpend: `provider`, `cost_usd_micros`, `total_tokens` (`tokens.total` sum
       "total_tokens": 6200,
       "partial": false,
       "by_provider": [
-        { "provider": "claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false },
-        { "provider": "codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false }
+        {
+          "provider": "claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false,
+          "models": [
+            { "model": "claude-opus", "total_tokens": 5000, "cost_usd_micros": 10000, "partial": false }
+          ]
+        },
+        {
+          "provider": "codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false,
+          "models": [
+            { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
+          ]
+        }
       ]
     },
     "yesterday": { "…": "same shape as today" },
@@ -388,8 +434,10 @@ The complete payload this example is cut from is the snapshot test
 
 ## Settings
 
-`GetSettings` returns and `SetSettings` accepts one JSON document. Unknown fields are ignored;
-missing fields take their defaults, so `SetSettings` always replaces the whole document.
+`GetSettings` returns and `SetSettings` accepts one JSON document. Missing fields (at any level) take
+their defaults, so `SetSettings` always replaces the whole document. Unknown fields at any level and
+unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` emits `StateChanged`
+(the state carries `display` and the windows' `hidden` flags).
 
 | field | type | default | description |
 | --- | --- | --- | --- |
@@ -399,18 +447,42 @@ missing fields take their defaults, so `SetSettings` always replaces the whole d
 | `notifications.will_run_out` | bool | `true` | Notify when pace rises to `running_out` or `spent`. |
 | `notifications.reset` | bool | `false` | Notify when a window that was `warning` or worse resets. |
 | `headline` | object | `{"mode":"auto"}` | `{"mode":"auto"}` or `{"mode":"pinned","account_id":"codex:…","window":"session"}`. A pin needs a non-empty account id and window. |
-| `show_usage` | bool | `true` | Shells show the local usage section. |
 | `reduced_motion` | bool | `false` | Shells disable animations. |
+| `display.theme` | string | `"system"` | `system`, `light` or `dark`. Shells follow the system theme unless forced. |
+| `display.language` | string | `"system"` | `system`, `en` or `ru`. Language of the daemon's notifications (and of shells that are translated). `system` resolves from `LC_ALL`, then `LC_MESSAGES`, then `LANG` of the daemon: a value starting with `ru` means Russian, anything else English. |
+| `display.value_mode` | string | `"left"` | `left` shows remaining percent, `used` shows used percent. |
+| `display.reset_format` | string | `"countdown"` | `countdown` (`resets in 2h 5m`) or `exact` (reset time of day / date). |
+| `display.panel_label` | string | `"percent"` | What the panel shows next to the icon: `percent` or `window` (the headline's window label). |
+| `display.show_spend` | bool | `true` | Show the spend section. |
+| `display.show_account_spend` | bool | `true` | Show local spend under each account card. |
+| `display.show_trend` | bool | `true` | Show the 30-day trend. |
+| `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
+| `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
 
 ```json
 {
   "refresh_interval_secs": 300,
   "notifications": { "almost_out": true, "cutting_it_close": true, "will_run_out": true, "reset": false },
   "headline": { "mode": "auto" },
-  "show_usage": true,
-  "reduced_motion": false
+  "reduced_motion": false,
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "hidden_windows": {}
+  }
 }
 ```
+
+The former top-level `show_usage` is gone. Settings stored by an older daemon are migrated on load
+(`show_usage` becomes `display.show_spend` unless that is set), but `SetSettings` with `show_usage` is
+invalid.
 
 ## Notifications
 
@@ -428,6 +500,50 @@ Rules per `(account, window)`:
   `Reset` fires if the window's last tone was `warning` or `critical`.
 - The state is stored in the daemon's database, so restarts do not repeat alerts. A failed delivery is
   rolled back and retried at the next refresh. Disabled milestones advance silently.
-- Hidden accounts are not evaluated.
+- Hidden accounts and hidden windows (`display.hidden_windows`) are not evaluated.
 
-Example: title `Codex · Work — Session`, body `Under 10% left · resets in 42m`.
+Texts follow `display.language`:
+
+| milestone | English | Russian |
+| --- | --- | --- |
+| title | `Codex · Work — Session` | `Codex · Work — Сессия` |
+| `AlmostOut` | `Under 10% left · resets in 42m` | `Осталось меньше 10% · сброс через 42 мин` |
+| `CuttingItClose` | `Projected to finish close to the limit · resets in 2h` | `По прогнозу лимита едва хватит до сброса · сброс через 2 ч` |
+| `WillRunOut` | `Projected to run out in 20m · resets in 42m` (`… before the reset` without a run-out time) | `По прогнозу лимит закончится через 20 мин · сброс через 42 мин` (`… до сброса`) |
+| `WillRunOut` when spent | `Limit reached · resets in 42m` | `Лимит исчерпан · сброс через 42 мин` |
+| `Reset` | `Limit reset · 100% left` | `Лимит сброшен · осталось 100%` |
+
+Session and weekly window labels are translated; other window labels come from the provider as is.
+
+## Adding and removing accounts from a shell
+
+Shells never run provider CLIs themselves; they run `headroom` and read its progress. Both commands work
+without a terminal when `--progress json` is given and then print exactly one JSON object per line on
+stdout (human hints go to stderr). The exit code is `0` only when the last event is `done`.
+
+```
+headroom accounts add <codex|claude> [--label NAME] --progress json
+headroom accounts remove <ID> --yes --progress json
+```
+
+| event | fields | meaning |
+| --- | --- | --- |
+| `started` | `provider`, `home` | The login CLI starts with its config dir set to the new Headroom-owned `home`. `add` only. |
+| `url` | `url` | The first `http(s)` URL of an output line, reported once per distinct URL. Loopback URLs (`localhost`, `127.0.0.1`, `[::1]`: the CLI's own callback server) are skipped. Also taken from OSC 8 terminal hyperlinks. `add` only. |
+| `output` | `line` | Every stdout and stderr line of the login CLI, ANSI escapes removed. A prompt without a trailing newline is reported after 100 ms of silence. `add` only. |
+| `done` | `account_id`, `label` | Success. For `add`, `label` is the label that was applied, or `null` when none was requested or the daemon was not running or did not list the account yet. For `remove`, `label` is always `null`. |
+| `error` | `message` | Failure; the process exits with a non-zero code. A failed `add` deletes the new home. |
+
+```
+{"event":"started","provider":"codex","home":"/home/ada/.local/share/headroom/accounts/codex/2f0c…"}
+{"event":"output","line":"Starting local login server on http://localhost:1455."}
+{"event":"output","line":"If your browser did not open, navigate to this URL to authenticate:"}
+{"event":"output","line":"https://auth.openai.com/oauth/authorize?…"}
+{"event":"url","url":"https://auth.openai.com/oauth/authorize?…"}
+{"event":"done","account_id":"codex:1a2b3c4d5e6f","label":"Work"}
+```
+
+Lines written to the command's stdin are forwarded to the login CLI line by line, so a shell can paste
+a code when the CLI asks for one. `remove` without `--yes` fails with an `error` event instead of
+prompting. Without `--progress` both commands keep their interactive terminal behaviour. After a
+successful `add` or `remove` the command asks a running daemon to `Rescan`, so `StateChanged` follows.

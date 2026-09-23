@@ -16,10 +16,11 @@ pub struct Note {
 }
 
 pub fn provider_name(provider: ProviderKind) -> &'static str {
-    match provider {
-        ProviderKind::Codex => "Codex",
-        ProviderKind::Claude => "Claude Code",
-    }
+    provider.display_name()
+}
+
+pub fn shown_windows(account: &AccountView) -> impl Iterator<Item = &WindowView> {
+    account.windows.iter().filter(|window| !window.hidden)
 }
 
 pub fn account_title(account: &AccountView) -> String {

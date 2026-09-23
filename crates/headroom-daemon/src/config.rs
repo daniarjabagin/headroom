@@ -9,6 +9,7 @@ use jiff::tz::TimeZone;
 
 use crate::clock::{Clock, SystemClock};
 use crate::error::DaemonError;
+use crate::notify::text::Locale;
 
 pub type Shutdown = Pin<Box<dyn Future<Output = ()> + Send>>;
 
@@ -25,6 +26,7 @@ pub struct DaemonConfig {
     pub clock: Arc<dyn Clock>,
     pub tz: TimeZone,
     pub bus: BusTarget,
+    pub system_locale: Locale,
     pub shutdown: Shutdown,
 }
 
@@ -41,6 +43,7 @@ impl DaemonConfig {
             clock: Arc::new(SystemClock),
             tz: TimeZone::system(),
             bus: BusTarget::Session,
+            system_locale: Locale::from_env(),
             shutdown,
         })
     }
