@@ -86,10 +86,7 @@ fn key_identities_are_stable_and_do_not_reveal_the_key() {
         identity.stable_key,
         key_identity("sk-other", None).stable_key
     );
-    assert_eq!(
-        identity.stable_key.len(),
-        "key:".len() + KEY_FINGERPRINT_HEX
-    );
+    assert_eq!(identity.stable_key.len(), "key:".len() + 16);
     assert!(!identity.stable_key.contains("secret"));
     assert_eq!(identity.email, None);
 }

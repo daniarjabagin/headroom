@@ -1,4 +1,5 @@
 use headroom_core::units::MicroUsd;
+use jiff::SignedDuration;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -109,21 +110,4 @@ async fn other_credit_failures_are_reported_as_unavailable() {
         client.credits("sk-or-v1-test", now()).await,
         Credits::Unavailable(ProviderError::Network(_))
     ));
-}
-
-#[test]
-fn retry_after_accepts_seconds_and_http_dates() {
-    assert_eq!(
-        retry_after(" 30 ", now()),
-        Some(SignedDuration::from_secs(30))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 10:01:30 GMT", now()),
-        Some(SignedDuration::from_secs(90))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 09:00:00 GMT", now()),
-        Some(SignedDuration::ZERO)
-    );
-    assert_eq!(retry_after("soon", now()), None);
 }

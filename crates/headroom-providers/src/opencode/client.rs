@@ -1,10 +1,12 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::{ACCEPT, HeaderMap};
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
+
+use crate::http;
 
 const USAGE_PATH: &str = "/zen/go/v1/usage";
 const TIMEOUT: Duration = Duration::from_secs(15);
@@ -104,10 +106,7 @@ pub(super) fn status_error(
         }
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => ProviderError::Network(format!(
             "OpenCode usage endpoint returned HTTP {}",
@@ -124,17 +123,6 @@ fn error_kind(body: &[u8]) -> Option<String> {
     serde_json::from_slice::<RawErrorBody>(body)
         .ok()
         .map(|body| body.error.kind)
-}
-
-fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    let partial = i64::from(wait.subsec_nanos() > 0);
-    Some(SignedDuration::from_secs(wait.as_secs() + partial))
 }
 
 #[cfg(test)]

@@ -1,12 +1,13 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap};
 use reqwest::{Client, StatusCode};
 
 use super::mapper::check_status;
 use super::raw::RawRemains;
+use crate::http;
 
 const REMAINS_PATH: &str = "/v1/token_plan/remains";
 const TIMEOUT: Duration = Duration::from_secs(15);
@@ -72,10 +73,7 @@ fn status_error(
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => {
             ProviderError::Network(format!("the MiniMax quota endpoint returned HTTP {code}"))
@@ -91,18 +89,6 @@ fn status_error(
 fn body_error(body: &[u8]) -> Option<ProviderError> {
     let base = parse_remains(body).ok()?.base_resp?;
     check_status(&base).err()
-}
-
-fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    Some(SignedDuration::from_secs(
-        wait.as_secs() + i64::from(wait.subsec_nanos() > 0),
-    ))
 }
 
 #[cfg(test)]

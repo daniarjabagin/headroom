@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap};
 use reqwest::{Client, Response, StatusCode};
 use serde::de::DeserializeOwned;
 
 use super::credentials::RefreshedTokens;
 use super::raw::RawUsages;
+use crate::http;
 
 const USAGES_PATH: &str = "/usages";
 const TOKEN_PATH: &str = "/api/oauth/token";
@@ -125,10 +126,7 @@ fn common_error(
     let code = status.as_u16();
     match status {
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => {
             ProviderError::Network(format!("the Kimi {what} endpoint returned HTTP {code}"))
@@ -137,18 +135,6 @@ fn common_error(
             ProviderError::InvalidResponse(format!("the Kimi {what} endpoint returned HTTP {code}"))
         }
     }
-}
-
-pub(super) fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    Some(SignedDuration::from_secs(
-        wait.as_secs() + i64::from(wait.subsec_nanos() > 0),
-    ))
 }
 
 fn form(fields: &[(&str, &str)]) -> String {

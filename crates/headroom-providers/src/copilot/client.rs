@@ -8,6 +8,7 @@ use reqwest::{Client, StatusCode};
 
 use super::mapper::no_subscription;
 use super::raw::RawUser;
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 const USER_PATH: &str = "/copilot_internal/user";
@@ -104,10 +105,7 @@ fn is_rate_limited(headers: &HeaderMap) -> bool {
 }
 
 fn rate_limited(headers: &HeaderMap, now: Timestamp) -> ProviderError {
-    let retry_after = header_text(headers, RETRY_AFTER.as_str())
-        .and_then(|value| value.parse::<u32>().ok())
-        .map(|seconds| SignedDuration::from_secs(i64::from(seconds)))
-        .or_else(|| rate_reset_wait(headers, now));
+    let retry_after = http::retry_after(headers, now).or_else(|| rate_reset_wait(headers, now));
     ProviderError::RateLimited { retry_after }
 }
 

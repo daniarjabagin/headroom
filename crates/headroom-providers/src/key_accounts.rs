@@ -4,11 +4,43 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::provider::ProviderError;
+use headroom_core::secret::{SecretReader, SecretString};
+use sha2::{Digest, Sha256};
 
 use crate::fsio::write_private;
 
 /// Identity of an API-key account, stored in its Headroom-owned home; the key itself is a secret.
 pub const RECORD_FILE: &str = "account.json";
+
+const FINGERPRINT_HEX: usize = 16;
+
+/// `key-sha256:<hex>`: the full SHA-256 of an API key as its stable identity.
+#[must_use]
+pub fn sha256_stable_key(key: &str) -> String {
+    format!("key-sha256:{}", key_digest(key))
+}
+
+/// `key:<hex>`: the first 64 bits of an API key's SHA-256 as its stable identity.
+#[must_use]
+pub fn fingerprint_stable_key(key: &str) -> String {
+    let digest = key_digest(key);
+    let fingerprint = digest.get(..FINGERPRINT_HEX).unwrap_or(&digest);
+    format!("key:{fingerprint}")
+}
+
+fn key_digest(key: &str) -> String {
+    hex::encode(Sha256::digest(key.as_bytes()))
+}
+
+pub async fn stored_key(
+    secrets: &dyn SecretReader,
+    account: &AccountRef,
+) -> Result<SecretString, ProviderError> {
+    secrets
+        .read_secret(&account.id)
+        .await?
+        .ok_or(ProviderError::NotSignedIn)
+}
 
 pub fn save_record(home: &Path, identity: &AccountIdentity) -> Result<(), ProviderError> {
     let path = home.join(RECORD_FILE);
@@ -84,6 +116,14 @@ mod tests {
             plan: None,
             stable_key: key.into(),
         }
+    }
+
+    #[test]
+    fn api_keys_hash_to_stable_keys() {
+        let digest = "f3abf2a6cc4f00987743db5f544ba345b4899ae31f326d8ee9c4816de153c9e0";
+        assert_eq!(sha256_stable_key("sk-test"), format!("key-sha256:{digest}"));
+        assert_eq!(fingerprint_stable_key("sk-test"), "key:f3abf2a6cc4f0098");
+        assert_ne!(sha256_stable_key("sk-other"), sha256_stable_key("sk-test"));
     }
 
     #[test]

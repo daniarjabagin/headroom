@@ -24,6 +24,7 @@ use jiff::Timestamp;
 use self::accounts::Credential;
 use self::client::KimiClient;
 use self::mapper::MappedUsage;
+use crate::key_accounts;
 
 pub use self::config::{DEFAULT_API_BASE, DEFAULT_OAUTH_HOST, KimiConfig};
 
@@ -93,7 +94,7 @@ impl KimiProvider {
         match accounts::credential(&account.home)? {
             Credential::Key(identity) => {
                 check_account(account, &identity)?;
-                let key = auth::stored_key(self.secrets.as_ref(), account).await?;
+                let key = key_accounts::stored_key(self.secrets.as_ref(), account).await?;
                 Ok((key, identity))
             }
             Credential::OAuth(identity) => {

@@ -1,4 +1,5 @@
-use reqwest::header::HeaderValue;
+use jiff::SignedDuration;
+use reqwest::header::{HeaderValue, RETRY_AFTER};
 
 use super::*;
 use crate::cursor::test_support::{fixed_now, valid_token};
@@ -36,7 +37,7 @@ fn statuses_map_to_provider_errors() {
 }
 
 #[test]
-fn retry_after_accepts_seconds_and_dates() {
+fn rate_limits_carry_retry_after_seconds_and_dates() {
     let now = fixed_now();
     assert_eq!(
         status_error(
@@ -58,7 +59,6 @@ fn retry_after_accepts_seconds_and_dates() {
             retry_after: Some(SignedDuration::from_secs(60))
         }
     );
-    assert_eq!(retry_after("soon", now), None);
 }
 
 #[test]

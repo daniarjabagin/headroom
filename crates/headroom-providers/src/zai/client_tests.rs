@@ -1,3 +1,4 @@
+use jiff::SignedDuration;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -143,14 +144,4 @@ fn keys_that_cannot_be_sent_are_refused_before_the_network() {
     let value = authorization("zk-test", Scheme::Bearer).unwrap();
     assert!(value.is_sensitive());
     assert_eq!(value, "Bearer zk-test");
-}
-
-#[test]
-fn retry_after_accepts_seconds_and_http_dates() {
-    assert_eq!(retry_after("7", now()), Some(SignedDuration::from_secs(7)));
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 10:00:10 GMT", now()),
-        Some(SignedDuration::from_secs(10))
-    );
-    assert_eq!(retry_after("later", now()), None);
 }

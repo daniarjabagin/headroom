@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::SignedDuration;
-use reqwest::header::{ACCEPT, HeaderMap, RETRY_AFTER};
+use reqwest::header::{ACCEPT, HeaderMap};
 use reqwest::{Client, RequestBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use super::auth::Secret;
 use super::raw::{RawBalance, RawCurrentPlan, RawTokens, RawUser};
+use crate::http;
 
 const ME_PATH: &str = "/api/v1/users/me";
 const PLAN_PATH: &str = "/api/v1/users/me/plan";
@@ -169,11 +169,7 @@ fn status_error(status: StatusCode, headers: &HeaderMap) -> ProviderError {
             detail: "No active Cline plan.".to_owned(),
         },
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.trim().parse::<u32>().ok())
-                .map(|seconds| SignedDuration::from_secs(i64::from(seconds))),
+            retry_after: http::retry_after_seconds(headers),
         },
         status if status.is_server_error() => {
             ProviderError::Network(format!("Cline API returned HTTP {}", status.as_u16()))

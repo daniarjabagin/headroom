@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
 use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderValue, RETRY_AFTER};
+use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderValue};
 use reqwest::{Client, Response, StatusCode};
 
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 const QUOTA_PATH: &str = "/api/monitor/usage/quota/limit";
@@ -104,11 +105,7 @@ fn transport_error(error: reqwest::Error) -> ProviderError {
 
 async fn failure(response: Response, now: Timestamp) -> ProviderError {
     let status = response.status();
-    let retry_after = response
-        .headers()
-        .get(RETRY_AFTER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| retry_after(value, now));
+    let retry_after = http::retry_after(response.headers(), now);
     let body = response.bytes().await.unwrap_or_default();
     status_error(status, retry_after, &body)
 }
@@ -128,21 +125,6 @@ fn status_error(
         }
         _ => ProviderError::InvalidResponse(format!("Z.ai returned HTTP {code}")),
     }
-}
-
-pub(super) fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    let whole = SignedDuration::from_secs(wait.as_secs());
-    Some(if whole < wait {
-        whole + SignedDuration::from_secs(1)
-    } else {
-        whole
-    })
 }
 
 #[cfg(test)]

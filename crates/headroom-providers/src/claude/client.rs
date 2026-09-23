@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::{ACCEPT, HeaderMap};
 use reqwest::{Client, StatusCode};
 
 use super::auth::AccessToken;
 use super::raw::RawUsage;
 use super::subscription::no_subscription;
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 const USAGE_PATH: &str = "/api/oauth/usage";
@@ -82,10 +83,7 @@ fn status_error(
         }
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => {
             ProviderError::Network(format!("usage endpoint returned HTTP {}", status.as_u16()))
@@ -94,25 +92,6 @@ fn status_error(
             "usage endpoint returned HTTP {}",
             status.as_u16()
         )),
-    }
-}
-
-pub(super) fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    Some(round_up_to_second(wait))
-}
-
-fn round_up_to_second(duration: SignedDuration) -> SignedDuration {
-    let whole = SignedDuration::from_secs(duration.as_secs());
-    if whole < duration {
-        whole + SignedDuration::from_secs(1)
-    } else {
-        whole
     }
 }
 

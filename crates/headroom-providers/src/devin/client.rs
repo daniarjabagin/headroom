@@ -1,14 +1,15 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::HeaderMap;
 use reqwest::{Client, StatusCode};
 use serde_json::json;
 
 use super::auth::DevinKey;
 use super::mapper::no_subscription;
 use super::raw::RawStatusResponse;
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 const STATUS_PATH: &str = "/exa.seat_management_pb.SeatManagementService/GetUserStatus";
@@ -92,10 +93,7 @@ fn status_error(
         StatusCode::FORBIDDEN if mentions_plan(body) => no_subscription(),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => ProviderError::Network(format!(
             "Devin status endpoint returned HTTP {}",
@@ -106,15 +104,6 @@ fn status_error(
             status.as_u16()
         )),
     }
-}
-
-fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    Some(at.duration_since(now).max(SignedDuration::ZERO))
 }
 
 #[cfg(test)]

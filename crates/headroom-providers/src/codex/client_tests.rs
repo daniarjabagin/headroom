@@ -1,4 +1,5 @@
 use headroom_core::account::AccountIdentity;
+use jiff::SignedDuration;
 use wiremock::matchers::{header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -197,19 +198,4 @@ async fn unreachable_server_is_network_error() {
     let client = UsageClient::new(crate::http::client().unwrap(), &uri);
     let result = client.fetch_usage(&credentials(None), at(NOW)).await;
     assert!(matches!(result, Err(ProviderError::Network(_))));
-}
-
-#[test]
-fn retry_after_parsing() {
-    let now = at(NOW);
-    assert_eq!(
-        parse_retry_after(" 30 ", now),
-        Some(SignedDuration::from_secs(30))
-    );
-    assert_eq!(parse_retry_after("-5", now), Some(SignedDuration::ZERO));
-    assert_eq!(
-        parse_retry_after("Mon, 21 Sep 2026 14:00:00 GMT", now),
-        Some(SignedDuration::ZERO)
-    );
-    assert_eq!(parse_retry_after("soon", now), None);
 }

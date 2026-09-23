@@ -1,22 +1,12 @@
 use headroom_core::account::{AccountRef, CredentialOwner};
 use headroom_core::provider::ProviderError;
-use headroom_core::secret::{SecretReader, SecretString};
+use headroom_core::secret::SecretString;
 use jiff::{SignedDuration, Timestamp};
 
 use super::client::KimiClient;
 use super::credentials;
 
 const REFRESH_MARGIN: SignedDuration = SignedDuration::from_mins(5);
-
-pub(super) async fn stored_key(
-    secrets: &dyn SecretReader,
-    account: &AccountRef,
-) -> Result<SecretString, ProviderError> {
-    secrets
-        .read_secret(&account.id)
-        .await?
-        .ok_or(ProviderError::NotSignedIn)
-}
 
 pub(super) async fn oauth_token(
     client: &KimiClient,

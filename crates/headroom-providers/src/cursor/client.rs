@@ -2,8 +2,8 @@ use std::fmt;
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, CONTENT_TYPE, COOKIE, HeaderMap, RETRY_AFTER};
+use jiff::Timestamp;
+use reqwest::header::{ACCEPT, CONTENT_TYPE, COOKIE, HeaderMap};
 use reqwest::{Client, RequestBuilder, StatusCode, Url};
 use serde::de::DeserializeOwned;
 
@@ -14,6 +14,7 @@ use super::raw::{
     RawCreditGrants, RawGrokBotUsage, RawPeriodUsage, RawPlanInfoResponse, RawRequestUsage,
     RawStripe,
 };
+use crate::http;
 
 const DASHBOARD_SERVICE: &str = "/aiserver.v1.DashboardService/";
 const PERIOD_USAGE: &str = "GetCurrentPeriodUsage";
@@ -170,10 +171,7 @@ pub(super) fn status_error(
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         status if status.is_server_error() => {
             ProviderError::Network(format!("Cursor returned HTTP {}", status.as_u16()))
@@ -182,18 +180,6 @@ pub(super) fn status_error(
             ProviderError::InvalidResponse(format!("Cursor returned HTTP {}", status.as_u16()))
         }
     }
-}
-
-fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    Some(SignedDuration::from_secs(
-        wait.as_secs() + i64::from(wait.subsec_nanos() > 0),
-    ))
 }
 
 #[cfg(test)]

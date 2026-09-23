@@ -14,7 +14,6 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow};
 use headroom_core::secret::SecretReader;
 use jiff::Timestamp;
-use sha2::{Digest, Sha256};
 
 use self::client::{QuotaClient, Scheme};
 use crate::key_accounts;
@@ -86,13 +85,6 @@ impl ZaiProvider {
         ZaiProvider { clock, ..self }
     }
 
-    async fn stored_key(&self, account: &AccountRef) -> Result<String, ProviderError> {
-        let secret = self.secrets.read_secret(&account.id).await?;
-        secret
-            .map(|secret| secret.expose().to_owned())
-            .ok_or(ProviderError::NotSignedIn)
-    }
-
     async fn quota(&self, key: &str, now: Timestamp) -> Result<Quota, ProviderError> {
         let (body, scheme) = self.client.quota(key, now).await?;
         let windows = mapper::windows(&mapper::quota_limits(&body)?)?;
@@ -126,11 +118,12 @@ impl Provider for ZaiProvider {
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
-        let key = self.stored_key(account).await?;
+        let secret = key_accounts::stored_key(self.secrets.as_ref(), account).await?;
+        let key = secret.expose();
         let now = (self.clock)();
-        let quota = self.quota(&key, now).await?;
+        let quota = self.quota(key, now).await?;
         Ok(LimitsSnapshot {
-            identity: identity(&key, quota.plan),
+            identity: identity(key, quota.plan),
             windows: quota.windows,
             balances: Vec::new(),
             notices: Vec::new(),
@@ -159,7 +152,7 @@ fn identity(key: &str, plan: Option<String>) -> AccountIdentity {
     AccountIdentity {
         email: None,
         plan,
-        stable_key: format!("key-sha256:{}", hex::encode(Sha256::digest(key.as_bytes()))),
+        stable_key: key_accounts::sha256_stable_key(key),
     }
 }
 

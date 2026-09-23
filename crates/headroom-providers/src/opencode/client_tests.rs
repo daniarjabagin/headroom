@@ -1,7 +1,7 @@
+use headroom_core::units::Percent;
+use jiff::SignedDuration;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-
-use headroom_core::units::Percent;
 
 use super::*;
 
@@ -111,23 +111,6 @@ fn statuses_map_to_typed_errors() {
         map(404, ""),
         ProviderError::InvalidResponse("OpenCode usage endpoint returned HTTP 404".into())
     );
-}
-
-#[test]
-fn retry_after_accepts_seconds_and_http_dates() {
-    assert_eq!(
-        retry_after(" 30 ", now()),
-        Some(SignedDuration::from_secs(30))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 10:05:00 GMT", now()),
-        Some(SignedDuration::from_secs(300))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 09:00:00 GMT", now()),
-        Some(SignedDuration::ZERO)
-    );
-    assert_eq!(retry_after("soon", now()), None);
 }
 
 #[test]

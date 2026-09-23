@@ -9,7 +9,7 @@ visual design in `docs/design/`.
 | --- | --- | --- | --- |
 | `headroom-core` | lib, no I/O | units, domain model, log cursors, `Provider` trait, pacing, severity, usage aggregation | `serde`, `serde_json`, `jiff`, `thiserror`, `async-trait`, `sha2`, `hex` |
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
-| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers, provider `registry`, `secrets` store, `key_accounts` records, one module per provider (`codex/`, `claude/`, `grok/`) | core, `zbus` |
+| `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers (shared client, `Retry-After` parsing), provider `registry`, `secrets` store, `key_accounts` (records, key-hash identities, stored-key reader), one module per provider | core, `zbus`, `rusqlite` |
 | `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core |
 | `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `tui`, `waybar` | all |
 
@@ -368,7 +368,32 @@ pub fn build(context: &RegistryContext, id: &str) -> Option<Result<Arc<dyn Provi
 - `HomeVar::Direct(VAR)` points `VAR` at the new home (`CODEX_HOME`). `HomeVar::XdgBase { var,
   subdir }` points an XDG base variable at the home, so the tool writes to `home/subdir`
   (`XDG_DATA_HOME` + `opencode`); the login waits for `credentials_file` there.
-- `needs_pty` logins are refused with a clear error until a provider needs one.
+- A `needs_pty` login (Cline) runs, when streamed to a shell, on a fresh pseudo-terminal: slave
+  as stdin/stdout/stderr, opened `O_NOCTTY` and spawned in its own process group, so the child has a
+  terminal (`isatty` is true, 120×40) but no controlling terminal and no job control. Echo is off so
+  typed input is not reflected back; output is read from the master and streamed line by line
+  (`crates/headroom/src/accounts/pty.rs`, `stream.rs`). Logins run in the user's own terminal attach
+  to it directly either way.
+- `headroom accounts add <id>` picks: `--api-key-stdin` → the provider's API-key method; else, when
+  the default method is an API key and stdin is a terminal → a hidden prompt (echo off,
+  `accounts/prompt.rs`); else the provider's first `CliLogin`; else an error naming what to do.
+
+Registered providers, in registry order:
+
+| id | name | add account | local usage |
+| --- | --- | --- | --- |
+| `codex` | Codex | `codex login` | yes |
+| `claude` | Claude | `claude` login | yes |
+| `opencode` | OpenCode | API key, or detected from `opencode` auth | no |
+| `openrouter` | OpenRouter | API key | no |
+| `zai` | Z.ai | API key | no |
+| `kimi` | Kimi Code | API key, or `kimi` login | no |
+| `minimax` | MiniMax | Token Plan key | no |
+| `grok` | Grok | `grok` login, or detected | yes |
+| `cline` | Cline | `cline` login (PTY), or detected | no |
+| `devin` | Devin | `devin` login, or detected | no |
+| `copilot` | Copilot | `gh` login, or detected | no |
+| `cursor` | Cursor | detected from the IDE login (one account) | no |
 - The daemon's `ProviderCatalog` holds the compiled-in descriptors. It supplies `provider_name` for
   the state payload and notifications (the id when a stored account belongs to a provider this build
   lacks), orders `usage[]` by registry position, and answers D-Bus `ListProviders`.
@@ -398,7 +423,10 @@ daemon (which reads them through `SecretReader`).
 `Provider::validate_key`, creates a Headroom-owned home, stores the key under the new account id and
 writes `account.json` (the `AccountIdentity`, `0600`) into the home
 (`headroom-providers::key_accounts`). Providers list these homes with `key_accounts::discover` and
-read the key with their injected `SecretReader`. Adding a key whose account already exists replaces
+read the key with `key_accounts::stored_key` over their injected `SecretReader`. A key's identity
+is a hash, never the key: `key_accounts::sha256_stable_key` (`key-sha256:<hex>`, OpenCode,
+OpenRouter, Z.ai) or `fingerprint_stable_key` (`key:<16 hex>`, Kimi, MiniMax); changing a provider's
+scheme would change its account ids. Adding a key whose account already exists replaces
 the stored key in the existing home. `headroom accounts remove` deletes the home and, for providers
 that take API keys, the stored key.
 

@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::SignedDuration;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, RETRY_AFTER};
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::Number;
 
 use super::mapper::no_subscription;
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 const BILLING_PATH: &str = "/billing?format=credits";
@@ -152,7 +152,7 @@ fn status_error(status: StatusCode, headers: &HeaderMap, body: &[u8], what: &str
         StatusCode::FORBIDDEN if mentions_plan(body) => no_subscription(),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: retry_after(headers),
+            retry_after: http::retry_after_seconds(headers),
         },
         _ => ProviderError::Network(format!("{what} request returned HTTP {status}")),
     }
@@ -170,17 +170,6 @@ fn refresh_error(
         }
         _ => status_error(status, headers, body, what),
     }
-}
-
-fn retry_after(headers: &HeaderMap) -> Option<SignedDuration> {
-    let seconds = headers
-        .get(RETRY_AFTER)?
-        .to_str()
-        .ok()?
-        .trim()
-        .parse::<i64>()
-        .ok()?;
-    Some(SignedDuration::from_secs(seconds.max(0)))
 }
 
 fn transport_error(error: reqwest::Error) -> ProviderError {

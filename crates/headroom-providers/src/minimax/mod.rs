@@ -15,7 +15,6 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow};
 use headroom_core::secret::SecretReader;
 use jiff::Timestamp;
-use sha2::{Digest, Sha256};
 
 use self::client::MiniMaxClient;
 use crate::key_accounts;
@@ -38,7 +37,6 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
 };
 
 const PLAN: &str = "Token Plan";
-const KEY_FINGERPRINT_HEX: usize = 16;
 
 pub type Clock = fn() -> Timestamp;
 
@@ -95,12 +93,10 @@ impl MiniMaxProvider {
 }
 
 fn key_identity(key: &str) -> AccountIdentity {
-    let digest = hex::encode(Sha256::digest(key.as_bytes()));
-    let fingerprint = digest.get(..KEY_FINGERPRINT_HEX).unwrap_or(&digest);
     AccountIdentity {
         email: None,
         plan: Some(PLAN.to_owned()),
-        stable_key: format!("key:{fingerprint}"),
+        stable_key: key_accounts::fingerprint_stable_key(key),
     }
 }
 
@@ -120,11 +116,7 @@ impl Provider for MiniMaxProvider {
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         let identity = MiniMaxProvider::stored_identity(account)?;
-        let key = self
-            .secrets
-            .read_secret(&account.id)
-            .await?
-            .ok_or(ProviderError::NotSignedIn)?;
+        let key = key_accounts::stored_key(self.secrets.as_ref(), account).await?;
         let now = (self.clock)();
         Ok(LimitsSnapshot {
             windows: self.windows(key.expose(), now).await?,

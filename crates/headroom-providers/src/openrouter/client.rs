@@ -2,11 +2,12 @@ use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
 use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, RETRY_AFTER};
+use reqwest::header::ACCEPT;
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 
 use super::raw::{Envelope, RawCredits, RawKey};
+use crate::http;
 
 const KEY_PATH: &str = "/api/v1/key";
 const CREDITS_PATH: &str = "/api/v1/credits";
@@ -76,11 +77,7 @@ impl KeyClient {
             .map_err(|error| FetchError::Transport(transport_error(error)))?;
         let status = response.status();
         if !status.is_success() {
-            let retry_after = response
-                .headers()
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| retry_after(value, now));
+            let retry_after = http::retry_after(response.headers(), now);
             return Err(FetchError::Status {
                 status,
                 retry_after,
@@ -134,21 +131,6 @@ fn parse_data<T: DeserializeOwned>(body: &[u8], endpoint: &str) -> Result<T, Pro
                 "cannot parse the OpenRouter {endpoint} response: {error}"
             ))
         })
-}
-
-pub(super) fn retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<u32>() {
-        return Some(SignedDuration::from_secs(i64::from(seconds)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    let wait = at.duration_since(now).max(SignedDuration::ZERO);
-    let whole = SignedDuration::from_secs(wait.as_secs());
-    Some(if whole < wait {
-        whole + SignedDuration::from_secs(1)
-    } else {
-        whole
-    })
 }
 
 #[cfg(test)]

@@ -6,21 +6,18 @@ use headroom_core::account::AccountIdentity;
 use headroom_core::provider::ProviderError;
 use headroom_core::secret::SecretString;
 use serde_json::{Map, Value};
-use sha2::{Digest, Sha256};
+
+use crate::key_accounts;
 
 pub(super) const AUTH_FILE: &str = "auth.json";
 const GO_ENTRY: &str = "opencode-go";
 const PLAN: &str = "Go";
-const STABLE_KEY_PREFIX: &str = "key-sha256:";
 
 pub(super) fn identity_for_key(key: &str) -> AccountIdentity {
     AccountIdentity {
         email: None,
         plan: Some(PLAN.to_owned()),
-        stable_key: format!(
-            "{STABLE_KEY_PREFIX}{}",
-            hex::encode(Sha256::digest(key.as_bytes()))
-        ),
+        stable_key: key_accounts::sha256_stable_key(key),
     }
 }
 
@@ -97,7 +94,7 @@ mod tests {
         let identity = identity_for_key("sk-fake-go-key");
         assert_eq!(identity, identity_for_key("sk-fake-go-key"));
         assert_ne!(identity.stable_key, identity_for_key("sk-other").stable_key);
-        assert!(identity.stable_key.starts_with(STABLE_KEY_PREFIX));
+        assert!(identity.stable_key.starts_with("key-sha256:"));
         assert!(!identity.stable_key.contains("sk-fake"));
         assert_eq!(identity.email, None);
         assert_eq!(identity.plan.as_deref(), Some("Go"));

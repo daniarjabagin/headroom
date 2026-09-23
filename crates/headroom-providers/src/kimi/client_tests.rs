@@ -1,3 +1,4 @@
+use jiff::SignedDuration;
 use wiremock::matchers::{body_string, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -80,23 +81,6 @@ async fn rate_limits_carry_retry_after() {
             retry_after: Some(SignedDuration::from_secs(120))
         }
     );
-}
-
-#[test]
-fn retry_after_accepts_seconds_and_dates() {
-    assert_eq!(
-        retry_after("30", now()),
-        Some(SignedDuration::from_secs(30))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 10:01:30 GMT", now()),
-        Some(SignedDuration::from_secs(90))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 09:00:00 GMT", now()),
-        Some(SignedDuration::ZERO)
-    );
-    assert_eq!(retry_after("soon", now()), None);
 }
 
 #[tokio::test]

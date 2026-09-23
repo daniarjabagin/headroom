@@ -1,3 +1,4 @@
+use jiff::SignedDuration;
 use wiremock::matchers::{header, header_regex, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -145,30 +146,4 @@ async fn unreachable_server_is_network_error_without_token() {
     let error = fetch_at("http://127.0.0.1:1").await.unwrap_err();
     assert!(matches!(&error, ProviderError::Network(_)));
     assert!(!error.to_string().contains("fake-token"));
-}
-
-#[test]
-fn retry_after_parsing() {
-    assert_eq!(
-        retry_after(" 7 ", now()),
-        Some(SignedDuration::from_secs(7))
-    );
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 09:00:00 GMT", now()),
-        Some(SignedDuration::ZERO)
-    );
-    assert_eq!(retry_after("later", now()), None);
-    assert_eq!(retry_after("-5", now()), None);
-}
-
-#[test]
-fn partial_seconds_round_up() {
-    assert_eq!(
-        round_up_to_second(SignedDuration::from_millis(1_200)),
-        SignedDuration::from_secs(2)
-    );
-    assert_eq!(
-        round_up_to_second(SignedDuration::from_secs(3)),
-        SignedDuration::from_secs(3)
-    );
 }

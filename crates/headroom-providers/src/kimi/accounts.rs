@@ -4,15 +4,12 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner};
 use headroom_core::provider::ProviderError;
-use sha2::{Digest, Sha256};
 
 use super::ID;
 use super::config::KimiConfig;
 use super::credentials::has_credentials;
 use crate::homes::canonical;
 use crate::key_accounts::{self, RECORD_FILE};
-
-const KEY_FINGERPRINT_HEX: usize = 16;
 
 pub(super) enum Credential {
     Key(AccountIdentity),
@@ -45,12 +42,10 @@ pub(super) fn credential(home: &Path) -> Result<Credential, ProviderError> {
 }
 
 pub(super) fn key_identity(key: &str, plan: Option<String>) -> AccountIdentity {
-    let digest = hex::encode(Sha256::digest(key.as_bytes()));
-    let fingerprint = digest.get(..KEY_FINGERPRINT_HEX).unwrap_or(&digest);
     AccountIdentity {
         email: None,
         plan,
-        stable_key: format!("key:{fingerprint}"),
+        stable_key: key_accounts::fingerprint_stable_key(key),
     }
 }
 

@@ -1,3 +1,4 @@
+use jiff::SignedDuration;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -73,14 +74,4 @@ async fn an_error_status_with_a_base_response_uses_its_code() {
             detail: NO_PLAN.into()
         }
     );
-}
-
-#[test]
-fn retry_after_accepts_seconds_and_dates() {
-    assert_eq!(retry_after("7", now()), Some(SignedDuration::from_secs(7)));
-    assert_eq!(
-        retry_after("Wed, 23 Sep 2026 10:00:10 GMT", now()),
-        Some(SignedDuration::from_secs(10))
-    );
-    assert_eq!(retry_after("later", now()), None);
 }

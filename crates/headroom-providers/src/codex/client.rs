@@ -1,14 +1,15 @@
 use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
-use jiff::{SignedDuration, Timestamp};
+use jiff::Timestamp;
 use reqwest::StatusCode;
-use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, RETRY_AFTER, USER_AGENT};
+use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, USER_AGENT};
 use serde::Deserialize;
 
 use super::auth::Credentials;
 use super::number::FlexNumber;
 use super::plan::no_subscription;
+use crate::http;
 use crate::plan_error::mentions_plan;
 
 pub const DEFAULT_API_BASE: &str = "https://chatgpt.com";
@@ -122,10 +123,7 @@ fn status_error(
         StatusCode::FORBIDDEN if mentions_plan(body) => no_subscription(None),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
         StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: headers
-                .get(RETRY_AFTER)
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| parse_retry_after(value, now)),
+            retry_after: http::retry_after(headers, now),
         },
         _ => ProviderError::Network(format!("usage request returned HTTP {status}")),
     }
@@ -133,15 +131,6 @@ fn status_error(
 
 fn transport_error(error: reqwest::Error) -> ProviderError {
     ProviderError::Network(error.without_url().to_string())
-}
-
-pub(super) fn parse_retry_after(value: &str, now: Timestamp) -> Option<SignedDuration> {
-    let value = value.trim();
-    if let Ok(seconds) = value.parse::<i64>() {
-        return Some(SignedDuration::from_secs(seconds.max(0)));
-    }
-    let at = jiff::fmt::rfc2822::parse(value).ok()?.timestamp();
-    Some(at.duration_since(now).max(SignedDuration::ZERO))
 }
 
 #[cfg(test)]

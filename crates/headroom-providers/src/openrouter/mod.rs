@@ -15,7 +15,6 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
 use headroom_core::secret::SecretReader;
 use jiff::Timestamp;
-use sha2::{Digest, Sha256};
 
 use self::client::KeyClient;
 use crate::key_accounts;
@@ -81,13 +80,6 @@ impl OpenRouterProvider {
     pub fn with_clock(self, clock: Clock) -> OpenRouterProvider {
         OpenRouterProvider { clock, ..self }
     }
-
-    async fn stored_key(&self, account: &AccountRef) -> Result<String, ProviderError> {
-        let secret = self.secrets.read_secret(&account.id).await?;
-        secret
-            .map(|secret| secret.expose().to_owned())
-            .ok_or(ProviderError::NotSignedIn)
-    }
 }
 
 #[async_trait]
@@ -105,13 +97,14 @@ impl Provider for OpenRouterProvider {
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
-        let key = self.stored_key(account).await?;
+        let secret = key_accounts::stored_key(self.secrets.as_ref(), account).await?;
+        let key = secret.expose();
         let now = (self.clock)();
         let (raw_key, credits) =
-            tokio::join!(self.client.key(&key, now), self.client.credits(&key, now));
+            tokio::join!(self.client.key(key, now), self.client.credits(key, now));
         let mapped = mapper::map(&raw_key?, &credits);
         Ok(LimitsSnapshot {
-            identity: identity(&key, mapped.plan),
+            identity: identity(key, mapped.plan),
             windows: mapped.windows,
             balances: mapped.balances,
             notices: mapped.notices,
@@ -138,7 +131,7 @@ fn identity(key: &str, plan: Option<String>) -> AccountIdentity {
     AccountIdentity {
         email: None,
         plan,
-        stable_key: format!("key-sha256:{}", hex::encode(Sha256::digest(key.as_bytes()))),
+        stable_key: key_accounts::sha256_stable_key(key),
     }
 }
 
