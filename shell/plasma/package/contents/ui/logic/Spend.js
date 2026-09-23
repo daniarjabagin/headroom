@@ -20,6 +20,7 @@ const PERIODS = [
 
 const MIN_SLICE = 0.025;
 const START_DEGREES = -90;
+const DOT_SWEEP = 0.1;
 
 function periodOptions(lang) {
     return PERIODS.map(period => ({
@@ -33,24 +34,52 @@ function periodTitle(lang, key) {
     return I18n.tr(lang, period.msgid);
 }
 
-function visibleFractions(values) {
-    const total = values.reduce((sum, value) => sum + value, 0);
-    if (total <= 0)
-        return values.map(() => 0);
-    const raised = values.map(value => Math.max(MIN_SLICE, value / total));
-    const raisedTotal = raised.reduce((sum, value) => sum + value, 0);
-    return raised.map(value => value / raisedTotal);
+function sharedFractions(values, minimum, raised) {
+    const free = values.reduce((sum, value, index) => raised[index] ? sum : sum + value, 0);
+    const share = 1 - minimum * raised.filter(Boolean).length;
+    return values.map((value, index) => raised[index] ? minimum : value / free * share);
 }
 
-function slices(providers, gapDegrees) {
-    const fractions = visibleFractions(providers.map(spend => spend.costMicros));
-    const gap = providers.length > 1 ? gapDegrees : 0;
+function raisedFractions(values, minimum) {
+    let raised = values.map(() => false);
+    for (let round = 0; round < values.length; round++) {
+        const fractions = sharedFractions(values, minimum, raised);
+        const grown = fractions.map((fraction, index) => raised[index] || fraction < minimum);
+        if (grown.every((flag, index) => flag === raised[index]))
+            return fractions;
+        raised = grown;
+    }
+    return sharedFractions(values, minimum, raised);
+}
+
+function visibleFractions(values, minimum) {
+    if (values.length === 0)
+        return [];
+    const total = values.reduce((sum, value) => sum + value, 0);
+    if (total <= 0)
+        return values.map(() => 1 / values.length);
+    return raisedFractions(values, Math.min(Math.max(MIN_SLICE, minimum), 1 / values.length));
+}
+
+function fullRing(spend) {
+    return {
+        start: START_DEGREES,
+        sweep: 360,
+        color: Providers.providerInfo(spend.provider).ringColor
+    };
+}
+
+function slices(providers, gapDegrees, capDegrees) {
+    if (providers.length === 1)
+        return [fullRing(providers[0])];
+    const inset = gapDegrees / 2 + capDegrees;
+    const fractions = visibleFractions(providers.map(spend => spend.costMicros), (inset * 2 + DOT_SWEEP) / 360);
     let start = START_DEGREES;
     return providers.map((spend, index) => {
         const sweep = fractions[index] * 360;
         const slice = {
-            start: start + gap / 2,
-            sweep: Math.max(0, sweep - gap),
+            start: start + inset,
+            sweep: Math.max(DOT_SWEEP, sweep - inset * 2),
             color: Providers.providerInfo(spend.provider).ringColor
         };
         start += sweep;

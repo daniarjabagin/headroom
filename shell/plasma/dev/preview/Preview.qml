@@ -51,8 +51,6 @@ Window {
     function applyInteractions() {
         if (flag("--expand"))
             findObjects(stage, item => typeof item.expandToggled === "function" && item.account !== undefined, []).forEach(section => section.gap === undefined ? section.expandToggled() : section.expandToggled(section.account.id));
-        if (flag("--menu"))
-            findObjects(stage, item => typeof item.clicked === "function" && item.text !== undefined && item.implicitHeight > 0 && item.leftPadding !== undefined && String(item).startsWith("OptionsButton"), []).forEach(button => button.clicked());
         if (flag("--tooltip"))
             findObjects(stage, item => item.breakdown !== undefined && item.breakdown !== null && item.tip !== undefined, []).slice(0, 1).forEach(handler => handler.tip.visible = true);
     }

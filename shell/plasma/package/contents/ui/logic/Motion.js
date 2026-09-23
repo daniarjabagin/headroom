@@ -5,6 +5,7 @@ const SPREAD = 0.45;
 const OPEN_FACTOR = 3;
 const PULSE_FACTOR = 6;
 const SHIMMER_FACTOR = 7;
+const SPIN_FACTOR = 4.5;
 
 function enabled(units, reduced) {
     return units.longDuration > 0 && reduced !== true;
@@ -36,4 +37,8 @@ function pulseDuration(units) {
 
 function shimmerDuration(units) {
     return units.longDuration * SHIMMER_FACTOR;
+}
+
+function spinDuration(units) {
+    return units.longDuration * SPIN_FACTOR;
 }

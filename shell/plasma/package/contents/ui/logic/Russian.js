@@ -125,10 +125,10 @@ const MESSAGES = {
     "Click to switch between left and used": "Нажмите, чтобы переключить остаток и использование",
     "Click to switch between countdown and exact time": "Нажмите, чтобы переключить отсчёт и точное время",
     "Partly unpriced, cost leaves it out": "Частично без цены, в стоимость не входит",
-    "Options": "Параметры",
-    "Refresh now": "Обновить сейчас",
-    "Hide accounts…": "Скрыть аккаунты…",
-    "Settings…": "Настройки…",
+    "Refresh": "Обновить",
+    "Settings": "Настройки",
+    "No active subscription": "Подписка неактивна",
+    "Limits aren't available for this account. Renew the plan or sign in with another account.": "Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт.",
     "Try again": "Повторить",
     "Starting…": "Запуск…",
     "Start service": "Запустить службу",
@@ -183,7 +183,7 @@ const MESSAGES = {
     "No terminal found. Install xdg-terminal-exec or Konsole, or run \"headroom accounts add\" yourself.": "Терминал не найден. Установите xdg-terminal-exec или Konsole либо запустите «headroom accounts add» сами.",
     "Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.": "Перетаскивайте, чтобы изменить порядок. Скрытые аккаунты продолжают обновляться, но не показываются на панели и в уведомлениях.",
     "No accounts yet": "Пока нет аккаунтов",
-    "Sign in with the Codex or Claude Code CLI, or add an account below.": "Войдите через CLI Codex или Claude Code либо добавьте аккаунт ниже.",
+    "Sign in with the Codex or Claude CLI, or add an account below.": "Войдите через CLI Codex или Claude либо добавьте аккаунт ниже.",
     "Add Account": "Добавить аккаунт",
     "Sign in to another account without touching the one your CLI uses.": "Войдите в другой аккаунт, не трогая тот, который использует ваш CLI."
 };

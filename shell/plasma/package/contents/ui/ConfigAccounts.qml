@@ -89,7 +89,7 @@ ConfigScaffold {
             visible: page.accounts.length === 0
             separated: false
             title: page.tr("No accounts yet")
-            subtitle: page.tr("Sign in with the Codex or Claude Code CLI, or add an account below.")
+            subtitle: page.tr("Sign in with the Codex or Claude CLI, or add an account below.")
         }
 
         Repeater {

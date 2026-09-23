@@ -48,6 +48,14 @@ function buttonRadius(units) {
     return Math.round(units.smallSpacing * 1.25);
 }
 
+function controlRadius(units) {
+    return units.smallSpacing * 2;
+}
+
+function donutGap(units) {
+    return units.smallSpacing * 0.75;
+}
+
 function meterHeight(units) {
     return Math.round(units.smallSpacing * 1.25);
 }

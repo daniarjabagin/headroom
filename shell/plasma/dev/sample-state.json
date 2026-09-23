@@ -260,6 +260,26 @@
       "balances": [],
       "notices": [],
       "usage_home": "~/.claude"
+    },
+    {
+      "id": "codex:3c4d5e6f7a8b",
+      "provider": "codex",
+      "label": "old",
+      "email": "old@example.net",
+      "plan": null,
+      "owner": "headroom",
+      "hidden": false,
+      "status": "no_subscription",
+      "error": {
+        "kind": "no_subscription",
+        "message": "the account has no active Codex plan"
+      },
+      "updated_at": null,
+      "source": null,
+      "windows": [],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.local/share/headroom/homes/codex-3c4d5e6f7a8b"
     }
   ],
   "usage": [

@@ -7,7 +7,8 @@ const HOUR_MS = 60 * 60 * 1000;
 const LIVE_GRACE_MS = 60 * 1000;
 
 const TONES = ["good", "warning", "critical", "neutral"];
-const STATUSES = ["fresh", "stale", "refreshing", "error", "signed_out"];
+const STATUSES = ["fresh", "stale", "refreshing", "error", "signed_out", "no_subscription"];
+const WITHOUT_QUOTAS = ["signed_out", "no_subscription"];
 const SEVERITIES = ["untracked", "healthy", "close", "running_out", "spent"];
 const BALANCE_KINDS = ["usd", "count"];
 const OWNERS = ["cli", "headroom"];
@@ -313,6 +314,10 @@ function isHeadlineStale(state) {
     return headlineAccount(state)?.status === "stale";
 }
 
+function hasQuotas(account) {
+    return !WITHOUT_QUOTAS.includes(account.status);
+}
+
 function isRefreshing(state) {
     return state.accounts.some(account => account.status === "refreshing");
 }
@@ -331,5 +336,5 @@ function resetsWithinHour(window, now) {
 }
 
 function needsLiveClock(state, now) {
-    return visibleAccounts(state).some(account => account.status !== "signed_out" && shownWindows(account).some(window => resetsWithinHour(window, now)));
+    return visibleAccounts(state).some(account => hasQuotas(account) && shownWindows(account).some(window => resetsWithinHour(window, now)));
 }

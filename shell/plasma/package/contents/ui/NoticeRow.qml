@@ -78,6 +78,15 @@ Rectangle {
                 wrapMode: Text.Wrap
             }
 
+            TextLabel {
+                visible: text !== ""
+                Layout.fillWidth: true
+                role: "caption"
+                emphasis: "tertiary"
+                text: notice.entry.note
+                wrapMode: Text.Wrap
+            }
+
             NoticeActions {
                 visible: !notice.inlineAction && notice.actions.length > 0
                 Layout.topMargin: Kirigami.Units.mediumSpacing

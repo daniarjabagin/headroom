@@ -12,11 +12,11 @@ QtObject {
     readonly property var metaData: ({
             version: JSON.parse(PreviewConfig.readFile(PreviewConfig.metadataPath)).KPlugin.Version
         })
-    property string triggeredAction: ""
+    property var triggeredActions: []
 
     function internalAction(name) {
         return {
-            trigger: () => plasmoid.triggeredAction = name
+            trigger: () => plasmoid.triggeredActions = plasmoid.triggeredActions.concat([name])
         };
     }
 }

@@ -13,6 +13,7 @@ QtObject {
     readonly property int dialogPadding: 8
     readonly property int dialogRadius: 8
     readonly property int clockCushionMs: 30000
+    readonly property var refreshingFrom: ["fresh", "stale"]
 
     function readFile(url) {
         const request = new XMLHttpRequest();
@@ -27,6 +28,8 @@ QtObject {
         const offset = Date.now() - generated + clockCushionMs;
         const shifted = JSON.parse(json.replace(/"(\d{4}-\d\d-\d\dT[\d:.]+Z)"/g, (match, stamp) => `"${new Date(Date.parse(stamp) + offset).toISOString()}"`));
         shifted.display = appliedSettings?.display ?? Object.assign({}, shifted.display ?? {}, displayPatch);
+        if (scenario === "refreshing")
+            shifted.accounts.filter(account => refreshingFrom.includes(account.status)).forEach(account => account.status = "refreshing");
         return JSON.stringify(shifted);
     }
 
