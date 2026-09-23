@@ -1,6 +1,6 @@
 const HOLE_RATIO = 0.618;
 const GAP_RATIO = 2 / 104;
-const CORNER_RATIO = 0.2;
+const CORNER_RATIO = 0.15;
 const MIN_WIDTH_RATIO = 3 / 104;
 const FULL_TURN = 2 * Math.PI;
 const QUARTER_TURN = Math.PI / 2;
