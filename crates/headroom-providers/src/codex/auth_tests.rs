@@ -1,7 +1,10 @@
+use std::fs;
+
 use serde_json::json;
 
 use super::super::test_support::{
-    ACCOUNT_ID, EMAIL, USER_ID, access_token, at, auth_document, id_token, write_auth,
+    ACCOUNT_ID, EMAIL, SIGNED_IN_AT, USER_ID, access_token, at, auth_document, auth_document_with,
+    id_token, id_token_for, set_mtime, write_auth,
 };
 use super::*;
 
@@ -110,4 +113,23 @@ fn debug_output_redacts_the_token() {
     assert!(!debug.contains(&token));
     assert!(!debug.contains(&id_token()));
     assert!(debug.contains("<redacted>"));
+}
+
+#[test]
+fn login_time_comes_from_the_auth_time_claim() {
+    let credentials = load(&auth_document("opaque-token")).unwrap();
+    assert_eq!(credentials.signed_in_at, Some(at(SIGNED_IN_AT)));
+}
+
+#[test]
+fn login_time_falls_back_to_the_auth_file_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let id_token = id_token_for(USER_ID, ACCOUNT_ID, None);
+    write_auth(
+        dir.path(),
+        &auth_document_with(&id_token, ACCOUNT_ID, "opaque-token"),
+    );
+    set_mtime(&dir.path().join("auth.json"), "2026-09-10T12:00:00Z");
+    let credentials = load_credentials(dir.path()).unwrap();
+    assert_eq!(credentials.signed_in_at, Some(at("2026-09-10T12:00:00Z")));
 }

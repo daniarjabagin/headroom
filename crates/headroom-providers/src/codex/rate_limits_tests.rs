@@ -1,9 +1,6 @@
-use std::fs::File;
-use std::time::{Duration, SystemTime};
-
 use headroom_core::quota::{Balance, BalanceAmount, WindowId};
 
-use super::super::test_support::{at, write_rollout};
+use super::super::test_support::{at, set_mtime, write_rollout};
 use super::*;
 
 const RATE_LIMITS: &str = include_str!("fixtures/rollout_rate_limits.jsonl");
@@ -17,16 +14,6 @@ fn identity() -> AccountIdentity {
     }
 }
 
-fn set_mtime(path: &Path, when: &str) {
-    let seconds = at(when).as_second().unsigned_abs();
-    File::options()
-        .write(true)
-        .open(path)
-        .unwrap()
-        .set_modified(SystemTime::UNIX_EPOCH + Duration::from_secs(seconds))
-        .unwrap();
-}
-
 #[test]
 fn newest_main_snapshot_becomes_local_log_limits() {
     let home = tempfile::tempdir().unwrap();
@@ -36,7 +23,7 @@ fn newest_main_snapshot_becomes_local_log_limits() {
         RATE_LIMITS,
     );
     let now = at("2026-09-23T10:00:00Z");
-    let snapshot = latest_snapshot(home.path(), identity(), now)
+    let snapshot = latest_snapshot(home.path(), identity(), None, now)
         .unwrap()
         .unwrap();
     let observed_at = at("2026-09-22T08:14:30.537Z");
@@ -68,7 +55,7 @@ fn window_that_already_reset_is_shown_empty() {
     let home = tempfile::tempdir().unwrap();
     write_rollout(home.path(), "sessions/rollout.jsonl", RATE_LIMITS);
     let after_reset = at("2026-09-28T00:00:00Z");
-    let snapshot = latest_snapshot(home.path(), identity(), after_reset)
+    let snapshot = latest_snapshot(home.path(), identity(), None, after_reset)
         .unwrap()
         .unwrap();
     assert_eq!(snapshot.windows[0].used, Percent::ZERO);
@@ -80,7 +67,7 @@ fn window_that_already_reset_is_shown_empty() {
 fn legacy_snapshot_without_reset_time_still_classifies_windows() {
     let home = tempfile::tempdir().unwrap();
     write_rollout(home.path(), "sessions/rollout.jsonl", LEGACY);
-    let snapshot = latest_snapshot(home.path(), identity(), at("2026-07-10T09:00:00Z"))
+    let snapshot = latest_snapshot(home.path(), identity(), None, at("2026-07-10T09:00:00Z"))
         .unwrap()
         .unwrap();
     let ids: Vec<_> = snapshot
@@ -109,7 +96,7 @@ fn picks_newest_observation_across_files() {
     );
     set_mtime(&older, "2026-09-22T08:42:00Z");
     set_mtime(&newer, "2026-09-22T09:00:01Z");
-    let found = latest_observation(home.path()).unwrap().unwrap();
+    let found = latest_observation(home.path(), None).unwrap().unwrap();
     assert_eq!(found.observed_at, at("2026-09-22T09:00:00Z"));
 }
 
@@ -129,7 +116,7 @@ fn stale_mtime_order_still_finds_the_newest_line() {
     );
     set_mtime(&busy, "2026-09-22T08:42:00Z");
     set_mtime(&quiet, "2026-09-22T08:30:01Z");
-    let found = latest_observation(home.path()).unwrap().unwrap();
+    let found = latest_observation(home.path(), None).unwrap().unwrap();
     assert_eq!(found.observed_at, at("2026-09-22T08:30:00Z"));
 }
 
@@ -137,7 +124,7 @@ fn stale_mtime_order_still_finds_the_newest_line() {
 fn no_logs_means_no_snapshot() {
     let home = tempfile::tempdir().unwrap();
     assert_eq!(
-        latest_snapshot(home.path(), identity(), at("2026-09-23T10:00:00Z")).unwrap(),
+        latest_snapshot(home.path(), identity(), None, at("2026-09-23T10:00:00Z")).unwrap(),
         None
     );
     write_rollout(
@@ -145,5 +132,38 @@ fn no_logs_means_no_snapshot() {
         "sessions/empty.jsonl",
         "{\"type\":\"session_meta\"}\n",
     );
-    assert_eq!(latest_observation(home.path()).unwrap(), None);
+    assert_eq!(latest_observation(home.path(), None).unwrap(), None);
+}
+
+#[test]
+fn observations_before_the_login_are_ignored() {
+    let home = tempfile::tempdir().unwrap();
+    let older = write_rollout(home.path(), "sessions/a.jsonl", RATE_LIMITS);
+    set_mtime(&older, "2026-09-22T08:42:00Z");
+    let login = Some(at("2026-09-22T08:15:00Z"));
+    assert_eq!(latest_observation(home.path(), login).unwrap(), None);
+    let earlier_login = Some(at("2026-09-22T08:00:00Z"));
+    let found = latest_observation(home.path(), earlier_login)
+        .unwrap()
+        .unwrap();
+    assert_eq!(found.observed_at, at("2026-09-22T08:14:30.537Z"));
+}
+
+#[test]
+fn newest_observation_after_the_login_wins_over_older_files() {
+    let home = tempfile::tempdir().unwrap();
+    let older = write_rollout(home.path(), "sessions/a.jsonl", RATE_LIMITS);
+    let newer_line = RATE_LIMITS
+        .lines()
+        .nth(1)
+        .unwrap()
+        .replace("2026-09-22T08:14:30.537Z", "2026-09-22T09:00:00.000Z");
+    let newer = write_rollout(home.path(), "sessions/b.jsonl", &format!("{newer_line}\n"));
+    set_mtime(&older, "2026-09-22T08:42:00Z");
+    set_mtime(&newer, "2026-09-22T09:00:01Z");
+    let login = Some(at("2026-09-22T08:50:00Z"));
+    let snapshot = latest_snapshot(home.path(), identity(), login, at("2026-09-23T10:00:00Z"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(snapshot.fetched_at, at("2026-09-22T09:00:00Z"));
 }

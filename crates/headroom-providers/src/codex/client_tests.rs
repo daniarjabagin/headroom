@@ -19,6 +19,7 @@ fn credentials(account_id: Option<&str>) -> Credentials {
             stable_key: "u/a".into(),
         },
         expires_at: None,
+        signed_in_at: None,
     }
 }
 

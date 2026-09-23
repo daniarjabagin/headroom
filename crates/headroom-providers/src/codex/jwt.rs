@@ -19,6 +19,7 @@ pub(super) struct IdClaims {
     pub account_id: Option<String>,
     pub user_id: Option<String>,
     pub plan: Option<String>,
+    pub auth_time: Option<Timestamp>,
 }
 
 pub(super) fn id_claims(token: &str) -> IdClaims {
@@ -34,14 +35,16 @@ pub(super) fn id_claims(token: &str) -> IdClaims {
             .or_else(|| auth_text("user_id"))
             .or_else(|| text(&payload, "sub")),
         plan: auth_text("chatgpt_plan_type"),
+        auth_time: epoch_claim(&payload, "auth_time"),
     }
 }
 
 pub(super) fn expires_at(token: &str) -> Option<Timestamp> {
-    decode_payload(token)?
-        .get("exp")?
-        .as_f64()
-        .and_then(from_epoch_seconds)
+    epoch_claim(&decode_payload(token)?, "exp")
+}
+
+fn epoch_claim(payload: &Value, key: &str) -> Option<Timestamp> {
+    payload.get(key)?.as_f64().and_then(from_epoch_seconds)
 }
 
 fn decode_payload(token: &str) -> Option<Value> {
@@ -86,7 +89,8 @@ mod tests {
                 "chatgpt_account_id": "acc-1",
                 "chatgpt_user_id": "user-1",
                 "chatgpt_plan_type": "prolite",
-            }
+            },
+            "auth_time": 1_790_000_000,
         }));
         assert_eq!(
             id_claims(&token),
@@ -95,6 +99,7 @@ mod tests {
                 account_id: Some("acc-1".into()),
                 user_id: Some("user-1".into()),
                 plan: Some("prolite".into()),
+                auth_time: Some("2026-09-21T14:13:20Z".parse().unwrap()),
             }
         );
     }

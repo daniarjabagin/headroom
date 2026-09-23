@@ -59,32 +59,39 @@ pub(super) struct Observation {
 pub(super) fn latest_snapshot(
     home: &Path,
     identity: AccountIdentity,
+    since: Option<Timestamp>,
     now: Timestamp,
 ) -> Result<Option<LimitsSnapshot>, ProviderError> {
-    Ok(latest_observation(home)?.map(|observation| snapshot(&observation, identity, now)))
+    Ok(latest_observation(home, since)?.map(|observation| snapshot(&observation, identity, now)))
 }
 
-pub(super) fn latest_observation(home: &Path) -> Result<Option<Observation>, ProviderError> {
+pub(super) fn latest_observation(
+    home: &Path,
+    since: Option<Timestamp>,
+) -> Result<Option<Observation>, ProviderError> {
+    let floor = since.unwrap_or(Timestamp::MIN);
     let mut best: Option<Observation> = None;
     for (path, modified) in newest_first(rollout_files(home)?) {
         if best
             .as_ref()
-            .is_some_and(|best| best.observed_at >= modified)
+            .map_or(modified < floor, |best| best.observed_at >= modified)
         {
             break;
         }
         let found = find_last_line(&path, parse_observation).map_err(|error| {
             ProviderError::LocalData(format!("cannot read {}: {error}", path.display()))
         })?;
-        if let Some(found) = found
-            && best
-                .as_ref()
-                .is_none_or(|best| found.observed_at > best.observed_at)
-        {
+        if let Some(found) = found.filter(|found| is_newer(found, best.as_ref(), floor)) {
             best = Some(found);
         }
     }
     Ok(best)
+}
+
+fn is_newer(found: &Observation, best: Option<&Observation>, floor: Timestamp) -> bool {
+    best.map_or(found.observed_at >= floor, |best| {
+        found.observed_at > best.observed_at
+    })
 }
 
 pub(super) fn snapshot(

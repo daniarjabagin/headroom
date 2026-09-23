@@ -1,6 +1,6 @@
 use std::fmt;
-use std::fs;
-use std::io;
+use std::fs::File;
+use std::io::{self, Read};
 use std::path::Path;
 
 use headroom_core::account::AccountIdentity;
@@ -19,6 +19,7 @@ pub(super) struct Credentials {
     pub account_id: Option<String>,
     pub identity: AccountIdentity,
     pub expires_at: Option<Timestamp>,
+    pub signed_in_at: Option<Timestamp>,
 }
 
 impl Credentials {
@@ -37,31 +38,48 @@ impl fmt::Debug for Credentials {
             .field("account_id", &self.account_id)
             .field("identity", &self.identity)
             .field("expires_at", &self.expires_at)
+            .field("signed_in_at", &self.signed_in_at)
             .finish()
     }
 }
 
-pub(super) fn load_credentials(home: &Path) -> Result<Credentials, ProviderError> {
-    let document = read_auth_document(home)?;
-    credentials_from(&document)
+struct AuthFile {
+    document: Value,
+    modified_at: Option<Timestamp>,
 }
 
-fn read_auth_document(home: &Path) -> Result<Value, ProviderError> {
+pub(super) fn load_credentials(home: &Path) -> Result<Credentials, ProviderError> {
+    let file = read_auth_file(home)?;
+    credentials_from(&file.document, file.modified_at)
+}
+
+fn read_auth_file(home: &Path) -> Result<AuthFile, ProviderError> {
     let path = home.join(AUTH_FILE);
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
+    let mut file = match File::open(&path) {
+        Ok(file) => file,
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             return Err(ProviderError::NotSignedIn);
         }
-        Err(error) => {
-            return Err(ProviderError::LocalData(format!(
-                "cannot read {}: {error}",
-                path.display()
-            )));
-        }
+        Err(error) => return Err(read_error(&path, &error)),
     };
-    parse_auth_document(&bytes)
-        .ok_or_else(|| ProviderError::LocalData(format!("{} is not valid JSON", path.display())))
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|error| read_error(&path, &error))?;
+    let document = parse_auth_document(&bytes)
+        .ok_or_else(|| ProviderError::LocalData(format!("{} is not valid JSON", path.display())))?;
+    Ok(AuthFile {
+        document,
+        modified_at: modified_at(&file),
+    })
+}
+
+fn modified_at(file: &File) -> Option<Timestamp> {
+    let modified = file.metadata().ok()?.modified().ok()?;
+    Timestamp::try_from(modified).ok()
+}
+
+fn read_error(path: &Path, error: &io::Error) -> ProviderError {
+    ProviderError::LocalData(format!("cannot read {}: {error}", path.display()))
 }
 
 fn parse_auth_document(bytes: &[u8]) -> Option<Value> {
@@ -79,7 +97,10 @@ fn parse_hex_document(bytes: &[u8]) -> Option<Value> {
         .filter(Value::is_object)
 }
 
-fn credentials_from(document: &Value) -> Result<Credentials, ProviderError> {
+fn credentials_from(
+    document: &Value,
+    modified_at: Option<Timestamp>,
+) -> Result<Credentials, ProviderError> {
     let tokens = document.get("tokens");
     let token_text = |key: &str| tokens.and_then(|tokens| non_empty(tokens, key));
     let Some(access_token) = token_text("access_token") else {
@@ -96,6 +117,7 @@ fn credentials_from(document: &Value) -> Result<Credentials, ProviderError> {
         stable_key: stable_key(claims.user_id.as_deref(), account_id.as_deref())?,
     };
     Ok(Credentials {
+        signed_in_at: claims.auth_time.or(modified_at),
         expires_at: expires_at(&access_token),
         access_token,
         account_id: stored_account.or(account_id),

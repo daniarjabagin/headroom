@@ -6,6 +6,7 @@ mod labels;
 mod local_usage;
 mod mapper;
 mod number;
+mod offline;
 mod rate_limits;
 mod reverse;
 #[cfg(test)]
@@ -19,7 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner, ProviderKind};
+use headroom_core::account::{AccountRef, CredentialOwner, ProviderKind};
 use headroom_core::cursor::LogCursors;
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
@@ -103,13 +104,13 @@ impl Provider for CodexProvider {
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
-        let credentials = load_credentials(&account.home)?;
+        let credentials = current_credentials(account)?;
         let now = self.now();
         match self.fetch_live(&credentials, now).await {
-            Err(error) if allows_offline_fallback(&error) => {
-                offline_fallback(account.home.clone(), credentials.identity, now, error).await
+            Err(error) => {
+                offline::limits_from_logs(account.home.clone(), credentials, now, error).await
             }
-            result => result,
+            live => live,
         }
     }
 
@@ -119,6 +120,18 @@ impl Provider for CodexProvider {
         cursors: &mut LogCursors,
     ) -> Result<Vec<UsageEvent>, ProviderError> {
         local_usage::read_usage(home, cursors, self.now())
+    }
+}
+
+fn current_credentials(account: &AccountRef) -> Result<Credentials, ProviderError> {
+    let credentials = load_credentials(&account.home)?;
+    if credentials.identity.account_id(ProviderKind::Codex) == account.id {
+        Ok(credentials)
+    } else {
+        Err(ProviderError::LocalData(format!(
+            "the Codex account signed in at {} has changed",
+            account.home.display()
+        )))
     }
 }
 
@@ -156,38 +169,10 @@ fn push_unique(accounts: &mut Vec<AccountRef>, account: AccountRef) {
     }
 }
 
-fn allows_offline_fallback(error: &ProviderError) -> bool {
-    matches!(
-        error,
-        ProviderError::Network(_)
-            | ProviderError::SignInExpired
-            | ProviderError::RateLimited { .. }
-    )
-}
-
-async fn offline_fallback(
-    home: PathBuf,
-    identity: AccountIdentity,
-    now: Timestamp,
-    error: ProviderError,
-) -> Result<LimitsSnapshot, ProviderError> {
-    let lookup =
-        tokio::task::spawn_blocking(move || rate_limits::latest_snapshot(&home, identity, now))
-            .await;
-    match lookup {
-        Ok(Ok(Some(snapshot))) => Ok(snapshot),
-        Ok(Ok(None)) => Err(error),
-        Ok(Err(local)) => {
-            tracing::warn!(error = %local, "codex offline limits unavailable");
-            Err(error)
-        }
-        Err(join) => {
-            tracing::warn!(error = %join, "codex offline limits lookup failed");
-            Err(error)
-        }
-    }
-}
-
 #[cfg(test)]
 #[path = "provider_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "fallback_tests.rs"]
+mod fallback_tests;
