@@ -1,0 +1,13 @@
+github.com:
+    users:
+        octocat:
+        octo-work:
+            oauth_token: gho_fake_plaintext_token
+    git_protocol: https
+    oauth_token: gho_fake_plaintext_token
+    user: octo-work
+ghe.corp.example:
+    users:
+        enterprise-user:
+    git_protocol: ssh
+    user: enterprise-user

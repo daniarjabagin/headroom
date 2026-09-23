@@ -7,6 +7,8 @@ use headroom_core::secret::SecretReader;
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::cline::{self, ClineConfig, ClineProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::copilot::{self, CopilotConfig, CopilotProvider};
+use crate::devin::{self, DevinConfig, DevinProvider};
 use crate::grok::{self, GrokConfig, GrokProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
 use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
@@ -27,7 +29,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 9] = [
+static ENTRIES: [Entry; 11] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -63,6 +65,14 @@ static ENTRIES: [Entry; 9] = [
     Entry {
         descriptor: &cline::DESCRIPTOR,
         build: build_cline,
+    },
+    Entry {
+        descriptor: &devin::DESCRIPTOR,
+        build: build_devin,
+    },
+    Entry {
+        descriptor: &copilot::DESCRIPTOR,
+        build: build_copilot,
     },
 ];
 
@@ -182,6 +192,22 @@ fn build_grok(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderEr
 fn build_cline(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = ClineConfig::from_env()?;
     Ok(Arc::new(ClineProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_devin(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = DevinConfig::from_env()?;
+    Ok(Arc::new(DevinProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_copilot(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = CopilotConfig::from_env()?;
+    Ok(Arc::new(CopilotProvider::with_http(
         config,
         context.http.clone(),
     )))

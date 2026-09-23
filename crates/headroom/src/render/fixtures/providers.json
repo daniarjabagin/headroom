@@ -134,6 +134,38 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "devin",
+      "display_name": "Devin",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "devin"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Found when you sign in with the Devin CLI or the Devin app"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "copilot",
+      "display_name": "Copilot",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "gh"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Every account signed in to the GitHub CLI (gh) is found"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

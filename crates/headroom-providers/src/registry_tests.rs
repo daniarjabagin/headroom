@@ -33,6 +33,8 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
             "claude",
             "cline",
             "codex",
+            "copilot",
+            "devin",
             "grok",
             "kimi",
             "minimax",
@@ -71,7 +73,9 @@ fn built_providers_follow_the_registry_order() {
             "kimi",
             "minimax",
             "grok",
-            "cline"
+            "cline",
+            "devin",
+            "copilot"
         ]
     );
     for provider in &providers {

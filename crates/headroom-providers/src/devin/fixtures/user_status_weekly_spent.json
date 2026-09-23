@@ -1,0 +1,15 @@
+{
+  "userStatus": {
+    "email": "user@example.test",
+    "planStatus": {
+      "planInfo": {
+        "planName": "Pro",
+        "hideDailyQuota": true
+      },
+      "dailyQuotaRemainingPercent": 100,
+      "dailyQuotaResetAtUnix": "1788940800",
+      "weeklyQuotaResetAtUnix": "1789286400",
+      "overageBalanceMicros": "0"
+    }
+  }
+}

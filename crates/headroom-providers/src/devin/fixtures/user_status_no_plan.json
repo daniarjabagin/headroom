@@ -1,0 +1,11 @@
+{
+  "userStatus": {
+    "name": "Example User",
+    "email": "user@example.test",
+    "planStatus": {
+      "planInfo": {
+        "planName": "Free"
+      }
+    }
+  }
+}
