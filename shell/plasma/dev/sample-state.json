@@ -1,0 +1,783 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-23T10:00:00Z",
+  "next_refresh_at": "2026-09-23T10:03:10Z",
+  "last_success_at": "2026-09-23T09:58:00Z",
+  "offline": false,
+  "headline": {
+    "account_id": "codex:1a2b3c4d5e6f",
+    "window": "session",
+    "remaining_percent": 62.0,
+    "tone": "good"
+  },
+  "accounts": [
+    {
+      "id": "codex:1a2b3c4d5e6f",
+      "provider": "codex",
+      "label": "work",
+      "email": "dev@example.com",
+      "plan": "Pro",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 38.0,
+          "remaining_percent": 62.0,
+          "resets_at": "2026-09-23T12:41:00Z",
+          "period_seconds": 18000,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 46.0,
+            "projected_percent": 82.0,
+            "spare_percent": 18.0,
+            "runs_out_at": null
+          }
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 19.0,
+          "remaining_percent": 81.0,
+          "resets_at": "2026-09-27T16:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 38.0,
+            "projected_percent": 50.0,
+            "spare_percent": 50.0,
+            "runs_out_at": null
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "credits",
+          "label": "Credits",
+          "kind": "usd",
+          "usd_micros": 12500000
+        }
+      ],
+      "notices": [],
+      "usage_home": "~/.codex"
+    },
+    {
+      "id": "codex:9f8e7d6c5b4a",
+      "provider": "codex",
+      "label": "personal",
+      "email": "me@example.org",
+      "plan": "Plus",
+      "hidden": false,
+      "status": "stale",
+      "error": null,
+      "updated_at": "2026-09-23T07:00:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 71.0,
+          "remaining_percent": 29.0,
+          "resets_at": "2026-09-23T11:12:00Z",
+          "period_seconds": 18000,
+          "tone": "warning",
+          "pace": {
+            "severity": "close",
+            "even_pace_percent": 76.0,
+            "projected_percent": 96.0,
+            "spare_percent": 4.0,
+            "runs_out_at": null
+          }
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 83.0,
+          "remaining_percent": 17.0,
+          "resets_at": "2026-09-26T12:00:00Z",
+          "period_seconds": 604800,
+          "tone": "critical",
+          "pace": {
+            "severity": "running_out",
+            "even_pace_percent": 55.0,
+            "projected_percent": 151.0,
+            "spare_percent": null,
+            "runs_out_at": "2026-09-24T19:00:00Z"
+          }
+        },
+        {
+          "id": "model:spark",
+          "label": "Spark",
+          "used_percent": 100.0,
+          "remaining_percent": 0.0,
+          "resets_at": "2026-09-23T14:00:00Z",
+          "period_seconds": 18000,
+          "tone": "critical",
+          "pace": {
+            "severity": "spent",
+            "even_pace_percent": 20.0,
+            "projected_percent": null,
+            "spare_percent": null,
+            "runs_out_at": null
+          }
+        }
+      ],
+      "balances": [],
+      "notices": [
+        {
+          "tone": "warning",
+          "text": "Weekly limit shared with Codex Cloud"
+        }
+      ],
+      "usage_home": "~/.codex"
+    },
+    {
+      "id": "claude:0a1b2c3d4e5f",
+      "provider": "claude",
+      "label": "personal",
+      "email": "me@example.org",
+      "plan": "Max 5x",
+      "hidden": false,
+      "status": "error",
+      "error": {
+        "kind": "invalid_response",
+        "message": "invalid response: HTTP 503 from api.anthropic.com"
+      },
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 0.0,
+          "remaining_percent": 100.0,
+          "resets_at": null,
+          "period_seconds": 18000,
+          "tone": "good",
+          "pace": {
+            "severity": "untracked",
+            "even_pace_percent": null,
+            "projected_percent": null,
+            "spare_percent": null,
+            "runs_out_at": null
+          }
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 64.0,
+          "remaining_percent": 36.0,
+          "resets_at": "2026-09-25T15:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 70.0,
+            "projected_percent": 88.0,
+            "spare_percent": 12.0,
+            "runs_out_at": null
+          }
+        },
+        {
+          "id": "model:opus",
+          "label": "Opus",
+          "used_percent": 12.0,
+          "remaining_percent": 88.0,
+          "resets_at": "2026-09-25T15:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 70.0,
+            "projected_percent": 17.0,
+            "spare_percent": 83.0,
+            "runs_out_at": null
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "extra_usage",
+          "label": "Extra usage",
+          "kind": "count",
+          "value": 1200,
+          "unit": "requests"
+        }
+      ],
+      "notices": [],
+      "usage_home": "~/.claude"
+    },
+    {
+      "id": "claude:5e4d3c2b1a0f",
+      "provider": "claude",
+      "label": "team",
+      "email": "dev@example.com",
+      "plan": "Team",
+      "hidden": false,
+      "status": "signed_out",
+      "error": {
+        "kind": "sign_in_expired",
+        "message": "sign-in expired, open the CLI to sign in again"
+      },
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "cache",
+      "windows": [],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.claude"
+    }
+  ],
+  "usage": [
+    {
+      "provider": "codex",
+      "usage_home": "~/.codex",
+      "today": {
+        "tokens": {
+          "input": 2967400,
+          "cache_read": 1604000,
+          "cache_write": 0,
+          "output": 240600,
+          "reasoning": 60150,
+          "total": 4812000
+        },
+        "cost_usd_micros": 14370000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": []
+      },
+      "yesterday": {
+        "tokens": {
+          "input": 5624000,
+          "cache_read": 3040000,
+          "cache_write": 0,
+          "output": 456000,
+          "reasoning": 114000,
+          "total": 9120000
+        },
+        "cost_usd_micros": 21880000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": []
+      },
+      "last_30_days": {
+        "tokens": {
+          "input": 112480000,
+          "cache_read": 60800000,
+          "cache_write": 0,
+          "output": 9120000,
+          "reasoning": 2280000,
+          "total": 182400000
+        },
+        "cost_usd_micros": 463120000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": []
+      },
+      "daily": [
+        {
+          "date": "2026-08-25",
+          "total_tokens": 1464000,
+          "cost_usd_micros": 4392000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-26",
+          "total_tokens": 4087000,
+          "cost_usd_micros": 12261000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-27",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-08-28",
+          "total_tokens": 3233000,
+          "cost_usd_micros": 9699000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-29",
+          "total_tokens": 5856000,
+          "cost_usd_micros": 17568000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-30",
+          "total_tokens": 2379000,
+          "cost_usd_micros": 7137000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-31",
+          "total_tokens": 5002000,
+          "cost_usd_micros": 15006000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-01",
+          "total_tokens": 1525000,
+          "cost_usd_micros": 4575000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-02",
+          "total_tokens": 4148000,
+          "cost_usd_micros": 12444000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-03",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-04",
+          "total_tokens": 3294000,
+          "cost_usd_micros": 9882000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-05",
+          "total_tokens": 5917000,
+          "cost_usd_micros": 17751000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-06",
+          "total_tokens": 2440000,
+          "cost_usd_micros": 7320000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-07",
+          "total_tokens": 5063000,
+          "cost_usd_micros": 15189000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-08",
+          "total_tokens": 1586000,
+          "cost_usd_micros": 4758000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-09",
+          "total_tokens": 4209000,
+          "cost_usd_micros": 12627000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-10",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-11",
+          "total_tokens": 3355000,
+          "cost_usd_micros": 10065000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-12",
+          "total_tokens": 5978000,
+          "cost_usd_micros": 17934000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-13",
+          "total_tokens": 2501000,
+          "cost_usd_micros": 7503000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-14",
+          "total_tokens": 5124000,
+          "cost_usd_micros": 15372000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-15",
+          "total_tokens": 1647000,
+          "cost_usd_micros": 4941000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-16",
+          "total_tokens": 4270000,
+          "cost_usd_micros": 12810000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-17",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-18",
+          "total_tokens": 3416000,
+          "cost_usd_micros": 10248000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-19",
+          "total_tokens": 6039000,
+          "cost_usd_micros": 18117000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-20",
+          "total_tokens": 2562000,
+          "cost_usd_micros": 7686000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-21",
+          "total_tokens": 5185000,
+          "cost_usd_micros": 15555000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-22",
+          "total_tokens": 1708000,
+          "cost_usd_micros": 5124000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-23",
+          "total_tokens": 4331000,
+          "cost_usd_micros": 12993000,
+          "partial": false
+        }
+      ],
+      "models": [
+        {
+          "model": "gpt-5.5",
+          "total_tokens": 150000000,
+          "cost_usd_micros": 401000000,
+          "partial": false
+        },
+        {
+          "model": "gpt-5.5-mini",
+          "total_tokens": 32400000,
+          "cost_usd_micros": 62120000,
+          "partial": false
+        }
+      ]
+    },
+    {
+      "provider": "claude",
+      "usage_home": "~/.claude",
+      "today": {
+        "tokens": {
+          "input": 742127,
+          "cache_read": 401149,
+          "cache_write": 0,
+          "output": 60172,
+          "reasoning": 15043,
+          "total": 1203448
+        },
+        "cost_usd_micros": 4050000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": []
+      },
+      "yesterday": {
+        "tokens": {
+          "input": 1480000,
+          "cache_read": 800000,
+          "cache_write": 0,
+          "output": 120000,
+          "reasoning": 30000,
+          "total": 2400000
+        },
+        "cost_usd_micros": 8300000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": []
+      },
+      "last_30_days": {
+        "tokens": {
+          "input": 22084625,
+          "cache_read": 11937634,
+          "cache_write": 0,
+          "output": 1790645,
+          "reasoning": 447661,
+          "total": 35812904
+        },
+        "cost_usd_micros": 96400000,
+        "partial": true,
+        "unpriced_tokens": 412000,
+        "unpriced_models": [
+          "claude-next"
+        ]
+      },
+      "daily": [
+        {
+          "date": "2026-08-25",
+          "total_tokens": 920000,
+          "cost_usd_micros": 2760000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-26",
+          "total_tokens": 1035000,
+          "cost_usd_micros": 3105000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-27",
+          "total_tokens": 1150000,
+          "cost_usd_micros": 3450000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-28",
+          "total_tokens": 1265000,
+          "cost_usd_micros": 3795000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-29",
+          "total_tokens": 1380000,
+          "cost_usd_micros": 4140000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-30",
+          "total_tokens": 1495000,
+          "cost_usd_micros": 4485000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-31",
+          "total_tokens": 1610000,
+          "cost_usd_micros": 4830000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-01",
+          "total_tokens": 1725000,
+          "cost_usd_micros": 5175000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-02",
+          "total_tokens": 1840000,
+          "cost_usd_micros": 5520000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-03",
+          "total_tokens": 1955000,
+          "cost_usd_micros": 5865000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-04",
+          "total_tokens": 2070000,
+          "cost_usd_micros": 6210000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-05",
+          "total_tokens": 2185000,
+          "cost_usd_micros": 6555000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-06",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-07",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-08",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-09",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-10",
+          "total_tokens": 460000,
+          "cost_usd_micros": 1380000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-11",
+          "total_tokens": 575000,
+          "cost_usd_micros": 1725000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-12",
+          "total_tokens": 690000,
+          "cost_usd_micros": 2070000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-13",
+          "total_tokens": 805000,
+          "cost_usd_micros": 2415000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-14",
+          "total_tokens": 920000,
+          "cost_usd_micros": 2760000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-15",
+          "total_tokens": 1035000,
+          "cost_usd_micros": 3105000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-16",
+          "total_tokens": 1150000,
+          "cost_usd_micros": 3450000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-17",
+          "total_tokens": 1265000,
+          "cost_usd_micros": 3795000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-18",
+          "total_tokens": 1380000,
+          "cost_usd_micros": 4140000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-19",
+          "total_tokens": 1495000,
+          "cost_usd_micros": 4485000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-20",
+          "total_tokens": 1610000,
+          "cost_usd_micros": 4830000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-21",
+          "total_tokens": 1725000,
+          "cost_usd_micros": 5175000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-22",
+          "total_tokens": 1840000,
+          "cost_usd_micros": 5520000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-23",
+          "total_tokens": 1955000,
+          "cost_usd_micros": 5865000,
+          "partial": false
+        }
+      ],
+      "models": [
+        {
+          "model": "claude-opus",
+          "total_tokens": 30000000,
+          "cost_usd_micros": 90000000,
+          "partial": false
+        },
+        {
+          "model": "claude-next",
+          "total_tokens": 412000,
+          "cost_usd_micros": 0,
+          "partial": true
+        }
+      ]
+    }
+  ],
+  "spend": {
+    "today": {
+      "cost_usd_micros": 18420000,
+      "total_tokens": 6015448,
+      "partial": false,
+      "by_provider": [
+        {
+          "provider": "codex",
+          "cost_usd_micros": 14370000,
+          "total_tokens": 4812000,
+          "partial": false
+        },
+        {
+          "provider": "claude",
+          "cost_usd_micros": 4050000,
+          "total_tokens": 1203448,
+          "partial": false
+        }
+      ]
+    },
+    "yesterday": {
+      "cost_usd_micros": 30180000,
+      "total_tokens": 11520000,
+      "partial": false,
+      "by_provider": [
+        {
+          "provider": "codex",
+          "cost_usd_micros": 21880000,
+          "total_tokens": 9120000,
+          "partial": false
+        },
+        {
+          "provider": "claude",
+          "cost_usd_micros": 8300000,
+          "total_tokens": 2400000,
+          "partial": false
+        }
+      ]
+    },
+    "last_30_days": {
+      "cost_usd_micros": 559520000,
+      "total_tokens": 218212904,
+      "partial": true,
+      "by_provider": [
+        {
+          "provider": "codex",
+          "cost_usd_micros": 463120000,
+          "total_tokens": 182400000,
+          "partial": false
+        },
+        {
+          "provider": "claude",
+          "cost_usd_micros": 96400000,
+          "total_tokens": 35812904,
+          "partial": true
+        }
+      ]
+    }
+  }
+}

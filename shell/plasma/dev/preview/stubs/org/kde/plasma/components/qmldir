@@ -1,0 +1,8 @@
+module org.kde.plasma.components
+Label 3.0 Label.qml
+BusyIndicator 3.0 BusyIndicator.qml
+ScrollView 3.0 ScrollView.qml
+ToolTip 3.0 ToolTip.qml
+Menu 3.0 Menu.qml
+MenuItem 3.0 MenuItem.qml
+MenuSeparator 3.0 MenuSeparator.qml
