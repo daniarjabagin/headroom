@@ -5,6 +5,7 @@ use crate::error::StorageError;
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/001_init.sql"),
     include_str!("migrations/002_subscription_lapses.sql"),
+    include_str!("migrations/003_reported_cost.sql"),
 ];
 
 pub fn migrate(conn: &mut Connection) -> Result<(), StorageError> {

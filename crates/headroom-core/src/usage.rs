@@ -72,10 +72,14 @@ pub fn aggregate(
     for event in events {
         let date = tz.to_datetime(event.at).date();
         if days.contains(date) {
-            builder.record(&days, date, event, prices.cost(event));
+            builder.record(&days, date, event, event_cost(event, prices));
         }
     }
     builder.finish()
+}
+
+fn event_cost(event: &UsageEvent, prices: &dyn PriceBook) -> Option<MicroUsd> {
+    event.reported_cost.or_else(|| prices.cost(event))
 }
 
 struct DayRange {

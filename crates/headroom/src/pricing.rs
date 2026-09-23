@@ -136,6 +136,7 @@ mod tests {
                 ..TokenCounts::default()
             },
             web_search_requests: 0,
+            reported_cost: None,
         };
         let cost = prices.cost(&event);
         assert!(cost.is_some_and(|micros| micros.0 > 0));

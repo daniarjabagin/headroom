@@ -128,6 +128,7 @@ pub fn event(key: &str, at: &str, model: &str, input: u64, output: u64) -> Usage
             ..TokenCounts::default()
         },
         web_search_requests: 0,
+        reported_cost: None,
     }
 }
 

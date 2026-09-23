@@ -1,6 +1,7 @@
 use headroom_core::cursor::LogCursors;
 use headroom_core::event::{EventKey, UsageEvent};
 use headroom_core::tokens::TokenCounts;
+use headroom_core::units::MicroUsd;
 use jiff::Timestamp;
 use rusqlite::{Connection, Row, Transaction, params};
 
@@ -13,17 +14,18 @@ use crate::error::StorageError;
 use crate::home::UsageHome;
 
 const UPSERT: &str = "INSERT INTO usage_events (provider, usage_home, key, at, model, tier, input, \
-     cache_read, cache_write_5m, cache_write_1h, output, reasoning, total, web_search) \
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) \
+     cache_read, cache_write_5m, cache_write_1h, output, reasoning, total, web_search, \
+     reported_cost) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15) \
      ON CONFLICT(provider, usage_home, key) DO UPDATE SET at = excluded.at, \
      model = excluded.model, tier = excluded.tier, input = excluded.input, \
      cache_read = excluded.cache_read, cache_write_5m = excluded.cache_write_5m, \
      cache_write_1h = excluded.cache_write_1h, output = excluded.output, \
-     reasoning = excluded.reasoning, total = excluded.total, web_search = excluded.web_search \
+     reasoning = excluded.reasoning, total = excluded.total, web_search = excluded.web_search, \
+     reported_cost = excluded.reported_cost \
      WHERE excluded.total > usage_events.total";
 
 const SELECT_SINCE: &str = "SELECT key, at, model, tier, input, cache_read, cache_write_5m, \
-     cache_write_1h, output, reasoning, web_search FROM usage_events \
+     cache_write_1h, output, reasoning, web_search, reported_cost FROM usage_events \
      WHERE provider = ?1 AND usage_home = ?2 AND at >= ?3 ORDER BY at, key";
 
 pub fn ingest(
@@ -62,7 +64,8 @@ fn upsert(
         tokens_to_sql(tokens.output)?,
         tokens_to_sql(tokens.reasoning)?,
         tokens_to_sql(tokens.total())?,
-        event.web_search_requests
+        event.web_search_requests,
+        event.reported_cost.map(|cost| cost.0)
     ])?)
 }
 
@@ -98,6 +101,7 @@ struct RawEvent {
     tier: String,
     counts: [i64; 6],
     web_search: u32,
+    reported_cost: Option<i64>,
 }
 
 fn read_raw(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
@@ -115,6 +119,7 @@ fn read_raw(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
             row.get(9)?,
         ],
         web_search: row.get(10)?,
+        reported_cost: row.get(11)?,
     })
 }
 
@@ -134,5 +139,10 @@ fn decode(raw: RawEvent) -> Result<UsageEvent, StorageError> {
             reasoning: tokens_from_sql(reasoning)?,
         },
         web_search_requests: raw.web_search,
+        reported_cost: raw.reported_cost.map(MicroUsd),
     })
 }
+
+#[cfg(test)]
+#[path = "events_tests.rs"]
+mod tests;

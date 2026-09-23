@@ -58,10 +58,11 @@ mod tests {
         let mut payload = crate::providers::catalog().payload();
         payload.providers.push(keyed);
         let expected = "\
-ID      NAME    ADD ACCOUNT                              ACCOUNTS  LOCAL USAGE
-codex   Codex   sign in with codex                       several   yes
-claude  Claude  sign in with claude                      several   yes
-keyed   Keyed   paste api key or detected automatically  one       no
+ID      NAME    ADD ACCOUNT                                  ACCOUNTS  LOCAL USAGE
+codex   Codex   sign in with codex                           several   yes
+claude  Claude  sign in with claude                          several   yes
+grok    Grok    sign in with grok or detected automatically  several   yes
+keyed   Keyed   paste api key or detected automatically      one       no
 ";
         assert_eq!(render_providers(&payload), expected);
     }

@@ -157,6 +157,7 @@ impl Record {
             tier: service_tier(&self.usage),
             tokens,
             web_search_requests,
+            reported_cost: None,
         }
     }
 }

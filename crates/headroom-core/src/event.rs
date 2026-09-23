@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::tokens::TokenCounts;
+use crate::units::MicroUsd;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UsageEvent {
@@ -12,6 +13,9 @@ pub struct UsageEvent {
     pub tier: ServiceTier,
     pub tokens: TokenCounts,
     pub web_search_requests: u32,
+    /// Exact cost the provider logged for this event; it takes precedence over the price book.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reported_cost: Option<MicroUsd>,
 }
 
 #[derive(

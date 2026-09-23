@@ -1,6 +1,7 @@
 pub mod claude;
 pub mod codex;
 mod fsio;
+pub mod grok;
 mod homes;
 pub mod http;
 pub mod jsonl;
