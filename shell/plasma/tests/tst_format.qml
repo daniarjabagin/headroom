@@ -3,6 +3,7 @@ import QtTest
 import "../package/contents/ui/logic/Breakdown.js" as Breakdown
 import "../package/contents/ui/logic/Format.js" as Format
 import "../package/contents/ui/logic/Quota.js" as Quota
+import "../package/contents/ui/logic/Sector.js" as Sector
 import "../package/contents/ui/logic/Spend.js" as Spend
 import "../package/contents/ui/logic/Trend.js" as Trend
 
@@ -250,32 +251,44 @@ TestCase {
                 }));
     }
 
-    function assertSeparated(slices, gap, cap) {
-        const edges = slices.map(slice => [slice.start - cap, slice.start + slice.sweep + cap]);
-        for (let index = 0; index < edges.length; index++) {
-            const next = index + 1 < edges.length ? edges[index + 1][0] : edges[0][0] + 360;
-            verify(next - edges[index][1] >= gap - 1e-9, `gap after slice ${index}`);
-        }
+    readonly property var ringGeometry: Sector.geometry(104, 0.618, 2)
+
+    function assertContiguous(slices) {
+        let start = -90;
+        slices.forEach((slice, index) => {
+            fuzzyCompare(slice.start, start, 1e-9, `start of slice ${index}`);
+            start += slice.sweep;
+        });
+        fuzzyCompare(start, 270, 1e-9);
+    }
+
+    function offsetFrom(edgeDegrees, point) {
+        const angle = Sector.radians(edgeDegrees);
+        const dx = point.x - ringGeometry.center;
+        const dy = point.y - ringGeometry.center;
+        return dy * Math.cos(angle) - dx * Math.sin(angle);
     }
 
     function test_spend_slices() {
-        const slices = Spend.slices(spendOf([900, 100]), 2, 10);
-        compare(slices[0].start, -79);
-        compare(slices[0].sweep, 302);
-        compare(slices[1].start, 245);
-        fuzzyCompare(slices[1].sweep, 14, 1e-9);
+        const slices = Spend.slices(spendOf([900, 100]), 10);
+        compare(slices[0].start, -90);
+        fuzzyCompare(slices[0].sweep, 324, 1e-9);
+        fuzzyCompare(slices[1].start, 234, 1e-9);
+        fuzzyCompare(slices[1].sweep, 36, 1e-9);
         compare(slices[1].color, "#DE7356");
-        assertSeparated(slices, 2, 10);
+        assertContiguous(slices);
         compare(Spend.revealed(slices[0], 0), 0);
-        compare(Spend.revealed(slices[0], 1), 302);
+        fuzzyCompare(Spend.revealed(slices[0], 1), 324, 1e-9);
         compare(Spend.revealed(slices[1], 0.5), 0);
     }
 
-    function test_spend_slices_keep_tiny_segments_as_dots() {
-        const slices = Spend.slices(spendOf([1000000, 1, 0]), 3, 12);
-        fuzzyCompare(slices[1].sweep, Spend.DOT_SWEEP, 1e-9);
-        fuzzyCompare(slices[2].sweep, Spend.DOT_SWEEP, 1e-9);
-        assertSeparated(slices, 3, 12);
+    function test_spend_slices_keep_tiny_segments_visible() {
+        const minimum = Sector.minSweep(ringGeometry);
+        const slices = Spend.slices(spendOf([1000000, 1, 0]), minimum);
+        compare(slices[1].sweep, slices[2].sweep);
+        verify(slices[2].sweep >= minimum);
+        assertContiguous(slices);
+        verify(Sector.sectorPath(ringGeometry, slices[2].start, slices[2].sweep) !== "");
         verify(Spend.revealed(slices[2], 1) > 0);
         const fractions = Spend.visibleFractions([1000000, 1, 0], 0.1);
         fuzzyCompare(fractions.reduce((sum, value) => sum + value, 0), 1, 1e-9);
@@ -283,7 +296,7 @@ TestCase {
     }
 
     function test_spend_slices_single_provider_is_full_ring() {
-        compare(Spend.slices(spendOf([5]), 3, 12), [
+        compare(Spend.slices(spendOf([5]), 10), [
             {
                 start: -90,
                 sweep: 360,
@@ -293,8 +306,52 @@ TestCase {
         compare(Spend.visibleFractions([0, 0], 0.1), [0.5, 0.5]);
     }
 
-    function test_spend_slices_many_providers_stay_separated() {
-        assertSeparated(Spend.slices(spendOf([50, 30, 2, 18]), 3, 12), 3, 12);
+    function test_spend_slices_many_providers_stay_contiguous() {
+        assertContiguous(Spend.slices(spendOf([50, 30, 2, 18]), Sector.minSweep(ringGeometry)));
+    }
+
+    function test_sector_geometry() {
+        compare(ringGeometry.center, 52);
+        compare(ringGeometry.outer, 52);
+        fuzzyCompare(ringGeometry.inner, 32.136, 1e-9);
+        fuzzyCompare(ringGeometry.corner, (52 - 32.136) * 0.15, 1e-9);
+    }
+
+    function test_sector_gaps_have_even_width() {
+        const boundary = 30;
+        const before = Sector.corners(ringGeometry, -60, 90);
+        const after = Sector.corners(ringGeometry, boundary, 120);
+        [before.outerEnd.onEdge, before.innerEnd.onEdge].forEach(point => fuzzyCompare(offsetFrom(boundary, point), -1, 1e-9));
+        [after.outerStart.onEdge, after.innerStart.onEdge].forEach(point => fuzzyCompare(offsetFrom(boundary, point), 1, 1e-9));
+    }
+
+    function test_sector_corner_radius_is_clamped() {
+        fuzzyCompare(Sector.cornerRadius(ringGeometry, 90), ringGeometry.corner, 1e-9);
+        const tiny = Sector.minSweep(ringGeometry) / 2;
+        const clamped = Sector.cornerRadius(ringGeometry, tiny);
+        verify(clamped < ringGeometry.corner);
+        fuzzyCompare(clamped, Sector.innerLength(ringGeometry, tiny) / 2, 1e-9);
+        const k = Sector.corners(ringGeometry, 0, tiny);
+        verify(k.innerStart.centerAngle <= k.innerEnd.centerAngle + 1e-9);
+        compare(Sector.cornerRadius(ringGeometry, 1), 0);
+    }
+
+    function test_sector_path_shape() {
+        const path = Sector.sectorPath(ringGeometry, -90, 200);
+        verify(path.startsWith("M "));
+        verify(path.endsWith(" Z"));
+        compare(path.split(" L ").length, 3);
+        compare(path.split(" A ").length, 7);
+        verify(path.includes("A 52.000 52.000 0 1 1"));
+        verify(Sector.sectorPath(ringGeometry, -90, 90).includes("A 52.000 52.000 0 0 1"));
+        compare(Sector.sectorPath(ringGeometry, -90, 1), "");
+    }
+
+    function test_sector_single_ring_has_no_gap() {
+        const ring = Sector.slicePath(Sector.geometry(104, 0.618, 0), -90, 360);
+        compare(ring.split("M ").length, 3);
+        verify(!ring.includes(" L "));
+        compare(Sector.slicePath(ringGeometry, -90, 180), Sector.sectorPath(ringGeometry, -90, 180));
     }
 
     function test_spend_titles() {

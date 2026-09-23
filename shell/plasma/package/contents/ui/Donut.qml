@@ -5,6 +5,7 @@ import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
 import "logic/Metrics.js" as Metrics
+import "logic/Sector.js" as Sector
 import "logic/Spend.js" as Spend
 
 Item {
@@ -14,15 +15,9 @@ Item {
     property real progress: 1
     readonly property real size: Metrics.donutSize(Kirigami.Units)
     readonly property real holeRatio: 0.618
-    readonly property real thickness: size / 2 * (1 - holeRatio)
-    readonly property real arcRadius: size / 2 - thickness / 2
-    readonly property real gapDegrees: degreesFor(Metrics.donutGap(Kirigami.Units))
-    readonly property real capDegrees: degreesFor(thickness / 2)
-    readonly property var slices: Spend.slices(period.providers, gapDegrees, capDegrees)
-
-    function degreesFor(length) {
-        return length / arcRadius * 180 / Math.PI;
-    }
+    readonly property bool gapped: period.providers.length > 1
+    readonly property var geometry: Sector.geometry(size, holeRatio, gapped ? Metrics.donutGap(Kirigami.Units) : 0)
+    readonly property var slices: Spend.slices(period.providers, Sector.minSweep(geometry))
 
     implicitWidth: size
     implicitHeight: size
@@ -47,18 +42,12 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                strokeColor: slice.target.color
-                strokeWidth: donut.thickness
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
+                fillColor: slice.target.color
+                fillRule: ShapePath.OddEvenFill
+                strokeWidth: -1
 
-                PathAngleArc {
-                    centerX: donut.size / 2
-                    centerY: donut.size / 2
-                    radiusX: donut.arcRadius
-                    radiusY: donut.arcRadius
-                    startAngle: slice.start
-                    sweepAngle: Math.max(Spend.DOT_SWEEP, slice.shown)
+                PathSvg {
+                    path: Sector.slicePath(donut.geometry, slice.start, slice.shown)
                 }
             }
 

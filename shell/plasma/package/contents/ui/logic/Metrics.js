@@ -53,7 +53,7 @@ function controlRadius(units) {
 }
 
 function donutGap(units) {
-    return units.smallSpacing * 0.75;
+    return units.smallSpacing * 0.5;
 }
 
 function meterHeight(units) {
