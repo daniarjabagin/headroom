@@ -1,7 +1,8 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
-import { compactTokens, exactTokens, exactUsd, spendLine, usd } from '../format.js';
-import { _, fill } from '../i18n.js';
+import { dayTitle } from '../dates.js';
+import { _ } from '../i18n.js';
+import { compactTokensText, exactSpendLine, exactTokens, spendLine, usd } from '../numbers.js';
 import { providerInfo } from '../providers.js';
 import { column, label, row } from '../widgets.js';
 import { modelTooltip } from './modelTooltip.js';
@@ -11,9 +12,19 @@ const TREND_HEIGHT = 18;
 const TREND_STUB = 2;
 const TREND_MIN_SHARE = 0.18;
 
+const BALANCE_LABELS = {
+    credits: () => _('Credits'),
+    extra_usage: () => _('Extra usage'),
+};
+
 function lastDays(daily) {
     const days = daily.slice(-TREND_DAYS);
-    const padding = Array.from({ length: TREND_DAYS - days.length }, () => ({ date: '', totalTokens: 0 }));
+    const padding = Array.from({ length: TREND_DAYS - days.length }, () => ({
+        date: '',
+        totalTokens: 0,
+        costMicros: 0,
+        partial: false,
+    }));
     return [...padding, ...days];
 }
 
@@ -22,62 +33,51 @@ function barHeight(value, peak) {
     return Math.max(Math.round(TREND_HEIGHT * TREND_MIN_SHARE), Math.round((TREND_HEIGHT * value) / peak));
 }
 
-function peakDescription(days) {
-    const peakDay = days.reduce((best, day) => (day.totalTokens > best.totalTokens ? day : best), days[0]);
-    if (peakDay.totalTokens === 0) return _('No usage in the last 30 days');
-    return fill(_('Peak {tokens} tokens on {date}'), {
-        tokens: compactTokens(peakDay.totalTokens),
-        date: peakDay.date,
-    });
-}
-
-export function trendRow(ctx, usage) {
-    const days = lastDays(usage.daily);
-    const peak = Math.max(...days.map(day => day.totalTokens));
-    const actor = row({ style_class: 'headroom-text-row' });
-    actor.add_child(label(_('Usage Trend'), 'headroom-value-label', { x_expand: true }));
-    const strip = row({ style_class: 'headroom-trend', y_align: Clutter.ActorAlign.CENTER });
-    for (const day of days) {
-        const bar = new St.Widget({ style_class: 'headroom-trend-bar', y_align: Clutter.ActorAlign.END });
-        bar.style = `height: ${barHeight(day.totalTokens, peak)}px;`;
-        strip.add_child(bar);
-    }
-    ctx.tooltips.attach(strip, () => peakDescription(days));
-    actor.add_child(strip);
+function dayTooltip(day) {
+    if (day.date === '') return null;
+    const actor = column({ style_class: 'headroom-tip' });
+    actor.add_child(label(dayTitle(day.date), 'headroom-tip-title', { x_align: Clutter.ActorAlign.START }));
+    const partial = day.partial ? _(' · some models unpriced') : '';
+    const figures =
+        day.totalTokens === 0 ? _('No usage') : `${compactTokensText(day.totalTokens)} · ${usd(day.costMicros)}`;
+    actor.add_child(label(`${figures}${partial}`, 'headroom-tip-figure', { x_align: Clutter.ActorAlign.START }));
     return actor;
 }
 
-function valueRow(ctx, title, value, tooltipFor) {
-    const actor = row({ style_class: 'headroom-text-row' });
-    actor.add_child(label(title, 'headroom-value-label', { x_expand: true }));
-    const valueLabel = label(value, 'headroom-value');
-    if (tooltipFor) {
-        valueLabel.add_style_class_name('headroom-hover-chip');
-        ctx.tooltips.attach(valueLabel, tooltipFor);
+export class TrendRow {
+    constructor(ctx, usage) {
+        this._days = lastDays(usage.daily);
+        this.actor = row({ style_class: 'headroom-text-row' });
+        this.actor.add_child(label(_('Usage Trend'), 'headroom-value-label', { x_expand: true }));
+        const strip = row({ style_class: 'headroom-trend', y_align: Clutter.ActorAlign.CENTER });
+        this._bars = this._days.map((_day, index) => {
+            const slot = new St.Widget({ style_class: 'headroom-trend-slot', layout_manager: new Clutter.BinLayout() });
+            const bar = new St.Widget({ style_class: 'headroom-trend-bar', y_align: Clutter.ActorAlign.END });
+            slot.add_child(bar);
+            ctx.tooltips.attach(slot, () => dayTooltip(this._days[index]));
+            strip.add_child(slot);
+            return bar;
+        });
+        this.actor.add_child(strip);
+        this.update(usage);
     }
-    actor.add_child(valueLabel);
-    return actor;
-}
 
-function spendTooltip(totals) {
-    const partial = totals.partial ? _(' · some models unpriced') : '';
-    return `${exactUsd(totals.costMicros)} · ${exactTokens(totals.totalTokens)} ${_('tokens')}${partial}`;
+    update(usage) {
+        this._days = lastDays(usage.daily);
+        const peak = Math.max(...this._days.map(day => day.totalTokens));
+        this._days.forEach((day, index) => {
+            this._bars[index].style = `height: ${barHeight(day.totalTokens, peak)}px;`;
+        });
+    }
 }
 
 function totalsTooltip(title, totals) {
     if (totals.totalTokens === 0) return null;
-    return () => modelTooltip(title, totals) ?? spendTooltip(totals);
+    return modelTooltip(title, totals) ?? exactSpendLine(totals);
 }
 
-function spendRows(ctx, account) {
-    const provider = providerInfo(account.provider).name;
-    return [
-        [_('Today'), account.usage.today],
-        [_('Yesterday'), account.usage.yesterday],
-        [_('Last 30 Days'), account.usage.last30Days],
-    ].map(([title, totals]) =>
-        valueRow(ctx, title, spendLine(totals), totalsTooltip(`${title} · ${provider}`, totals))
-    );
+function balanceTitle(balance) {
+    return BALANCE_LABELS[balance.id]?.() ?? balance.label;
 }
 
 function balanceValue(balance) {
@@ -87,20 +87,57 @@ function balanceValue(balance) {
     return _('No data');
 }
 
-function balanceRows(ctx, balances) {
-    return balances.map(balance => valueRow(ctx, balance.label, balanceValue(balance), null));
-}
-
 export function showsSpend(ctx, account) {
     return account.usage !== null && ctx.display.showAccountSpend;
 }
 
-export function expandedRows(ctx, account) {
-    const rows = column({ style_class: 'headroom-expanded', x_expand: true });
-    const children = [
-        ...(showsSpend(ctx, account) ? spendRows(ctx, account) : []),
-        ...balanceRows(ctx, account.balances),
-    ];
-    for (const child of children) rows.add_child(child);
-    return rows;
+export class ExtraRows {
+    constructor(ctx, account) {
+        this._ctx = ctx;
+        this._account = account;
+        this.actor = column({ style_class: 'headroom-expanded', x_expand: true });
+        this._values = [...this._spendEntries(), ...this._balanceEntries()].map(entry => this._valueRow(entry));
+        this.update(account);
+    }
+
+    update(account) {
+        this._account = account;
+        const texts = [...this._spendEntries(), ...this._balanceEntries()].map(entry => entry.value());
+        texts.forEach((text, index) => (this._values[index].text = text));
+    }
+
+    _spendEntries() {
+        if (!showsSpend(this._ctx, this._account)) return [];
+        const provider = providerInfo(this._account.provider).name;
+        return [
+            ['today', _('Today')],
+            ['yesterday', _('Yesterday')],
+            ['last30Days', _('Last 30 Days')],
+        ].map(([key, title]) => ({
+            title,
+            value: () => spendLine(this._account.usage[key]),
+            tooltip: () => totalsTooltip(`${title} · ${provider}`, this._account.usage[key]),
+        }));
+    }
+
+    _balanceEntries() {
+        return this._account.balances.map((_balance, index) => ({
+            title: balanceTitle(this._account.balances[index]),
+            value: () => balanceValue(this._account.balances[index]),
+            tooltip: null,
+        }));
+    }
+
+    _valueRow(entry) {
+        const actor = row({ style_class: 'headroom-text-row' });
+        actor.add_child(label(entry.title, 'headroom-value-label', { x_expand: true }));
+        const valueLabel = label('', 'headroom-value');
+        if (entry.tooltip) {
+            valueLabel.add_style_class_name('headroom-hover-chip');
+            this._ctx.tooltips.attach(valueLabel, entry.tooltip);
+        }
+        actor.add_child(valueLabel);
+        this.actor.add_child(actor);
+        return valueLabel;
+    }
 }

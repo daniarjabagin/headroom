@@ -1,5 +1,5 @@
-import { compactTokens, exactTokens, usd } from './format.js';
 import { _, fill } from './i18n.js';
+import { compactTokens, exactTokens, usd } from './numbers.js';
 
 export const TOP_MODELS = 5;
 

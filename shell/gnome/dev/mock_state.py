@@ -175,7 +175,7 @@ def codex_personal(now):
                    pace("close", 76.0, 96.0), now),
             window("weekly", "Weekly", 83.0, 3 * DAY + 2 * HOUR, 7 * DAY, "critical",
                    pace("running_out", 55.0, 151.0, now + DAY + 9 * HOUR), now),
-            window("model:spark", "Spark", 100.0, 4 * HOUR, 5 * HOUR, "critical", pace("spent", 20.0), now),
+            window("model:spark", "Spark", 100.0, 47 * MINUTE, 5 * HOUR, "critical", pace("spent", 84.0), now),
         ],
         now,
         owner="headroom",
@@ -244,6 +244,7 @@ DEFAULT_SETTINGS = {
         "show_account_spend": True,
         "show_trend": True,
         "show_forecast": True,
+        "translucent": False,
         "hidden_windows": {},
     },
 }

@@ -1,20 +1,22 @@
+import { exactMoment } from './dates.js';
 import { _, fill } from './i18n.js';
 
-const MINUTE = 60 * 1000;
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const WEEK_DAYS = 7;
-const MICROS_PER_CENT = 10000;
 
 const DASH = '—';
 
-const UNITS = [
-    [1e9, 'B'],
-    [1e6, 'M'],
-    [1e3, 'K'],
-];
+const WINDOW_LABELS = {
+    session: () => _('Session'),
+    weekly: () => _('Weekly'),
+};
 
-const SHORT_WINDOW_LABELS = { session: 'S', weekly: 'W' };
+const SHORT_WINDOW_LABELS = {
+    session: () => _('S'),
+    weekly: () => _('W'),
+};
 
 function roundPercent(value) {
     return Math.max(0, Math.round(value));
@@ -30,19 +32,40 @@ export function percentUsed(usedPercent) {
     return fill(_('{percent}% used'), { percent: roundPercent(usedPercent) });
 }
 
-export function reading(window, valueMode) {
-    return valueMode === 'used' ? percentUsed(window.usedPercent) : percentLeft(window.remainingPercent);
+export function readingPercent(window, valueMode) {
+    if (valueMode === 'used') return window.usedPercent ?? 100 - window.remainingPercent;
+    return window.remainingPercent;
+}
+
+export function percentReading(percent, valueMode) {
+    return valueMode === 'used' ? percentUsed(percent) : percentLeft(percent);
 }
 
 export function panelPercent(percent) {
     return `${roundPercent(percent)}%`;
 }
 
-export function shortWindowLabel(windowId, windowLabel) {
-    return SHORT_WINDOW_LABELS[windowId] ?? windowLabel ?? windowId ?? '';
+export function windowLabel(windowId, label) {
+    return WINDOW_LABELS[windowId]?.() ?? label ?? windowId ?? '';
 }
 
-export function duration(ms) {
+export function shortWindowLabel(windowId, label) {
+    return SHORT_WINDOW_LABELS[windowId]?.() ?? label ?? windowId ?? '';
+}
+
+function twoDigits(value) {
+    return String(value).padStart(2, '0');
+}
+
+function shortDuration(ms) {
+    const minutes = Math.floor(ms / MINUTE);
+    const seconds = Math.floor((ms % MINUTE) / SECOND);
+    if (minutes === 0) return fill(_('{seconds}s'), { seconds: Math.max(1, seconds) });
+    return fill(_('{minutes}m {seconds}s'), { minutes, seconds: twoDigits(seconds) });
+}
+
+export function duration(ms, withSeconds = false) {
+    if (withSeconds && ms < HOUR) return shortDuration(ms);
     const days = Math.floor(ms / DAY);
     const hours = Math.floor((ms % DAY) / HOUR);
     const minutes = Math.floor((ms % HOUR) / MINUTE);
@@ -51,60 +74,24 @@ export function duration(ms) {
     return fill(_('{minutes}m'), { minutes: Math.max(1, minutes) });
 }
 
-export function clockTime(date) {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
+export function isCountdownLive(resetsAt, now) {
+    return resetsAt !== null && resetsAt > now && resetsAt - now < HOUR;
 }
 
-function startOfDay(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function calendarDaysBetween(from, to) {
-    return Math.round((startOfDay(to) - startOfDay(from)) / DAY);
-}
-
-const WEEKDAYS = () => [_('Sun'), _('Mon'), _('Tue'), _('Wed'), _('Thu'), _('Fri'), _('Sat')];
-const MONTHS = () => [
-    _('Jan'),
-    _('Feb'),
-    _('Mar'),
-    _('Apr'),
-    _('May'),
-    _('Jun'),
-    _('Jul'),
-    _('Aug'),
-    _('Sep'),
-    _('Oct'),
-    _('Nov'),
-    _('Dec'),
-];
-
-function exactMoment(date, now) {
-    const time = clockTime(date);
-    const days = calendarDaysBetween(now, date);
-    if (days <= 0) return fill(_('today at {time}'), { time });
-    if (days === 1) return fill(_('tomorrow at {time}'), { time });
-    if (days < WEEK_DAYS) return fill(_('{day} at {time}'), { day: WEEKDAYS()[date.getDay()], time });
-    const day = `${MONTHS()[date.getMonth()]} ${date.getDate()}`;
-    return fill(_('{day} at {time}'), { day, time });
-}
-
-export function resetPhrase(resetsAt, now, resetFormat) {
+export function resetPhrase(resetsAt, now, resetFormat, withSeconds = false) {
     if (resetFormat === 'exact') return fill(_('resets {moment}'), { moment: exactMoment(resetsAt, now) });
     const left = resetsAt - now;
-    if (left < MINUTE) return _('resets soon');
-    return fill(_('resets in {duration}'), { duration: duration(left) });
+    if (left < (withSeconds ? SECOND : MINUTE)) return _('resets soon');
+    return fill(_('resets in {duration}'), { duration: duration(left, withSeconds) });
 }
 
 function capitalized(text) {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export function resetText(resetsAt, now, resetFormat = 'countdown') {
+export function resetText(resetsAt, now, resetFormat = 'countdown', withSeconds = false) {
     if (resetsAt === null) return _('Not started');
-    return capitalized(resetPhrase(resetsAt, now, resetFormat));
+    return capitalized(resetPhrase(resetsAt, now, resetFormat, withSeconds));
 }
 
 export function spareText(sparePercent) {
@@ -150,57 +137,4 @@ export function agoText(date, now) {
     const elapsed = now - date;
     if (elapsed < MINUTE) return _('just now');
     return fill(_('{duration} ago'), { duration: duration(elapsed) });
-}
-
-const tokenDigits = scaled => (scaled >= 100 ? 0 : 1);
-const moneyDigits = scaled => (scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2);
-
-function abbreviate(value, digitsFor) {
-    for (const [size, suffix] of UNITS) {
-        if (value >= size) {
-            const scaled = value / size;
-            const text = scaled.toFixed(digitsFor(scaled));
-            return `${text.replace(/\.0+$/, '')}${suffix}`;
-        }
-    }
-    return String(value);
-}
-
-export function compactTokens(count) {
-    return abbreviate(count, tokenDigits);
-}
-
-export function exactTokens(count) {
-    return String(count).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-function centsOf(micros) {
-    return Math.round(micros / MICROS_PER_CENT);
-}
-
-export function exactUsd(micros) {
-    const cents = centsOf(micros);
-    const rest = String(Math.abs(cents % 100)).padStart(2, '0');
-    return `$${exactTokens(Math.trunc(cents / 100))}.${rest}`;
-}
-
-export function usd(micros) {
-    const cents = centsOf(micros);
-    if (cents >= 100000) return `$${abbreviate(cents / 100, moneyDigits)}`;
-    return exactUsd(micros);
-}
-
-export function ringUsd(micros) {
-    const cents = centsOf(micros);
-    if (cents < 10000) return usd(micros);
-    if (cents < 1000000) return `$${Math.round(cents / 100)}`;
-    return usd(micros);
-}
-
-export function spendLine(totals) {
-    if (totals.costMicros === 0 && totals.totalTokens === 0) return _('No data');
-    return fill(_('{cost} · {tokens} tokens'), {
-        cost: usd(totals.costMicros),
-        tokens: compactTokens(totals.totalTokens),
-    });
 }

@@ -1,6 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import { percentLeft } from '../format.js';
+import { percentLeft, windowLabel } from '../format.js';
 import { _ } from '../i18n.js';
 import { providerInfo } from '../providers.js';
 import { isWindowHidden, withDisplay, withWindowHidden } from '../settings.js';
@@ -84,7 +84,7 @@ export class AccountRow {
     }
 
     _windowRow(window) {
-        const row = new Adw.SwitchRow({ title: window.label, use_markup: false });
+        const row = new Adw.SwitchRow({ title: windowLabel(window.id, window.label), use_markup: false });
         row.connect('notify::active', () => {
             if (this._syncing) return;
             this._client.updateSettings(settings =>

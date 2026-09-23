@@ -1,8 +1,8 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { modelBreakdown } from '../breakdown.js';
-import { exactTokens, exactUsd } from '../format.js';
-import { _, fill } from '../i18n.js';
+import { _ } from '../i18n.js';
+import { exactTokensText, exactUsd } from '../numbers.js';
 import { column, label, row } from '../widgets.js';
 
 const PARTIAL_MARK = '*';
@@ -35,10 +35,7 @@ function modelTable(rows) {
 }
 
 function totalLine(totals) {
-    const line = fill(_('{cost} · {tokens} tokens'), {
-        cost: exactUsd(totals.costMicros),
-        tokens: exactTokens(totals.totalTokens),
-    });
+    const line = `${exactUsd(totals.costMicros)} · ${exactTokensText(totals.totalTokens)}`;
     return label(line, 'headroom-tip-total', { x_align: Clutter.ActorAlign.START });
 }
 

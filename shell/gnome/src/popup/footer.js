@@ -1,7 +1,8 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
-import { clockTime, nextUpdateText } from '../format.js';
+import { clockTime } from '../dates.js';
+import { nextUpdateText } from '../format.js';
 import { _, fill } from '../i18n.js';
 import { button, column, label, row, themeIcon } from '../widgets.js';
 
@@ -53,10 +54,15 @@ export class Footer {
 
     _optionsButton() {
         const content = row({ style_class: 'headroom-options-content' });
-        content.add_child(new St.Label({ text: _('Options'), y_align: Clutter.ActorAlign.CENTER }));
+        this._optionsLabel = new St.Label({ text: _('Options'), y_align: Clutter.ActorAlign.CENTER });
+        content.add_child(this._optionsLabel);
         content.add_child(themeIcon('pan-down-symbolic', 'headroom-options-chevron'));
         this.optionsButton = button(content, 'headroom-options-button', () => this._ctx.actions.toggleOptions());
         return this.optionsButton;
+    }
+
+    relabel() {
+        this._optionsLabel.text = _('Options');
     }
 
     update(view) {
@@ -71,8 +77,9 @@ export class Footer {
         else this._status.remove_style_class_name('notice');
         this._statusButton.visible = line.text !== '';
         this._statusButton.reactive = this._view.kind === 'ready';
-        this._spinner.visible = line.busy;
-        if (line.busy) this._spinner.play();
+        const spinning = line.busy && this._ctx.motion.enabled;
+        this._spinner.visible = spinning;
+        if (spinning) this._spinner.play();
         else this._spinner.stop();
     }
 }

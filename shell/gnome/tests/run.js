@@ -1,8 +1,9 @@
 import GLib from 'gi://GLib';
-import * as format from '../src/format.js';
 import { parseDisplay } from '../src/settings.js';
 import { parseState, StateError } from '../src/state.js';
 import { check, failures, throws } from './check.js';
+import { testFormat, testNumbers } from './formatTests.js';
+import { testLocale } from './localeTests.js';
 import { testSettings, testSettingsUpdates } from './settingsTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
@@ -22,48 +23,22 @@ function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+const DICTIONARY_PATHS = new Set(['$.display.hidden_windows']);
+
+function firstValue(dictionary) {
+    return Object.values(dictionary)[0];
+}
+
 function shapeMismatches(sample, daemon, path) {
     if (Array.isArray(sample) && Array.isArray(daemon)) {
         if (sample.length === 0 || daemon.length === 0) return [];
         return shapeMismatches(sample[0], daemon[0], `${path}[0]`);
     }
     if (!isPlainObject(sample) || !isPlainObject(daemon)) return [];
+    if (DICTIONARY_PATHS.has(path)) return shapeMismatches(firstValue(sample), firstValue(daemon), `${path}[*]`);
     const missing = Object.keys(daemon).filter(key => !(key in sample));
     if (missing.length > 0) return [`${path}: sample lacks daemon keys ${missing.sort()}`];
     return Object.keys(daemon).flatMap(key => shapeMismatches(sample[key], daemon[key], `${path}.${key}`));
-}
-
-function testFormat() {
-    const now = new Date('2026-09-23T10:00:00Z');
-    check('percentLeft', format.percentLeft(61.6), '62% left');
-    check('percentLeft null', format.percentLeft(null), '—');
-    check('reset hours', format.resetText(new Date('2026-09-23T12:41:00Z'), now), 'Resets in 2h 41m');
-    check('reset days', format.resetText(new Date('2026-09-27T16:30:00Z'), now), 'Resets in 4d 6h');
-    check('reset soon', format.resetText(new Date('2026-09-23T10:00:30Z'), now), 'Resets soon');
-    check('not started', format.resetText(null, now), 'Not started');
-    check('spare', format.spareText(4.2), '~4% spare');
-    check('percent used', format.percentUsed(38.4), '38% used');
-    check('reading left', format.reading({ usedPercent: 38, remainingPercent: 62 }, 'left'), '62% left');
-    check('reading used', format.reading({ usedPercent: 38, remainingPercent: 62 }, 'used'), '38% used');
-    check('short session', format.shortWindowLabel('session', 'Session'), 'S');
-    check('short weekly', format.shortWindowLabel('weekly', 'Weekly'), 'W');
-    check('short model', format.shortWindowLabel('model:opus', 'Opus'), 'Opus');
-    check('limit', format.limitText(new Date('2026-09-24T19:00:00Z'), now), 'Limit in 1d 9h');
-    check('next update', format.nextUpdateText(new Date('2026-09-23T10:03:10Z'), now), 'Next update in 3m');
-    check('next update soon', format.nextUpdateText(new Date('2026-09-23T10:00:40Z'), now), 'Next update in <1m');
-    check('tokens K', format.compactTokens(1200), '1.2K');
-    check('tokens M', format.compactTokens(35_812_904), '35.8M');
-    check('tokens B', format.compactTokens(1_500_000_000), '1.5B');
-    check('tokens small', format.compactTokens(999), '999');
-    check('tokens round', format.compactTokens(3_000_000), '3M');
-    check('usd', format.usd(14_370_000), '$14.37');
-    check('usd K', format.usd(2_064_000_000), '$2.06K');
-    check('usd cents', format.usd(4_050_000), '$4.05');
-    check('exact usd', format.exactUsd(1_234_567_890), '$1,234.57');
-    check('ring usd', format.ringUsd(463_120_000), '$463');
-    check('ring usd small', format.ringUsd(18_420_000), '$18.42');
-    check('spend line', format.spendLine({ costMicros: 4_080_000, totalTokens: 1_203_448 }), '$4.08 · 1.2M tokens');
-    check('spend empty', format.spendLine({ costMicros: 0, totalTokens: 0 }), 'No data');
 }
 
 function testSampleAccounts() {
@@ -183,6 +158,8 @@ function testEdgeStates() {
 }
 
 testFormat();
+testNumbers();
+testLocale();
 testExactReset();
 testForecast();
 testSettings();

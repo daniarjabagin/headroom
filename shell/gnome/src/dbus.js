@@ -3,8 +3,8 @@ import { BUS_NAME, DaemonProxy, OBJECT_PATH, PROXY_FLAGS, remoteMessage } from '
 import { parseSettings, serializeSettings, withDisplay } from './settings.js';
 
 export class DaemonClient {
-    constructor({ onAvailable, onUnavailable, onState, onError, onOpenRequested }) {
-        this._handlers = { onAvailable, onUnavailable, onState, onError, onOpenRequested };
+    constructor({ onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested }) {
+        this._handlers = { onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested };
         this._proxy = null;
         this._signalIds = [];
         this._cancellable = new Gio.Cancellable();
@@ -64,11 +64,16 @@ export class DaemonClient {
         }
         this._proxy = proxy;
         this._signalIds = [
-            proxy.connectSignal('StateChanged', (_proxy, _sender, [json]) => this._handlers.onState(json)),
+            proxy.connectSignal('StateChanged', (_proxy, _sender, [json]) => this._onStateChanged(json)),
             proxy.connectSignal('OpenRequested', () => this._handlers.onOpenRequested()),
         ];
         this._handlers.onAvailable();
         this._loadState();
+    }
+
+    _onStateChanged(json) {
+        this._handlers.onState(json);
+        this._loadSettings();
     }
 
     async _loadState() {
@@ -76,6 +81,18 @@ export class DaemonClient {
         try {
             const [json] = await proxy.GetStateAsync();
             if (this._proxy === proxy) this._handlers.onState(json);
+        } catch (error) {
+            if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
+        }
+        this._loadSettings();
+    }
+
+    async _loadSettings() {
+        const proxy = this._proxy;
+        if (!proxy) return;
+        try {
+            const [json] = await proxy.GetSettingsAsync();
+            if (this._proxy === proxy) this._handlers.onSettings(parseSettings(json));
         } catch (error) {
             if (this._proxy === proxy) this._handlers.onError(remoteMessage(error));
         }

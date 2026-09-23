@@ -1,8 +1,18 @@
 import Clutter from 'gi://Clutter';
-import { forecastText, limitText, reading, resetText, spareText } from '../format.js';
+import {
+    forecastText,
+    isCountdownLive,
+    limitText,
+    percentReading,
+    readingPercent,
+    resetText,
+    spareText,
+    windowLabel,
+} from '../format.js';
 import { _ } from '../i18n.js';
-import { button, column, fileIcon, label, row, spacer } from '../widgets.js';
+import { button, column, fileIcon, label, row, spacer, wrappingLabel } from '../widgets.js';
 import { Meter } from './meter.js';
+import { NumberTween } from './tween.js';
 
 const TONE_CLASSES = { good: 'ok', warning: 'warn', critical: 'crit', neutral: 'none' };
 
@@ -16,8 +26,7 @@ function hasData(window) {
 
 function fillFraction(window, valueMode) {
     if (!hasData(window)) return 0;
-    const used = window.usedPercent ?? 100 - window.remainingPercent;
-    return (valueMode === 'used' ? used : window.remainingPercent) / 100;
+    return readingPercent(window, valueMode) / 100;
 }
 
 function tickPosition(window, display) {
@@ -39,7 +48,7 @@ function paceNote(window, now, showForecast) {
 
 function trailingText(window, now, resetFormat) {
     if (!hasData(window)) return _('No data');
-    return resetText(window.resetsAt, now, resetFormat);
+    return resetText(window.resetsAt, now, resetFormat, true);
 }
 
 function toggle(text, styleClass, onClick) {
@@ -51,14 +60,18 @@ function toggle(text, styleClass, onClick) {
 export class QuotaRow {
     constructor(ctx, window) {
         this._ctx = ctx;
+        this._valueMode = null;
         this.actor = column({ style_class: 'headroom-quota-row', x_expand: true });
         this._label = label('', 'headroom-metric-label', { x_expand: true });
         this._flame = fileIcon(ctx.dir, 'flame-symbolic.svg', 'headroom-flame');
         this._note = label('', 'headroom-reading dim');
         this._meter = new Meter();
         this._headline = label('', 'headroom-reading');
+        this._reading = new NumberTween(ctx.motion, this._headline, percent =>
+            percentReading(percent, this._ctx.display.valueMode)
+        );
         this._trailing = label('', 'headroom-reading dim');
-        this._forecast = label('', 'headroom-forecast', { x_align: Clutter.ActorAlign.START });
+        this._forecast = wrappingLabel('', 'headroom-forecast', { x_align: Clutter.ActorAlign.START });
         this.actor.add_child(this._topLine());
         this.actor.add_child(this._meter);
         this.actor.add_child(this._bottomLine());
@@ -87,17 +100,41 @@ export class QuotaRow {
     update(window, animate = true) {
         this._window = window;
         const display = this._ctx.display;
-        this._label.text = window.label;
-        this._headline.text = hasData(window) ? reading(window, display.valueMode) : '—';
+        const smooth = animate && this._ctx.motion.enabled;
+        this._label.text = windowLabel(window.id, window.label);
+        this._updateHeadline(window, display.valueMode, smooth);
         this._meter.update(
             {
                 fraction: fillFraction(window, display.valueMode),
                 tone: hasData(window) ? toneClass(window.tone) : 'none',
                 tick: tickPosition(window, display),
             },
-            animate
+            smooth
         );
         this.tick(this._ctx.now());
+    }
+
+    _updateHeadline(window, valueMode, smooth) {
+        const modeChanged = this._valueMode !== valueMode;
+        this._valueMode = valueMode;
+        const percent = hasData(window) ? readingPercent(window, valueMode) : null;
+        this._reading.set(percent, smooth && !modeChanged);
+    }
+
+    grow(delay) {
+        this._meter.grow(delay);
+    }
+
+    settle() {
+        this._meter.settle();
+    }
+
+    needsSecondTicks(now) {
+        return (
+            hasData(this._window) &&
+            this._ctx.display.resetFormat === 'countdown' &&
+            isCountdownLive(this._window.resetsAt, now)
+        );
     }
 
     tick(now) {

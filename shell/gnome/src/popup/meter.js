@@ -1,8 +1,7 @@
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
-
-const FILL_DURATION = 200;
+import { EASE, STANDARD_MS } from '../motion.js';
 
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -33,6 +32,7 @@ export const Meter = GObject.registerClass(
         _init() {
             super._init({ style_class: 'headroom-meter', x_expand: true });
             this._shownFraction = 0;
+            this._target = 0;
             this._tick = null;
             this._track = new St.Widget({ style_class: 'headroom-meter-track' });
             this._fill = new St.Widget({ style_class: 'headroom-meter-fill' });
@@ -53,17 +53,28 @@ export const Meter = GObject.registerClass(
         }
 
         update({ fraction, tone, tick }, animate) {
-            const target = clamp(fraction ?? 0, 0, 1);
+            this._target = clamp(fraction ?? 0, 0, 1);
             this._fill.style_class = `headroom-meter-fill ${tone}`;
             this._tick = tick;
             this._tickMark.visible = tick !== null;
             this.remove_transition('shown-fraction');
-            if (animate && this.mapped)
-                this.ease_property('shown-fraction', target, {
-                    duration: FILL_DURATION,
-                    mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
-                });
-            else this.shown_fraction = target;
+            if (animate && this.mapped) this._easeTo(this._target, 0);
+            else this.shown_fraction = this._target;
+        }
+
+        grow(delay) {
+            this.remove_transition('shown-fraction');
+            this.shown_fraction = 0;
+            this._easeTo(this._target, delay);
+        }
+
+        settle() {
+            this.remove_transition('shown-fraction');
+            this.shown_fraction = this._target;
+        }
+
+        _easeTo(target, delay) {
+            this.ease_property('shown-fraction', target, { duration: STANDARD_MS, delay, mode: EASE });
         }
 
         vfunc_allocate(box) {
