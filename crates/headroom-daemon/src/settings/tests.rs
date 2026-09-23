@@ -21,6 +21,7 @@ fn defaults_match_the_spec() {
             "show_account_spend": true,
             "show_trend": true,
             "show_forecast": true,
+            "translucent": false,
             "hidden_windows": {}
         }
     });
@@ -39,6 +40,7 @@ fn missing_fields_take_defaults() {
         .display;
     assert_eq!(display.theme, Theme::Dark);
     assert!(display.show_spend);
+    assert!(!display.translucent);
 }
 
 #[test]
@@ -54,6 +56,7 @@ fn display_options_round_trip() {
             "show_account_spend": false,
             "show_trend": false,
             "show_forecast": false,
+            "translucent": true,
             "hidden_windows": { "codex:abc": ["weekly", "model:spark"] }
         }
     });
@@ -64,6 +67,7 @@ fn display_options_round_trip() {
     assert_eq!(display.value_mode, ValueMode::Used);
     assert_eq!(display.reset_format, ResetFormat::Exact);
     assert_eq!(display.panel_label, PanelLabel::Window);
+    assert!(display.translucent);
     assert!(display.is_hidden("codex:abc", "model:spark"));
     assert!(!display.is_hidden("codex:abc", "session"));
     assert!(!display.is_hidden("claude:x", "weekly"));
@@ -140,6 +144,15 @@ fn stored_show_usage_migrates_to_show_spend() {
 }
 
 #[test]
+fn stored_display_without_translucent_loads_the_default() {
+    let stored = Settings::from_stored(r#"{"display":{"theme":"dark"}}"#).unwrap();
+    assert_eq!(stored.display.theme, Theme::Dark);
+    assert!(!stored.display.translucent);
+    let enabled = Settings::from_stored(r#"{"display":{"translucent":true}}"#).unwrap();
+    assert!(enabled.display.translucent);
+}
+
+#[test]
 fn serializes_headline_with_mode_tag() {
     let json = serde_json::to_value(Settings::default()).unwrap();
     assert_eq!(json["headline"], json!({ "mode": "auto" }));
@@ -183,6 +196,10 @@ fn rejects_malformed_json_and_wrong_types() {
     assert!(matches!(Settings::parse("{"), Err(SettingsError::Json(_))));
     assert!(matches!(
         Settings::parse(r#"{"reduced_motion":"yes"}"#),
+        Err(SettingsError::Json(_))
+    ));
+    assert!(matches!(
+        Settings::parse(r#"{"display":{"translucent":"yes"}}"#),
         Err(SettingsError::Json(_))
     ));
     assert!(matches!(
