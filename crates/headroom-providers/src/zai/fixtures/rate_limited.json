@@ -1,0 +1,5 @@
+{
+  "code": 1302,
+  "msg": "API rate limit exceeded",
+  "success": false
+}

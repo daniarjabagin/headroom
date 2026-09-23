@@ -103,7 +103,7 @@ mod tests {
         let error = descriptor("cursor").unwrap_err().to_string();
         assert_eq!(
             error,
-            "unknown provider \"cursor\"; known providers: codex, claude"
+            "unknown provider \"cursor\"; known providers: codex, claude, openrouter, zai"
         );
         assert_eq!(descriptor("claude").unwrap().display_name, "Claude");
     }
