@@ -1,0 +1,249 @@
+use std::future::poll_fn;
+use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use headroom_core::account::{
+    AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderKind,
+};
+use headroom_core::cursor::LogCursors;
+use headroom_core::event::{ServiceTier, UsageEvent};
+use headroom_core::provider::{Provider, ProviderError};
+use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
+use headroom_core::tokens::TokenCounts;
+use headroom_core::units::{MicroUsd, Percent};
+use headroom_core::usage::PriceBook;
+use headroom_daemon::clock::SystemClock;
+use headroom_daemon::{BusTarget, DaemonConfig, DaemonError, StatePayload};
+use jiff::{SignedDuration, Timestamp};
+use tokio::sync::oneshot;
+use zbus::export::futures_core::Stream;
+
+struct PrivateBus {
+    child: Child,
+    address: String,
+}
+
+impl PrivateBus {
+    fn start() -> Option<PrivateBus> {
+        let mut child = Command::new("dbus-daemon")
+            .args(["--session", "--nofork", "--print-address"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+        let mut line = String::new();
+        BufReader::new(child.stdout.take()?)
+            .read_line(&mut line)
+            .ok()?;
+        let address = line.trim().to_owned();
+        (!address.is_empty()).then_some(PrivateBus { child, address })
+    }
+}
+
+impl Drop for PrivateBus {
+    fn drop(&mut self) {
+        self.child.kill().ok();
+        self.child.wait().ok();
+    }
+}
+
+struct StaticProvider;
+
+fn work() -> AccountRef {
+    AccountRef {
+        id: AccountId("codex:work".into()),
+        provider: ProviderKind::Codex,
+        home: PathBuf::from("/nonexistent/headroom-test/.codex"),
+        owner: CredentialOwner::Cli,
+    }
+}
+
+#[async_trait]
+impl Provider for StaticProvider {
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::Codex
+    }
+
+    async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+        Ok(vec![work()])
+    }
+
+    async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
+        let now = Timestamp::now();
+        Ok(LimitsSnapshot {
+            identity: AccountIdentity {
+                email: Some("ada@example.com".into()),
+                plan: Some("Pro".into()),
+                stable_key: "u/a".into(),
+            },
+            windows: vec![QuotaWindow {
+                id: WindowId::Session,
+                label: "Session".into(),
+                used: Percent::new(10.0),
+                resets_at: now.checked_add(SignedDuration::from_hours(4)).ok(),
+                period: Some(SignedDuration::from_hours(5)),
+            }],
+            balances: Vec::new(),
+            notices: Vec::new(),
+            fetched_at: now,
+            source: LimitsSource::Live,
+        })
+    }
+
+    fn read_usage(
+        &self,
+        _home: &Path,
+        _cursors: &mut LogCursors,
+    ) -> Result<Vec<UsageEvent>, ProviderError> {
+        Ok(Vec::new())
+    }
+}
+
+struct NoPrices;
+
+impl PriceBook for NoPrices {
+    fn cost(&self, _: &str, _: ServiceTier, _: &TokenCounts, _: u32) -> Option<MicroUsd> {
+        None
+    }
+}
+
+#[zbus::proxy(
+    interface = "io.github.headroom.Daemon1",
+    default_service = "io.github.headroom.Daemon",
+    default_path = "/io/github/headroom/Daemon"
+)]
+trait Daemon {
+    fn get_state(&self) -> zbus::Result<String>;
+    fn refresh(&self, account_id: &str) -> zbus::Result<()>;
+    fn get_settings(&self) -> zbus::Result<String>;
+    fn set_settings(&self, json: &str) -> zbus::Result<()>;
+    fn set_account_label(&self, account_id: &str, label: &str) -> zbus::Result<()>;
+    fn set_account_order(&self, ids: &[&str]) -> zbus::Result<()>;
+    fn set_account_hidden(&self, account_id: &str, hidden: bool) -> zbus::Result<()>;
+    #[zbus(signal)]
+    fn state_changed(&self, state: String) -> zbus::Result<()>;
+}
+
+fn config(bus: &PrivateBus, db: &Path, shutdown: oneshot::Receiver<()>) -> DaemonConfig {
+    DaemonConfig {
+        providers: vec![Arc::new(StaticProvider)],
+        price_book: Arc::new(NoPrices),
+        db_path: db.to_path_buf(),
+        clock: Arc::new(SystemClock),
+        tz: jiff::tz::TimeZone::UTC,
+        bus: BusTarget::Address(bus.address.clone()),
+        shutdown: Box::pin(async move {
+            shutdown.await.ok();
+        }),
+    }
+}
+
+async fn state(proxy: &DaemonProxy<'_>) -> Option<StatePayload> {
+    let json = proxy.get_state().await.ok()?;
+    serde_json::from_str(&json).ok()
+}
+
+async fn wait_for_account(proxy: &DaemonProxy<'_>) -> Option<StatePayload> {
+    for _ in 0..100 {
+        if let Some(state) = state(proxy).await
+            && state
+                .accounts
+                .first()
+                .is_some_and(|a| !a.windows.is_empty())
+        {
+            return Some(state);
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    None
+}
+
+async fn next_signal<S: Stream + Unpin>(stream: &mut S) -> Option<S::Item> {
+    let next = poll_fn(|cx| Pin::new(&mut *stream).poll_next(cx));
+    tokio::time::timeout(Duration::from_secs(5), next)
+        .await
+        .ok()
+        .flatten()
+}
+
+type Checked = Result<bool, Box<dyn std::error::Error>>;
+
+async fn settings_are_validated(proxy: &DaemonProxy<'_>) -> Checked {
+    let rejected = proxy.set_settings(r#"{"refresh_interval_secs":1}"#).await;
+    let invalid_args = matches!(
+        rejected,
+        Err(zbus::Error::MethodError(name, _, _))
+            if name.as_str() == "org.freedesktop.DBus.Error.InvalidArgs"
+    );
+    proxy.set_settings(r#"{"reduced_motion":true}"#).await?;
+    let stored = proxy.get_settings().await?;
+    Ok(invalid_args && stored.contains(r#""reduced_motion":true"#))
+}
+
+async fn refresh_accepts_known_accounts(proxy: &DaemonProxy<'_>) -> Checked {
+    let unknown_rejected = proxy.refresh("codex:missing").await.is_err();
+    proxy.refresh("").await?;
+    proxy.refresh("codex:work").await?;
+    Ok(unknown_rejected)
+}
+
+async fn label_change_is_signalled(proxy: &DaemonProxy<'_>) -> Checked {
+    let mut changes = proxy.receive_state_changed().await?;
+    proxy.set_account_label("codex:work", "Work").await?;
+    while let Some(signal) = next_signal(&mut changes).await {
+        let payload: StatePayload = serde_json::from_str(signal.args()?.state())?;
+        if payload.accounts[0].label.as_deref() == Some("Work") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+async fn order_and_visibility_apply(proxy: &DaemonProxy<'_>) -> Checked {
+    proxy.set_account_order(&["codex:work"]).await?;
+    let duplicate = proxy.set_account_order(&["codex:work", "codex:work"]).await;
+    proxy.set_account_hidden("codex:work", true).await?;
+    let hidden = state(proxy).await.ok_or("no state")?;
+    Ok(duplicate.is_err() && hidden.accounts[0].hidden && hidden.headline.is_none())
+}
+
+#[tokio::test]
+async fn serves_state_settings_and_signals_on_a_private_bus() {
+    let Some(bus) = PrivateBus::start() else {
+        eprintln!("dbus-daemon unavailable, skipping");
+        return;
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let (stop, stopped) = oneshot::channel();
+    let daemon = tokio::spawn(headroom_daemon::run(config(
+        &bus,
+        &dir.path().join("a.db"),
+        stopped,
+    )));
+    let client = zbus::connection::Builder::address(bus.address.as_str())
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    let proxy = DaemonProxy::new(&client).await.unwrap();
+    let initial = wait_for_account(&proxy).await.unwrap();
+    assert_eq!(initial.version, 1);
+    assert_eq!(
+        initial.accounts[0].email.as_deref(),
+        Some("ada@example.com")
+    );
+    assert!(settings_are_validated(&proxy).await.unwrap());
+    assert!(refresh_accepts_known_accounts(&proxy).await.unwrap());
+    assert!(label_change_is_signalled(&proxy).await.unwrap());
+    assert!(order_and_visibility_apply(&proxy).await.unwrap());
+    let (_keep, second_stopped) = oneshot::channel();
+    let second = headroom_daemon::run(config(&bus, &dir.path().join("b.db"), second_stopped)).await;
+    assert!(matches!(second, Err(DaemonError::AlreadyRunning)));
+    stop.send(()).unwrap();
+    daemon.await.unwrap().unwrap();
+}

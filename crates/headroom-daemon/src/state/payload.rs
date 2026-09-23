@@ -1,0 +1,153 @@
+use headroom_core::account::ProviderKind;
+use headroom_core::pace::{Severity, Tone};
+use jiff::Timestamp;
+use jiff::civil::Date;
+use serde::{Deserialize, Serialize};
+
+pub const STATE_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StatePayload {
+    pub version: u32,
+    pub generated_at: Timestamp,
+    pub headline: Option<Headline>,
+    pub accounts: Vec<AccountView>,
+    pub usage: Vec<UsageView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Headline {
+    pub account_id: String,
+    pub window: String,
+    pub remaining_percent: f64,
+    pub tone: Tone,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AccountView {
+    pub id: String,
+    pub provider: ProviderKind,
+    pub label: Option<String>,
+    pub email: Option<String>,
+    pub plan: Option<String>,
+    pub hidden: bool,
+    pub status: AccountStatus,
+    pub error: Option<AccountError>,
+    pub updated_at: Option<Timestamp>,
+    pub source: Option<DataSource>,
+    pub windows: Vec<WindowView>,
+    pub balances: Vec<BalanceView>,
+    pub notices: Vec<NoticeView>,
+    pub usage_home: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountStatus {
+    Fresh,
+    Stale,
+    Refreshing,
+    Error,
+    SignedOut,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DataSource {
+    Live,
+    LocalLog,
+    Cache,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AccountError {
+    pub kind: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WindowView {
+    pub id: String,
+    pub label: String,
+    pub used_percent: f64,
+    pub remaining_percent: f64,
+    pub resets_at: Option<Timestamp>,
+    pub period_seconds: Option<i64>,
+    pub tone: Tone,
+    pub pace: PaceView,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PaceView {
+    pub severity: Severity,
+    pub even_pace_percent: Option<f64>,
+    pub projected_percent: Option<f64>,
+    pub runs_out_at: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BalanceView {
+    pub id: String,
+    pub label: String,
+    #[serde(flatten)]
+    pub amount: BalanceAmountView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BalanceAmountView {
+    Usd { usd_micros: i64 },
+    Count { value: u64, unit: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NoticeView {
+    pub tone: Tone,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsageView {
+    pub provider: ProviderKind,
+    pub usage_home: String,
+    pub today: TotalsView,
+    pub yesterday: TotalsView,
+    pub last_30_days: TotalsView,
+    pub daily: Vec<DailyView>,
+    pub models: Vec<ModelView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TotalsView {
+    pub tokens: TokensView,
+    pub cost_usd_micros: i64,
+    pub partial: bool,
+    pub unpriced_tokens: u64,
+    pub unpriced_models: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokensView {
+    pub input: u64,
+    pub cache_read: u64,
+    pub cache_write: u64,
+    pub output: u64,
+    pub reasoning: u64,
+    pub total: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DailyView {
+    pub date: Date,
+    pub total_tokens: u64,
+    pub cost_usd_micros: i64,
+    pub partial: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelView {
+    pub model: String,
+    pub total_tokens: u64,
+    pub cost_usd_micros: i64,
+    pub partial: bool,
+}
