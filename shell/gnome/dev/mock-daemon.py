@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import json
 import sys
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mock_state import SCENARIOS, build
+from mock_state import DEFAULT_SETTINGS, SCENARIOS, build, choose_headline
 
 BUS_NAME = "io.github.headroom.Daemon"
 OBJECT_PATH = "/io/github/headroom/Daemon"
@@ -21,6 +22,7 @@ INTERFACE_XML = f"""
   <interface name="{INTERFACE}">
     <method name="GetState"><arg type="s" name="state" direction="out"/></method>
     <method name="Refresh"><arg type="s" name="account_id" direction="in"/></method>
+    <method name="Rescan"/>
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
     <method name="SetSettings"><arg type="s" name="json" direction="in"/></method>
     <method name="SetAccountLabel">
@@ -41,22 +43,62 @@ REFRESH_SECONDS = 2
 SAMPLE_TIME = datetime(2026, 9, 23, 10, 0, tzinfo=timezone.utc)
 
 
+def merged(defaults, raw):
+    if not isinstance(defaults, dict) or not isinstance(raw, dict):
+        return copy.deepcopy(raw if raw is not None and type(raw) is type(defaults) else defaults)
+    if not defaults:
+        return copy.deepcopy(raw)
+    return {key: merged(value, raw.get(key)) for key, value in defaults.items()}
+
+
+def normalized_settings(raw):
+    settings = merged(DEFAULT_SETTINGS, raw)
+    headline = raw.get("headline") if isinstance(raw.get("headline"), dict) else {}
+    if headline.get("mode") == "pinned" and headline.get("account_id") and headline.get("window"):
+        settings["headline"] = {"mode": "pinned", "account_id": headline["account_id"], "window": headline["window"]}
+    else:
+        settings["headline"] = {"mode": "auto"}
+    return settings
+
+
+def ordered(accounts, order):
+    rank = {account_id: index for index, account_id in enumerate(order)}
+    return sorted(accounts, key=lambda entry: rank.get(entry["id"], len(rank)))
+
+
 class MockDaemon:
     def __init__(self, scenario, interval):
         self.scenario = scenario
         self.interval = interval
         self.hidden = set()
         self.labels = {}
+        self.order = []
+        self.settings = copy.deepcopy(DEFAULT_SETTINGS)
         self.refreshing = set()
         self.connection = None
 
+    def account_ids(self):
+        return [account["id"] for account in build(self.scenario).get("accounts", [])]
+
+    def decorate(self, account):
+        hidden_windows = self.settings["display"]["hidden_windows"].get(account["id"], [])
+        account["hidden"] = account["id"] in self.hidden
+        account["label"] = self.labels.get(account["id"], account["label"])
+        for window in account["windows"]:
+            window["hidden"] = window["id"] in hidden_windows
+        if account["id"] in self.refreshing and account["status"] != "signed_out":
+            account["status"] = "refreshing"
+
     def state(self):
         state = build(self.scenario)
+        preferred = state["headline"] and (state["headline"]["account_id"], state["headline"]["window"])
         for account in state.get("accounts", []):
-            account["hidden"] = account["id"] in self.hidden
-            account["label"] = self.labels.get(account["id"], account["label"])
-            if account["id"] in self.refreshing and account["status"] != "signed_out":
-                account["status"] = "refreshing"
+            self.decorate(account)
+        state["accounts"] = ordered(state.get("accounts", []), self.order)
+        pin = self.settings["headline"]
+        pinned = (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
+        state["headline"] = choose_headline(state["accounts"], pinned, preferred)
+        state["display"] = self.settings["display"]
         return json.dumps(state)
 
     def emit(self):
@@ -65,8 +107,7 @@ class MockDaemon:
         return GLib.SOURCE_CONTINUE
 
     def refresh(self, account_id):
-        ids = [account["id"] for account in build(self.scenario).get("accounts", [])]
-        self.refreshing = set(ids if account_id == "" else [account_id])
+        self.refreshing = set(self.account_ids() if account_id == "" else [account_id])
         self.emit()
         GLib.timeout_add_seconds(REFRESH_SECONDS, self.finish_refresh)
 
@@ -75,6 +116,32 @@ class MockDaemon:
         self.emit()
         return GLib.SOURCE_REMOVE
 
+    def set_order(self, ids):
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate account id in order")
+        rest = [account_id for account_id in (self.order or self.account_ids()) if account_id not in ids]
+        self.order = list(ids) + rest
+
+    def set_settings(self, text):
+        raw = json.loads(text)
+        if not isinstance(raw, dict):
+            raise ValueError("settings must be a JSON object")
+        self.settings = normalized_settings(raw)
+
+    def apply(self, method, args):
+        if method == "Refresh":
+            self.refresh(args[0])
+            return
+        if method == "SetAccountHidden":
+            (self.hidden.add if args[1] else self.hidden.discard)(args[0])
+        elif method == "SetAccountLabel":
+            self.labels[args[0]] = args[1].strip() or None
+        elif method == "SetAccountOrder":
+            self.set_order(args[0])
+        elif method == "SetSettings":
+            self.set_settings(args[0])
+        self.emit()
+
     def on_method(self, _connection, _sender, _path, _interface, method, parameters, invocation):
         args = parameters.unpack()
         print(f"{method}{args}", flush=True)
@@ -82,16 +149,13 @@ class MockDaemon:
             invocation.return_value(GLib.Variant("(s)", (self.state(),)))
             return
         if method == "GetSettings":
-            invocation.return_value(GLib.Variant("(s)", ("{}",)))
+            invocation.return_value(GLib.Variant("(s)", (json.dumps(self.settings),)))
             return
-        if method == "Refresh":
-            self.refresh(args[0])
-        elif method == "SetAccountHidden":
-            (self.hidden.add if args[1] else self.hidden.discard)(args[0])
-            self.emit()
-        elif method == "SetAccountLabel":
-            self.labels[args[0]] = args[1]
-            self.emit()
+        try:
+            self.apply(method, args)
+        except ValueError as error:
+            invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs", str(error))
+            return
         invocation.return_value(None)
 
     def on_bus_acquired(self, connection, _name):

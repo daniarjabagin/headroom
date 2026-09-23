@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
+import { _ } from '../i18n.js';
 import { column, label } from '../widgets.js';
 
 const HOLE_RATIO = 0.618;
@@ -50,7 +51,7 @@ export class Donut {
             y_align: Clutter.ActorAlign.CENTER,
         });
         this._value = label('', 'headroom-donut-value', { x_align: Clutter.ActorAlign.CENTER });
-        this._unit = label('dollars', 'headroom-donut-unit', { x_align: Clutter.ActorAlign.CENTER });
+        this._unit = label(_('dollars'), 'headroom-donut-unit', { x_align: Clutter.ActorAlign.CENTER });
         center.add_child(this._value);
         center.add_child(this._unit);
         this.actor.add_child(this._area);

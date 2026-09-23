@@ -1,9 +1,12 @@
+import { parseDisplay } from './settings.js';
+
 const SCHEMA_VERSION = 1;
 
 const TONES = new Set(['good', 'warning', 'critical', 'neutral']);
 const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out']);
 const SEVERITIES = new Set(['untracked', 'healthy', 'close', 'running_out', 'spent']);
 const BALANCE_KINDS = new Set(['usd', 'count']);
+const OWNERS = new Set(['cli', 'headroom']);
 
 export class StateError extends Error {}
 
@@ -57,8 +60,10 @@ function parseWindow(raw) {
     return {
         id: text(raw.id) ?? text(raw.label) ?? 'window',
         label: text(raw.label) ?? text(raw.id) ?? '',
+        usedPercent: number(raw.used_percent),
         remainingPercent: number(raw.remaining_percent),
         resetsAt: timestamp(raw.resets_at),
+        hidden: raw.hidden === true,
         tone: oneOf(TONES, raw.tone, 'neutral'),
         pace: parsePace(raw.pace),
     };
@@ -92,6 +97,19 @@ function parseTokens(raw) {
     };
 }
 
+function parseModel(raw) {
+    return {
+        model: text(raw.model) ?? 'unknown',
+        totalTokens: count(raw.total_tokens),
+        costMicros: count(raw.cost_usd_micros),
+        partial: raw.partial === true,
+    };
+}
+
+function parseModels(raw) {
+    return list(raw).map(parseModel);
+}
+
 function parseTotals(raw) {
     const totals = isObject(raw) ? raw : {};
     const tokens = parseTokens(totals.tokens);
@@ -102,6 +120,7 @@ function parseTotals(raw) {
         partial: totals.partial === true,
         unpricedTokens: count(totals.unpriced_tokens),
         unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : [],
+        models: parseModels(totals.models),
     };
 }
 
@@ -134,6 +153,7 @@ function parseAccount(raw, usage) {
         label: text(raw.label),
         email: text(raw.email),
         plan: text(raw.plan),
+        owner: oneOf(OWNERS, raw.owner, 'cli'),
         status: oneOf(STATUSES, raw.status, 'fresh'),
         error: parseError(raw.error),
         updatedAt: timestamp(raw.updated_at),
@@ -152,6 +172,10 @@ function parseHeadline(raw) {
     return {
         accountId: text(raw.account_id),
         windowId: text(raw.window),
+        provider: text(raw.provider),
+        accountLabel: text(raw.account_label),
+        windowLabel: text(raw.window_label),
+        usedPercent: number(raw.used_percent),
         remainingPercent,
         tone: oneOf(TONES, raw.tone, 'neutral'),
     };
@@ -163,6 +187,7 @@ function parseProviderSpend(raw) {
         costMicros: count(raw.cost_usd_micros),
         totalTokens: count(raw.total_tokens),
         partial: raw.partial === true,
+        models: parseModels(raw.models),
     };
 }
 
@@ -205,6 +230,7 @@ export function parseState(json) {
         offline: raw.offline === true,
         lastSuccessAt: timestamp(raw.last_success_at),
         headline: parseHeadline(raw.headline),
+        display: parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         spend: parseSpend(raw.spend, usage),
     };

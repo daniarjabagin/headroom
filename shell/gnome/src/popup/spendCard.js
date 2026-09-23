@@ -1,31 +1,41 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { exactTokens, exactUsd, ringUsd, usd } from '../format.js';
+import { _ } from '../i18n.js';
 import { providerInfo } from '../providers.js';
 import { column, label, row, spacer, textButton, themeIcon } from '../widgets.js';
 import { Donut } from './donut.js';
+import { modelTooltip } from './modelTooltip.js';
 
 const PERIODS = [
-    ['today', 'Today'],
-    ['yesterday', 'Yesterday'],
-    ['last30Days', '30 Days'],
+    ['today', () => _('Today')],
+    ['yesterday', () => _('Yesterday')],
+    ['last30Days', () => _('30 Days')],
 ];
 
+function periodTitle(key) {
+    return PERIODS.find(([candidate]) => candidate === key)[1]();
+}
+
 function spendTooltip(spend) {
-    const partial = spend.partial ? ' · some models unpriced' : '';
-    return `${exactUsd(spend.costMicros)} · ${exactTokens(spend.totalTokens)} tokens${partial}`;
+    const partial = spend.partial ? _(' · some models unpriced') : '';
+    return `${exactUsd(spend.costMicros)} · ${exactTokens(spend.totalTokens)} ${_('tokens')}${partial}`;
+}
+
+function attachBreakdown(ctx, actor, spend) {
+    const title = `${periodTitle(ctx.period)} · ${providerInfo(spend.provider).name}`;
+    ctx.tooltips.attach(actor, () => modelTooltip(title, spend) ?? spendTooltip(spend));
 }
 
 function legendRow(ctx, spend) {
     const info = providerInfo(spend.provider);
-    const actor = row({ style_class: 'headroom-legend-row' });
+    const actor = row({ style_class: 'headroom-legend-row headroom-hover-chip' });
     const dot = new St.Widget({ style_class: 'headroom-legend-dot', y_align: Clutter.ActorAlign.CENTER });
     dot.style = `background-color: ${info.ringColor};`;
     actor.add_child(dot);
     actor.add_child(label(info.name, 'headroom-legend-name', { x_expand: true }));
-    const value = label(usd(spend.costMicros), 'headroom-legend-value');
-    ctx.tooltips.attach(value, () => spendTooltip(spend));
-    actor.add_child(value);
+    actor.add_child(label(usd(spend.costMicros), 'headroom-legend-value'));
+    attachBreakdown(ctx, actor, spend);
     return actor;
 }
 
@@ -50,28 +60,29 @@ function statColumn(value, caption) {
     return actor;
 }
 
-function statsBody(period) {
-    const actor = row({ style_class: 'headroom-spend-stats' });
-    actor.add_child(
-        statColumn(exactUsd(period.costMicros), `dollars · ${providerInfo(period.providers[0].provider).name}`)
-    );
-    actor.add_child(statColumn(exactTokens(period.totalTokens), 'tokens'));
+function statsBody(ctx, period) {
+    const actor = row({ style_class: 'headroom-spend-stats headroom-hover-chip' });
+    const provider = period.providers[0];
+    const caption = `${_('dollars')} · ${providerInfo(provider.provider).name}`;
+    actor.add_child(statColumn(exactUsd(period.costMicros), caption));
+    actor.add_child(statColumn(exactTokens(period.totalTokens), _('tokens')));
+    attachBreakdown(ctx, actor, provider);
     return actor;
 }
 
 function emptyBody() {
-    return label('No usage in this period', 'headroom-empty-period', { x_align: Clutter.ActorAlign.CENTER });
+    return label(_('No usage in this period'), 'headroom-empty-period', { x_align: Clutter.ActorAlign.CENTER });
 }
 
 function periodBody(ctx, period) {
     if (period.providers.length === 0) return emptyBody();
-    if (period.providers.length === 1) return statsBody(period);
+    if (period.providers.length === 1) return statsBody(ctx, period);
     return ringBody(ctx, period);
 }
 
 function header() {
     const actor = row({ style_class: 'headroom-section-header spend' });
-    actor.add_child(label('Total Spend', 'headroom-title'));
+    actor.add_child(label(_('Total Spend'), 'headroom-title'));
     const info = themeIcon('help-about-symbolic', 'headroom-info-icon');
     actor.add_child(info);
     actor.add_child(spacer());
@@ -101,14 +112,14 @@ export class SpendSection {
     }
 
     _infoText() {
-        const partial = this._spend[this._period].partial ? ' Some models have no public price yet.' : '';
-        return `Estimated from local logs and public pricing.${partial}`;
+        const partial = this._spend[this._period].partial ? ` ${_('Some models have no public price yet.')}` : '';
+        return `${_('Estimated from local logs and public pricing.')}${partial}`;
     }
 
     _segmentedControl() {
         const actor = row({ style_class: 'headroom-segmented', x_expand: true });
         for (const [key, title] of PERIODS) {
-            const segment = textButton(title, 'headroom-segment', () => this._select(key));
+            const segment = textButton(title(), 'headroom-segment', () => this._select(key));
             segment.x_expand = true;
             this._segments.set(key, segment);
             actor.add_child(segment);

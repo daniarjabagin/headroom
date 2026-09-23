@@ -27,6 +27,17 @@ function titleCase(id) {
     return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+export function showsName(account, accounts) {
+    return accounts.filter(other => other.provider === account.provider).length > 1;
+}
+
+export function accountTitle(account, showName) {
+    const name = providerInfo(account.provider).name;
+    if (!showName) return name;
+    const who = account.label ?? account.email;
+    return who ? `${name}: ${who}` : name;
+}
+
 export function providerInfo(id) {
     return (
         PROVIDERS[id] ?? {

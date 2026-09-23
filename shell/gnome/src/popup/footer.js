@@ -2,20 +2,28 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
 import { clockTime, nextUpdateText } from '../format.js';
+import { _, fill } from '../i18n.js';
 import { button, column, label, row, themeIcon } from '../widgets.js';
 
 function statusLine(view, now) {
-    if (view.kind === 'unavailable') return { text: 'Service not running', notice: false, busy: false };
+    if (view.kind === 'unavailable') return { text: _('Service not running'), notice: false, busy: false };
     const state = view.state;
-    if (!state) return { text: view.kind === 'loading' ? 'Connecting…' : '', notice: false, busy: false };
+    if (!state) return { text: view.kind === 'loading' ? _('Connecting…') : '', notice: false, busy: false };
     if (state.offline) {
-        const since = state.lastSuccessAt ? ` — last update ${clockTime(state.lastSuccessAt)}` : '';
-        return { text: `Offline${since}`, notice: true, busy: false };
+        const text = state.lastSuccessAt
+            ? fill(_('Offline — last update {time}'), { time: clockTime(state.lastSuccessAt) })
+            : _('Offline');
+        return { text, notice: true, busy: false };
     }
     if (state.accounts.some(account => account.status === 'refreshing'))
-        return { text: 'Updating…', notice: false, busy: true };
+        return { text: _('Updating…'), notice: false, busy: true };
     if (state.nextRefreshAt) return { text: nextUpdateText(state.nextRefreshAt, now), notice: false, busy: false };
-    if (state.lastSuccessAt) return { text: `Updated ${clockTime(state.lastSuccessAt)}`, notice: false, busy: false };
+    if (state.lastSuccessAt)
+        return {
+            text: fill(_('Updated {time}'), { time: clockTime(state.lastSuccessAt) }),
+            notice: false,
+            busy: false,
+        };
     return { text: '', notice: false, busy: false };
 }
 
@@ -45,7 +53,7 @@ export class Footer {
 
     _optionsButton() {
         const content = row({ style_class: 'headroom-options-content' });
-        content.add_child(new St.Label({ text: 'Options', y_align: Clutter.ActorAlign.CENTER }));
+        content.add_child(new St.Label({ text: _('Options'), y_align: Clutter.ActorAlign.CENTER }));
         content.add_child(themeIcon('pan-down-symbolic', 'headroom-options-chevron'));
         this.optionsButton = button(content, 'headroom-options-button', () => this._ctx.actions.toggleOptions());
         return this.optionsButton;

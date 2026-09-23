@@ -1,23 +1,35 @@
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const SHOW_DELAY_MS = 400;
+const FADE_MS = 120;
 const GAP = 6;
+
+function contentActor(content) {
+    if (typeof content !== 'string') return content;
+    const text = new St.Label({ text: content, style_class: 'headroom-tooltip-text' });
+    text.clutter_text.line_wrap = true;
+    return text;
+}
 
 export class Tooltips {
     constructor() {
-        this._label = new St.Label({ style_class: 'headroom-tooltip', visible: false });
-        this._label.clutter_text.line_wrap = true;
-        Main.layoutManager.uiGroup.add_child(this._label);
+        this._bin = new St.Bin({ style_class: 'headroom-tooltip', visible: false, opacity: 0 });
+        Main.layoutManager.uiGroup.add_child(this._bin);
         this._timeoutId = 0;
         this._target = null;
     }
 
-    attach(actor, textFor) {
+    setTheme(themeClass) {
+        this._bin.style_class = `headroom-tooltip ${themeClass}`.trim();
+    }
+
+    attach(actor, contentFor) {
         actor.track_hover = true;
         actor.reactive = true;
-        actor.connect('notify::hover', () => (actor.hover ? this._schedule(actor, textFor) : this._hide(actor)));
+        actor.connect('notify::hover', () => (actor.hover ? this._schedule(actor, contentFor) : this._hide(actor)));
         actor.connect('destroy', () => this._hide(actor));
     }
 
@@ -27,38 +39,52 @@ export class Tooltips {
 
     destroy() {
         this._clearTimeout();
-        this._label.destroy();
-        this._label = null;
+        this._bin.destroy();
+        this._bin = null;
     }
 
-    _schedule(actor, textFor) {
+    _schedule(actor, contentFor) {
         this._clearTimeout();
         this._target = actor;
         this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SHOW_DELAY_MS, () => {
             this._timeoutId = 0;
-            this._show(actor, textFor());
+            this._show(actor, contentFor());
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _show(actor, text) {
-        if (!text || !actor.mapped) return;
-        this._label.text = text;
-        this._label.show();
-        Main.layoutManager.uiGroup.set_child_above_sibling(this._label, null);
+    _show(actor, content) {
+        if (!content || !actor.mapped) return;
+        this._bin.child?.destroy();
+        this._bin.set_child(contentActor(content));
+        this._bin.show();
+        Main.layoutManager.uiGroup.set_child_above_sibling(this._bin, null);
+        this._place(actor);
+        this._bin.remove_all_transitions();
+        this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+    }
+
+    _place(actor) {
         const [x, y] = actor.get_transformed_position();
         const [width, height] = actor.get_transformed_size();
+        const [, tipWidth] = this._bin.get_preferred_width(-1);
+        const [, tipHeight] = this._bin.get_preferred_height(tipWidth);
         const monitor = Main.layoutManager.findMonitorForActor(actor);
-        const labelX = Math.round(x + width / 2 - this._label.width / 2);
-        const maxX = monitor.x + monitor.width - this._label.width;
-        this._label.set_position(Math.min(Math.max(monitor.x, labelX), maxX), Math.round(y + height + GAP));
+        const left = Math.round(x + width / 2 - tipWidth / 2);
+        const tipX = Math.min(Math.max(monitor.x, left), monitor.x + monitor.width - tipWidth);
+        const below = Math.round(y + height + GAP);
+        const fitsBelow = below + tipHeight <= monitor.y + monitor.height;
+        this._bin.set_position(tipX, fitsBelow ? below : Math.round(y - GAP - tipHeight));
     }
 
     _hide(actor) {
         if (actor !== this._target) return;
         this._clearTimeout();
         this._target = null;
-        this._label?.hide();
+        if (!this._bin) return;
+        this._bin.remove_all_transitions();
+        this._bin.opacity = 0;
+        this._bin.hide();
     }
 
     _clearTimeout() {
