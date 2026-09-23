@@ -4,7 +4,7 @@ use jiff::Timestamp;
 use serde::Serialize;
 
 use super::format::{account_title, pace_note, percent_left, reset_text, rounded_percent};
-use super::spend::{PERIODS, total};
+use super::spend::{PERIODS, summary};
 
 const DAEMON_ABSENT: &str = "Headroom daemon is not running";
 const NO_DATA: &str = "No limits reported yet";
@@ -74,9 +74,9 @@ fn tooltip(state: &StatePayload, now: Timestamp) -> String {
     if !state.usage.is_empty() {
         lines.push(String::new());
         lines.extend(
-            PERIODS.iter().map(|(name, period)| {
-                format!("{name}: {}", total(&state.usage, *period).summary())
-            }),
+            PERIODS
+                .iter()
+                .map(|(name, period)| format!("{name}: {}", summary(period(&state.spend)))),
         );
     }
     lines.join("\n")

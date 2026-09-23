@@ -94,6 +94,7 @@ mod tests {
                 severity: Severity::Healthy,
                 even_pace_percent: even,
                 projected_percent: None,
+                spare_percent: None,
                 runs_out_at: None,
             },
         }

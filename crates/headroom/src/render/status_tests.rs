@@ -13,9 +13,9 @@ Claude Code · ada@claude.example  Pro  signed out
   Session  ━━┃─────────────────    8% left  resets in 30m      limit in 23m
 
 Spend  estimated from local logs
-  Today      $0.00  1.2K tokens
+  Today      $0.01  6.2K tokens
   Yesterday  $0.00   615 tokens  partial
-  30 days    $0.00  1.8K tokens  partial
+  30 days    $0.01  6.8K tokens  partial
 
 1 hidden account · headroom accounts show <ID>
 ";

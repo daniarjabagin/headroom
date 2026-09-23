@@ -25,9 +25,8 @@ pub fn render_status(state: &StatePayload, palette: Palette) -> String {
     for account in &visible {
         blocks.push(account_block(account, &layout, state.generated_at, palette));
     }
-    let spend = spend_lines(&state.usage, palette);
-    if !spend.is_empty() {
-        blocks.push(spend);
+    if !state.usage.is_empty() {
+        blocks.push(spend_lines(&state.spend, palette));
     }
     let hidden = state.accounts.len() - visible.len();
     if hidden > 0 {

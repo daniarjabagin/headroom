@@ -22,9 +22,9 @@ Claude Code · ada@claude.example (Pro)
   sign-in expired, open the CLI to sign in again
   Session: 8% left · resets in 30m · limit in 23m
 
-Today: $0.00 · 1.2K tokens
+Today: $0.01 · 6.2K tokens
 Yesterday: $0.00 · 615 tokens (partial)
-30 days: $0.00 · 1.8K tokens (partial)";
+30 days: $0.01 · 6.8K tokens (partial)";
     assert_eq!(line.tooltip, expected);
 }
 

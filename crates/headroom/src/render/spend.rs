@@ -1,59 +1,33 @@
-use headroom_daemon::state::payload::{TotalsView, UsageView};
+use headroom_daemon::state::payload::{PeriodSpendView, SpendView};
 
 use super::format::{compact_tokens, usd};
 use super::style::Palette;
 use super::table::pad;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Spend {
-    pub tokens: u64,
-    pub cost_usd_micros: i64,
-    pub partial: bool,
-}
-
-impl Spend {
-    fn add(self, totals: &TotalsView) -> Spend {
-        Spend {
-            tokens: self.tokens.saturating_add(totals.tokens.total),
-            cost_usd_micros: self.cost_usd_micros.saturating_add(totals.cost_usd_micros),
-            partial: self.partial || totals.partial,
-        }
-    }
-
-    pub fn summary(self) -> String {
-        let partial = if self.partial { " (partial)" } else { "" };
-        format!(
-            "{} · {} tokens{partial}",
-            usd(self.cost_usd_micros),
-            compact_tokens(self.tokens)
-        )
-    }
-}
-
-pub fn total(usage: &[UsageView], period: Period) -> Spend {
-    usage
-        .iter()
-        .fold(Spend::default(), |sum, view| sum.add(period(view)))
-}
-
-pub type Period = fn(&UsageView) -> &TotalsView;
+pub type Period = fn(&SpendView) -> &PeriodSpendView;
 
 pub const PERIODS: [(&str, Period); 3] = [
-    ("Today", |view| &view.today),
-    ("Yesterday", |view| &view.yesterday),
-    ("30 days", |view| &view.last_30_days),
+    ("Today", |spend| &spend.today),
+    ("Yesterday", |spend| &spend.yesterday),
+    ("30 days", |spend| &spend.last_30_days),
 ];
 
-pub fn spend_lines(usage: &[UsageView], palette: Palette) -> Vec<String> {
-    if usage.is_empty() {
-        return Vec::new();
-    }
+pub fn summary(period: &PeriodSpendView) -> String {
+    let partial = if period.partial { " (partial)" } else { "" };
+    format!(
+        "{} · {} tokens{partial}",
+        usd(period.cost_usd_micros),
+        compact_tokens(period.total_tokens)
+    )
+}
+
+pub fn spend_lines(spend: &SpendView, palette: Palette) -> Vec<String> {
     let rows: Vec<(&str, String, String, bool)> = PERIODS
         .iter()
         .map(|(name, period)| {
-            let spend = total(usage, *period);
-            let tokens = format!("{} tokens", compact_tokens(spend.tokens));
-            (*name, usd(spend.cost_usd_micros), tokens, spend.partial)
+            let totals = period(spend);
+            let tokens = format!("{} tokens", compact_tokens(totals.total_tokens));
+            (*name, usd(totals.cost_usd_micros), tokens, totals.partial)
         })
         .collect();
     let cost_width = rows.iter().map(|row| row.1.len()).max().unwrap_or(0);

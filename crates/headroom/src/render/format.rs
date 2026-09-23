@@ -66,10 +66,7 @@ pub fn pace_note(pace: &PaceView, now: Timestamp) -> Option<Note> {
     let text = match pace.severity {
         Severity::Spent => "limit reached".to_owned(),
         Severity::RunningOut => limit_text(pace.runs_out_at, now),
-        Severity::Close => {
-            let projected = pace.projected_percent?;
-            format!("~{}% spare", rounded_percent(100.0 - projected))
-        }
+        Severity::Close => format!("~{}% spare", rounded_percent(pace.spare_percent?)),
         Severity::Healthy | Severity::Untracked => return None,
     };
     let tone = match pace.severity {
@@ -145,10 +142,14 @@ mod tests {
     }
 
     fn pace(severity: Severity, projected: Option<f64>, runs_out_at: Option<&str>) -> PaceView {
+        let spare = matches!(severity, Severity::Healthy | Severity::Close)
+            .then(|| projected.map(|value| 100.0 - value))
+            .flatten();
         PaceView {
             severity,
             even_pace_percent: Some(50.0),
             projected_percent: projected,
+            spare_percent: spare,
             runs_out_at: runs_out_at.map(ts),
         }
     }
@@ -210,6 +211,21 @@ mod tests {
             None
         );
         assert_eq!(pace_note(&pace(Severity::Untracked, None, None), now), None);
+    }
+
+    #[test]
+    fn spare_note_uses_the_daemon_spare_percent() {
+        let now = ts("2026-09-23T10:00:00Z");
+        let close = PaceView {
+            spare_percent: Some(12.0),
+            ..pace(Severity::Close, Some(95.0), None)
+        };
+        assert_eq!(pace_note(&close, now).unwrap().text, "~12% spare");
+        let unknown = PaceView {
+            spare_percent: None,
+            ..pace(Severity::Close, Some(95.0), None)
+        };
+        assert_eq!(pace_note(&unknown, now), None);
     }
 
     #[test]
