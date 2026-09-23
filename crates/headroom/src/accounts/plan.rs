@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, CliLogin, ProviderDescriptor};
 
 use super::login::LoginSpec;
 
@@ -17,7 +17,8 @@ pub enum AddPlan {
     KeyFromPrompt(&'static ApiKeyPrompt),
 }
 
-/// The provider's default way to add an account, or its API key method when a key is on stdin.
+/// The API key method when a key is on stdin, a prompt when the default method is an API key
+/// and a terminal is attached, otherwise the provider's first CLI login.
 pub fn plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<AddPlan> {
     let name = descriptor.display_name;
     if keys == KeyInput::Stdin {
@@ -26,13 +27,15 @@ pub fn plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<A
         }
         bail!("{name} accounts cannot be added with an API key");
     }
+    if let (KeyInput::Terminal, Some(AddAccountMethod::ApiKey(prompt))) =
+        (keys, descriptor.default_method())
+    {
+        return Ok(AddPlan::KeyFromPrompt(prompt));
+    }
+    if let Some(login) = cli_login(descriptor) {
+        return Ok(AddPlan::Login(LoginSpec::new(descriptor, login)));
+    }
     match descriptor.default_method() {
-        Some(AddAccountMethod::CliLogin(login)) => {
-            Ok(AddPlan::Login(LoginSpec::new(descriptor, login)))
-        }
-        Some(AddAccountMethod::ApiKey(prompt)) if keys == KeyInput::Terminal => {
-            Ok(AddPlan::KeyFromPrompt(prompt))
-        }
         Some(AddAccountMethod::ApiKey(prompt)) => bail!(
             "{name} accounts are added with an {}: pass --api-key-stdin and write it to stdin",
             prompt.label
@@ -40,14 +43,24 @@ pub fn plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) -> Result<A
         Some(AddAccountMethod::AutoDetect { reason }) => {
             bail!("{name} accounts are detected automatically: {reason}")
         }
-        None => bail!("{name} accounts cannot be added"),
+        None | Some(AddAccountMethod::CliLogin(_)) => bail!("{name} accounts cannot be added"),
     }
+}
+
+fn cli_login(descriptor: &'static ProviderDescriptor) -> Option<&'static CliLogin> {
+    descriptor
+        .add_account
+        .iter()
+        .find_map(|method| match method {
+            AddAccountMethod::CliLogin(login) => Some(login),
+            AddAccountMethod::ApiKey(_) | AddAccountMethod::AutoDetect { .. } => None,
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use headroom_core::account::ProviderId;
-    use headroom_core::descriptor::{ApiKeyPrompt, CliLogin, HomeVar};
+    use headroom_core::descriptor::{ApiKeyPrompt, HomeVar};
 
     use super::*;
 
@@ -85,6 +98,23 @@ mod tests {
         local_usage: false,
     };
 
+    static KEY_THEN_LOGIN: ProviderDescriptor = ProviderDescriptor {
+        id: ProviderId::from_static("keyfirst"),
+        display_name: "Key first",
+        add_account: &[
+            KEY,
+            AddAccountMethod::CliLogin(CliLogin {
+                program: "keyfirst",
+                args: &["login"],
+                home_var: HomeVar::Direct("KEYFIRST_HOME"),
+                credentials_file: "auth.json",
+                needs_pty: false,
+            }),
+        ],
+        multi_account: true,
+        local_usage: false,
+    };
+
     static DETECTED: ProviderDescriptor = ProviderDescriptor {
         id: ProviderId::from_static("found"),
         display_name: "Found",
@@ -109,6 +139,18 @@ mod tests {
             }
             assert!(matches!(plan(&LOGIN_THEN_KEY, keys), Ok(AddPlan::Login(_))));
         }
+        match plan(&KEY_THEN_LOGIN, KeyInput::Unavailable).unwrap() {
+            AddPlan::Login(spec) => assert_eq!(spec.login.program, "keyfirst"),
+            other => panic!("without a key the CLI login is used: {other:?}"),
+        }
+        assert!(matches!(
+            plan(&KEY_THEN_LOGIN, KeyInput::Terminal),
+            Ok(AddPlan::KeyFromPrompt(_))
+        ));
+        assert!(matches!(
+            plan(&KEY_THEN_LOGIN, KeyInput::Stdin),
+            Ok(AddPlan::KeyFromStdin)
+        ));
         assert_eq!(
             message(plan(&KEYED, KeyInput::Unavailable)),
             "Keyed accounts are added with an API key: pass --api-key-stdin and write it to stdin"

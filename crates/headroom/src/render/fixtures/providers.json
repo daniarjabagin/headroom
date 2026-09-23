@@ -70,6 +70,38 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "kimi",
+      "display_name": "Kimi Code",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Kimi Code API key",
+          "console_url": "https://www.kimi.com/code/console",
+          "hint": "Create it in the Kimi Code console; Moonshot platform keys do not work"
+        },
+        {
+          "kind": "cli_login",
+          "program": "kimi"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "minimax",
+      "display_name": "MiniMax",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "MiniMax Token Plan key",
+          "console_url": "https://platform.minimax.io/user-center/payment/token-plan",
+          "hint": "Use the Token Plan subscription key from platform.minimax.io; pay-as-you-go keys have no plan limits"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

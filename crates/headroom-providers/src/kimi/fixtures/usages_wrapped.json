@@ -1,0 +1,13 @@
+{
+  "code": 0,
+  "data": {
+    "kind": "ok",
+    "quota": {
+      "extraUsage": null,
+      "usages": {
+        "limit5h": { "resetAt": "2026-09-23T12:07:12Z", "usedRatio": 0.1719 },
+        "limit7d": { "resetAt": "2026-09-28T23:07:12Z", "usedRatio": 0.346 }
+      }
+    }
+  }
+}

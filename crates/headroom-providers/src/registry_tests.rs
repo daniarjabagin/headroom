@@ -29,7 +29,15 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
     }
     assert_eq!(
         seen.into_iter().collect::<Vec<_>>(),
-        ["claude", "codex", "opencode", "openrouter", "zai"]
+        [
+            "claude",
+            "codex",
+            "kimi",
+            "minimax",
+            "opencode",
+            "openrouter",
+            "zai"
+        ]
     );
 }
 
@@ -49,7 +57,18 @@ fn codex_and_claude_sign_in_with_their_clis() {
 fn built_providers_follow_the_registry_order() {
     let providers = build_all(&context());
     let ids: Vec<_> = providers.iter().map(|p| p.id().as_str()).collect();
-    assert_eq!(ids, ["codex", "claude", "opencode", "openrouter", "zai"]);
+    assert_eq!(
+        ids,
+        [
+            "codex",
+            "claude",
+            "opencode",
+            "openrouter",
+            "zai",
+            "kimi",
+            "minimax"
+        ]
+    );
     for provider in &providers {
         assert!(std::ptr::eq(
             provider.descriptor(),

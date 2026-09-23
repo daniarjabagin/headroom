@@ -5,6 +5,8 @@ mod homes;
 pub mod http;
 pub mod jsonl;
 pub mod key_accounts;
+pub mod kimi;
+pub mod minimax;
 pub mod opencode;
 pub mod openrouter;
 mod plan_error;

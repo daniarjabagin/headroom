@@ -6,6 +6,8 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::kimi::{self, KimiConfig, KimiProvider};
+use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
 use crate::openrouter::{self, OpenRouterConfig, OpenRouterProvider};
 use crate::zai::{self, ZaiConfig, ZaiProvider};
@@ -23,7 +25,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 5] = [
+static ENTRIES: [Entry; 7] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -43,6 +45,14 @@ static ENTRIES: [Entry; 5] = [
     Entry {
         descriptor: &zai::DESCRIPTOR,
         build: build_zai,
+    },
+    Entry {
+        descriptor: &kimi::DESCRIPTOR,
+        build: build_kimi,
+    },
+    Entry {
+        descriptor: &minimax::DESCRIPTOR,
+        build: build_minimax,
     },
 ];
 
@@ -128,6 +138,26 @@ fn build_zai(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderErr
         config,
         context.http.clone(),
         secrets,
+    )))
+}
+
+fn build_kimi(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = KimiConfig::from_env()?;
+    let http = context.http.clone();
+    Ok(Arc::new(KimiProvider::with_http(
+        config,
+        http,
+        context.secrets.clone(),
+    )))
+}
+
+fn build_minimax(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = MiniMaxConfig::from_env()?;
+    let http = context.http.clone();
+    Ok(Arc::new(MiniMaxProvider::with_http(
+        config,
+        http,
+        context.secrets.clone(),
     )))
 }
 
