@@ -7,8 +7,6 @@ rust-version.workspace = true
 
 [dependencies]
 headroom-core.workspace = true
-headroom-pricing.workspace = true
-headroom-providers.workspace = true
 async-trait.workspace = true
 dirs.workspace = true
 jiff.workspace = true

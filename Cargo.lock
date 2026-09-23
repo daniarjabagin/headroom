@@ -716,8 +716,6 @@ dependencies = [
  "async-trait",
  "dirs",
  "headroom-core",
- "headroom-pricing",
- "headroom-providers",
  "jiff",
  "notify",
  "rand",
