@@ -6,6 +6,7 @@ use headroom_core::secret::SecretReader;
 
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
+use crate::cursor::{self, CursorConfig, CursorProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -20,7 +21,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 2] = [
+static ENTRIES: [Entry; 3] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -28,6 +29,10 @@ static ENTRIES: [Entry; 2] = [
     Entry {
         descriptor: &claude::DESCRIPTOR,
         build: build_claude,
+    },
+    Entry {
+        descriptor: &cursor::DESCRIPTOR,
+        build: build_cursor,
     },
 ];
 
@@ -82,6 +87,14 @@ fn build_codex(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderE
 fn build_claude(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
     let config = ClaudeConfig::from_env()?;
     Ok(Arc::new(ClaudeProvider::with_http(
+        config,
+        context.http.clone(),
+    )))
+}
+
+fn build_cursor(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = CursorConfig::from_env()?;
+    Ok(Arc::new(CursorProvider::with_http(
         config,
         context.http.clone(),
     )))

@@ -1,5 +1,6 @@
 pub mod claude;
 pub mod codex;
+pub mod cursor;
 mod fsio;
 mod homes;
 pub mod http;
