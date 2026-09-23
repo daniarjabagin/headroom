@@ -1,0 +1,14 @@
+[package]
+name = "headroom-daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+headroom-core.workspace = true
+headroom-pricing.workspace = true
+headroom-providers.workspace = true
+
+[lints]
+workspace = true
