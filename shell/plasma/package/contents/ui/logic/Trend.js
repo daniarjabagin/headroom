@@ -1,6 +1,7 @@
 .pragma library
 
 .import "Format.js" as Format
+.import "I18n.js" as I18n
 
 const TREND_DAYS = 30;
 const TREND_MIN_SHARE = 0.18;
@@ -11,7 +12,9 @@ function lastDays(daily) {
     for (let index = days.length; index < TREND_DAYS; index++)
         padding.push({
             date: "",
-            totalTokens: 0
+            totalTokens: 0,
+            costMicros: 0,
+            partial: false
         });
     return padding.concat(days);
 }
@@ -26,9 +29,19 @@ function barShare(value, peak) {
     return Math.max(TREND_MIN_SHARE, value / peak);
 }
 
-function peakDescription(days) {
+function peakDescription(lang, days) {
     const peakDay = days.reduce((best, day) => day.totalTokens > best.totalTokens ? day : best, days[0]);
     if (peakDay.totalTokens === 0)
-        return "No usage in the last 30 days";
-    return `Peak ${Format.compactTokens(peakDay.totalTokens)} tokens on ${peakDay.date}`;
+        return I18n.tr(lang, "No usage in the last 30 days");
+    return I18n.tr(lang, "Peak {tokens} tokens on {date}", {
+        tokens: Format.compactTokens(peakDay.totalTokens),
+        date: Format.dayText(lang, peakDay.date)
+    });
+}
+
+function indexAt(x, step, count) {
+    if (step <= 0 || x < 0)
+        return -1;
+    const index = Math.floor(x / step);
+    return index < count ? index : -1;
 }

@@ -1,6 +1,7 @@
 .pragma library
 
 .import "Format.js" as Format
+.import "I18n.js" as I18n
 .import "Providers.js" as Providers
 .import "State.js" as State
 
@@ -12,47 +13,58 @@ function line(text, notice, busy) {
     };
 }
 
-function footerLine(view, now) {
+function offlineLine(lang, state) {
+    if (state.lastSuccessAt === null)
+        return line(I18n.tr(lang, "Offline"), true, false);
+    return line(I18n.tr(lang, "Offline — last update {time}", {
+        time: Format.clockTime(state.lastSuccessAt)
+    }), true, false);
+}
+
+function footerLine(lang, view, now) {
     if (view.kind === "unavailable")
-        return line("Service not running", false, false);
+        return line(I18n.tr(lang, "Service not running"), false, false);
     const state = view.state;
     if (!state)
-        return line(view.kind === "loading" ? "Connecting…" : "", false, false);
-    if (state.offline) {
-        const since = state.lastSuccessAt ? ` — last update ${Format.clockTime(state.lastSuccessAt)}` : "";
-        return line(`Offline${since}`, true, false);
-    }
+        return line(view.kind === "loading" ? I18n.tr(lang, "Connecting…") : "", false, false);
+    if (state.offline)
+        return offlineLine(lang, state);
     if (State.isRefreshing(state))
-        return line("Updating…", false, true);
+        return line(I18n.tr(lang, "Updating…"), false, true);
     if (state.nextRefreshAt)
-        return line(Format.nextUpdateText(state.nextRefreshAt, now), false, false);
+        return line(Format.nextUpdateText(lang, state.nextRefreshAt, now), false, false);
     if (state.lastSuccessAt)
-        return line(`Updated ${Format.clockTime(state.lastSuccessAt)}`, false, false);
+        return line(I18n.tr(lang, "Updated {time}", {
+            time: Format.clockTime(state.lastSuccessAt)
+        }), false, false);
     return line("", false, false);
 }
 
-function headlineTitle(state) {
+function headlineTitle(lang, state) {
+    const headline = state.headline;
     const account = State.headlineAccount(state);
     const window = State.headlineWindow(state);
-    if (account === null || window === null)
-        return "Headroom";
+    const windowLabel = window === null ? headline.windowLabel ?? headline.windowId ?? "" : Format.windowLabel(lang, window);
+    if (account === null)
+        return headline.accountLabel ? `${headline.accountLabel} · ${windowLabel}` : "Headroom";
     const visible = State.visibleAccounts(state);
-    return `${Providers.accountTitle(account, State.showsName(account, visible))} · ${window.label}`;
+    return `${Providers.accountTitle(account, State.showsName(account, visible))} · ${windowLabel}`;
 }
 
-function headlineDetail(state, now) {
+function headlineDetail(lang, state, now) {
+    const display = state.display;
+    const reading = Format.readingFor(lang, State.headlinePercent(state.headline, display.valueMode), display.valueMode);
     const window = State.headlineWindow(state);
-    const left = Format.percentLeft(state.headline.remainingPercent);
     if (window === null)
-        return left;
-    return `${left} · ${Format.resetText(window.resetsAt, now)}`;
+        return reading;
+    return `${reading} · ${Format.resetText(lang, window.resetsAt, now, display.resetFormat, false)}`;
 }
 
-function tooltip(view, now) {
+function tooltip(lang, view, now) {
     if (view.kind === "unavailable")
         return {
             main: "Headroom",
-            sub: "Service not running"
+            sub: I18n.tr(lang, "Service not running")
         };
     if (view.kind === "error")
         return {
@@ -62,10 +74,10 @@ function tooltip(view, now) {
     if (view.kind !== "ready" || view.state.headline === null)
         return {
             main: "Headroom",
-            sub: view.kind === "ready" ? "No usage limits to show" : "Connecting…"
+            sub: view.kind === "ready" ? I18n.tr(lang, "No usage limits to show") : I18n.tr(lang, "Connecting…")
         };
     return {
-        main: headlineTitle(view.state),
-        sub: headlineDetail(view.state, now)
+        main: headlineTitle(lang, view.state),
+        sub: headlineDetail(lang, view.state, now)
     };
 }

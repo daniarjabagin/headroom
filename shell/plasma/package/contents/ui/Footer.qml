@@ -4,6 +4,7 @@ import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.plasma.extras as PlasmaExtras
+import "logic/I18n.js" as I18n
 import "logic/Summary.js" as Summary
 
 PlasmaExtras.PlasmoidHeading {
@@ -11,8 +12,9 @@ PlasmaExtras.PlasmoidHeading {
 
     required property var view
     required property var now
+    required property string lang
     required property string versionText
-    readonly property var status: Summary.footerLine(view, now)
+    readonly property var status: Summary.footerLine(lang, view, now)
 
     signal refreshRequested
     signal hiddenRequested(string accountId, bool hidden)
@@ -72,6 +74,7 @@ PlasmaExtras.PlasmoidHeading {
             id: optionsButton
 
             Layout.alignment: Qt.AlignVCenter
+            text: I18n.tr(footer.lang, "Options")
             onClicked: optionsMenu.open()
 
             OptionsMenu {
@@ -80,6 +83,7 @@ PlasmaExtras.PlasmoidHeading {
                 x: optionsButton.width - width
                 y: -height - Kirigami.Units.smallSpacing
                 accounts: footer.view.kind === "ready" ? footer.view.state.accounts : []
+                lang: footer.lang
                 onRefreshRequested: footer.refreshRequested()
                 onHiddenRequested: (accountId, hidden) => footer.hiddenRequested(accountId, hidden)
                 onSettingsRequested: footer.settingsRequested()

@@ -4,24 +4,36 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Account.js" as Account
-import "logic/Format.js" as Format
 import "logic/Metrics.js" as Metrics
+import "logic/State.js" as State
 
-ColumnLayout {
+Item {
     id: section
 
     required property var account
     required property bool showName
     required property bool offline
     required property var now
-    required property bool alwaysShowPacing
+    required property bool live
+    required property var display
+    required property string lang
+    required property real appear
     required property bool expanded
-    readonly property var notices: Account.notices(account, offline)
-    readonly property bool showsQuotas: Account.showsQuotas(account)
+    required property bool canReorder
+    required property bool lifted
+    required property real dragOffset
+    required property string indicator
+    required property real gap
+    readonly property var notices: Account.notices(lang, account, offline)
+    readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
 
     signal refreshRequested(string accountId)
     signal copyRequested(string text)
     signal expandToggled(string accountId)
+    signal dragMoved(real offset)
+    signal dragFinished
+    signal valueModeToggled
+    signal resetFormatToggled
 
     function runAction(kind, value) {
         if (kind === "copy")
@@ -31,84 +43,101 @@ ColumnLayout {
     }
 
     Layout.fillWidth: true
-    spacing: Kirigami.Units.smallSpacing
+    implicitHeight: column.implicitHeight
+    z: lifted ? 2 : 0
+    opacity: appear * (lifted ? 0.9 : 1)
 
-    AccountHeader {
-        account: section.account
-        showName: section.showName
-        offline: section.offline
-        now: section.now
+    transform: Translate {
+        y: section.dragOffset + (1 - section.appear) * Kirigami.Units.gridUnit * 0.75
     }
 
-    Card {
-        Repeater {
-            model: section.notices.length
+    ColumnLayout {
+        id: column
 
-            NoticeRow {
-                required property int index
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: Kirigami.Units.smallSpacing
 
-                entry: section.notices[index]
-                onActionTriggered: (kind, value) => section.runAction(kind, value)
-            }
+        AccountHeader {
+            account: section.account
+            showName: section.showName
+            offline: section.offline
+            now: section.now
+            lang: section.lang
+            canReorder: section.canReorder
+            onDragMoved: offset => section.dragMoved(offset)
+            onDragFinished: section.dragFinished()
         }
 
-        Repeater {
-            model: section.showsQuotas ? section.account.windows.length : 0
-
-            QuotaRow {
-                required property int index
-
-                window: section.account.windows[index]
-                now: section.now
-                alwaysShowPacing: section.alwaysShowPacing
-            }
-        }
-
-        Loader {
-            Layout.fillWidth: true
-            active: section.showsQuotas && section.account.usage !== null
-            visible: active
-
-            sourceComponent: UsageTrend {
-                usage: section.account.usage
-            }
-        }
-
-        Caret {
-            visible: section.showsQuotas && Account.hasExtras(section.account)
-            expanded: section.expanded
-            onClicked: section.expandToggled(section.account.id)
-        }
-
-        ColumnLayout {
-            visible: section.showsQuotas && section.expanded
-            Layout.fillWidth: true
-            Layout.topMargin: Metrics.textRowPadding(Kirigami.Units) - Kirigami.Units.smallSpacing / 2
-            Layout.bottomMargin: Metrics.textRowPadding(Kirigami.Units)
-            spacing: 0
+        Card {
+            visible: section.notices.length > 0 || section.windows.length > 0 || trend.active
+            hoverable: true
+            lifted: section.lifted
 
             Repeater {
-                model: Account.spendRows(section.account.usage)
+                model: section.notices.length
 
-                ValueRow {
-                    required property var modelData
+                NoticeRow {
+                    required property int index
 
-                    title: modelData.title
-                    value: Format.spendLine(modelData.totals)
-                    tooltip: Format.spendTooltip(modelData.totals)
+                    entry: section.notices[index]
+                    onActionTriggered: (kind, value) => section.runAction(kind, value)
                 }
             }
 
             Repeater {
-                model: section.account.balances
+                model: section.windows.length
 
-                ValueRow {
-                    required property var modelData
+                QuotaRow {
+                    required property int index
 
-                    title: modelData.label
-                    value: Format.balanceValue(modelData)
+                    window: section.windows[index]
+                    now: section.now
+                    live: section.live
+                    display: section.display
+                    lang: section.lang
+                    appear: section.appear
+                    onValueModeToggled: section.valueModeToggled()
+                    onResetFormatToggled: section.resetFormatToggled()
                 }
             }
+
+            Loader {
+                id: trend
+
+                Layout.fillWidth: true
+                active: Account.showsTrend(section.account, section.display)
+                visible: active
+
+                sourceComponent: UsageTrend {
+                    usage: section.account.usage
+                    lang: section.lang
+                }
+            }
+
+            Caret {
+                visible: Account.hasExtras(section.account, section.display)
+                expanded: section.expanded
+                onClicked: section.expandToggled(section.account.id)
+            }
+
+            AccountExtras {
+                account: section.account
+                display: section.display
+                lang: section.lang
+                expanded: section.expanded && Account.hasExtras(section.account, section.display)
+            }
         }
+    }
+
+    Rectangle {
+        visible: section.indicator !== ""
+        x: Metrics.headerInset(Kirigami.Units)
+        width: parent.width - x * 2
+        height: Metrics.hairline(Kirigami.Units) * 2
+        radius: height / 2
+        y: section.indicator === "below" ? section.height + section.gap / 2 - height / 2 : -section.gap / 2 - height / 2
+        color: Kirigami.Theme.highlightColor
     }
 }

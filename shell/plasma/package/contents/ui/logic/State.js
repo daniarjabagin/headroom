@@ -1,11 +1,16 @@
 .pragma library
 
+.import "Settings.js" as Settings
+
 const SCHEMA_VERSION = 1;
+const HOUR_MS = 60 * 60 * 1000;
+const LIVE_GRACE_MS = 60 * 1000;
 
 const TONES = ["good", "warning", "critical", "neutral"];
 const STATUSES = ["fresh", "stale", "refreshing", "error", "signed_out"];
 const SEVERITIES = ["untracked", "healthy", "close", "running_out", "spent"];
 const BALANCE_KINDS = ["usd", "count"];
+const OWNERS = ["cli", "headroom"];
 
 class StateError extends Error {}
 
@@ -63,8 +68,10 @@ function parseWindow(raw) {
     return {
         id: text(raw.id) ?? text(raw.label) ?? "window",
         label: text(raw.label) ?? text(raw.id) ?? "",
+        usedPercent: number(raw.used_percent),
         remainingPercent: number(raw.remaining_percent),
         resetsAt: timestamp(raw.resets_at),
+        hidden: raw.hidden === true,
         tone: oneOf(TONES, raw.tone, "neutral"),
         pace: parsePace(raw.pace)
     };
@@ -101,6 +108,19 @@ function parseTokens(raw) {
     };
 }
 
+function parseModel(raw) {
+    return {
+        model: text(raw.model) ?? "unknown",
+        totalTokens: count(raw.total_tokens),
+        costMicros: count(raw.cost_usd_micros),
+        partial: raw.partial === true
+    };
+}
+
+function parseModels(raw) {
+    return list(raw).map(parseModel);
+}
+
 function parseTotals(raw) {
     const totals = isObject(raw) ? raw : {};
     const tokens = parseTokens(totals.tokens);
@@ -110,7 +130,8 @@ function parseTotals(raw) {
         totalTokens: tokens.total,
         partial: totals.partial === true,
         unpricedTokens: count(totals.unpriced_tokens),
-        unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : []
+        unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : [],
+        models: parseModels(totals.models)
     };
 }
 
@@ -143,6 +164,7 @@ function parseAccount(raw, usage) {
         label: text(raw.label),
         email: text(raw.email),
         plan: text(raw.plan),
+        owner: oneOf(OWNERS, raw.owner, "cli"),
         status: oneOf(STATUSES, raw.status, "fresh"),
         error: parseError(raw.error),
         updatedAt: timestamp(raw.updated_at),
@@ -163,6 +185,10 @@ function parseHeadline(raw) {
     return {
         accountId: text(raw.account_id),
         windowId: text(raw.window),
+        provider: text(raw.provider),
+        accountLabel: text(raw.account_label),
+        windowLabel: text(raw.window_label),
+        usedPercent: number(raw.used_percent),
         remainingPercent,
         tone: oneOf(TONES, raw.tone, "neutral")
     };
@@ -173,7 +199,8 @@ function parseProviderSpend(raw) {
         provider: text(raw.provider) ?? "unknown",
         costMicros: count(raw.cost_usd_micros),
         totalTokens: count(raw.total_tokens),
-        partial: raw.partial === true
+        partial: raw.partial === true,
+        models: parseModels(raw.models)
     };
 }
 
@@ -218,6 +245,7 @@ function parseState(json) {
         offline: raw.offline === true,
         lastSuccessAt: timestamp(raw.last_success_at),
         headline: parseHeadline(raw.headline),
+        display: Settings.parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         spend: parseSpend(raw.spend, usage)
     };
@@ -229,6 +257,24 @@ function isStateError(error) {
 
 function visibleAccounts(state) {
     return state.accounts.filter(account => !account.hidden);
+}
+
+function shownWindows(account) {
+    return account.windows.filter(window => !window.hidden);
+}
+
+function withDisplay(state, patch) {
+    return Object.assign({}, state, {
+        display: Object.assign({}, state.display, patch)
+    });
+}
+
+function withOrder(state, order) {
+    const listed = order.map(id => state.accounts.find(account => account.id === id)).filter(account => account !== undefined);
+    const rest = state.accounts.filter(account => !order.includes(account.id));
+    return Object.assign({}, state, {
+        accounts: listed.concat(rest)
+    });
 }
 
 function showsName(account, accounts) {
@@ -256,4 +302,21 @@ function isHeadlineStale(state) {
 
 function isRefreshing(state) {
     return state.accounts.some(account => account.status === "refreshing");
+}
+
+function headlinePercent(headline, valueMode) {
+    if (valueMode === "used" && headline.usedPercent !== null)
+        return headline.usedPercent;
+    return headline.remainingPercent;
+}
+
+function resetsWithinHour(window, now) {
+    if (window.resetsAt === null)
+        return false;
+    const left = window.resetsAt - now;
+    return left > -LIVE_GRACE_MS && left < HOUR_MS;
+}
+
+function needsLiveClock(state, now) {
+    return visibleAccounts(state).some(account => account.status !== "signed_out" && shownWindows(account).some(window => resetsWithinHour(window, now)));
 }

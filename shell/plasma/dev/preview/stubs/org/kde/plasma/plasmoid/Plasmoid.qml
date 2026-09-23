@@ -9,10 +9,6 @@ QtObject {
 
     property int status: PlasmaCore.Types.UnknownStatus
     property int formFactor: PlasmaCore.Types.Horizontal
-    property var configuration: ({
-            showPercentage: true,
-            alwaysShowPacing: false
-        })
     readonly property var metaData: ({
             version: JSON.parse(PreviewConfig.readFile(PreviewConfig.metadataPath)).KPlugin.Version
         })

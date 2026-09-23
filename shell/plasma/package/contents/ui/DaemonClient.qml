@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.workspace.dbus as DBus
+import "logic/Settings.js" as Settings
 import "logic/State.js" as State
 
 Item {
@@ -12,6 +13,8 @@ Item {
     readonly property int idlePollMs: 60000
     readonly property int startGraceMs: 5000
     property bool active: false
+    property bool trackSettings: false
+    property var settings: null
     property var view: ({
             kind: "loading",
             state: null
@@ -20,6 +23,7 @@ Item {
     property var registration: null
 
     signal openRequested
+    signal commandFailed(string message)
 
     function call(message, onReply) {
         const reply = DBus.SessionBus.asyncCall(message);
@@ -29,6 +33,16 @@ Item {
             else if (onReply)
                 onReply(reply.value);
             reply.destroy();
+        });
+    }
+
+    function command(member, signature, args, onReply) {
+        if (!watcher.registered)
+            return;
+        daemonCall(member, signature, args, value => {
+            afterCommand();
+            if (onReply)
+                onReply(value);
         });
     }
 
@@ -47,12 +61,28 @@ Item {
         daemonCall("GetState", "", [], json => accept(json));
     }
 
+    function loadSettings() {
+        daemonCall("GetSettings", "", [], json => acceptSettings(json));
+    }
+
+    function acceptSettings(json) {
+        try {
+            settings = Settings.parseSettings(json);
+        } catch (error) {
+            if (!Settings.isSettingsError(error))
+                throw error;
+            commandFailed(error.message);
+        }
+    }
+
     function accept(json) {
         try {
             view = {
                 kind: "ready",
                 state: State.parseState(json)
             };
+            if (trackSettings)
+                loadSettings();
         } catch (error) {
             if (!State.isStateError(error))
                 throw error;
@@ -73,8 +103,10 @@ Item {
             };
             return;
         }
-        if (view.kind === "ready")
+        if (view.kind === "ready") {
+            commandFailed(message);
             return;
+        }
         view = {
             kind: "error",
             state: null,
@@ -88,13 +120,55 @@ Item {
     }
 
     function refresh(accountId) {
-        if (watcher.registered)
-            daemonCall("Refresh", "(s)", [accountId], () => afterCommand());
+        command("Refresh", "(s)", [accountId]);
+    }
+
+    function rescan() {
+        command("Rescan", "", []);
     }
 
     function setHidden(accountId, hidden) {
-        if (watcher.registered)
-            daemonCall("SetAccountHidden", "(sb)", [accountId, hidden], () => afterCommand());
+        command("SetAccountHidden", "(sb)", [accountId, hidden]);
+    }
+
+    function setLabel(accountId, label) {
+        command("SetAccountLabel", "(ss)", [accountId, label]);
+    }
+
+    function setOrder(ids) {
+        if (view.kind === "ready")
+            view = {
+                kind: "ready",
+                state: State.withOrder(view.state, ids)
+            };
+        command("SetAccountOrder", "(as)", [ids]);
+    }
+
+    function updateSettings(change) {
+        if (!watcher.registered)
+            return;
+        daemonCall("GetSettings", "", [], json => {
+            try {
+                const raw = Settings.decode(json);
+                command("SetSettings", "(s)", [JSON.stringify(change(raw))], () => {
+                    if (trackSettings)
+                        loadSettings();
+                });
+            } catch (error) {
+                if (!Settings.isSettingsError(error))
+                    throw error;
+                commandFailed(error.message);
+            }
+        });
+    }
+
+    function patchDisplay(patch) {
+        if (view.kind === "ready")
+            view = {
+                kind: "ready",
+                state: State.withDisplay(view.state, patch)
+            };
+        updateSettings(raw => Settings.patchDisplay(raw, patch));
     }
 
     function startService() {
@@ -125,6 +199,7 @@ Item {
             };
             load();
         } else {
+            settings = null;
             view = {
                 kind: "unavailable",
                 state: null

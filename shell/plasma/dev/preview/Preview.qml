@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasmoid
 import headroom.preview
 
 Window {
@@ -9,13 +8,16 @@ Window {
 
     readonly property var args: Qt.application.arguments
     readonly property string outPrefix: option("--out", "")
-    readonly property int settleMs: 700
+    readonly property string configPage: option("--config", "")
+    readonly property bool forcedLook: option("--theme", "") !== "" || flag("--translucent") || flag("--dark")
+    readonly property int settleMs: 900
+    readonly property var frameDelays: [40, 120, 220, 360]
     property bool configured: false
-    property int step: 0
+    property var steps: []
     property var shots: []
 
     function option(name, fallback) {
-        const index = args.indexOf(name);
+        const index = args.lastIndexOf(name);
         return index >= 0 && index + 1 < args.length ? args[index + 1] : fallback;
     }
 
@@ -23,19 +25,36 @@ Window {
         return args.includes(name);
     }
 
-    function findItems(item, predicate, found) {
-        if (predicate(item))
-            found.push(item);
-        for (const child of item.children)
-            findItems(child, predicate, found);
+    function findObjects(object, predicate, found) {
+        if (predicate(object))
+            found.push(object);
+        for (const child of object.data ?? [])
+            findObjects(child, predicate, found);
         return found;
+    }
+
+    function displayPatch() {
+        const patch = {};
+        const pairs = [["--lang", "language"], ["--theme", "theme"], ["--label", "panel_label"]];
+        for (const [name, key] of pairs)
+            if (option(name, "") !== "")
+                patch[key] = option(name, "");
+        if (flag("--used"))
+            patch.value_mode = "used";
+        if (flag("--exact"))
+            patch.reset_format = "exact";
+        if (flag("--translucent"))
+            patch.translucent = true;
+        return patch;
     }
 
     function applyInteractions() {
         if (flag("--expand"))
-            findItems(stage, item => typeof item.expandToggled === "function" && item.account !== undefined, []).forEach(section => section.expandToggled(section.account.id));
+            findObjects(stage, item => typeof item.expandToggled === "function" && item.account !== undefined, []).forEach(section => section.gap === undefined ? section.expandToggled() : section.expandToggled(section.account.id));
         if (flag("--menu"))
-            findItems(stage, item => item.text === "Options" && typeof item.clicked === "function", []).forEach(button => button.clicked());
+            findObjects(stage, item => typeof item.clicked === "function" && item.text !== undefined && item.implicitHeight > 0 && item.leftPadding !== undefined && String(item).startsWith("OptionsButton"), []).forEach(button => button.clicked());
+        if (flag("--tooltip"))
+            findObjects(stage, item => item.breakdown !== undefined && item.breakdown !== null && item.tip !== undefined, []).slice(0, 1).forEach(handler => handler.tip.visible = true);
     }
 
     function capture(name, next) {
@@ -48,28 +67,50 @@ Window {
         });
     }
 
+    function replayOpen() {
+        findObjects(stage, item => typeof item.playOpen === "function", []).forEach(full => full.playOpen());
+    }
+
+    function frameSteps() {
+        const list = [() => {
+                replayOpen();
+                wait(frameDelays[0]);
+            }];
+        frameDelays.forEach((delay, index) => list.push(() => capture(`frame${index + 1}`, () => wait(index + 1 < frameDelays.length ? frameDelays[index + 1] - delay : 1))));
+        return list;
+    }
+
+    function plan() {
+        const list = [() => {
+                applyInteractions();
+                wait(settleMs);
+            }];
+        if (flag("--frames"))
+            return list.concat(frameSteps()).concat([() => Qt.quit()]);
+        if (forcedLook || configPage !== "")
+            return list.concat([() => capture("shot", () => Qt.quit())]);
+        return list.concat([() => capture("light", () => {
+                    Kirigami.Theme.dark = true;
+                    wait(settleMs);
+                }), () => capture("dark", () => {
+                    composite.visible = true;
+                    wait(settleMs);
+                }), () => composite.grabToImage(result => {
+                    result.saveToFile(`${outPrefix}-preview.png`);
+                    console.info("saved", `${outPrefix}-preview.png`);
+                    Qt.quit();
+                })]);
+    }
+
+    function wait(ms) {
+        settle.interval = ms;
+        settle.restart();
+    }
+
     function advance() {
-        step += 1;
-        if (step === 1) {
-            applyInteractions();
-            settle.restart();
-        } else if (step === 2) {
-            capture("light", () => {
-                Kirigami.Theme.dark = true;
-                settle.restart();
-            });
-        } else if (step === 3) {
-            capture("dark", () => {
-                composite.visible = true;
-                settle.restart();
-            });
-        } else if (step === 4) {
-            composite.grabToImage(result => {
-                result.saveToFile(`${outPrefix}-preview.png`);
-                console.info("saved", `${outPrefix}-preview.png`);
-                Qt.quit();
-            });
-        }
+        const next = steps.shift();
+        if (next)
+            next();
     }
 
     width: Math.max(stage.implicitWidth, composite.visible ? composite.implicitWidth : 0)
@@ -78,16 +119,39 @@ Window {
     color: Kirigami.Theme.dark ? "#0e1013" : "#cdd3db"
     Component.onCompleted: {
         PreviewConfig.scenario = option("--scenario", "ready");
+        PreviewConfig.displayPatch = displayPatch();
+        PreviewConfig.wallpaper = flag("--translucent");
+        Kirigami.Theme.dark = flag("--dark");
         const statePath = option("--state", "");
         if (statePath !== "")
             PreviewConfig.statePath = Qt.resolvedUrl(`file://${statePath}`);
-        Plasmoid.configuration = {
-            showPercentage: true,
-            alwaysShowPacing: flag("--pacing")
-        };
         configured = true;
+        steps = plan();
         if (outPrefix !== "")
-            settle.start();
+            wait(settleMs);
+    }
+
+    Rectangle {
+        visible: PreviewConfig.wallpaper
+        anchors.fill: parent
+        rotation: 0
+
+        gradient: Gradient {
+            GradientStop {
+                position: 0
+                color: "#5b6cff"
+            }
+
+            GradientStop {
+                position: 0.5
+                color: "#e0609a"
+            }
+
+            GradientStop {
+                position: 1
+                color: "#ffb347"
+            }
+        }
     }
 
     Row {
@@ -97,11 +161,30 @@ Window {
         spacing: Kirigami.Units.gridUnit
 
         Loader {
-            active: preview.configured
+            active: preview.configured && preview.configPage === ""
+            visible: active
             source: "../../package/contents/ui/main.qml"
         }
 
-        PanelSamples {}
+        PanelSamples {
+            visible: preview.configPage === ""
+        }
+
+        Rectangle {
+            visible: preview.configPage !== ""
+            width: configLoader.item ? configLoader.item.implicitWidth : 0
+            height: configLoader.item ? configLoader.item.implicitHeight : 0
+            radius: PreviewConfig.dialogRadius
+            color: Kirigami.Theme.backgroundColor
+
+            Loader {
+                id: configLoader
+
+                anchors.fill: parent
+                active: preview.configured && preview.configPage !== ""
+                source: `../../package/contents/ui/Config${preview.configPage.charAt(0).toUpperCase()}${preview.configPage.slice(1)}.qml`
+            }
+        }
     }
 
     Rectangle {

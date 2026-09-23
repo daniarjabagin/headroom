@@ -1,23 +1,22 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
-import "logic/Spend.js" as Spend
 import "logic/Tokens.js" as Tokens
 
 Rectangle {
     id: switcher
 
-    property string current: "today"
-    readonly property int currentIndex: Math.max(0, Spend.PERIODS.findIndex(period => period.key === current))
+    property var options: []
+    property var current: null
+    readonly property int currentIndex: Math.max(0, options.findIndex(option => option.value === current))
     readonly property real inset: Math.round(Kirigami.Units.smallSpacing * 0.75)
-    readonly property real segmentWidth: (width - inset * 2 - segments.spacing * (Spend.PERIODS.length - 1)) / Spend.PERIODS.length
+    readonly property real segmentWidth: (width - inset * 2 - segments.spacing * Math.max(0, options.length - 1)) / Math.max(1, options.length)
 
-    signal selected(string key)
+    signal selected(var value)
 
-    Layout.fillWidth: true
+    implicitWidth: options.length * Kirigami.Units.gridUnit * 4.5 + inset * 2
     implicitHeight: segments.implicitHeight + inset * 2
     radius: height / 2
     color: Tokens.chip(Kirigami.Theme)
@@ -49,26 +48,30 @@ Rectangle {
         spacing: Kirigami.Units.smallSpacing / 2
 
         Repeater {
-            model: Spend.PERIODS
+            model: switcher.options
 
             T.AbstractButton {
                 id: segment
 
                 required property var modelData
-                readonly property bool isCurrent: modelData.key === switcher.current
+                readonly property bool isCurrent: modelData.value === switcher.current
 
                 width: switcher.segmentWidth
                 implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
                 topPadding: Kirigami.Units.smallSpacing
                 bottomPadding: Kirigami.Units.smallSpacing
-                onClicked: switcher.selected(modelData.key)
+                leftPadding: Kirigami.Units.smallSpacing
+                rightPadding: Kirigami.Units.smallSpacing
+                hoverEnabled: true
+                onClicked: switcher.selected(modelData.value)
 
                 contentItem: TextLabel {
                     role: "caption"
                     weight: segment.isCurrent ? Font.DemiBold : Font.Medium
                     emphasis: segment.isCurrent || segment.hovered ? "primary" : "secondary"
-                    text: segment.modelData.title
+                    text: segment.modelData.label
                     horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                 }
             }
         }

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Tokens.js" as Tokens
 
@@ -8,6 +9,7 @@ Card {
     id: status
 
     required property var view
+    required property string lang
     readonly property string kind: view.kind === "ready" ? "empty" : view.kind
 
     signal startServiceRequested
@@ -43,14 +45,14 @@ Card {
         Layout.alignment: Qt.AlignHCenter
         Layout.topMargin: Kirigami.Units.smallSpacing
         enabled: !(status.view.starting ?? false)
-        text: status.kind === "error" ? "Try again" : (status.view.starting ? "Starting…" : "Start service")
+        text: status.kind === "error" ? status.tr("Try again") : (status.view.starting ? status.tr("Starting…") : status.tr("Start service"))
         onClicked: status.kind === "error" ? status.refreshRequested() : status.startServiceRequested()
     }
 
     SmallButton {
         visible: status.kind === "empty"
         Layout.alignment: Qt.AlignHCenter
-        text: "Check again"
+        text: status.tr("Check again")
         onClicked: status.refreshRequested()
     }
 
@@ -61,22 +63,26 @@ Card {
         text: status.view.startError ?? ""
     }
 
+    function tr(msgid) {
+        return I18n.tr(lang, msgid);
+    }
+
     function titleText() {
         if (kind === "unavailable")
-            return "Headroom service isn't running";
+            return tr("Headroom service isn't running");
         if (kind === "error")
-            return "Couldn't read Headroom's state";
+            return tr("Couldn't read Headroom's state");
         return "";
     }
 
     function detailText() {
         if (kind === "unavailable")
-            return "Start it to see your usage limits here.";
+            return tr("Start it to see your usage limits here.");
         if (kind === "error")
             return view.error ?? "";
         if (kind === "empty")
-            return "No AI coding tools found.";
-        return "Loading…";
+            return tr("No AI coding tools found.");
+        return "";
     }
 
     component CenteredText: TextLabel {

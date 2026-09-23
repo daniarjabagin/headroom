@@ -16,6 +16,10 @@ QtObject {
             return {
                 value: PreviewConfig.shiftedState()
             };
+        if (message.member === "GetSettings")
+            return {
+                value: PreviewConfig.settingsJson()
+            };
         return {
             value: null
         };

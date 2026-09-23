@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
+import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Quota.js" as Quota
 import "logic/Tokens.js" as Tokens
@@ -11,23 +12,34 @@ ColumnLayout {
 
     required property var window
     required property var now
-    required property bool alwaysShowPacing
-    readonly property var note: Quota.paceNote(window, now, alwaysShowPacing)
+    required property bool live
+    required property var display
+    required property string lang
+    required property real appear
+    readonly property var note: Quota.paceNote(lang, window, now, display.showForecast)
+    readonly property var percent: Quota.shownPercent(window, display.valueMode)
+    readonly property var forecast: Quota.forecast(lang, window, now, display)
+    property real tweenedPercent: percent ?? 0
+
+    signal valueModeToggled
+    signal resetFormatToggled
 
     Layout.fillWidth: true
-    Layout.leftMargin: Metrics.rowInset(Kirigami.Units)
-    Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
+    Layout.leftMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
+    Layout.rightMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
     Layout.topMargin: Metrics.barRowPadding(Kirigami.Units)
     Layout.bottomMargin: Metrics.barRowPadding(Kirigami.Units)
     spacing: Kirigami.Units.smallSpacing
 
     RowLayout {
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
         spacing: Kirigami.Units.smallSpacing
 
         TextLabel {
             Layout.fillWidth: true
             role: "label"
-            text: row.window.label
+            text: Format.windowLabel(row.lang, row.window)
             elide: Text.ElideRight
         }
 
@@ -48,22 +60,52 @@ ColumnLayout {
     }
 
     Meter {
-        fraction: Quota.fillFraction(row.window)
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        fraction: Quota.fillFraction(row.window, row.display.valueMode)
+        progress: row.appear
         tone: Quota.meterTone(row.window)
-        tick: Quota.tickPosition(row.window, row.alwaysShowPacing)
+        tick: Quota.tickPosition(row.window, row.display)
     }
 
     RowLayout {
-        spacing: Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.smallSpacing
 
-        TextLabel {
-            Layout.fillWidth: true
-            text: Format.percentLeft(row.window.remainingPercent)
+        ToggleText {
+            text: row.percent === null ? "—" : Format.readingFor(row.lang, row.tweenedPercent, row.display.valueMode)
+            hint: I18n.tr(row.lang, "Click to switch between left and used")
+            onClicked: row.valueModeToggled()
         }
 
-        TextLabel {
+        Item {
+            Layout.fillWidth: true
+        }
+
+        ToggleText {
             emphasis: "secondary"
-            text: Quota.trailingText(row.window, row.now)
+            text: Quota.trailingText(row.lang, row.window, row.now, row.display.resetFormat, row.live)
+            hint: I18n.tr(row.lang, "Click to switch between countdown and exact time")
+            onClicked: row.resetFormatToggled()
+        }
+    }
+
+    TextLabel {
+        visible: row.forecast !== null
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        role: "caption"
+        emphasis: "secondary"
+        wrapMode: Text.Wrap
+        text: row.forecast ?? ""
+    }
+
+    Behavior on tweenedPercent {
+        enabled: row.appear >= 1
+
+        NumberAnimation {
+            duration: Kirigami.Units.longDuration
+            easing.type: Easing.OutCubic
         }
     }
 }

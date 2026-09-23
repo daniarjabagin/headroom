@@ -12,7 +12,6 @@ T.Button {
     implicitHeight: Metrics.controlHeight(Kirigami.Units)
     leftPadding: Math.round(Kirigami.Units.gridUnit * 0.75)
     rightPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
-    text: "Options"
     scale: button.down ? 0.96 : 1
 
     contentItem: RowLayout {

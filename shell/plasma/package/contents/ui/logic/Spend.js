@@ -1,24 +1,37 @@
 .pragma library
 
+.import "I18n.js" as I18n
 .import "Providers.js" as Providers
 
 const PERIODS = [
     {
-        key: "today",
-        title: "Today"
+        value: "today",
+        msgid: I18n.N("Today")
     },
     {
-        key: "yesterday",
-        title: "Yesterday"
+        value: "yesterday",
+        msgid: I18n.N("Yesterday")
     },
     {
-        key: "last30Days",
-        title: "30 Days"
+        value: "last30Days",
+        msgid: I18n.N("30 Days")
     }
 ];
 
 const MIN_SLICE = 0.025;
 const START_DEGREES = -90;
+
+function periodOptions(lang) {
+    return PERIODS.map(period => ({
+                value: period.value,
+                label: I18n.tr(lang, period.msgid)
+            }));
+}
+
+function periodTitle(lang, key) {
+    const period = PERIODS.find(candidate => candidate.value === key) ?? PERIODS[0];
+    return I18n.tr(lang, period.msgid);
+}
 
 function visibleFractions(values) {
     const total = values.reduce((sum, value) => sum + value, 0);
@@ -45,13 +58,22 @@ function slices(providers, gapDegrees) {
     });
 }
 
+function revealed(slice, progress) {
+    const reach = START_DEGREES + 360 * progress;
+    return Math.max(0, Math.min(slice.sweep, reach - slice.start));
+}
+
 function bodyKind(period) {
     if (period.providers.length === 0)
         return "empty";
     return period.providers.length === 1 ? "stats" : "ring";
 }
 
-function infoText(period) {
-    const partial = period.partial ? " Some models have no public price yet." : "";
-    return `Estimated from local logs and public pricing.${partial}`;
+function infoText(lang, period) {
+    const partial = period.partial ? ` ${I18n.tr(lang, "Some models have no public price yet.")}` : "";
+    return `${I18n.tr(lang, "Estimated from local logs and public pricing.")}${partial}`;
+}
+
+function breakdownTitle(lang, periodKey, provider) {
+    return `${periodTitle(lang, periodKey)} · ${Providers.providerInfo(provider).name}`;
 }
