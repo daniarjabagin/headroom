@@ -394,6 +394,12 @@ Registered providers, in registry order:
 | `devin` | Devin | `devin` login, or detected | no |
 | `copilot` | Copilot | `gh` login, or detected | no |
 | `cursor` | Cursor | detected from the IDE login (one account) | no |
+| `antigravity` | Antigravity | detected (one account) | no |
+| `ollama` | Ollama Cloud | detected from `~/.ollama/id_ed25519` (one account) | no |
+
+Ollama discovery signs one `POST /api/me` per discovery pass (every 10 min): 401/403 means the key
+is not linked to an ollama.com account (local-only user) and no account is listed; any other failure
+keeps the account so the refresh shows the error.
 - The daemon's `ProviderCatalog` holds the compiled-in descriptors. It supplies `provider_name` for
   the state payload and notifications (the id when a stored account belongs to a provider this build
   lacks), orders `usage[]` by registry position, and answers D-Bus `ListProviders`.

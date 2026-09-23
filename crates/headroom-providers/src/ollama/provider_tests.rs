@@ -106,11 +106,54 @@ async fn the_user_key_is_one_cli_owned_account() {
     let setup = Setup::new().await;
     let keys = setup.keys();
     Setup::write_key(&keys.user, TEST_KEY);
+    setup.answer("POST", "/api/me", 200, ME).await;
     let accounts = setup.provider().discover().await.unwrap();
     assert_eq!(accounts.len(), 1);
     assert_eq!(accounts[0].home, keys.user.parent().unwrap());
     assert_eq!(accounts[0].owner, CredentialOwner::Cli);
     assert!(accounts[0].id.0.starts_with("ollama:"));
+}
+
+#[tokio::test]
+async fn a_key_not_linked_to_ollama_com_is_not_an_account() {
+    for status in [401, 403] {
+        let setup = Setup::new().await;
+        Setup::write_key(&setup.keys().user, TEST_KEY);
+        setup.answer("POST", "/api/me", status, "{}").await;
+        assert_eq!(setup.provider().discover().await, Ok(Vec::new()));
+    }
+}
+
+#[tokio::test]
+async fn discovery_keeps_the_account_when_the_link_check_fails() {
+    for status in [500, 429] {
+        let setup = Setup::new().await;
+        Setup::write_key(&setup.keys().user, TEST_KEY);
+        setup.answer("POST", "/api/me", status, "").await;
+        assert_eq!(setup.provider().discover().await.unwrap().len(), 1);
+    }
+    let setup = Setup::new().await;
+    Setup::write_key(&setup.keys().user, TEST_KEY);
+    let config = OllamaConfig {
+        keys: setup.keys(),
+        api_base: "http://127.0.0.1:1".to_owned(),
+    };
+    let offline = OllamaProvider::with_clock(config, reqwest::Client::new(), fixed_now);
+    assert_eq!(offline.discover().await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn discovery_checks_the_link_once_with_a_signed_request() {
+    let setup = Setup::new().await;
+    Setup::write_key(&setup.keys().user, TEST_KEY);
+    setup.answer("POST", "/api/me", 200, ME).await;
+    setup.provider().discover().await.unwrap();
+    let requests = setup.server.received_requests().await.unwrap();
+    let calls: Vec<_> = requests
+        .iter()
+        .map(|request| (request.method.to_string(), request.url.path().to_owned()))
+        .collect();
+    assert_eq!(calls, [("POST".to_owned(), "/api/me".to_owned())]);
 }
 
 #[tokio::test]

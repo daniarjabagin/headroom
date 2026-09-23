@@ -105,6 +105,14 @@ impl OllamaProvider {
         ))
     }
 
+    async fn is_unlinked(&self, pem: &str) -> bool {
+        let Ok(key) = SigningKey::parse(pem) else {
+            return false;
+        };
+        let answer = self.client.me(&key, (self.clock)()).await;
+        matches!(answer, Err(ProviderError::SignInExpired))
+    }
+
     fn unreadable(&self, path: &Path) -> LimitsSnapshot {
         let text = if path == self.keys.system {
             format!(
@@ -140,6 +148,11 @@ impl Provider for OllamaProvider {
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         let located = locate(&self.keys);
         let path = located.path().ok_or(ProviderError::NotSignedIn)?;
+        if let KeyFile::Found { pem, .. } = &located
+            && self.is_unlinked(pem).await
+        {
+            return Ok(Vec::new());
+        }
         Ok(vec![account_ref(path)])
     }
 
