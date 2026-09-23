@@ -62,7 +62,9 @@ pub struct EventKey(pub String);
 ```
 
 - `EventKey` is globally unique per billed API response: Codex `response_id`, Claude
-  `message.id + ":" + requestId`. Fallback key for old logs: stable hash of `(at, model, tokens)`.
+  `message.id + ":" + requestId` (or `message.id` alone when `requestId` is missing). Claude
+  `usage.iterations[]` entries not covered by the top-level usage (all but the last) get
+  `{base}:iter:{index}`. Fallback key when no id exists: stable hash of `(at, model, tokens)`.
 - Providers emit raw events only. Cost is never stored; it is computed at query time so price
   updates re-cost history.
 - The daemon stores events keyed by `(provider, usage_home, key)`. Duplicate keys keep the event with

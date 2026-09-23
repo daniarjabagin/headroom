@@ -1,7 +1,6 @@
-use std::io;
 use std::path::{Path, PathBuf};
 
-use headroom_core::cursor::{FileCursor, LogCursors};
+use headroom_core::cursor::LogCursors;
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::ProviderError;
 use jiff::Timestamp;
@@ -19,7 +18,7 @@ pub(super) fn read_usage(
     jsonl::prune_missing(cursors);
     let mut events = Vec::new();
     for path in rollout_files(home)? {
-        read_file(&path, cursors.cursor_mut(&path), now, &mut events)?;
+        read_file(&path, cursors, now, &mut events)?;
     }
     Ok(events)
 }
@@ -34,15 +33,14 @@ pub(super) fn rollout_files(home: &Path) -> Result<Vec<PathBuf>, JsonlError> {
 
 fn read_file(
     path: &Path,
-    cursor: &mut FileCursor,
+    cursors: &mut LogCursors,
     now: Timestamp,
     events: &mut Vec<UsageEvent>,
 ) -> Result<(), ProviderError> {
-    let lines = match jsonl::read_new_lines(path, cursor) {
-        Ok(lines) => lines,
-        Err(error) if is_not_found(&error) => return Ok(()),
-        Err(error) => return Err(error.into()),
+    let Some(lines) = jsonl::read_new_lines_or_skip(path, cursors) else {
+        return Ok(());
     };
+    let cursor = cursors.cursor_mut(path);
     let mut state = ParserState::from_value(&cursor.state);
     for line in &lines {
         state.consume(line, events);
@@ -52,12 +50,6 @@ fn read_file(
         .to_value()
         .map_err(|error| ProviderError::LocalData(format!("cannot store parser state: {error}")))?;
     Ok(())
-}
-
-fn is_not_found(error: &JsonlError) -> bool {
-    match error {
-        JsonlError::Io { source, .. } => source.kind() == io::ErrorKind::NotFound,
-    }
 }
 
 #[cfg(test)]

@@ -6,6 +6,8 @@ use headroom_core::account::{AccountId, ProviderKind};
 use headroom_core::provider::ProviderError;
 use serde::Deserialize;
 
+use super::config::ClaudeConfig;
+
 const IDENTITY_FILE: &str = ".claude.json";
 const DEFAULT_DIR_NAME: &str = ".claude";
 
@@ -35,12 +37,20 @@ struct RawOAuthAccount {
     email_address: Option<String>,
 }
 
-pub(super) fn identity_file(home: &Path, dir: &Path) -> PathBuf {
-    if same_dir(dir, &home.join(DEFAULT_DIR_NAME)) {
-        home.join(IDENTITY_FILE)
+pub(super) fn identity_file(config: &ClaudeConfig, dir: &Path) -> PathBuf {
+    if uses_home_identity(config, dir) {
+        config.home.join(IDENTITY_FILE)
     } else {
         dir.join(IDENTITY_FILE)
     }
+}
+
+fn uses_home_identity(config: &ClaudeConfig, dir: &Path) -> bool {
+    let reached_via_override = config
+        .config_dir
+        .as_deref()
+        .is_some_and(|override_dir| same_dir(override_dir, dir));
+    !reached_via_override && same_dir(dir, &config.home.join(DEFAULT_DIR_NAME))
 }
 
 pub(super) fn same_dir(a: &Path, b: &Path) -> bool {
@@ -52,10 +62,10 @@ pub(super) fn canonical(path: &Path) -> PathBuf {
 }
 
 pub(super) fn load_identity(
-    home: &Path,
+    config: &ClaudeConfig,
     dir: &Path,
 ) -> Result<Option<ClaudeIdentity>, ProviderError> {
-    let path = identity_file(home, dir);
+    let path = identity_file(config, dir);
     match fs::read_to_string(&path) {
         Ok(text) => parse_identity(&text).map_err(|message| {
             ProviderError::LocalData(format!("cannot parse {}: {message}", path.display()))
@@ -134,19 +144,59 @@ mod tests {
         assert!(message.starts_with("line 1"));
     }
 
+    fn config(home: &Path, config_dir: Option<PathBuf>) -> ClaudeConfig {
+        ClaudeConfig {
+            config_dir,
+            ..ClaudeConfig::for_home(home.to_path_buf())
+        }
+    }
+
     #[test]
-    fn default_dir_reads_identity_next_to_it() {
+    fn default_dir_without_override_reads_identity_next_to_it() {
         let home = tempfile::tempdir().unwrap();
         let default_dir = home.path().join(".claude");
         let other = home.path().join(".claude-work");
         fs::create_dir_all(&default_dir).unwrap();
+        let config = config(home.path(), None);
         assert_eq!(
-            identity_file(home.path(), &default_dir),
+            identity_file(&config, &default_dir),
             home.path().join(".claude.json")
         );
+        assert_eq!(identity_file(&config, &other), other.join(".claude.json"));
+    }
+
+    #[test]
+    fn override_pointing_at_default_dir_reads_identity_inside_it() {
+        let home = tempfile::tempdir().unwrap();
+        let default_dir = home.path().join(".claude");
+        fs::create_dir_all(&default_dir).unwrap();
+        let config = config(home.path(), Some(default_dir.clone()));
         assert_eq!(
-            identity_file(home.path(), &other),
-            other.join(".claude.json")
+            identity_file(&config, &default_dir),
+            default_dir.join(".claude.json")
+        );
+    }
+
+    #[test]
+    fn override_through_symlink_to_default_dir_reads_identity_inside_it() {
+        let home = tempfile::tempdir().unwrap();
+        let default_dir = home.path().join(".claude");
+        let link = home.path().join("claude-link");
+        fs::create_dir_all(&default_dir).unwrap();
+        std::os::unix::fs::symlink(&default_dir, &link).unwrap();
+        let config = config(home.path(), Some(link.clone()));
+        assert_eq!(identity_file(&config, &link), link.join(".claude.json"));
+    }
+
+    #[test]
+    fn default_dir_scanned_under_another_override_reads_identity_next_to_it() {
+        let home = tempfile::tempdir().unwrap();
+        let default_dir = home.path().join(".claude");
+        fs::create_dir_all(&default_dir).unwrap();
+        let config = config(home.path(), Some(home.path().join("work/claude")));
+        assert_eq!(
+            identity_file(&config, &default_dir),
+            home.path().join(".claude.json")
         );
     }
 
@@ -154,6 +204,9 @@ mod tests {
     fn missing_identity_file_is_none() {
         let home = tempfile::tempdir().unwrap();
         let dir = home.path().join(".claude");
-        assert_eq!(load_identity(home.path(), &dir).unwrap(), None);
+        assert_eq!(
+            load_identity(&config(home.path(), None), &dir).unwrap(),
+            None
+        );
     }
 }

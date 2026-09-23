@@ -18,7 +18,7 @@ pub(super) fn discover_accounts(config: &ClaudeConfig) -> Vec<AccountRef> {
     let mut seen = BTreeSet::new();
     candidates(config)
         .into_iter()
-        .filter_map(|candidate| inspect(&config.home, candidate))
+        .filter_map(|candidate| inspect(config, candidate))
         .filter(|account| seen.insert(account.id.clone()))
         .collect()
 }
@@ -78,11 +78,11 @@ fn is_hidden(path: &Path) -> bool {
         .is_some_and(|name| name.starts_with('.'))
 }
 
-fn inspect(home: &Path, candidate: Candidate) -> Option<AccountRef> {
+fn inspect(config: &ClaudeConfig, candidate: Candidate) -> Option<AccountRef> {
     if candidate.needs_credentials && !candidate.dir.join(CREDENTIALS_FILE).is_file() {
         return None;
     }
-    let identity = match load_identity(home, &candidate.dir) {
+    let identity = match load_identity(config, &candidate.dir) {
         Ok(identity) => identity?,
         Err(error) => {
             tracing::warn!(dir = %candidate.dir.display(), %error, "skipping Claude config dir");

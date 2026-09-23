@@ -214,3 +214,19 @@ fn empty_home_has_no_accounts() {
     let (_home, config) = setup();
     assert!(discover_accounts(&config).is_empty());
 }
+
+#[test]
+fn config_dir_override_at_default_dir_reads_identity_inside_it() {
+    let (home, mut config) = setup();
+    let default_dir = home.path().join(".claude");
+    config.config_dir = Some(default_dir.clone());
+    write(
+        &home.path().join(".claude.json"),
+        &state("acc-unset", "org-1"),
+    );
+    login_scoped(&default_dir, "acc-override");
+    assert_eq!(
+        summary(&discover_accounts(&config)),
+        [(id("acc-override"), default_dir, CredentialOwner::Cli)]
+    );
+}

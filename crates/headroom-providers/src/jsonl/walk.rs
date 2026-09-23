@@ -1,8 +1,8 @@
-use std::fs;
+use std::fs::{self, FileType, ReadDir};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use super::{JsonlError, io_error};
+use super::{JsonlError, io_error, warn_skipped};
 
 pub fn jsonl_files(root: &Path) -> Result<Vec<PathBuf>, JsonlError> {
     match fs::metadata(root) {
@@ -14,34 +14,56 @@ pub fn jsonl_files(root: &Path) -> Result<Vec<PathBuf>, JsonlError> {
 }
 
 fn collect(root: &Path) -> Result<Vec<PathBuf>, JsonlError> {
-    let mut files = Vec::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for (path, kind) in entries(&dir)? {
-            if kind.is_dir() {
-                pending.push(path);
-            } else if kind.is_file() && is_jsonl(&path) {
-                files.push(path);
+    let mut walk = Walk::default();
+    if let Some(reader) = open_root(root)? {
+        walk.visit(root, reader);
+    }
+    while let Some(dir) = walk.pending.pop() {
+        if let Some(reader) = open_subdir(&dir) {
+            walk.visit(&dir, reader);
+        }
+    }
+    walk.files.sort();
+    Ok(walk.files)
+}
+
+fn open_root(root: &Path) -> Result<Option<ReadDir>, JsonlError> {
+    match fs::read_dir(root) {
+        Ok(reader) => Ok(Some(reader)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(io_error(root)(error)),
+    }
+}
+
+fn open_subdir(dir: &Path) -> Option<ReadDir> {
+    fs::read_dir(dir)
+        .inspect_err(|error| warn_skipped(dir, error))
+        .ok()
+}
+
+#[derive(Default)]
+struct Walk {
+    files: Vec<PathBuf>,
+    pending: Vec<PathBuf>,
+}
+
+impl Walk {
+    fn visit(&mut self, dir: &Path, reader: ReadDir) {
+        for entry in reader {
+            match entry.and_then(|entry| Ok((entry.file_type()?, entry.path()))) {
+                Ok((kind, path)) => self.add(kind, path),
+                Err(error) => warn_skipped(dir, &error),
             }
         }
     }
-    files.sort();
-    Ok(files)
-}
 
-fn entries(dir: &Path) -> Result<Vec<(PathBuf, fs::FileType)>, JsonlError> {
-    let reader = match fs::read_dir(dir) {
-        Ok(reader) => reader,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(error) => return Err(io_error(dir)(error)),
-    };
-    reader
-        .map(|entry| {
-            let entry = entry.map_err(io_error(dir))?;
-            let kind = entry.file_type().map_err(io_error(&entry.path()))?;
-            Ok((entry.path(), kind))
-        })
-        .collect()
+    fn add(&mut self, kind: FileType, path: PathBuf) {
+        if kind.is_dir() {
+            self.pending.push(path);
+        } else if kind.is_file() && is_jsonl(&path) {
+            self.files.push(path);
+        }
+    }
 }
 
 fn is_jsonl(path: &Path) -> bool {
@@ -54,6 +76,7 @@ mod tests {
     use std::os::unix::fs::symlink;
 
     use super::*;
+    use crate::jsonl::locked::Locked;
 
     fn touch(path: &Path) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -112,5 +135,56 @@ mod tests {
         let file = dir.path().join("file.jsonl");
         touch(&file);
         assert!(jsonl_files(&file).unwrap().is_empty());
+    }
+
+    #[test]
+    fn unreadable_subdirectory_is_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        touch(&root.join("a.jsonl"));
+        touch(&root.join("locked/hidden.jsonl"));
+        touch(&root.join("open/b.jsonl"));
+        let lock = Locked::new(&root.join("locked"));
+        if !lock.is_enforced() {
+            return;
+        }
+        assert_eq!(
+            jsonl_files(root).unwrap(),
+            [root.join("a.jsonl"), root.join("open/b.jsonl")]
+        );
+    }
+
+    #[test]
+    fn unreadable_file_is_still_listed() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        touch(&root.join("locked.jsonl"));
+        let _lock = Locked::new(&root.join("locked.jsonl"));
+        assert_eq!(jsonl_files(root).unwrap(), [root.join("locked.jsonl")]);
+    }
+
+    #[test]
+    fn unreadable_root_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("root");
+        touch(&root.join("a.jsonl"));
+        let lock = Locked::new(&root);
+        if !lock.is_enforced() {
+            return;
+        }
+        let error = jsonl_files(&root).unwrap_err();
+        assert!(error.to_string().contains("root"));
+    }
+
+    #[test]
+    fn root_below_an_unreadable_parent_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = dir.path().join("parent");
+        touch(&parent.join("root/a.jsonl"));
+        let lock = Locked::new(&parent);
+        if !lock.is_enforced() {
+            return;
+        }
+        assert!(jsonl_files(&parent.join("root")).is_err());
     }
 }

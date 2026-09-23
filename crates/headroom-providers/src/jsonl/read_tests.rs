@@ -179,3 +179,42 @@ fn prune_drops_only_missing_files() {
     prune_missing(&mut cursors);
     assert_eq!(cursors.0.keys().collect::<Vec<_>>(), [&kept]);
 }
+
+#[test]
+fn skipped_read_restores_the_previous_cursor() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("directory.jsonl");
+    fs::create_dir(&path).unwrap();
+    let mut cursors = LogCursors::default();
+    let previous = FileCursor {
+        inode: 1,
+        size: 10,
+        mtime_ns: 5,
+        offset: 10,
+        state: json!({ "model": "m" }),
+    };
+    *cursors.cursor_mut(&path) = previous.clone();
+    assert_eq!(read_new_lines_or_skip(&path, &mut cursors), None);
+    assert_eq!(cursors.0.get(&path), Some(&previous));
+}
+
+#[test]
+fn skipped_read_of_an_unknown_file_leaves_no_cursor() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("directory.jsonl");
+    fs::create_dir(&path).unwrap();
+    let mut cursors = LogCursors::default();
+    assert_eq!(read_new_lines_or_skip(&path, &mut cursors), None);
+    assert!(cursors.0.is_empty());
+}
+
+#[test]
+fn successful_tracked_read_advances_the_cursor() {
+    let (_dir, path) = log_file("a\nb\n");
+    let mut cursors = LogCursors::default();
+    assert_eq!(
+        read_new_lines_or_skip(&path, &mut cursors),
+        Some(vec!["a".to_owned(), "b".to_owned()])
+    );
+    assert_eq!(cursors.0[&path].offset, 4);
+}

@@ -3,6 +3,7 @@ use std::io::Write;
 
 use super::super::test_support::{at, write_rollout};
 use super::*;
+use crate::jsonl::locked::Locked;
 
 const RECORDS: &str = include_str!("fixtures/rollout_records.jsonl");
 const LEGACY: &str = include_str!("fixtures/rollout_legacy.jsonl");
@@ -111,4 +112,35 @@ fn missing_home_has_no_usage() {
     let mut cursors = LogCursors::default();
     let events = read_usage(&home.path().join("absent"), &mut cursors, at(NOW)).unwrap();
     assert!(events.is_empty());
+}
+
+#[test]
+fn unreadable_rollout_is_skipped_without_losing_other_events() {
+    let home = tempfile::tempdir().unwrap();
+    let locked = write_rollout(home.path(), "sessions/a/rollout-a.jsonl", LEGACY);
+    write_rollout(home.path(), "sessions/b/rollout-b.jsonl", RECORDS);
+    let mut cursors = LogCursors::default();
+    let lock = Locked::new(&locked);
+    if !lock.is_enforced() {
+        return;
+    }
+    let events = read_usage(home.path(), &mut cursors, at(NOW)).unwrap();
+    assert_eq!(events.len(), 3);
+    assert!(!cursors.0.contains_key(&locked));
+    drop(lock);
+    let events = read_usage(home.path(), &mut cursors, at(NOW)).unwrap();
+    assert_eq!(events.len(), 2);
+}
+
+#[test]
+fn unreadable_session_directory_is_skipped() {
+    let home = tempfile::tempdir().unwrap();
+    write_rollout(home.path(), "sessions/a/rollout-a.jsonl", LEGACY);
+    write_rollout(home.path(), "sessions/b/rollout-b.jsonl", RECORDS);
+    let lock = Locked::new(&home.path().join("sessions/a"));
+    if !lock.is_enforced() {
+        return;
+    }
+    let events = read_usage(home.path(), &mut LogCursors::default(), at(NOW)).unwrap();
+    assert_eq!(events.len(), 3);
 }

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use headroom_core::cursor::{FileCursor, LogCursors};
 
-use super::{JsonlError, io_error};
+use super::{JsonlError, io_error, warn_skipped};
 
 pub fn read_new_lines(path: &Path, cursor: &mut FileCursor) -> Result<Vec<String>, JsonlError> {
     let mut file = File::open(path).map_err(io_error(path))?;
@@ -18,6 +18,25 @@ pub fn read_new_lines(path: &Path, cursor: &mut FileCursor) -> Result<Vec<String
     cursor.offset += complete.len() as u64;
     stamp.store(cursor);
     Ok(split_lines(complete))
+}
+
+pub fn read_new_lines_or_skip(path: &Path, cursors: &mut LogCursors) -> Option<Vec<String>> {
+    let previous = cursors.0.get(path).cloned();
+    match read_new_lines(path, cursors.cursor_mut(path)) {
+        Ok(lines) => Some(lines),
+        Err(JsonlError::Io { source, .. }) => {
+            restore(cursors, path, previous);
+            warn_skipped(path, &source);
+            None
+        }
+    }
+}
+
+fn restore(cursors: &mut LogCursors, path: &Path, previous: Option<FileCursor>) {
+    match previous {
+        Some(cursor) => *cursors.cursor_mut(path) = cursor,
+        None => cursors.retain(|known| known != path),
+    }
 }
 
 pub fn prune_missing(cursors: &mut LogCursors) {

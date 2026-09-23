@@ -8,8 +8,17 @@ fn session_line(index: usize) -> &'static str {
     SESSION.lines().nth(index).unwrap()
 }
 
+fn single(line: &str) -> Option<UsageEvent> {
+    let mut events = parse_line(line);
+    assert!(
+        events.len() <= 1,
+        "expected at most one event, got {events:?}"
+    );
+    events.pop()
+}
+
 fn parsed(index: usize) -> Option<UsageEvent> {
-    parse_line(session_line(index))
+    single(session_line(index))
 }
 
 #[test]
@@ -72,8 +81,15 @@ fn legacy_cache_total_counts_as_five_minute_write() {
 }
 
 #[test]
-fn missing_request_id_uses_fallback_key() {
+fn missing_request_id_keys_on_message_id() {
     let event = parsed(8).unwrap();
+    assert_eq!(event.key, EventKey("msg_fake_D".into()));
+}
+
+#[test]
+fn missing_message_and_request_ids_use_fallback_key() {
+    let line = session_line(8).replace("\"id\":\"msg_fake_D\",", "");
+    let event = single(&line).unwrap();
     assert!(event.key.is_fallback());
     assert_eq!(
         event.key,
@@ -100,27 +116,166 @@ fn assistant(usage: &serde_json::Value, model: &str) -> String {
 #[test]
 fn zero_usage_error_lines_are_skipped_even_with_real_model() {
     let usage = json!({ "input_tokens": 0, "output_tokens": 0 });
-    assert_eq!(parse_line(&assistant(&usage, "claude-opus-5-5")), None);
+    assert!(parse_line(&assistant(&usage, "claude-opus-5-5")).is_empty());
 }
 
 #[test]
 fn priority_service_tier_is_mapped() {
     let usage = json!({ "input_tokens": 1, "output_tokens": 1, "service_tier": "priority" });
-    let event = parse_line(&assistant(&usage, "claude-opus-5-5")).unwrap();
+    let event = single(&assistant(&usage, "claude-opus-5-5")).unwrap();
     assert_eq!(event.tier, ServiceTier::Priority);
 }
 
 #[test]
 fn empty_model_and_bad_timestamps_are_skipped() {
     let usage = json!({ "input_tokens": 1, "output_tokens": 1 });
-    assert_eq!(parse_line(&assistant(&usage, "")), None);
+    assert!(parse_line(&assistant(&usage, "")).is_empty());
     let line = assistant(&usage, "m").replace("2026-09-20T10:00:00Z", "yesterday");
-    assert_eq!(parse_line(&line), None);
+    assert!(parse_line(&line).is_empty());
 }
 
 #[test]
 fn garbage_lines_are_skipped() {
-    assert_eq!(parse_line("{\"type\":\"assistant\""), None);
-    assert_eq!(parse_line("[]"), None);
-    assert_eq!(parse_line("null"), None);
+    assert!(parse_line("{\"type\":\"assistant\"").is_empty());
+    assert!(parse_line("[]").is_empty());
+    assert!(parse_line("null").is_empty());
+}
+
+const ITERATIONS: &str = include_str!("fixtures/iterations.jsonl");
+
+fn iteration_line(index: usize) -> &'static str {
+    ITERATIONS.lines().nth(index).unwrap()
+}
+
+fn one_hour_write(input: u64, cache_write_1h: u64, output: u64) -> TokenCounts {
+    TokenCounts {
+        input: Tokens(input),
+        cache_write_1h: Tokens(cache_write_1h),
+        output: Tokens(output),
+        ..TokenCounts::default()
+    }
+}
+
+#[test]
+fn fallback_message_emits_the_earlier_iteration_with_its_own_model() {
+    let events = parse_line(iteration_line(0));
+    let summary: Vec<(&str, &str, TokenCounts)> = events
+        .iter()
+        .map(|e| (e.key.0.as_str(), e.model.as_str(), e.tokens))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            (
+                "msg_fake_F:req_fake_F",
+                "claude-opus-4-8",
+                one_hour_write(2, 3_696, 5)
+            ),
+            (
+                "msg_fake_F:req_fake_F:iter:0",
+                "claude-fable-5-1",
+                one_hour_write(47, 3_697, 0)
+            ),
+        ]
+    );
+    assert_eq!(events[1].at, events[0].at);
+    assert_eq!(events[1].web_search_requests, 0);
+}
+
+#[test]
+fn single_iteration_is_already_the_top_level_usage() {
+    let event = single(iteration_line(2)).unwrap();
+    assert_eq!(event.key, EventKey("msg_fake_G:req_fake_G".into()));
+    assert_eq!(event.tokens.total(), Tokens(2 + 24_000 + 1_600 + 287));
+}
+
+fn with_iterations(iterations: &serde_json::Value, request_id: bool) -> String {
+    let mut line = json!({
+        "type": "assistant",
+        "timestamp": "2026-09-20T10:00:00Z",
+        "message": {
+            "id": "msg_x",
+            "model": "claude-opus-4-8",
+            "usage": { "input_tokens": 2, "output_tokens": 5, "iterations": iterations }
+        }
+    });
+    if request_id {
+        line["requestId"] = json!("req_x");
+    }
+    line.to_string()
+}
+
+fn iteration(input: u64, model: Option<&str>) -> serde_json::Value {
+    json!({ "type": "message", "model": model, "input_tokens": input, "output_tokens": 0 })
+}
+
+fn keys_and_models(line: &str) -> Vec<(String, String)> {
+    parse_line(line)
+        .into_iter()
+        .map(|e| (e.key.0, e.model))
+        .collect()
+}
+
+#[test]
+fn iteration_without_model_uses_the_message_model() {
+    let line = with_iterations(&json!([iteration(9, None), iteration(2, None)]), true);
+    assert_eq!(
+        keys_and_models(&line),
+        [
+            ("msg_x:req_x".to_owned(), "claude-opus-4-8".to_owned()),
+            (
+                "msg_x:req_x:iter:0".to_owned(),
+                "claude-opus-4-8".to_owned()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn iteration_without_request_id_keys_on_message_id() {
+    let line = with_iterations(
+        &json!([iteration(9, Some("claude-fable-5-1")), iteration(2, None)]),
+        false,
+    );
+    assert_eq!(
+        keys_and_models(&line),
+        [
+            ("msg_x".to_owned(), "claude-opus-4-8".to_owned()),
+            ("msg_x:iter:0".to_owned(), "claude-fable-5-1".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn every_iteration_before_the_last_is_emitted_by_index() {
+    let line = with_iterations(
+        &json!([
+            iteration(7, Some("a")),
+            iteration(0, Some("zero")),
+            iteration(8, Some("b")),
+            iteration(2, None)
+        ]),
+        true,
+    );
+    let keys: Vec<String> = keys_and_models(&line).into_iter().map(|(k, _)| k).collect();
+    assert_eq!(
+        keys,
+        ["msg_x:req_x", "msg_x:req_x:iter:0", "msg_x:req_x:iter:2"]
+    );
+}
+
+#[test]
+fn malformed_iteration_keeps_the_rest_of_the_line() {
+    let line = with_iterations(
+        &json!([{ "type": "message", "input_tokens": "9" }, iteration(3, Some("a")), iteration(2, None)]),
+        true,
+    );
+    let keys: Vec<String> = keys_and_models(&line).into_iter().map(|(k, _)| k).collect();
+    assert_eq!(keys, ["msg_x:req_x", "msg_x:req_x:iter:1"]);
+}
+
+#[test]
+fn null_or_empty_iterations_add_nothing() {
+    assert_eq!(parse_line(&with_iterations(&json!(null), true)).len(), 1);
+    assert_eq!(parse_line(&with_iterations(&json!([]), true)).len(), 1);
 }

@@ -47,7 +47,7 @@ impl ClaudeProvider {
     }
 
     fn current_identity(&self, account: &AccountRef) -> Result<ClaudeIdentity, ProviderError> {
-        let identity = identity::load_identity(&self.config.home, &account.home)?
+        let identity = identity::load_identity(&self.config, &account.home)?
             .ok_or(ProviderError::NotSignedIn)?;
         if identity.account_id() == account.id {
             Ok(identity)

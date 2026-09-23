@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
-use std::io;
 use std::path::Path;
 
 use headroom_core::cursor::LogCursors;
@@ -8,7 +7,7 @@ use headroom_core::event::{EventKey, UsageEvent};
 use headroom_core::provider::ProviderError;
 
 use super::log_record::parse_line;
-use crate::jsonl::{self, JsonlError};
+use crate::jsonl;
 
 const PROJECTS_DIR: &str = "projects";
 
@@ -19,25 +18,14 @@ pub(super) fn read_usage(
     jsonl::prune_missing(cursors);
     let mut events = LatestByKey::default();
     for path in jsonl::jsonl_files(&home.join(PROJECTS_DIR))? {
-        for event in new_lines(&path, cursors)?
-            .iter()
-            .filter_map(|line| parse_line(line))
-        {
+        let Some(lines) = jsonl::read_new_lines_or_skip(&path, cursors) else {
+            continue;
+        };
+        for event in lines.iter().flat_map(|line| parse_line(line)) {
             events.insert(event);
         }
     }
     Ok(events.into_sorted())
-}
-
-fn new_lines(path: &Path, cursors: &mut LogCursors) -> Result<Vec<String>, ProviderError> {
-    match jsonl::read_new_lines(path, cursors.cursor_mut(path)) {
-        Ok(lines) => Ok(lines),
-        Err(JsonlError::Io { source, .. }) if source.kind() == io::ErrorKind::NotFound => {
-            cursors.retain(|known| known != path);
-            Ok(Vec::new())
-        }
-        Err(error) => Err(error.into()),
-    }
 }
 
 #[derive(Default)]
