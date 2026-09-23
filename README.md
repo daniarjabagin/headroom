@@ -1,5 +1,7 @@
 # Headroom
 
+[![CI](https://github.com/OWNER/headroom/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/headroom/actions/workflows/ci.yml)
+
 See how much of your AI coding limits is left — right in your Linux top panel.
 
 Headroom tracks Codex, Claude Code and other AI coding tools: session and weekly limits, reset times,
@@ -8,7 +10,38 @@ desktop with a system tray, on Wayland and X11.
 
 Status: early development.
 
-## Install
+## Installation
+
+Releases ship a static binary for x86_64 and aarch64 that runs on any distribution.
+
+### One-line installer
+
+```sh
+curl -fsSL https://github.com/OWNER/headroom/releases/latest/download/get-headroom.sh | sh
+```
+
+It downloads the release tarball for your architecture, verifies it against `SHA256SUMS` and installs
+into `~/.local` like the source install below. Pass options after `sh -s --`, for example
+`sh -s -- --no-gnome`; set `HEADROOM_VERSION=v0.1.0` to pin a release. The tarball itself contains the
+same `install.sh` if you prefer to download it by hand.
+
+### Packages
+
+Every release has `.deb`, `.rpm` and Arch `.pkg.tar.zst` packages. They install `/usr/bin/headroom`,
+the systemd user unit, D-Bus activation, the GNOME Shell extension and the Plasma widget system-wide:
+
+```sh
+sudo apt install ./headroom_*_amd64.deb             # Debian, Ubuntu
+sudo dnf install ./headroom-*.x86_64.rpm            # Fedora (zypper install on openSUSE)
+sudo pacman -U ./headroom-*-x86_64.pkg.tar.zst      # Arch Linux
+```
+
+Then, as your user: `systemctl --user enable --now headroom.service`, and enable the panel with
+`gnome-extensions enable headroom@headroom.github.io` or add the Headroom widget in Plasma. Verify
+downloads with `sha256sum -c SHA256SUMS --ignore-missing` or `gh attestation verify <file> --repo
+OWNER/headroom`.
+
+### From source
 
 Requirements: a Rust toolchain (`cargo`), a systemd user session and a D-Bus session bus. The GNOME
 extension additionally needs `gnome-extensions`, `glib-compile-schemas` and `python3`.
