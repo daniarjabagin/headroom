@@ -21,7 +21,31 @@ def wait_for_code(timeout):
     return sys.stdin.readline().strip() or None
 
 
+def record(entry):
+    log = os.environ.get("HEADROOM_FAKE_LOG")
+    if log:
+        with open(log, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry) + "\n")
+
+
+def add_key(args):
+    key = sys.stdin.readline().strip()
+    rest = sys.stdin.read()
+    record({"argv": sys.argv[1:], "stdin_key": key, "stdin_closed": rest == ""})
+    time.sleep(STEP_SECONDS)
+    if not key or key == "bad":
+        emit("error", message=f"{args.provider} rejected the key (HTTP 401)")
+        return 1
+    home = f"/tmp/headroom-fake/accounts/{args.provider}/0123456789ab"
+    emit("started", provider=args.provider, home=home)
+    time.sleep(STEP_SECONDS / 2)
+    emit("done", account_id=f"{args.provider}:0123456789ab", label=args.label)
+    return 0
+
+
 def add(args):
+    if args.api_key_stdin:
+        return add_key(args)
     emit("started", provider=args.provider, label=args.label)
     time.sleep(STEP_SECONDS)
     emit("output", line=f"Starting {args.provider} sign-in in a Headroom-owned home")
@@ -53,8 +77,9 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     accounts = commands.add_parser("accounts").add_subparsers(dest="action", required=True)
     add_parser = accounts.add_parser("add")
-    add_parser.add_argument("provider", choices=["codex", "claude"])
+    add_parser.add_argument("provider")
     add_parser.add_argument("--label")
+    add_parser.add_argument("--api-key-stdin", action="store_true")
     add_parser.add_argument("--progress", choices=["json"])
     remove_parser = accounts.add_parser("remove")
     remove_parser.add_argument("id")

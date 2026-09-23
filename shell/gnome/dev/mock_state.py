@@ -8,6 +8,42 @@ TOP_MODELS = 5
 TRACKED = ("healthy", "close")
 
 
+def cli_login(program):
+    return {"kind": "cli_login", "program": program}
+
+
+def api_key(console_url, hint=None):
+    return {"kind": "api_key", "label": "API key", "console_url": console_url, "hint": hint}
+
+
+def auto_detect(reason):
+    return {"kind": "auto_detect", "reason": reason}
+
+
+def registry_entry(provider_id, name, methods, local_usage=False):
+    return {"id": provider_id, "display_name": name, "add_account": methods, "multi_account": True,
+            "local_usage": local_usage}
+
+
+PROVIDERS = [
+    registry_entry("codex", "Codex", [cli_login("codex")], True),
+    registry_entry("claude", "Claude", [cli_login("claude")], True),
+    registry_entry("opencode", "OpenCode", [auto_detect("Headroom reads OpenCode's local logs, nothing to add.")], True),
+    registry_entry("openrouter", "OpenRouter", [api_key("https://openrouter.ai/settings/keys", "Starts with sk-or-")]),
+    registry_entry("zai", "Z.ai", [api_key("https://z.ai/manage-apikey/apikey-list")]),
+    registry_entry("kimi", "Kimi", [cli_login("kimi"), api_key("https://platform.moonshot.ai/console/api-keys")]),
+    registry_entry("minimax", "MiniMax", [api_key("https://platform.minimax.io/user-center/basic-information")]),
+    registry_entry("grok", "Grok", [api_key("https://console.x.ai", "Starts with xai-")]),
+    registry_entry("cline", "Cline", [auto_detect("Headroom finds the Cline sign-in in VS Code's storage.")]),
+    registry_entry("devin", "Devin", [api_key("https://app.devin.ai/settings/api-keys")]),
+    registry_entry("copilot", "GitHub Copilot", [cli_login("gh")]),
+    registry_entry("cursor", "Cursor", [auto_detect("Headroom reads the sign-in of the Cursor app on this computer.")]),
+    registry_entry("antigravity", "Antigravity", [auto_detect("Headroom reads the sign-in of the Antigravity app.")]),
+    registry_entry("ollama", "Ollama", [api_key("https://ollama.com/settings/keys")]),
+]
+PROVIDER_NAMES = {entry["id"]: entry["display_name"] for entry in PROVIDERS}
+
+
 def iso(moment):
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if moment else None
 
@@ -126,7 +162,7 @@ def daily(now, seed, scale):
 
 
 def usage_entry(provider, home, now, seed, periods, scale):
-    entry = {"provider": provider, "usage_home": home}
+    entry = {"provider": provider, "provider_name": PROVIDER_NAMES[provider], "usage_home": home}
     entry.update(zip(PERIODS, periods))
     entry["daily"] = daily(now, seed, scale)
     entry["models"] = entry["last_30_days"]["models"]
@@ -137,6 +173,7 @@ def provider_spend(usage, provider, period):
     entries = [entry[period] for entry in usage if entry["provider"] == provider]
     return {
         "provider": provider,
+        "provider_name": PROVIDER_NAMES[provider],
         "cost_usd_micros": sum(t["cost_usd_micros"] for t in entries),
         "total_tokens": sum(t["tokens"]["total"] for t in entries),
         "partial": any(t["partial"] for t in entries),
@@ -157,10 +194,17 @@ def period_spend(usage, period):
     }
 
 
+def default_home(account_id, provider):
+    if provider in ("codex", "claude"):
+        return f"~/.{provider}"
+    return f"~/.local/share/headroom/accounts/{provider}/{account_id.split(':')[1]}"
+
+
 def account(account_id, provider, label, email, plan, status, windows, now, **extra):
     base = {
         "id": account_id,
         "provider": provider,
+        "provider_name": PROVIDER_NAMES[provider],
         "label": label,
         "email": email,
         "plan": plan,
@@ -173,7 +217,7 @@ def account(account_id, provider, label, email, plan, status, windows, now, **ex
         "windows": windows,
         "balances": [],
         "notices": [],
-        "usage_home": "~/.codex" if provider == "codex" else "~/.claude",
+        "usage_home": default_home(account_id, provider),
     }
     base.update(extra)
     return base
@@ -242,6 +286,23 @@ def codex_lapsed(now):
     )
 
 
+def openrouter_key(now):
+    return account(
+        "openrouter:3c2b1a0f9e8d", "openrouter", None, None, None, "fresh", [], now,
+        owner="headroom",
+        balances=[{"id": "credits", "label": "Credits", "kind": "usd", "usd_micros": 7_420_000}],
+    )
+
+
+def grok_weekly(now):
+    return account(
+        "grok:6d5c4b3a2f1e", "grok", None, "dev@example.com", "SuperGrok", "fresh",
+        [window("weekly", "Weekly", 42.0, 3 * DAY + 4 * HOUR, 7 * DAY, "good", pace("healthy", 55.0, 76.0), now)],
+        now,
+        owner="headroom",
+    )
+
+
 CODEX_MIX = [("gpt-5.5", 62, 78), ("gpt-5.5-mini", 21, 12), ("gpt-5.4-codex", 11, 8), ("o4-mini", 6, 2)]
 CLAUDE_MIX = [
     ("claude-opus-4-5", 34, 61),
@@ -251,6 +312,7 @@ CLAUDE_MIX = [
     ("claude-sonnet-4", 6, 2),
     ("claude-3-5-haiku", 5, 1),
 ]
+OPENCODE_MIX = [("kimi-k2", 58, 41), ("glm-4.6", 42, 59)]
 
 
 def full_usage(now):
@@ -261,6 +323,9 @@ def full_usage(now):
         usage_entry("claude", "~/.claude", now, 5,
                     (totals(1_203_448, 4_050_000, CLAUDE_MIX), totals(2_400_000, 8_300_000, CLAUDE_MIX),
                      totals(35_812_904, 96_400_000, CLAUDE_MIX, (412_000, ["claude-next"]))), 23_000),
+        usage_entry("opencode", "~/.local/share/opencode", now, 7,
+                    (totals(640_000, 1_310_000, OPENCODE_MIX), totals(0, 0, OPENCODE_MIX),
+                     totals(12_480_000, 24_700_000, OPENCODE_MIX)), 9_000),
     ]
 
 
@@ -291,7 +356,8 @@ def headline_for(entry, window_entry):
         "account_id": entry["id"],
         "window": window_entry["id"],
         "provider": entry["provider"],
-        "account_label": entry["label"] or entry["email"],
+        "provider_name": entry["provider_name"],
+        "account_label": entry["label"] or entry["email"] or entry["provider_name"],
         "window_label": window_entry["label"],
         "used_percent": window_entry["used_percent"],
         "remaining_percent": window_entry["remaining_percent"],
@@ -335,7 +401,8 @@ WORK_SESSION = ("codex:1a2b3c4d5e6f", "session")
 
 
 def full_accounts(now):
-    return [codex_work(now), codex_personal(now), claude_personal(now), claude_team(now)]
+    return [codex_work(now), codex_personal(now), claude_personal(now), claude_team(now), openrouter_key(now),
+            grok_weekly(now)]
 
 
 def full_state(now):

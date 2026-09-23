@@ -2,7 +2,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
-import { providerInfo } from './providers.js';
+import { providerIconFile } from './providerIcons.js';
 
 export function column(params = {}) {
     const box = new St.BoxLayout(params);
@@ -40,10 +40,9 @@ export function fileIcon(dir, fileName, styleClass) {
 }
 
 export function providerIcon(dir, provider, styleClass) {
-    const info = providerInfo(provider);
-    const classes = `${styleClass}${info.tinted ? ' tinted' : ''}`;
-    if (info.icon === null) return themeIcon('application-x-executable-symbolic', classes);
-    return fileIcon(dir, info.icon, classes);
+    const { gicon, tinted } = providerIconFile(dir, provider);
+    const classes = `${styleClass}${tinted ? ' tinted' : ''}`;
+    return new St.Icon({ gicon, style_class: classes, y_align: Clutter.ActorAlign.CENTER });
 }
 
 export function button(child, styleClass, onClick) {

@@ -1,6 +1,5 @@
 import { lacksSubscription, subscriptionNote } from '../accountStatus.js';
 import { _, fill } from '../i18n.js';
-import { providerInfo } from '../providers.js';
 import { column } from '../widgets.js';
 import { AccountHeader, failedOffline } from './accountHeader.js';
 import { Expander } from './expander.js';
@@ -12,16 +11,13 @@ import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
 const SKELETON_ROWS = 2;
 
 function signedOutNotice(ctx, account) {
-    const info = providerInfo(account.provider);
     const actions = [{ label: _('Retry'), run: () => ctx.actions.refresh(account.id) }];
-    if (info.signInCommand)
-        actions.unshift({ label: _('Copy command'), run: () => ctx.actions.copy(info.signInCommand) });
+    if (account.owner === 'headroom')
+        actions.unshift({ label: _('Settings'), run: () => ctx.actions.openPreferences() });
     return noticeRow({
         kind: 'signin',
-        title: fill(_('Signed out of {provider}'), { provider: info.name }),
-        detail: info.signInCommand
-            ? fill(_('Run "{command}" and sign in, then Retry'), { command: info.signInCommand })
-            : _('Sign in again, then Retry'),
+        title: fill(_('Signed out of {provider}'), { provider: account.providerName }),
+        detail: account.error?.message ?? _('Sign in again, then Retry'),
         actions,
     });
 }
@@ -39,7 +35,7 @@ function noSubscriptionNotice(ctx, account) {
 function errorNotice(ctx, account) {
     return noticeRow({
         kind: 'error',
-        title: fill(_("Couldn't refresh {provider}"), { provider: providerInfo(account.provider).name }),
+        title: fill(_("Couldn't refresh {provider}"), { provider: account.providerName }),
         detail: account.error?.message ?? null,
         actions: [{ label: _('Retry'), run: () => ctx.actions.refresh(account.id) }],
     });
@@ -173,6 +169,10 @@ export class AccountSection {
         }
         if (!hasExtras(this._ctx, account)) return;
         this._extras = new ExtraRows(this._ctx, account);
+        if (this._rows.length === 0 && this._trend === null) {
+            card.add_child(this._extras.actor);
+            return;
+        }
         const expander = new Expander(this._ctx, this._extras.actor, {
             expanded: this._ctx.expanded.get(account.id) === true,
             onToggled: expanded => this._ctx.expanded.set(this._account.id, expanded),

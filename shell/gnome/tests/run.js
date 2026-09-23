@@ -9,6 +9,7 @@ import { testProgressProcess } from './processTests.js';
 import { testSerialQueue } from './queueTests.js';
 import { testRefresh } from './refreshTests.js';
 import { testSettings, testSettingsUpdates } from './settingsTests.js';
+import { testProviders } from './providerTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testStatus } from './statusTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
@@ -48,11 +49,12 @@ function shapeMismatches(sample, daemon, path) {
 
 function testSampleAccounts() {
     const state = parseState(readSample());
-    check('accounts', state.accounts.length, 4);
+    check('accounts', state.accounts.length, 6);
     check('headline', state.headline, {
         accountId: 'codex:1a2b3c4d5e6f',
         windowId: 'session',
         provider: 'codex',
+        providerName: 'Codex',
         accountLabel: 'work',
         windowLabel: 'Session',
         usedPercent: 38,
@@ -84,7 +86,6 @@ function testSampleAccounts() {
         kind: 'invalid_response',
         message: 'invalid response: HTTP 503 from api.anthropic.com',
     });
-    check('signed out', state.accounts[3].status, 'signed_out');
 }
 
 function testSampleContract() {
@@ -93,13 +94,14 @@ function testSampleContract() {
     check(
         'owners',
         state.accounts.map(account => account.owner),
-        ['cli', 'headroom', 'cli', 'cli']
+        ['cli', 'headroom', 'cli', 'cli', 'headroom', 'headroom']
     );
     check('window used', state.accounts[0].windows[0].usedPercent, 38);
     check('window hidden', state.accounts[0].windows[0].hidden, false);
     check('own home without logs', state.accounts[1].usage, null);
     check('shared usage', state.accounts[3].usage.provider, 'claude');
     check('hidden flag', state.accounts[0].hidden, false);
+    check('signed out', state.accounts[3].status, 'signed_out');
 }
 
 function testSampleUsage() {
@@ -111,11 +113,15 @@ function testSampleUsage() {
         [claudeMonth.partial, claudeMonth.unpricedTokens, claudeMonth.unpricedModels],
         [true, 412_000, ['claude-next']]
     );
-    check('spend today', state.spend.today.costMicros, 18_420_000);
+    check('spend today', state.spend.today.costMicros, 19_730_000);
     check(
         'spend providers',
-        state.spend.today.providers.map(spend => spend.provider),
-        ['codex', 'claude']
+        state.spend.today.providers.map(spend => [spend.provider, spend.providerName]),
+        [
+            ['codex', 'Codex'],
+            ['claude', 'Claude'],
+            ['opencode', 'OpenCode'],
+        ]
     );
     check('partial month', state.spend.last30Days.partial, true);
     const claudeModels = state.spend.last30Days.providers[1].models;
@@ -174,6 +180,7 @@ testModelBreakdown();
 testOrder();
 testProgress();
 testSampleAccounts();
+testProviders(parseState(readSample()));
 testSampleContract();
 testSampleUsage();
 testDaemonSnapshot();

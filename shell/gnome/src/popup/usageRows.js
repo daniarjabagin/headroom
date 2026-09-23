@@ -3,7 +3,6 @@ import St from 'gi://St';
 import { dayTitle } from '../dates.js';
 import { _ } from '../i18n.js';
 import { compactTokensText, exactSpendLine, exactTokens, spendLine, usd } from '../numbers.js';
-import { providerInfo } from '../providers.js';
 import { column, label, row } from '../widgets.js';
 import { modelTooltip } from './modelTooltip.js';
 
@@ -112,7 +111,7 @@ export class ExtraRows {
 
     _spendEntries() {
         if (!showsSpend(this._ctx, this._account)) return [];
-        const provider = providerInfo(this._account.provider).name;
+        const provider = this._account.providerName;
         return [
             ['today', _('Today')],
             ['yesterday', _('Yesterday')],

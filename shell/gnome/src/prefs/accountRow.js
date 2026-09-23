@@ -2,16 +2,12 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { percentLeft, windowLabel } from '../format.js';
 import { _ } from '../i18n.js';
-import { providerInfo } from '../providers.js';
+import { accountName } from '../providers.js';
 import { hiddenWindowsAfter, hiddenWindowsPatch, isWindowHidden } from '../settings.js';
 import { providerImage } from './widgets.js';
 
-function titleOf(account) {
-    return account.label ?? account.email ?? providerInfo(account.provider).name;
-}
-
 function subtitleOf(account) {
-    const parts = [providerInfo(account.provider).name, account.plan, account.label ? account.email : null];
+    const parts = [account.providerName, account.plan, account.label ? account.email : null];
     if (account.owner === 'headroom') parts.push(_('added in Headroom'));
     return parts.filter(Boolean).join(' · ');
 }
@@ -45,7 +41,7 @@ export class AccountRow {
     update(account, settings) {
         this._account = account;
         this._syncing = true;
-        this.widget.title = titleOf(account);
+        this.widget.title = accountName(account);
         this.widget.subtitle = subtitleOf(account);
         this._visible.active = !account.hidden;
         if (this._shape !== shapeOf(account)) this._rebuild(account);

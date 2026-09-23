@@ -2,14 +2,11 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { _, fill } from '../i18n.js';
 import { moveItem } from '../order.js';
-import { providerInfo } from '../providers.js';
+import { accountName } from '../providers.js';
 import { AccountRow } from './accountRow.js';
 import { AddAccountDialog } from './addAccountDialog.js';
 import { ProgressProcess } from './cli.js';
 import { RowDragger } from './rowDragger.js';
-import { providerImage } from './widgets.js';
-
-const ADDABLE = ['codex', 'claude'];
 
 export class AccountsPage {
     constructor({ window, dir, client }) {
@@ -40,7 +37,7 @@ export class AccountsPage {
     _placeholder() {
         const row = new Adw.ActionRow({
             title: _('No accounts yet'),
-            subtitle: _('Sign in with the Codex or Claude CLI, or add an account below.'),
+            subtitle: _('Sign in with a supported CLI, or add an account below.'),
         });
         row.add_css_class('dim-label');
         return row;
@@ -86,23 +83,27 @@ export class AccountsPage {
     _addGroup() {
         const group = new Adw.PreferencesGroup({
             title: _('Add Account'),
-            description: _('Sign in to another account without touching the one your CLI uses.'),
+            description: _('Sign in through a CLI, paste an API key, or let Headroom find the account.'),
         });
-        for (const provider of ADDABLE) {
-            const row = new Adw.ActionRow({
-                title: fill(_('Add {provider} account'), { provider: providerInfo(provider).name }),
-                activatable: true,
-            });
-            row.add_prefix(providerImage(this._dir, provider, 24));
-            row.add_suffix(new Gtk.Image({ icon_name: 'list-add-symbolic' }));
-            row.connect('activated', () => new AddAccountDialog({ provider, dir: this._dir }).present(this._window));
-            group.add(row);
-        }
+        const row = new Adw.ActionRow({ title: _('Add account…'), activatable: true });
+        row.add_prefix(new Gtk.Image({ icon_name: 'list-add-symbolic' }));
+        row.add_suffix(new Gtk.Image({ icon_name: 'go-next-symbolic' }));
+        row.connect('activated', () => this._openAddDialog());
+        group.add(row);
         return group;
     }
 
+    _openAddDialog() {
+        new AddAccountDialog({
+            dir: this._dir,
+            providers: this._client.providers ?? [],
+            providersError: this._client.providersError,
+            onRescan: () => this._client.rescan(),
+        }).present(this._window);
+    }
+
     _confirmRemove(account) {
-        const name = account.label ?? account.email ?? providerInfo(account.provider).name;
+        const name = accountName(account);
         const dialog = new Adw.AlertDialog({
             heading: fill(_('Remove {name}?'), { name }),
             body: _('Headroom deletes the sign-in it created for this account. The account itself is not affected.'),

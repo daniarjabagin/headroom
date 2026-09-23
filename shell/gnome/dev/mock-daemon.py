@@ -12,7 +12,7 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mock_state import DEFAULT_SETTINGS, SCENARIOS, build, choose_headline, iso
+from mock_state import DEFAULT_SETTINGS, PROVIDERS, SCENARIOS, build, choose_headline, iso
 
 BUS_NAME = "io.github.headroom.Daemon"
 OBJECT_PATH = "/io/github/headroom/Daemon"
@@ -21,6 +21,7 @@ INTERFACE_XML = f"""
 <node>
   <interface name="{INTERFACE}">
     <method name="GetState"><arg type="s" name="state" direction="out"/></method>
+    <method name="ListProviders"><arg type="s" name="providers" direction="out"/></method>
     <method name="Refresh"><arg type="s" name="account_id" direction="in"/></method>
     <method name="RefreshNow"/>
     <method name="Rescan"/>
@@ -191,6 +192,9 @@ class MockDaemon:
         print(f"{method}{args}", flush=True)
         if method == "GetState":
             invocation.return_value(GLib.Variant("(s)", (self.state(),)))
+            return
+        if method == "ListProviders":
+            invocation.return_value(GLib.Variant("(s)", (json.dumps({"version": 1, "providers": PROVIDERS}),)))
             return
         if method == "GetSettings":
             invocation.return_value(GLib.Variant("(s)", (json.dumps(self.settings),)))

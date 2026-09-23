@@ -1,21 +1,23 @@
-const PROVIDERS = {
-    codex: {
-        name: 'Codex',
-        icon: 'openai-symbolic.svg',
-        tinted: true,
-        ringColor: '#10A37F',
-        signInCommand: 'codex login',
-    },
-    claude: {
-        name: 'Claude',
-        icon: 'claude.svg',
-        tinted: false,
-        ringColor: '#DE7356',
-        signInCommand: 'claude',
-    },
-};
+const PROVIDER_ID = /^[a-z0-9_-]+$/;
+const SERIES = new Set([
+    'codex',
+    'claude',
+    'opencode',
+    'openrouter',
+    'zai',
+    'kimi',
+    'minimax',
+    'grok',
+    'cline',
+    'devin',
+    'copilot',
+    'cursor',
+    'antigravity',
+    'ollama',
+]);
+const FALLBACK_SERIES = 4;
 
-const FALLBACK_RING_COLORS = ['#34C759', '#5856D6', '#FF2D55', '#A2845E'];
+export const GENERIC_ICON = { file: 'provider-symbolic.svg', tinted: true };
 
 function stableHash(value) {
     let hash = 0;
@@ -23,8 +25,16 @@ function stableHash(value) {
     return hash;
 }
 
-function titleCase(id) {
-    return id.charAt(0).toUpperCase() + id.slice(1);
+export function seriesKey(id) {
+    return SERIES.has(id) ? id : `other-${stableHash(String(id)) % FALLBACK_SERIES}`;
+}
+
+export function iconCandidates(id) {
+    if (typeof id !== 'string' || !PROVIDER_ID.test(id)) return [];
+    return [
+        { file: `${id}.svg`, tinted: false },
+        { file: `${id}-symbolic.svg`, tinted: true },
+    ];
 }
 
 export function showsName(account, accounts) {
@@ -32,20 +42,12 @@ export function showsName(account, accounts) {
 }
 
 export function accountTitle(account, showName) {
-    const name = providerInfo(account.provider).name;
+    const name = account.providerName;
     if (!showName) return name;
     const who = account.label ?? account.email;
     return who ? `${name}: ${who}` : name;
 }
 
-export function providerInfo(id) {
-    return (
-        PROVIDERS[id] ?? {
-            name: titleCase(id),
-            icon: null,
-            tinted: true,
-            ringColor: FALLBACK_RING_COLORS[stableHash(id) % FALLBACK_RING_COLORS.length],
-            signInCommand: null,
-        }
-    );
+export function accountName(account) {
+    return account.label ?? account.email ?? account.providerName;
 }

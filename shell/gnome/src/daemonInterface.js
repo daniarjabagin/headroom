@@ -9,6 +9,9 @@ const INTERFACE_XML = `
     <method name="GetState">
       <arg type="s" name="state" direction="out"/>
     </method>
+    <method name="ListProviders">
+      <arg type="s" name="providers" direction="out"/>
+    </method>
     <method name="Refresh">
       <arg type="s" name="account_id" direction="in"/>
     </method>
