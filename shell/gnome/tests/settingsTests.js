@@ -31,6 +31,9 @@ function testParse() {
     check('settings bad pin', settings.parseSettings('{"headline":{"mode":"pinned"}}').headline, { mode: 'auto' });
     check('settings clamp', settings.parseSettings('{"refresh_interval_secs":5}').refreshIntervalSecs, 60);
     check('settings bad theme', settings.parseDisplay({ theme: 'sepia' }).theme, 'system');
+    check('settings translucent', settings.parseDisplay({ translucent: true }).translucent, true);
+    check('settings translucent missing', settings.parseDisplay({}).translucent, false);
+    check('settings translucent invalid', settings.parseDisplay({ translucent: 'yes' }).translucent, false);
     throws('settings json', () => settings.parseSettings('['), settings.SettingsError);
     throws('settings array', () => settings.parseSettings('[]'), settings.SettingsError);
 }
@@ -59,6 +62,7 @@ function testSerialize() {
         show_account_spend: true,
         show_trend: true,
         show_forecast: true,
+        translucent: false,
         hidden_windows: { 'codex:1': ['session'] },
     });
     check('round trip', settings.parseSettings(settings.serializeSettings(parsed)), parsed);

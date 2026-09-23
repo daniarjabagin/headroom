@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import { enter, settle, STAGGER_MS } from '../motion.js';
 import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
 import { parseDisplay } from '../settings.js';
@@ -10,10 +11,12 @@ import { Footer } from './footer.js';
 import { OptionsMenu } from './optionsMenu.js';
 import { Reorderer } from './reorder.js';
 import { SpendSection } from './spendCard.js';
-import { emptyView, errorView, loadingView, serviceView } from './statusViews.js';
+import { loadingSections } from './skeleton.js';
+import { emptyView, errorView, serviceView } from './statusViews.js';
 import { Tooltips } from './tooltip.js';
 
 const SCROLLBAR_LINGER_MS = 800;
+const ENTRANCE_WINDOW_MS = 400;
 
 function visibleAccounts(state) {
     return state.accounts.filter(account => !account.hidden);
@@ -35,8 +38,10 @@ function shownSpend(state) {
 }
 
 export class PopupView {
-    constructor({ dir, versionText, actions }) {
+    constructor({ dir, versionText, motion, actions }) {
         this._view = { kind: 'loading', state: null };
+        this._entranceUntil = 0;
+        this._generation = 0;
         this._sections = [];
         this._spendSection = null;
         this._layoutKey = null;
@@ -45,6 +50,7 @@ export class PopupView {
         this._tooltips = new Tooltips();
         this._ctx = {
             dir,
+            motion,
             display: parseDisplay(null),
             canReorder: () => this._reorderer.enabled,
             tooltips: this._tooltips,
@@ -110,8 +116,17 @@ export class PopupView {
         this._view = view;
         if (view.kind === 'ready') this._ctx.display = view.state.display;
         this._footer.update(view);
+        const generation = this._generation;
         if (view.kind === 'ready') this._renderState(view.state);
-        else this._replaceContent([this._statusView(view)]);
+        else this._replaceContent(this._statusView(view));
+        if (generation !== this._generation && Date.now() < this._entranceUntil) this._playEntrance();
+    }
+
+    relabel() {
+        this._options.close();
+        this._footer.relabel();
+        this._replaceContent([]);
+        this.render(this._view);
     }
 
     _renderPending() {
@@ -126,6 +141,11 @@ export class PopupView {
         this._footer.tick(now);
     }
 
+    needsSecondTicks() {
+        const now = this._ctx.now();
+        return this._sections.some(section => section.needsSecondTicks(now));
+    }
+
     setMaxHeight(pixels) {
         this.actor.style = `max-height: ${pixels}px;`;
     }
@@ -134,9 +154,13 @@ export class PopupView {
         this._scroll.vadjustment.value = 0;
         this._hideScrollbar();
         this.tick();
+        this._entranceUntil = Date.now() + ENTRANCE_WINDOW_MS;
+        this._playEntrance();
     }
 
     onClose() {
+        this._entranceUntil = 0;
+        this._settleEntrance();
         this._reorderer.cancel();
         this._options.close();
         this._tooltips.hide();
@@ -173,9 +197,23 @@ export class PopupView {
     }
 
     _statusView(view) {
-        if (view.kind === 'unavailable') return serviceView(this._ctx, view);
-        if (view.kind === 'error') return errorView(this._ctx, view.error);
-        return loadingView();
+        if (view.kind === 'unavailable') return [serviceView(this._ctx, view)];
+        if (view.kind === 'error') return [errorView(this._ctx, view.error)];
+        return loadingSections(this._ctx.motion);
+    }
+
+    _playEntrance() {
+        const motion = this._ctx.motion;
+        this._content.get_children().forEach((actor, index) => enter(motion, actor, index));
+        if (!motion.enabled) return;
+        this._spendSection?.grow();
+        const offset = this._spendSection ? 1 : 0;
+        this._sections.forEach((section, index) => section.grow((index + offset) * STAGGER_MS));
+    }
+
+    _settleEntrance() {
+        for (const actor of this._content.get_children()) settle(actor);
+        for (const section of this._sections) section.settle();
     }
 
     _renderState(state) {
@@ -217,6 +255,7 @@ export class PopupView {
     }
 
     _replaceContent(actors) {
+        this._generation += 1;
         this._tooltips.hide();
         this._reorderer.setSections([]);
         this._content.destroy_all_children();

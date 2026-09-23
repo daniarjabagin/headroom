@@ -1,66 +1,14 @@
-import Clutter from 'gi://Clutter';
-import Pango from 'gi://Pango';
-import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
-import { agoText } from '../format.js';
 import { _, fill } from '../i18n.js';
-import { accountTitle, providerInfo } from '../providers.js';
-import { button, column, label, providerIcon, row, spacer, themeIcon } from '../widgets.js';
+import { providerInfo } from '../providers.js';
+import { column } from '../widgets.js';
+import { AccountHeader, failedOffline } from './accountHeader.js';
+import { Expander } from './expander.js';
 import { noticeRow } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
-import { expandedRows, showsSpend, trendRow } from './usageRows.js';
+import { skeletonRows } from './skeleton.js';
+import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
 
-function failedOffline(ctx, account) {
-    return ctx.offline && account.error?.kind === 'network';
-}
-
-function outdatedTag(ctx, account) {
-    const tag = label(_('Outdated'), 'headroom-stale-tag');
-    ctx.tooltips.attach(
-        tag,
-        () => account.updatedAt && fill(_('Last updated {ago}'), { ago: agoText(account.updatedAt, ctx.now()) })
-    );
-    return tag;
-}
-
-function statusSlot(ctx, account) {
-    if (account.status === 'refreshing') {
-        const spinner = new Animation.Spinner(12, { animate: true });
-        spinner.add_style_class_name('headroom-header-spinner');
-        spinner.y_align = Clutter.ActorAlign.CENTER;
-        spinner.play();
-        return spinner;
-    }
-    if (account.status === 'stale' || (account.status === 'error' && failedOffline(ctx, account)))
-        return outdatedTag(ctx, account);
-    if (account.status === 'error') {
-        const icon = themeIcon('dialog-warning-symbolic', 'headroom-header-warning');
-        ctx.tooltips.attach(icon, () => account.error?.message ?? _('Refresh failed'));
-        return icon;
-    }
-    return null;
-}
-
-function dragGrip() {
-    const grip = themeIcon('list-drag-handle-symbolic', 'headroom-drag-grip');
-    grip.opacity = 0;
-    return grip;
-}
-
-function header(ctx, account, showName) {
-    const actor = row({ style_class: 'headroom-section-header', reactive: true, track_hover: true });
-    actor.add_child(providerIcon(ctx.dir, account.provider, 'headroom-provider-icon'));
-    const title = label(accountTitle(account, showName), 'headroom-title', { y_align: Clutter.ActorAlign.END });
-    title.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-    actor.add_child(title);
-    if (account.plan) actor.add_child(label(account.plan, 'headroom-plan', { y_align: Clutter.ActorAlign.END }));
-    const status = statusSlot(ctx, account);
-    if (status) actor.add_child(status);
-    actor.add_child(spacer());
-    const grip = dragGrip();
-    actor.add_child(grip);
-    actor.connect('notify::hover', () => (grip.opacity = actor.hover && ctx.canReorder() ? 255 : 0));
-    return actor;
-}
+const SKELETON_ROWS = 2;
 
 function signedOutNotice(ctx, account) {
     const info = providerInfo(account.provider);
@@ -86,26 +34,41 @@ function errorNotice(ctx, account) {
     });
 }
 
+function showsErrorNotice(ctx, account) {
+    return account.status === 'error' && !failedOffline(ctx, account);
+}
+
 function noticeRows(ctx, account) {
     if (account.status === 'signed_out') return [signedOutNotice(ctx, account)];
     const rows = account.notices.map(notice =>
         noticeRow({ kind: notice.tone === 'critical' ? 'error' : 'warning', title: notice.text })
     );
-    if (account.status === 'error' && !failedOffline(ctx, account)) rows.unshift(errorNotice(ctx, account));
+    if (showsErrorNotice(ctx, account)) rows.unshift(errorNotice(ctx, account));
     return rows;
-}
-
-function hasExtras(ctx, account) {
-    return showsSpend(ctx, account) || account.balances.length > 0;
 }
 
 function shownWindows(account) {
     return account.windows.filter(window => !window.hidden);
 }
 
+function awaitingFirstData(account) {
+    return (
+        account.status === 'refreshing' &&
+        account.updatedAt === null &&
+        shownWindows(account).every(window => window.remainingPercent === null)
+    );
+}
+
+function hasExtras(ctx, account) {
+    return showsSpend(ctx, account) || account.balances.length > 0;
+}
+
 export class AccountSection {
     constructor(ctx, account, showName) {
         this._ctx = ctx;
+        this._rows = [];
+        this._trend = null;
+        this._extras = null;
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
         this._build(account, showName);
     }
@@ -114,20 +77,32 @@ export class AccountSection {
         return this._account.id;
     }
 
-    canUpdate(account, showName) {
-        return (
-            this._showName === showName &&
-            JSON.stringify(this._shape(account)) === JSON.stringify(this._shape(this._account))
-        );
+    get header() {
+        return this._header.actor;
     }
 
-    get header() {
-        return this._header;
+    canUpdate(account, showName) {
+        return this._showName === showName && JSON.stringify(this._shape(account)) === this._shapeKey;
     }
 
     update(account) {
         this._account = account;
+        this._header.update(account);
         shownWindows(account).forEach((window, index) => this._rows[index]?.update(window));
+        if (account.usage) this._trend?.update(account.usage);
+        this._extras?.update(account);
+    }
+
+    grow(delay) {
+        for (const quotaRow of this._rows) quotaRow.grow(delay);
+    }
+
+    settle() {
+        for (const quotaRow of this._rows) quotaRow.settle();
+    }
+
+    needsSecondTicks(now) {
+        return this._rows.some(quotaRow => quotaRow.needsSecondTicks(now));
     }
 
     tick(now) {
@@ -135,54 +110,57 @@ export class AccountSection {
     }
 
     _shape(account) {
+        const ctx = this._ctx;
         return {
             windows: shownWindows(account).map(window => window.id),
-            status: account.status,
-            error: account.error,
+            skeleton: awaitingFirstData(account),
+            signedOut: account.status === 'signed_out',
+            errorNotice: showsErrorNotice(ctx, account) ? account.error : null,
             notices: account.notices,
             plan: account.plan,
             label: account.label,
             email: account.email,
-            usage: account.usage,
-            balances: account.balances,
+            trend: account.usage !== null && ctx.display.showTrend,
+            spend: showsSpend(ctx, account),
+            balances: account.balances.map(balance => [balance.id, balance.label, balance.kind]),
         };
     }
 
     _build(account, showName) {
         this._account = account;
         this._showName = showName;
-        this._header = header(this._ctx, account, showName);
-        this.actor.add_child(this._header);
-        const card = column({ style_class: 'headroom-card', x_expand: true });
+        this._shapeKey = JSON.stringify(this._shape(account));
+        this._header = new AccountHeader(this._ctx, account, showName);
+        this.actor.add_child(this._header.actor);
+        const card = column({ style_class: 'headroom-card', x_expand: true, reactive: true, track_hover: true });
         for (const notice of noticeRows(this._ctx, account)) card.add_child(notice);
-        const signedOut = account.status === 'signed_out';
-        this._rows = signedOut ? [] : shownWindows(account).map(window => new QuotaRow(this._ctx, window));
-        for (const quotaRow of this._rows) card.add_child(quotaRow.actor);
-        if (!signedOut) this._addUsage(card, account);
+        if (account.status !== 'signed_out') this._addBody(card, account);
         card.visible = card.get_n_children() > 0;
         this.actor.add_child(card);
     }
 
+    _addBody(card, account) {
+        if (awaitingFirstData(account)) {
+            card.add_child(skeletonRows(this._ctx.motion, Math.max(SKELETON_ROWS, account.windows.length)));
+            return;
+        }
+        this._rows = shownWindows(account).map(window => new QuotaRow(this._ctx, window));
+        for (const quotaRow of this._rows) card.add_child(quotaRow.actor);
+        this._addUsage(card, account);
+    }
+
     _addUsage(card, account) {
-        if (account.usage && this._ctx.display.showTrend) card.add_child(trendRow(this._ctx, account.usage));
+        if (account.usage && this._ctx.display.showTrend) {
+            this._trend = new TrendRow(this._ctx, account.usage);
+            card.add_child(this._trend.actor);
+        }
         if (!hasExtras(this._ctx, account)) return;
-        const extra = expandedRows(this._ctx, account);
-        const caret = themeIcon('pan-down-symbolic', 'headroom-caret-icon');
-        const toggle = button(caret, 'headroom-caret', () => this._toggleExpanded(extra, caret));
-        toggle.x_expand = true;
-        this._applyExpanded(extra, caret);
-        card.add_child(toggle);
-        card.add_child(extra);
-    }
-
-    _toggleExpanded(extra, caret) {
-        this._ctx.expanded.set(this._account.id, !this._ctx.expanded.get(this._account.id));
-        this._applyExpanded(extra, caret);
-    }
-
-    _applyExpanded(extra, caret) {
-        const expanded = this._ctx.expanded.get(this._account.id) === true;
-        extra.visible = expanded;
-        caret.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
+        this._extras = new ExtraRows(this._ctx, account);
+        const expander = new Expander(this._ctx, this._extras.actor, {
+            expanded: this._ctx.expanded.get(account.id) === true,
+            onToggled: expanded => this._ctx.expanded.set(this._account.id, expanded),
+        });
+        card.add_child(expander.toggle);
+        card.add_child(expander.content);
     }
 }

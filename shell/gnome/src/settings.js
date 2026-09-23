@@ -52,6 +52,7 @@ export function parseDisplay(raw) {
         showAccountSpend: flag(display.show_account_spend, true),
         showTrend: flag(display.show_trend, true),
         showForecast: flag(display.show_forecast, true),
+        translucent: flag(display.translucent, false),
         hiddenWindows: parseHiddenWindows(display.hidden_windows),
     };
 }
@@ -110,6 +111,7 @@ export function serializeDisplay(display) {
         show_account_spend: display.showAccountSpend,
         show_trend: display.showTrend,
         show_forecast: display.showForecast,
+        translucent: display.translucent,
         hidden_windows: parseHiddenWindows(display.hiddenWindows),
     };
 }

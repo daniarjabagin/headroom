@@ -4,6 +4,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const SHOW_DELAY_MS = 400;
+const WARM_MS = 300;
 const FADE_MS = 120;
 const GAP = 6;
 
@@ -20,6 +21,7 @@ export class Tooltips {
         Main.layoutManager.uiGroup.add_child(this._bin);
         this._timeoutId = 0;
         this._target = null;
+        this._hiddenAt = 0;
     }
 
     setTheme(themeClass) {
@@ -46,6 +48,10 @@ export class Tooltips {
     _schedule(actor, contentFor) {
         this._clearTimeout();
         this._target = actor;
+        if (Date.now() - this._hiddenAt < WARM_MS) {
+            this._show(actor, contentFor(), false);
+            return;
+        }
         this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SHOW_DELAY_MS, () => {
             this._timeoutId = 0;
             this._show(actor, contentFor());
@@ -53,7 +59,7 @@ export class Tooltips {
         });
     }
 
-    _show(actor, content) {
+    _show(actor, content, fade = true) {
         if (!content || !actor.mapped) return;
         this._bin.child?.destroy();
         this._bin.set_child(contentActor(content));
@@ -61,7 +67,8 @@ export class Tooltips {
         Main.layoutManager.uiGroup.set_child_above_sibling(this._bin, null);
         this._place(actor);
         this._bin.remove_all_transitions();
-        this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+        if (fade) this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+        else this._bin.opacity = 255;
     }
 
     _place(actor) {
@@ -82,6 +89,7 @@ export class Tooltips {
         this._clearTimeout();
         this._target = null;
         if (!this._bin) return;
+        if (this._bin.visible) this._hiddenAt = Date.now();
         this._bin.remove_all_transitions();
         this._bin.opacity = 0;
         this._bin.hide();

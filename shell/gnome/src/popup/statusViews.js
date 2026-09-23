@@ -1,6 +1,6 @@
 import Clutter from 'gi://Clutter';
 import { _ } from '../i18n.js';
-import { column, fileIcon, label, textButton, wrappingLabel } from '../widgets.js';
+import { column, fileIcon, textButton, wrappingLabel } from '../widgets.js';
 
 function centeredCard(children) {
     const card = column({ style_class: 'headroom-card headroom-status-card', x_expand: true });
@@ -25,10 +25,6 @@ export function serviceView(ctx, { starting, startError }) {
     children.push(action);
     if (startError) children.push(centered(startError, 'headroom-status-error'));
     return centeredCard(children);
-}
-
-export function loadingView() {
-    return centeredCard([label(_('Loading…'), 'headroom-status-detail', { x_align: Clutter.ActorAlign.CENTER })]);
 }
 
 export function errorView(ctx, message) {

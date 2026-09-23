@@ -7,14 +7,17 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { DaemonClient } from './dbus.js';
 import { panelPercent, shortWindowLabel } from './format.js';
+import { Glass } from './glass.js';
+import { currentLanguage, resolveLanguage, setLanguage } from './i18n.js';
+import { Motion } from './motion.js';
 import { PanelRing } from './panelRing.js';
 import { PopupView } from './popup/popup.js';
 import { startService } from './service.js';
 import { toggledResetFormat, toggledValueMode } from './settings.js';
 import { parseState, StateError } from './state.js';
+import { Ticker } from './ticker.js';
 import { fileIcon, label, providerIcon, row } from './widgets.js';
 
-const TICK_SECONDS = 30;
 const STALE_OPACITY = 140;
 const WORK_AREA_GAP = 16;
 const WINDOW_LABEL_OPACITY = 170;
@@ -45,17 +48,24 @@ export const Indicator = GObject.registerClass(
             this._extension = extension;
             this._panelProvider = null;
             this._view = { kind: 'loading', state: null };
-            this._tickId = 0;
+            this._motion = new Motion();
             this._cancellable = new Gio.Cancellable();
+            setLanguage(resolveLanguage('system', GLib.get_language_names()));
+            this._ticker = new Ticker({
+                onTick: () => this._popup.tick(),
+                wantsSeconds: () => this._popup.needsSecondTicks(),
+            });
             this._buildPanel();
             this._popup = this._createPopup();
             this.menu.actor.add_style_class_name('headroom-menu');
+            this._glass = new Glass(this.menu);
             this.menu.box.add_child(this._popup.actor);
             this._menuToggledId = this.menu.connect('open-state-changed', (_menu, open) => this._onMenuToggled(open));
             this._client = new DaemonClient({
                 onAvailable: () => this._setView({ kind: 'loading', state: null }),
                 onUnavailable: () => this._setView({ kind: 'unavailable', state: null }),
                 onState: json => this._onState(json),
+                onSettings: settings => (this._motion.reduced = settings.reducedMotion),
                 onError: message => this._onError(message),
                 onOpenRequested: () => this.menu.open(),
             });
@@ -69,7 +79,7 @@ export const Indicator = GObject.registerClass(
                 'headroom-symbolic.svg',
                 'system-status-icon headroom-panel-mark'
             );
-            this._ring = new PanelRing();
+            this._ring = new PanelRing(this._motion);
             this._ring.y_align = Clutter.ActorAlign.CENTER;
             this._providerSlot = new St.Bin({
                 style_class: 'headroom-panel-provider',
@@ -87,6 +97,7 @@ export const Indicator = GObject.registerClass(
             return new PopupView({
                 dir: this._extension.dir,
                 versionText: `Headroom ${this._extension.metadata['version-name'] ?? ''}`.trim(),
+                motion: this._motion,
                 actions: {
                     refresh: accountId => this._client.refresh(accountId),
                     setHidden: (accountId, hidden) => this._client.setAccountHidden(accountId, hidden),
@@ -129,9 +140,20 @@ export const Indicator = GObject.registerClass(
         }
 
         _render() {
+            this._applyLanguage();
             this._applyTheme();
+            this._glass.setEnabled(this._view.state?.display.translucent ?? false);
             this._renderPanel();
             this._popup.render(this._view);
+            this._ticker.sync();
+        }
+
+        _applyLanguage() {
+            const setting = this._view.state?.display.language ?? 'system';
+            const language = resolveLanguage(setting, GLib.get_language_names());
+            if (language === currentLanguage()) return;
+            setLanguage(language);
+            this._popup.relabel();
         }
 
         _applyTheme() {
@@ -175,9 +197,9 @@ export const Indicator = GObject.registerClass(
                 this._client.refresh('');
                 this._fitToWorkArea();
                 this._popup.onOpen();
-                this._startTicking();
+                this._ticker.start();
             } else {
-                this._stopTicking();
+                this._ticker.stop();
                 this._popup.onClose();
             }
         }
@@ -188,20 +210,6 @@ export const Indicator = GObject.registerClass(
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             const margins = this.menu.actor.margin_top + this.menu.actor.margin_bottom;
             this._popup.setMaxHeight(Math.floor((workArea.height - margins) / scale) - WORK_AREA_GAP);
-        }
-
-        _startTicking() {
-            this._stopTicking();
-            this._tickId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, TICK_SECONDS, () => {
-                this._popup.tick();
-                return GLib.SOURCE_CONTINUE;
-            });
-        }
-
-        _stopTicking() {
-            if (this._tickId === 0) return;
-            GLib.source_remove(this._tickId);
-            this._tickId = 0;
         }
 
         _openPreferences() {
@@ -224,7 +232,8 @@ export const Indicator = GObject.registerClass(
 
         _onDestroy() {
             this.menu.disconnect(this._menuToggledId);
-            this._stopTicking();
+            this._ticker.stop();
+            this._glass.destroy();
             this._cancellable.cancel();
             this._client.destroy();
             this._popup.destroy();

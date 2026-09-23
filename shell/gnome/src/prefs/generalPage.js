@@ -1,5 +1,6 @@
 import Adw from 'gi://Adw';
-import { _, fill } from '../i18n.js';
+import { windowLabel } from '../format.js';
+import { _, fill, n_ } from '../i18n.js';
 import { accountTitle, showsName } from '../providers.js';
 import { withDisplay } from '../settings.js';
 import { comboRow, group, segmentedRow, switchRow } from './rows.js';
@@ -17,9 +18,10 @@ const SECTIONS = [
 
 function refreshLabel(seconds) {
     const minutes = seconds / 60;
-    if (!Number.isInteger(minutes)) return fill(_('{seconds} seconds'), { seconds });
+    if (!Number.isInteger(minutes))
+        return fill(n_('Every {seconds} second', 'Every {seconds} seconds', seconds), { seconds });
     if (minutes === 1) return _('Every minute');
-    return fill(_('Every {minutes} minutes'), { minutes });
+    return fill(n_('Every {minutes} minute', 'Every {minutes} minutes', minutes), { minutes });
 }
 
 function refreshOptions(current) {
@@ -37,7 +39,10 @@ function limitOptions(state, headline) {
     for (const account of accounts) {
         const title = accountTitle(account, showsName(account, accounts));
         for (const window of account.windows)
-            options.push({ value: pinKey(account.id, window.id), label: `${title} — ${window.label}` });
+            options.push({
+                value: pinKey(account.id, window.id),
+                label: `${title} — ${windowLabel(window.id, window.label)}`,
+            });
     }
     const pinned = headline.mode === 'pinned' ? pinKey(headline.accountId, headline.window) : null;
     if (pinned && !options.some(option => option.value === pinned))
@@ -57,7 +62,9 @@ export class GeneralPage {
         this._limitKey = null;
         this.page = new Adw.PreferencesPage({ title: _('General'), icon_name: 'preferences-system-symbolic' });
         this._rows = this._buildRows();
-        this.page.add(group(_('Appearance'), [this._rows.theme.row, this._rows.language.row]));
+        this.page.add(
+            group(_('Appearance'), [this._rows.theme.row, this._rows.language.row, this._rows.translucent.row])
+        );
         this.page.add(group(_('Popup'), [this._rows.valueMode.row, this._rows.resetFormat.row]));
         this.page.add(group(_('Top Panel'), [this._rows.limit.row, this._rows.panelLabel.row]));
         this.page.add(
@@ -73,6 +80,7 @@ export class GeneralPage {
         const display = settings.display;
         this._rows.theme.set(display.theme);
         this._rows.language.set(display.language);
+        this._rows.translucent.set(display.translucent);
         this._rows.valueMode.set(display.valueMode);
         this._rows.resetFormat.set(display.resetFormat);
         this._rows.panelLabel.set(display.panelLabel);
@@ -96,6 +104,24 @@ export class GeneralPage {
 
     _buildRows() {
         return {
+            ...this._appearanceRows(),
+            ...this._popupRows(),
+            ...this._panelRows(),
+            sections: SECTIONS.map(([key, title, subtitle]) =>
+                switchRow({ title: title(), subtitle: subtitle(), onChange: this._display(key) })
+            ),
+            refresh: comboRow({
+                title: _('Refresh interval'),
+                subtitle: _('How often the service asks each provider'),
+                options: refreshOptions(300),
+                onChange: value =>
+                    this._client.updateSettings(settings => ({ ...settings, refreshIntervalSecs: value })),
+            }),
+        };
+    }
+
+    _appearanceRows() {
+        return {
             theme: segmentedRow({
                 title: _('Theme'),
                 options: [
@@ -114,17 +140,10 @@ export class GeneralPage {
                 ],
                 onChange: this._display('language'),
             }),
-            ...this._popupRows(),
-            ...this._panelRows(),
-            sections: SECTIONS.map(([key, title, subtitle]) =>
-                switchRow({ title: title(), subtitle: subtitle(), onChange: this._display(key) })
-            ),
-            refresh: comboRow({
-                title: _('Refresh interval'),
-                subtitle: _('How often the service asks each provider'),
-                options: refreshOptions(300),
-                onChange: value =>
-                    this._client.updateSettings(settings => ({ ...settings, refreshIntervalSecs: value })),
+            translucent: switchRow({
+                title: _('Translucent background'),
+                subtitle: _('Blur what is behind the popup'),
+                onChange: this._display('translucent'),
             }),
         };
     }
