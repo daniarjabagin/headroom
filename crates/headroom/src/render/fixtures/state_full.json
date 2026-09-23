@@ -176,7 +176,8 @@
             "cost_usd_micros": 2400,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "yesterday": {
         "tokens": {
@@ -206,7 +207,8 @@
             "cost_usd_micros": 0,
             "partial": true
           }
-        ]
+        ],
+        "models_other": null
       },
       "last_30_days": {
         "tokens": {
@@ -236,7 +238,8 @@
             "cost_usd_micros": 0,
             "partial": true
           }
-        ]
+        ],
+        "models_other": null
       },
       "daily": [
         {
@@ -444,7 +447,8 @@
             "cost_usd_micros": 10000,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "yesterday": {
         "tokens": {
@@ -459,7 +463,8 @@
         "partial": false,
         "unpriced_tokens": 0,
         "unpriced_models": [],
-        "models": []
+        "models": [],
+        "models_other": null
       },
       "last_30_days": {
         "tokens": {
@@ -481,7 +486,8 @@
             "cost_usd_micros": 10000,
             "partial": false
           }
-        ]
+        ],
+        "models_other": null
       },
       "daily": [
         {
@@ -685,7 +691,8 @@
               "cost_usd_micros": 10000,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "codex",
@@ -699,7 +706,8 @@
               "cost_usd_micros": 2400,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         }
       ]
     },
@@ -726,7 +734,8 @@
               "cost_usd_micros": 0,
               "partial": true
             }
-          ]
+          ],
+          "models_other": null
         }
       ]
     },
@@ -747,7 +756,8 @@
               "cost_usd_micros": 10000,
               "partial": false
             }
-          ]
+          ],
+          "models_other": null
         },
         {
           "provider": "codex",
@@ -767,7 +777,8 @@
               "cost_usd_micros": 0,
               "partial": true
             }
-          ]
+          ],
+          "models_other": null
         }
       ]
     }

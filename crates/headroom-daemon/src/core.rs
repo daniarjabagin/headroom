@@ -6,7 +6,7 @@ use headroom_core::account::{AccountId, AccountRef, ProviderKind};
 use headroom_core::provider::Provider;
 use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
-use tokio::sync::{Notify, mpsc};
+use tokio::sync::{Mutex as AsyncMutex, Notify, mpsc};
 
 use crate::clock::Clock;
 use crate::error::StorageError;
@@ -44,6 +44,7 @@ pub struct Core {
     pub(crate) system_locale: Locale,
     homes: HomeDisplay,
     model: Mutex<Model>,
+    pub(crate) settings_write: AsyncMutex<()>,
     changes: Notify,
     triggers: Mutex<HashMap<AccountId, mpsc::Sender<()>>>,
 }
@@ -67,6 +68,7 @@ impl Core {
             system_locale: parts.system_locale,
             homes: parts.homes,
             model: Mutex::new(model),
+            settings_write: AsyncMutex::new(()),
             changes: Notify::new(),
             triggers: Mutex::new(HashMap::new()),
         })

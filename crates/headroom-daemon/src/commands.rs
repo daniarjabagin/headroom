@@ -41,7 +41,17 @@ impl Core {
     }
 
     pub async fn set_settings(&self, json: &str) -> Result<(), CommandError> {
-        let settings = Settings::parse(json)?;
+        let _write = self.settings_write.lock().await;
+        self.store_settings(Settings::parse(json)?).await
+    }
+
+    pub async fn update_settings(&self, patch: &str) -> Result<(), CommandError> {
+        let _write = self.settings_write.lock().await;
+        let current = self.model().settings.clone();
+        self.store_settings(current.patched(patch)?).await
+    }
+
+    async fn store_settings(&self, settings: Settings) -> Result<(), CommandError> {
         let stored = settings.clone();
         self.storage
             .run(move |conn| crate::storage::settings::save(conn, &stored))

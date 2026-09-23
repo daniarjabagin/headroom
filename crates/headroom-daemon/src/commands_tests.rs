@@ -65,6 +65,72 @@ async fn settings_are_validated_persisted_and_served() {
     assert_eq!(served, stored);
 }
 
+fn stored_settings(harness: &Harness) -> Settings {
+    harness
+        .storage
+        .blocking(|conn| crate::storage::settings::load(conn))
+        .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_patches_never_lose_each_other() {
+    let (harness, _) = two_accounts().await;
+    let tasks: Vec<_> = (0..16)
+        .map(|n| {
+            let core = harness.core.clone();
+            tokio::spawn(async move {
+                let patch = format!(r#"{{"display":{{"hidden_windows":{{"acc:{n}":["w"]}}}}}}"#);
+                core.update_settings(&patch).await
+            })
+        })
+        .collect();
+    let theme = harness
+        .core
+        .update_settings(r#"{"display":{"theme":"dark"}}"#);
+    theme.await.unwrap();
+    for task in tasks {
+        task.await.unwrap().unwrap();
+    }
+    let served = harness.core.model().settings.clone();
+    assert_eq!(served.display.hidden_windows.len(), 16);
+    assert_eq!(served.display.theme, crate::settings::Theme::Dark);
+    assert_eq!(stored_settings(&harness), served);
+}
+
+#[tokio::test]
+async fn patches_reset_with_null_and_reject_invalid_results() {
+    let (harness, _) = two_accounts().await;
+    let core = &harness.core;
+    core.update_settings(
+        r#"{"refresh_interval_secs":120,"display":{"hidden_windows":{"codex:a":["weekly"],"codex:b":["session"]}}}"#,
+    )
+    .await
+    .unwrap();
+    core.update_settings(
+        r#"{"refresh_interval_secs":null,"display":{"hidden_windows":{"codex:a":null}}}"#,
+    )
+    .await
+    .unwrap();
+    let settings = stored_settings(&harness);
+    assert_eq!(settings.refresh_interval_secs, 300);
+    assert_eq!(
+        settings.display.hidden_windows.keys().collect::<Vec<_>>(),
+        ["codex:b"]
+    );
+    for patch in [
+        r#"{"display":{"compact":true}}"#,
+        r#"{"refresh_interval_secs":1}"#,
+        "[]",
+    ] {
+        assert!(matches!(
+            core.update_settings(patch).await,
+            Err(CommandError::Settings(_))
+        ));
+    }
+    assert_eq!(stored_settings(&harness), settings);
+    assert_eq!(core.model().settings, settings);
+}
+
 #[tokio::test]
 async fn account_label_order_and_visibility_reach_the_state() {
     let (harness, _) = two_accounts().await;

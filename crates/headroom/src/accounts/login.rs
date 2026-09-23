@@ -1,16 +1,20 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::process::{Child, Command, ExitStatus};
+use std::thread;
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use headroom_core::account::ProviderKind;
 
 use super::ansi::CleanLine;
-use super::home::create_home;
+use super::cancel::{CANCELLED, Cancel};
+use super::home::{create_home, discard_home};
 use super::stream::run_streamed;
+
+const EXIT_POLL: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoginSpec {
@@ -91,15 +95,14 @@ pub fn sign_in(
     provider: ProviderKind,
     launcher: &Launcher,
     console: Console<'_>,
+    cancel: &Cancel,
 ) -> Result<PathBuf> {
     let home = create_home(root, provider)?;
     let spec = login_spec(provider);
-    match run_login(&spec, &home, launcher, console) {
+    match run_login(&spec, &home, launcher, console, cancel) {
         Ok(()) => Ok(home),
         Err(error) => {
-            if let Err(cleanup) = fs::remove_dir_all(&home) {
-                tracing::warn!(home = %home.display(), %cleanup, "could not remove the new home");
-            }
+            discard_home(&home);
             Err(error)
         }
     }
@@ -110,20 +113,40 @@ fn run_login(
     home: &Path,
     launcher: &Launcher,
     console: Console<'_>,
+    cancel: &Cancel,
 ) -> Result<()> {
     let command = launcher.command(spec, home);
     let status = match console {
-        Console::Terminal => spawn_attached(command)?,
+        Console::Terminal => spawn_attached(command, cancel)?,
         Console::Streamed { input, events } => {
             events(LoginEvent::Started(home.to_path_buf()))?;
-            spawn_streamed(command, input, events)?
+            spawn_streamed(command, input, events, cancel)?
         }
     };
     check_outcome(spec, home, status)
 }
 
-fn spawn_attached(mut command: Command) -> Result<ExitStatus> {
-    command.status().with_context(|| not_started(&command))
+fn spawn_attached(mut command: Command, cancel: &Cancel) -> Result<ExitStatus> {
+    let mut child = command.spawn().with_context(|| not_started(&command))?;
+    loop {
+        if cancel.is_cancelled() {
+            stop_attached(&mut child);
+            bail!(CANCELLED);
+        }
+        if let Some(status) = child.try_wait().context("could not wait for the login")? {
+            return Ok(status);
+        }
+        thread::sleep(EXIT_POLL);
+    }
+}
+
+fn stop_attached(child: &mut Child) {
+    if let Err(error) = child.kill() {
+        tracing::debug!(%error, "login process already gone");
+    }
+    if let Err(error) = child.wait() {
+        tracing::debug!(%error, "could not reap the login process");
+    }
 }
 
 pub fn not_started(command: &Command) -> String {
@@ -135,6 +158,7 @@ fn spawn_streamed(
     command: Command,
     input: Box<dyn Read + Send>,
     events: &mut EventSink<'_>,
+    cancel: &Cancel,
 ) -> Result<ExitStatus> {
     let mut seen_urls = HashSet::new();
     let mut on_line = |raw: &str| {
@@ -146,7 +170,7 @@ fn spawn_streamed(
             _ => Ok(()),
         }
     };
-    run_streamed(command, input, &mut on_line)
+    run_streamed(command, input, &mut on_line, cancel)
 }
 
 fn check_outcome(spec: &LoginSpec, home: &Path, status: ExitStatus) -> Result<()> {

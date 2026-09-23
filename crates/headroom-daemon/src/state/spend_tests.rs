@@ -1,7 +1,7 @@
 use headroom_core::account::ProviderKind;
 
 use super::*;
-use crate::state::payload::{ModelView, TokensView};
+use crate::state::payload::{ModelView, OtherModelsView, TokensView};
 
 fn model(name: &str, tokens: u64, cost: i64, partial: bool) -> ModelView {
     ModelView {
@@ -27,6 +27,7 @@ fn totals(tokens: u64, cost: i64, partial: bool) -> TotalsView {
         unpriced_tokens: 0,
         unpriced_models: Vec::new(),
         models: Vec::new(),
+        models_other: None,
     }
 }
 
@@ -151,5 +152,41 @@ fn provider_models_are_merged_across_homes_and_ranked() {
             model("free", 300, 0, false),
             model("mystery", 300, 0, true),
         ]
+    );
+}
+
+#[test]
+fn provider_models_keep_the_top_five_and_fold_the_rest_after_merging() {
+    let mut main = totals(60, 2_100, false);
+    main.models = vec![
+        model("a", 10, 600, false),
+        model("b", 10, 500, false),
+        model("c", 10, 400, false),
+        model("d", 10, 300, false),
+        model("e", 10, 200, false),
+        model("f", 10, 100, false),
+    ];
+    let mut spare = totals(15, 500, true);
+    spare.models = vec![
+        model("f", 5, 450, false),
+        model("g", 7, 0, true),
+        model("h", 3, 50, false),
+    ];
+    let entries = [
+        usage(ProviderKind::Codex, "~/.codex", main),
+        usage(ProviderKind::Codex, "/srv/codex", spare),
+    ];
+    let provider = spend(&entries).today.by_provider.remove(0);
+    let names: Vec<_> = provider.models.iter().map(|m| m.model.as_str()).collect();
+    assert_eq!(names, ["a", "f", "b", "c", "d"]);
+    assert_eq!(provider.models[1], model("f", 15, 550, false));
+    assert_eq!(
+        provider.models_other,
+        Some(OtherModelsView {
+            count: 3,
+            total_tokens: 20,
+            cost_usd_micros: 250,
+            partial: true,
+        })
     );
 }

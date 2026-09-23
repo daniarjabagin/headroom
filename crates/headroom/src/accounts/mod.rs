@@ -1,4 +1,5 @@
 mod ansi;
+mod cancel;
 mod discovery;
 mod home;
 mod login;
@@ -15,8 +16,9 @@ use crate::cli::ProgressFormat;
 use crate::client::{self, DaemonProxy, call_error};
 use crate::paths::{Globals, accounts_root};
 use crate::render::format::provider_name;
+use cancel::{CANCELLED, Cancel};
 use discovery::{account_at, discover_local};
-use home::headroom_home;
+use home::{discard_home, headroom_home};
 use login::{Console, Launcher, LoginEvent, login_spec, sign_in};
 use progress::{JsonLines, ProgressEvent};
 
@@ -28,10 +30,13 @@ pub async fn add(
     label: Option<&str>,
     progress: Option<ProgressFormat>,
 ) -> Result<()> {
+    let cancel = Cancel::default();
+    cancel.on_signals()?;
     match progress {
-        None => add_in_terminal(globals, provider, label).await,
+        None => add_in_terminal(globals, provider, label, &cancel).await,
         Some(ProgressFormat::Json) => {
-            let result = add_streamed(globals, provider, label).await;
+            cancel.on_stdout_closed();
+            let result = add_streamed(globals, provider, label, &cancel).await;
             let done = |(id, label): &(String, Option<String>)| ProgressEvent::Done {
                 account_id: id.clone(),
                 label: label.clone(),
@@ -46,6 +51,7 @@ async fn add_in_terminal(
     globals: &Globals,
     provider: ProviderKind,
     label: Option<&str>,
+    cancel: &Cancel,
 ) -> Result<()> {
     let root = accounts_root()?;
     let preview = root.join(provider.as_str()).join("<new>");
@@ -55,29 +61,36 @@ async fn add_in_terminal(
         login_spec(provider).display(&preview)
     )?;
     let launcher = Launcher::default();
-    let home =
-        tokio::task::spawn_blocking(move || sign_in(&root, provider, &launcher, Console::Terminal))
-            .await??;
-    let account = signed_in_account(provider, &home).await?;
-    writeln!(
-        io::stdout(),
-        "Added {} account {}",
-        provider_name(provider),
-        account.id.0
-    )?;
-    warn_if_duplicate(&account).await?;
-    if let Some(label) = announce(globals, &account, label).await? {
-        writeln!(io::stdout(), "Labelled {} as {label}", account.id.0)?;
-    }
-    Ok(())
+    let login = cancel.clone();
+    let home = tokio::task::spawn_blocking(move || {
+        sign_in(&root, provider, &launcher, Console::Terminal, &login)
+    })
+    .await??;
+    let registered = async {
+        let account = signed_in_account(provider, &home).await?;
+        writeln!(
+            io::stdout(),
+            "Added {} account {}",
+            provider_name(provider),
+            account.id.0
+        )?;
+        warn_if_duplicate(&account).await?;
+        if let Some(label) = announce(globals, &account, label).await? {
+            writeln!(io::stdout(), "Labelled {} as {label}", account.id.0)?;
+        }
+        Ok(())
+    };
+    unless_cancelled(cancel, &home, registered).await
 }
 
 async fn add_streamed(
     globals: &Globals,
     provider: ProviderKind,
     label: Option<&str>,
+    cancel: &Cancel,
 ) -> Result<(String, Option<String>)> {
     let root = accounts_root()?;
+    let login = cancel.clone();
     let home = tokio::task::spawn_blocking(move || {
         let mut out = JsonLines::new(io::stdout());
         let mut events = |event: LoginEvent| out.emit(&progress_event(provider, event));
@@ -85,13 +98,31 @@ async fn add_streamed(
             input: Box::new(io::stdin()),
             events: &mut events,
         };
-        sign_in(&root, provider, &Launcher::default(), console)
+        sign_in(&root, provider, &Launcher::default(), console, &login)
     })
     .await??;
-    let account = signed_in_account(provider, &home).await?;
-    warn_if_duplicate(&account).await?;
-    let labelled = announce(globals, &account, label).await?;
-    Ok((account.id.0, labelled))
+    let registered = async {
+        let account = signed_in_account(provider, &home).await?;
+        warn_if_duplicate(&account).await?;
+        let labelled = announce(globals, &account, label).await?;
+        Ok((account.id.0, labelled))
+    };
+    unless_cancelled(cancel, &home, registered).await
+}
+
+async fn unless_cancelled<T>(
+    cancel: &Cancel,
+    home: &Path,
+    work: impl Future<Output = Result<T>>,
+) -> Result<T> {
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => {
+            discard_home(home);
+            bail!(CANCELLED)
+        }
+        result = work => result,
+    }
 }
 
 fn progress_event(provider: ProviderKind, event: LoginEvent) -> ProgressEvent {

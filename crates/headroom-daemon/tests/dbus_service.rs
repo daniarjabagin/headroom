@@ -147,6 +147,7 @@ trait Daemon {
     fn rescan(&self) -> zbus::Result<()>;
     fn get_settings(&self) -> zbus::Result<String>;
     fn set_settings(&self, json: &str) -> zbus::Result<()>;
+    fn update_settings(&self, patch: &str) -> zbus::Result<()>;
     fn set_account_label(&self, account_id: &str, label: &str) -> zbus::Result<()>;
     fn set_account_order(&self, ids: &[&str]) -> zbus::Result<()>;
     fn set_account_hidden(&self, account_id: &str, hidden: bool) -> zbus::Result<()>;
@@ -206,14 +207,43 @@ type Checked = Result<bool, Box<dyn std::error::Error>>;
 
 async fn settings_are_validated(proxy: &DaemonProxy<'_>) -> Checked {
     let rejected = proxy.set_settings(r#"{"refresh_interval_secs":1}"#).await;
-    let invalid_args = matches!(
-        rejected,
-        Err(zbus::Error::MethodError(name, _, _))
-            if name.as_str() == "org.freedesktop.DBus.Error.InvalidArgs"
-    );
+    let invalid_args = is_invalid_args(&rejected);
     proxy.set_settings(r#"{"reduced_motion":true}"#).await?;
     let stored = proxy.get_settings().await?;
     Ok(invalid_args && stored.contains(r#""reduced_motion":true"#))
+}
+
+fn is_invalid_args(result: &zbus::Result<()>) -> bool {
+    matches!(
+        result,
+        Err(zbus::Error::MethodError(name, _, _))
+            if name.as_str() == "org.freedesktop.DBus.Error.InvalidArgs"
+    )
+}
+
+async fn settings_are_patched(proxy: &DaemonProxy<'_>) -> Checked {
+    proxy
+        .update_settings(
+            r#"{"display":{"theme":"dark","hidden_windows":{"codex:work":["weekly"]}}}"#,
+        )
+        .await?;
+    proxy
+        .update_settings(r#"{"display":{"translucent":true,"hidden_windows":{"codex:work":null}}}"#)
+        .await?;
+    let unknown = proxy
+        .update_settings(r#"{"display":{"compact":true}}"#)
+        .await;
+    let out_of_range = proxy
+        .update_settings(r#"{"refresh_interval_secs":1}"#)
+        .await;
+    let stored: serde_json::Value = serde_json::from_str(&proxy.get_settings().await?)?;
+    let display = &stored["display"];
+    Ok(is_invalid_args(&unknown)
+        && is_invalid_args(&out_of_range)
+        && stored["reduced_motion"] == true
+        && display["theme"] == "dark"
+        && display["translucent"] == true
+        && display["hidden_windows"] == serde_json::json!({}))
 }
 
 async fn refresh_accepts_known_accounts(proxy: &DaemonProxy<'_>) -> Checked {
@@ -287,6 +317,7 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
         Some("ada@example.com")
     );
     assert!(settings_are_validated(&proxy).await.unwrap());
+    assert!(settings_are_patched(&proxy).await.unwrap());
     assert!(refresh_accepts_known_accounts(&proxy).await.unwrap());
     assert!(
         rescan_picks_up_added_and_removed_accounts(&proxy, &provider)

@@ -48,6 +48,13 @@ impl DaemonInterface {
             .map_err(|error| to_fdo(&error))
     }
 
+    async fn update_settings(&self, patch: &str) -> fdo::Result<()> {
+        self.core
+            .update_settings(patch)
+            .await
+            .map_err(|error| to_fdo(&error))
+    }
+
     async fn set_account_label(&self, account_id: &str, label: &str) -> fdo::Result<()> {
         self.core
             .set_account_label(account_id, label)
