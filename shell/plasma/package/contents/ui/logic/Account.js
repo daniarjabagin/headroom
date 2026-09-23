@@ -1,7 +1,7 @@
 .pragma library
 
 .import "I18n.js" as I18n
-.import "Providers.js" as Providers
+.import "Registry.js" as Registry
 .import "State.js" as State
 
 const PERMANENT_ERRORS = ["unsupported", "no_provider"];
@@ -29,25 +29,30 @@ function retryAction(lang, account) {
     };
 }
 
-function signedOutNotice(lang, account) {
-    const command = Providers.signInCommand(account.provider);
-    const actions = [retryAction(lang, account)];
-    if (command)
-        actions.unshift({
-            kind: "copy",
-            label: I18n.tr(lang, "Copy command"),
-            value: command
-        });
+function signsInFromTerminal(providers, id) {
+    return Registry.findProvider(providers, id)?.method.kind === "cli_login";
+}
+
+function signedOutActions(lang, account, providers) {
+    const retry = retryAction(lang, account);
+    if (!signsInFromTerminal(providers, account.provider))
+        return [retry];
+    return [{
+            kind: "signin",
+            label: I18n.tr(lang, "Sign in again…"),
+            value: account.provider
+        }, retry];
+}
+
+function signedOutNotice(lang, account, providers) {
     return {
         kind: "signin",
         title: I18n.tr(lang, "Signed out of {provider}", {
             provider: account.providerName
         }),
-        detail: command ? I18n.tr(lang, "Run \"{command}\" and sign in, then Retry", {
-            command
-        }) : I18n.tr(lang, "Sign in again, then Retry"),
+        detail: I18n.tr(lang, "Sign in again, then Retry"),
         note: "",
-        actions
+        actions: signedOutActions(lang, account, providers)
     };
 }
 
@@ -88,9 +93,9 @@ function providerNotice(notice) {
     };
 }
 
-function notices(lang, account, offline) {
+function notices(lang, account, offline, providers) {
     if (account.status === "signed_out")
-        return [signedOutNotice(lang, account)];
+        return [signedOutNotice(lang, account, providers)];
     if (account.status === "no_subscription")
         return [noSubscriptionNotice(lang, account)];
     const rows = account.notices.map(providerNotice);

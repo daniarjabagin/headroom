@@ -3,6 +3,7 @@ import QtTest
 import org.kde.plasma.plasmoid
 import org.kde.plasma.workspace.dbus as DBus
 import headroom.preview
+import "../package/contents/ui/logic/Commands.js" as Commands
 
 TestCase {
     id: suite
@@ -144,6 +145,25 @@ TestCase {
         tryVerify(() => refreshCalls().length === 1, settleMs);
         compare(refreshCalls()[0].arguments, [section.account.id]);
         compare(refreshNowCalls(), []);
+    }
+
+    function test_signed_out_account_signs_in_through_terminal() {
+        open("ready");
+        const section = sections().find(item => item.account.status === "signed_out");
+        verify(section !== undefined);
+        tryVerify(() => section.notices[0].actions.length === 2, settleMs);
+        compare(section.notices[0].actions.map(action => action.kind), ["signin", "retry"]);
+        section.runAction("signin", section.account.provider);
+        const runner = findAll(plasmoid, item => item.engine === "executable", [])[0];
+        verify(runner !== undefined);
+        const command = Commands.addAccountCommand(section.account.provider, "", "Press Enter to close this window");
+        compare(runner.connectedSources, [command]);
+        runner.newData(command, {
+            "exit code": 0,
+            stdout: ""
+        });
+        tryVerify(() => calls("Rescan").length === 1, settleMs);
+        compare(refreshCalls(), []);
     }
 
     function test_settings_button_opens_configuration() {

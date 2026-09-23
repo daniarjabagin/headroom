@@ -4,6 +4,7 @@ import QtQuick
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import "logic/Commands.js" as Commands
 import "logic/I18n.js" as I18n
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
@@ -39,6 +40,10 @@ PlasmoidItem {
             daemon.refresh("");
     }
 
+    function signIn(providerId) {
+        runner.run(Commands.addAccountCommand(providerId, "", I18n.tr(lang, "Press Enter to close this window")));
+    }
+
     compactRepresentation: CompactRepresentation {
         headline: root.headline
         display: root.display
@@ -52,6 +57,7 @@ PlasmoidItem {
 
     fullRepresentation: FullRepresentation {
         view: root.view
+        providers: daemon.providers ?? []
         now: root.now
         live: root.live
         display: root.display
@@ -61,6 +67,7 @@ PlasmoidItem {
         reducedMotion: root.reducedMotion
         versionText: `Headroom ${Plasmoid.metaData.version}`
         onRefreshRequested: accountId => daemon.refresh(accountId)
+        onSignInRequested: providerId => root.signIn(providerId)
         onRefreshNowRequested: onFailed => daemon.refreshNow(onFailed)
         onOrderRequested: ids => daemon.setOrder(ids)
         onDisplayPatched: patch => daemon.patchDisplay(patch)
@@ -73,7 +80,15 @@ PlasmoidItem {
 
         active: root.expanded
         trackSettings: true
+        trackProviders: true
+        lang: root.lang
         onOpenRequested: root.expanded = true
+    }
+
+    CommandRunner {
+        id: runner
+
+        onExited: daemon.rescan()
     }
 
     Timer {

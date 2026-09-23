@@ -11,6 +11,7 @@ LITERAL = r'"((?:[^"\\]|\\.)*)"'
 SINGLE = re.compile(r"\b(?:tr|N)\(\s*(?:[\w.]+\s*,\s*)?" + LITERAL)
 PLURAL = re.compile(r"\btrn\(\s*[\w.]+\s*,\s*" + LITERAL + r"\s*,\s*" + LITERAL)
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
+UNMARKED_THROW = re.compile(r"\bnew\s+\w*Error\((?!\s*(?:I18n\.)?N\()")
 
 
 def unescape(literal):
@@ -24,11 +25,25 @@ def catalog():
     return json.loads(text[start:end])
 
 
+def sources():
+    for path in sorted(SOURCES.rglob("*")):
+        if path.suffix in {".qml", ".js"} and path != CATALOG:
+            yield path
+
+
+def unmarked_throws():
+    found = []
+    for path in sources():
+        text = path.read_text(encoding="utf-8")
+        for match in UNMARKED_THROW.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            found.append(f"{path.name}:{line}: thrown error message must be a msgid marked with N()")
+    return found
+
+
 def used_messages():
     singles, plurals = {}, {}
-    for path in sorted(SOURCES.rglob("*")):
-        if path.suffix not in {".qml", ".js"} or path == CATALOG:
-            continue
+    for path in sources():
         text = path.read_text(encoding="utf-8")
         for match in PLURAL.finditer(text):
             plurals[unescape(match.group(1))] = (unescape(match.group(2)), path.name)
@@ -61,7 +76,7 @@ def check_plural(msgid, plural, entry):
 def problems():
     messages = catalog()
     singles, plurals = used_messages()
-    found = []
+    found = unmarked_throws()
     for msgid, source in singles.items():
         if msgid not in messages:
             found.append(f"{source}: missing Russian entry for {msgid!r}")

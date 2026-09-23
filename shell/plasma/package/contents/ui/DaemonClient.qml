@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.workspace.dbus as DBus
+import "logic/I18n.js" as I18n
 import "logic/PatchQueue.js" as PatchQueue
 import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
@@ -15,6 +16,7 @@ Item {
     readonly property int idlePollMs: 60000
     readonly property int startGraceMs: 5000
     property bool active: false
+    property string lang: "en"
     property bool trackSettings: false
     property bool trackProviders: false
     property var providers: null
@@ -85,7 +87,7 @@ Item {
         } catch (error) {
             if (!Registry.isRegistryError(error))
                 throw error;
-            commandFailed(error.message);
+            commandFailed(I18n.errorText(lang, error));
         }
     }
 
@@ -98,7 +100,7 @@ Item {
         } catch (error) {
             if (!Settings.isSettingsError(error))
                 throw error;
-            commandFailed(error.message);
+            commandFailed(I18n.errorText(lang, error));
         }
     }
 
@@ -118,7 +120,7 @@ Item {
             view = {
                 kind: "error",
                 state: null,
-                error: error.message
+                error: I18n.errorText(lang, error)
             };
         }
     }

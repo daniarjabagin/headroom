@@ -68,9 +68,8 @@ const MESSAGES = {
     "Last 30 Days": "30 дней",
     "30 Days": "30 дней",
     "Retry": "Повторить",
-    "Copy command": "Копировать команду",
+    "Sign in again…": "Войти снова…",
     "Signed out of {provider}": "Выполнен выход из {provider}",
-    "Run \"{command}\" and sign in, then Retry": "Запустите «{command}», войдите и нажмите «Повторить»",
     "Sign in again, then Retry": "Войдите снова и нажмите «Повторить»",
     "Couldn't refresh {provider}": "Не удалось обновить {provider}",
     "Offline": "Нет сети",
@@ -194,5 +193,15 @@ const MESSAGES = {
     "Get a key…": "Получить ключ…",
     "A terminal window opened. Paste the API key there; the account shows up here when it is done.": "Открылось окно терминала. Вставьте туда API-ключ — аккаунт появится здесь, когда всё будет готово.",
     "Looking for accounts. New ones show up here in a moment.": "Ищем аккаунты. Новые появятся здесь через мгновение.",
-    "No providers available": "Нет доступных сервисов"
+    "No providers available": "Нет доступных сервисов",
+    "Unreadable state from the Headroom service: {reason}": "Не удалось разобрать состояние от службы Headroom: {reason}",
+    "Unexpected state from the Headroom service": "Служба Headroom прислала состояние в неожиданном формате",
+    "Headroom service speaks state version {version}, expected {expected}": "Служба Headroom использует версию состояния {version}, ожидалась {expected}",
+    "Unreadable settings from the Headroom service: {reason}": "Не удалось разобрать настройки от службы Headroom: {reason}",
+    "Unexpected settings from the Headroom service": "Служба Headroom прислала настройки в неожиданном формате",
+    "Unreadable provider list from the Headroom service: {reason}": "Не удалось разобрать список сервисов от службы Headroom: {reason}",
+    "Unexpected provider list from the Headroom service": "Служба Headroom прислала список сервисов в неожиданном формате",
+    "Headroom service speaks provider list version {version}, expected {expected}": "Служба Headroom использует версию списка сервисов {version}, ожидалась {expected}",
+    "Unexpected provider id {provider}": "Недопустимый идентификатор сервиса {provider}",
+    "Unexpected account id {account}": "Недопустимый идентификатор аккаунта {account}"
 };

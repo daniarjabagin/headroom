@@ -3,11 +3,11 @@
 .import "I18n.js" as I18n
 
 const SCHEMA_VERSION = 1;
-const PROVIDER_ID = /^[a-z0-9_-]+$/;
+const PROVIDER_ID = /^[a-z0-9][a-z0-9_-]*$/;
 const METHOD_KINDS = ["cli_login", "api_key", "auto_detect"];
 const WEB_URL = /^https?:\/\/\S+$/;
 
-class RegistryError extends Error {}
+class RegistryError extends I18n.LocalizedError {}
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -55,16 +55,21 @@ function decode(json) {
     try {
         return JSON.parse(json);
     } catch (error) {
-        throw new RegistryError(`Unreadable provider list from the Headroom service: ${error.message}`);
+        throw new RegistryError(I18n.N("Unreadable provider list from the Headroom service: {reason}"), {
+            reason: error.message
+        });
     }
 }
 
 function parseRegistry(json) {
     const raw = decode(json);
     if (!isObject(raw) || !Array.isArray(raw.providers))
-        throw new RegistryError("Unexpected provider list from the Headroom service");
+        throw new RegistryError(I18n.N("Unexpected provider list from the Headroom service"));
     if (raw.version !== SCHEMA_VERSION)
-        throw new RegistryError(`Headroom service speaks provider list version ${raw.version}, expected ${SCHEMA_VERSION}`);
+        throw new RegistryError(I18n.N("Headroom service speaks provider list version {version}, expected {expected}"), {
+            version: raw.version,
+            expected: SCHEMA_VERSION
+        });
     return raw.providers.map(parseProvider).filter(provider => provider !== null);
 }
 

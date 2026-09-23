@@ -1,6 +1,8 @@
 import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Account.js" as Account
+import "../package/contents/ui/logic/I18n.js" as I18n
+import "../package/contents/ui/logic/Registry.js" as Registry
 import "../package/contents/ui/logic/State.js" as State
 import "../package/contents/ui/logic/Summary.js" as Summary
 
@@ -16,6 +18,10 @@ TestCase {
 
     function sample() {
         return State.parseState(read("../dev/sample-state.json"));
+    }
+
+    function providers() {
+        return Registry.parseRegistry(read("../dev/sample-providers.json"));
     }
 
     function daemonJson() {
@@ -133,6 +139,13 @@ TestCase {
                 verify(State.isStateError(error));
             }
         }
+        try {
+            State.parseState("{\"version\": 2}");
+            fail("expected a state error");
+        } catch (error) {
+            compare(error.message, "Headroom service speaks state version 2, expected 1");
+            compare(I18n.errorText("ru", error), "Служба Headroom использует версию состояния 2, ожидалась 1");
+        }
         const bare = State.parseState("{\"version\": 1}");
         compare(bare.accounts, []);
         compare(bare.spend, null);
@@ -211,13 +224,26 @@ TestCase {
         const state = sample();
         compare(Account.statusSlot(state.accounts[1], false), "outdated");
         compare(Account.statusSlot(state.accounts[2], false), "warning");
-        compare(Account.notices("en", state.accounts[2], false)[0].title, "Couldn't refresh Claude");
-        compare(Account.notices("ru", state.accounts[2], false)[0].title, "Не удалось обновить Claude");
-        compare(Account.notices("en", state.accounts[1], false)[0].kind, "warning");
-        const signedOut = Account.notices("en", state.accounts[3], false);
+        compare(Account.notices("en", state.accounts[2], false, providers())[0].title, "Couldn't refresh Claude");
+        compare(Account.notices("ru", state.accounts[2], false, providers())[0].title, "Не удалось обновить Claude");
+        compare(Account.notices("en", state.accounts[1], false, providers())[0].kind, "warning");
+        const signedOut = Account.notices("en", state.accounts[3], false, providers());
         compare(signedOut.length, 1);
-        compare(signedOut[0].actions.map(action => action.kind), ["copy", "retry"]);
-        compare(signedOut[0].actions[0].value, "claude");
+        compare(signedOut[0].detail, "Sign in again, then Retry");
+        compare(signedOut[0].actions, [
+            {
+                kind: "signin",
+                label: "Sign in again…",
+                value: "claude"
+            },
+            {
+                kind: "retry",
+                label: "Retry",
+                value: state.accounts[3].id
+            }
+        ]);
+        compare(Account.notices("ru", state.accounts[3], false, providers())[0].actions[0].label, "Войти снова…");
+        compare(Account.notices("en", state.accounts[3], false, [])[0].actions.map(action => action.kind), ["retry"]);
         const offline = Object.assign({}, state.accounts[2], {
             error: {
                 kind: "network",
@@ -225,7 +251,7 @@ TestCase {
             }
         });
         compare(Account.statusSlot(offline, true), "outdated");
-        compare(Account.notices("en", offline, true), []);
+        compare(Account.notices("en", offline, true, providers()), []);
     }
 
     function test_new_provider_notices() {
@@ -233,7 +259,7 @@ TestCase {
         const signedOut = Object.assign({}, zai, {
             status: "signed_out"
         });
-        const notice = Account.notices("en", signedOut, false)[0];
+        const notice = Account.notices("en", signedOut, false, providers())[0];
         compare(notice.title, "Signed out of Z.ai");
         compare(notice.detail, "Sign in again, then Retry");
         compare(notice.actions.map(action => action.kind), ["retry"]);
@@ -245,7 +271,7 @@ TestCase {
                     message: "not available"
                 }
             });
-            compare(Account.notices("en", failed, false)[0].actions, []);
+            compare(Account.notices("en", failed, false, providers())[0].actions, []);
         }
     }
 
@@ -276,7 +302,7 @@ TestCase {
         compare(Account.statusSlot(account, false), "");
         verify(!Account.showsQuotas(account));
         verify(!Account.hasExtras(account, sample().display));
-        compare(Account.notices("en", account, false), [
+        compare(Account.notices("en", account, false, providers()), [
             {
                 kind: "warning",
                 title: "No active subscription",
@@ -291,7 +317,7 @@ TestCase {
                 ]
             }
         ]);
-        const russian = Account.notices("ru", account, false)[0];
+        const russian = Account.notices("ru", account, false, providers())[0];
         compare(russian.title, "Подписка неактивна");
         compare(russian.detail, "Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт.");
         const bare = Object.assign({}, account, {
@@ -300,7 +326,7 @@ TestCase {
                 message: "no_subscription"
             }
         });
-        compare(Account.notices("en", bare, false)[0].note, "");
+        compare(Account.notices("en", bare, false, providers())[0].note, "");
     }
 
     function test_no_subscription_needs_no_live_clock() {

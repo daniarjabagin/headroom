@@ -15,6 +15,7 @@ Item {
     id: full
 
     required property var view
+    required property var providers
     required property var now
     required property bool live
     required property var display
@@ -31,6 +32,7 @@ Item {
     property real reveal: 1
 
     signal refreshRequested(string accountId)
+    signal signInRequested(string providerId)
     signal refreshNowRequested(var onFailed)
     signal orderRequested(var ids)
     signal displayPatched(var patch)
@@ -123,13 +125,14 @@ Item {
 
                     sourceComponent: Dashboard {
                         snapshot: full.view.state
+                        providers: full.providers
                         now: full.now
                         live: full.live
                         display: full.display
                         lang: full.lang
                         reveal: full.reveal
                         onRefreshRequested: accountId => full.refreshRequested(accountId)
-                        onCopyRequested: text => clipboard.copyText(text)
+                        onSignInRequested: providerId => full.signInRequested(providerId)
                         onOrderRequested: ids => full.orderRequested(ids)
                         onDisplayPatched: patch => full.displayPatched(patch)
                     }
@@ -169,10 +172,6 @@ Item {
             onRefreshRequested: refreshButton.trigger()
             onSettingsRequested: full.settingsRequested()
         }
-    }
-
-    ClipboardHelper {
-        id: clipboard
     }
 
     NumberAnimation {

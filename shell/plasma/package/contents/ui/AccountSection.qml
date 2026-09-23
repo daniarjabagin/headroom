@@ -11,6 +11,7 @@ Item {
     id: section
 
     required property var account
+    required property var providers
     required property bool showName
     required property bool offline
     required property var now
@@ -24,12 +25,12 @@ Item {
     required property real dragOffset
     required property string indicator
     required property real gap
-    readonly property var notices: Account.notices(lang, account, offline)
+    readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
     readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
     signal refreshRequested(string accountId)
-    signal copyRequested(string text)
+    signal signInRequested(string providerId)
     signal expandToggled(string accountId)
     signal dragMoved(real offset)
     signal dragFinished
@@ -37,8 +38,8 @@ Item {
     signal resetFormatToggled
 
     function runAction(kind, value) {
-        if (kind === "copy")
-            copyRequested(value);
+        if (kind === "signin")
+            signInRequested(value);
         else
             refreshRequested(value);
     }

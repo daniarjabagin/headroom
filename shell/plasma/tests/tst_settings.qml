@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Commands.js" as Commands
+import "../package/contents/ui/logic/I18n.js" as I18n
 import "../package/contents/ui/logic/Motion.js" as Motion
 import "../package/contents/ui/logic/Options.js" as Options
 import "../package/contents/ui/logic/Order.js" as Order
@@ -75,6 +76,13 @@ TestCase {
             } catch (error) {
                 verify(Settings.isSettingsError(error));
             }
+        }
+        try {
+            parse("[]");
+            fail("expected a settings error");
+        } catch (error) {
+            compare(error.message, "Unexpected settings from the Headroom service");
+            compare(I18n.errorText("ru", error), "Служба Headroom прислала настройки в неожиданном формате");
         }
     }
 
@@ -229,10 +237,10 @@ TestCase {
         const command = Commands.addAccountCommand("codex", " Ada's work ", "Press Enter");
         verify(command.startsWith("if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c '"));
         verify(command.includes("else exec konsole -e sh -c '"));
-        verify(command.includes("headroom accounts add codex --label"));
+        verify(command.includes("headroom accounts add codex --label="));
         verify(!Commands.addAccountCommand("claude", "  ", "x").includes("--label"));
         compare(Commands.removeAccountCommand("codex:9f8e7d6c5b4a"), "headroom accounts remove 'codex:9f8e7d6c5b4a' --yes --progress json");
-        for (const run of [() => Commands.addAccountCommand("rm -rf", "", ""), () => Commands.removeAccountCommand("x; rm -rf ~")]) {
+        for (const run of [() => Commands.addAccountCommand("rm -rf", "", ""), () => Commands.addAccountCommand("-h", "", ""), () => Commands.removeAccountCommand("x; rm -rf ~"), () => Commands.removeAccountCommand("-x:1a")]) {
             try {
                 run();
                 fail("expected a command error");
@@ -244,7 +252,36 @@ TestCase {
 
     function test_command_script_round_trip() {
         const script = Commands.loginScript("codex", "Ada's", "Press Enter");
-        compare(script, "headroom accounts add codex --label 'Ada'\\''s'; status=$?; printf '\\n%s ' 'Press Enter'; read -r _; exit $status");
+        compare(script, "headroom accounts add codex --label='Ada'\\''s'; status=$?; printf '\\n%s ' 'Press Enter'; read -r _; exit $status");
+    }
+
+    function test_label_starting_with_dash_stays_a_value() {
+        compare(Commands.loginScript("codex", " --yes ", "x"), "headroom accounts add codex --label='--yes'; status=$?; printf '\\n%s ' 'x'; read -r _; exit $status");
+        verify(Commands.addAccountCommand("codex", "-work", "x").includes("--label='\\''-work'\\''"));
+    }
+
+    function test_command_errors_are_translated() {
+        try {
+            Commands.removeAccountCommand("bogus");
+            fail("expected a command error");
+        } catch (error) {
+            compare(error.message, "Unexpected account id bogus");
+            compare(I18n.errorText("ru", error), "Недопустимый идентификатор аккаунта bogus");
+        }
+    }
+
+    function test_pending_command_kinds_match_exactly() {
+        const spoof = Commands.addAccountCommand("codex", "accounts remove", "x");
+        const remove = Commands.removeAccountCommand("codex:1a");
+        const pending = Commands.track(Commands.track({}, spoof, "add"), remove, "remove");
+        const first = Commands.settle(pending, spoof);
+        compare(first.kind, "add");
+        compare(Object.keys(first.pending), [remove]);
+        const second = Commands.settle(first.pending, remove);
+        compare(second.kind, "remove");
+        compare(second.pending, {});
+        compare(Commands.settle(second.pending, remove).kind, "");
+        compare(Commands.settle({}, "toString").kind, "");
     }
 
     function test_progress_outcome() {
