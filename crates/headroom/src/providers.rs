@@ -100,10 +100,10 @@ mod tests {
 
     #[test]
     fn unknown_providers_are_named_with_the_known_ones() {
-        let error = descriptor("cursor").unwrap_err().to_string();
+        let error = descriptor("nope").unwrap_err().to_string();
         assert_eq!(
             error,
-            "unknown provider \"cursor\"; known providers: codex, claude, opencode"
+            "unknown provider \"nope\"; known providers: codex, claude, opencode, openrouter, zai"
         );
         assert_eq!(descriptor("claude").unwrap().display_name, "Claude");
     }

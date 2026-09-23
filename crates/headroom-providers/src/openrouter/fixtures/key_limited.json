@@ -1,0 +1,17 @@
+{
+  "data": {
+    "label": "sk-or-v1-7c2...0b4",
+    "limit": 20,
+    "limit_reset": "monthly",
+    "limit_remaining": 7.5,
+    "include_byok_in_limit": false,
+    "usage": 58.25,
+    "usage_daily": 0.4,
+    "usage_weekly": 4.1,
+    "usage_monthly": 12.5,
+    "byok_usage": 0,
+    "is_free_tier": true,
+    "is_provisioning_key": false,
+    "expires_at": "2027-01-01T00:00:00Z"
+  }
+}

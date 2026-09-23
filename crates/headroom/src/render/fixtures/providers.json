@@ -42,6 +42,34 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "openrouter",
+      "display_name": "OpenRouter",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://openrouter.ai/settings/keys",
+          "hint": "Starts with sk-or-; a management key also shows the credit balance"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "zai",
+      "display_name": "Z.ai",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://z.ai/manage-apikey/apikey-list",
+          "hint": "A key from the account that holds your GLM Coding Plan"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

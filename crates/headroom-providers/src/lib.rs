@@ -6,6 +6,8 @@ pub mod http;
 pub mod jsonl;
 pub mod key_accounts;
 pub mod opencode;
+pub mod openrouter;
 mod plan_error;
 pub mod registry;
 pub mod secrets;
+pub mod zai;

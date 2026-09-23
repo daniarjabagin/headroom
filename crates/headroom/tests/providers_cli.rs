@@ -62,7 +62,7 @@ fn adding_an_unknown_provider_reports_an_error_event() {
     let sandbox = tempfile::tempdir().unwrap();
     let output = headroom(
         &sandbox,
-        &["accounts", "add", "cursor", "--progress", "json"],
+        &["accounts", "add", "nope", "--progress", "json"],
         "",
     );
     assert!(!output.status.success());
@@ -71,7 +71,7 @@ fn adding_an_unknown_provider_reports_an_error_event() {
     assert_eq!(lines[0]["event"], "error");
     assert_eq!(
         lines[0]["message"],
-        "unknown provider \"cursor\"; known providers: codex, claude, opencode"
+        "unknown provider \"nope\"; known providers: codex, claude, opencode, openrouter, zai"
     );
 }
 

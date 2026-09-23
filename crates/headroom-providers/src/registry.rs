@@ -7,6 +7,8 @@ use headroom_core::secret::SecretReader;
 use crate::claude::{self, ClaudeConfig, ClaudeProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
+use crate::openrouter::{self, OpenRouterConfig, OpenRouterProvider};
+use crate::zai::{self, ZaiConfig, ZaiProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
 pub struct RegistryContext {
@@ -21,7 +23,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 3] = [
+static ENTRIES: [Entry; 5] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -33,6 +35,14 @@ static ENTRIES: [Entry; 3] = [
     Entry {
         descriptor: &opencode::DESCRIPTOR,
         build: build_opencode,
+    },
+    Entry {
+        descriptor: &openrouter::DESCRIPTOR,
+        build: build_openrouter,
+    },
+    Entry {
+        descriptor: &zai::DESCRIPTOR,
+        build: build_zai,
     },
 ];
 
@@ -98,6 +108,26 @@ fn build_opencode(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provid
         config,
         context.http.clone(),
         Arc::clone(&context.secrets),
+    )))
+}
+
+fn build_openrouter(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = OpenRouterConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(OpenRouterProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
+    )))
+}
+
+fn build_zai(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = ZaiConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(ZaiProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
     )))
 }
 
