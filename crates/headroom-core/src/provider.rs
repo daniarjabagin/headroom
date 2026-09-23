@@ -4,15 +4,31 @@ use async_trait::async_trait;
 use jiff::SignedDuration;
 use serde::{Deserialize, Serialize};
 
-use crate::account::{AccountRef, ProviderKind};
+use crate::account::{AccountIdentity, AccountRef, ProviderId};
 use crate::cursor::LogCursors;
+use crate::descriptor::ProviderDescriptor;
 use crate::event::UsageEvent;
 use crate::quota::LimitsSnapshot;
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    fn kind(&self) -> ProviderKind;
+    fn descriptor(&self) -> &'static ProviderDescriptor;
+
+    fn id(&self) -> &'static ProviderId {
+        &self.descriptor().id
+    }
+
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError>;
+
+    /// The account signed in at one Headroom-owned home, even when discovery lists it elsewhere.
+    async fn account_at(&self, home: &Path) -> Result<Option<AccountRef>, ProviderError> {
+        match self.discover().await {
+            Ok(accounts) => Ok(accounts.into_iter().find(|account| account.home == home)),
+            Err(ProviderError::NotSignedIn) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     /// Every directory whose local logs hold usage, with or without a signed-in account.
     async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError>;
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError>;
@@ -21,6 +37,14 @@ pub trait Provider: Send + Sync {
         home: &Path,
         cursors: &mut LogCursors,
     ) -> Result<Vec<UsageEvent>, ProviderError>;
+
+    /// Checks a pasted API key with the provider and returns whose key it is.
+    async fn validate_key(&self, _key: &str) -> Result<AccountIdentity, ProviderError> {
+        Err(ProviderError::Unsupported(format!(
+            "{} accounts cannot be added with an API key",
+            self.descriptor().display_name
+        )))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize)]
@@ -42,11 +66,82 @@ pub enum ProviderError {
     InvalidResponse(String),
     #[error("local data error: {0}")]
     LocalData(String),
+    #[error("{0}")]
+    Unsupported(String),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::account::{AccountId, CredentialOwner};
+    use crate::descriptor::AddAccountMethod;
+
+    static TOOL: ProviderDescriptor = ProviderDescriptor {
+        id: ProviderId::from_static("tool"),
+        display_name: "Tool",
+        add_account: &[AddAccountMethod::AutoDetect { reason: "found" }],
+        multi_account: false,
+        local_usage: false,
+    };
+
+    struct Listed(Result<Vec<AccountRef>, ProviderError>);
+
+    #[async_trait]
+    impl Provider for Listed {
+        fn descriptor(&self) -> &'static ProviderDescriptor {
+            &TOOL
+        }
+
+        async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+            self.0.clone()
+        }
+
+        async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
+            Ok(Vec::new())
+        }
+
+        async fn fetch_limits(&self, _: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
+            Err(ProviderError::NotSignedIn)
+        }
+
+        fn read_usage(
+            &self,
+            _: &Path,
+            _: &mut LogCursors,
+        ) -> Result<Vec<UsageEvent>, ProviderError> {
+            Ok(Vec::new())
+        }
+    }
+
+    fn at(home: &str) -> AccountRef {
+        AccountRef {
+            id: AccountId(format!("tool:{home}")),
+            provider: TOOL.id.clone(),
+            home: PathBuf::from(home),
+            owner: CredentialOwner::Headroom,
+        }
+    }
+
+    #[tokio::test]
+    async fn default_account_at_filters_discovery_by_home() {
+        let listed = Listed(Ok(vec![at("/a"), at("/b")]));
+        assert_eq!(listed.id().as_str(), "tool");
+        assert_eq!(listed.account_at(Path::new("/b")).await, Ok(Some(at("/b"))));
+        assert_eq!(listed.account_at(Path::new("/c")).await, Ok(None));
+        let signed_out = Listed(Err(ProviderError::NotSignedIn));
+        assert_eq!(signed_out.account_at(Path::new("/a")).await, Ok(None));
+        let broken = Listed(Err(ProviderError::LocalData("x".into())));
+        assert!(broken.account_at(Path::new("/a")).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn keys_are_unsupported_unless_a_provider_validates_them() {
+        let error = Listed(Ok(Vec::new())).validate_key("k").await.unwrap_err();
+        assert_eq!(
+            error,
+            ProviderError::Unsupported("Tool accounts cannot be added with an API key".into())
+        );
+    }
 
     #[test]
     fn messages_are_user_safe() {

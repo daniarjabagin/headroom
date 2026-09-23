@@ -3,12 +3,12 @@ use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 use uuid::Uuid;
 
 const PRIVATE_DIR: u32 = 0o700;
 
-pub fn create_home(root: &Path, provider: ProviderKind) -> Result<PathBuf> {
+pub fn create_home(root: &Path, provider: &ProviderId) -> Result<PathBuf> {
     let parent = root.join(provider.as_str());
     DirBuilder::new()
         .recursive(true)
@@ -31,7 +31,7 @@ pub fn discard_home(home: &Path) {
     }
 }
 
-pub fn headroom_home(root: &Path, provider: ProviderKind, home: &Path) -> Result<PathBuf> {
+pub fn headroom_home(root: &Path, provider: &ProviderId, home: &Path) -> Result<PathBuf> {
     let parent = root.join(provider.as_str());
     let refuse = || format!("{} is not a Headroom-owned account home", home.display());
     let metadata = fs::symlink_metadata(home).with_context(refuse)?;
@@ -54,38 +54,37 @@ pub fn headroom_home(root: &Path, provider: ProviderKind, home: &Path) -> Result
 mod tests {
     use std::os::unix::fs::symlink;
 
+    use headroom_providers::{claude, codex};
+
     use super::*;
 
     #[test]
     fn creates_a_private_uuid_home_per_provider() {
         let root = tempfile::tempdir().unwrap();
-        let home = create_home(root.path(), ProviderKind::Claude).unwrap();
+        let home = create_home(root.path(), &claude::ID).unwrap();
         assert_eq!(home.parent().unwrap(), root.path().join("claude"));
         let name = home.file_name().unwrap().to_str().unwrap();
         assert!(Uuid::parse_str(name).is_ok());
         let mode = fs::metadata(&home).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o700);
-        assert_ne!(
-            create_home(root.path(), ProviderKind::Claude).unwrap(),
-            home
-        );
+        assert_ne!(create_home(root.path(), &claude::ID).unwrap(), home);
     }
 
     #[test]
     fn accepts_only_direct_uuid_children_of_the_provider_root() {
         let root = tempfile::tempdir().unwrap();
-        let home = create_home(root.path(), ProviderKind::Codex).unwrap();
+        let home = create_home(root.path(), &codex::ID).unwrap();
         assert_eq!(
-            headroom_home(root.path(), ProviderKind::Codex, &home).unwrap(),
+            headroom_home(root.path(), &codex::ID, &home).unwrap(),
             fs::canonicalize(&home).unwrap()
         );
-        assert!(headroom_home(root.path(), ProviderKind::Claude, &home).is_err());
+        assert!(headroom_home(root.path(), &claude::ID, &home).is_err());
         let nested = home.join(Uuid::new_v4().to_string());
         fs::create_dir(&nested).unwrap();
-        assert!(headroom_home(root.path(), ProviderKind::Codex, &nested).is_err());
+        assert!(headroom_home(root.path(), &codex::ID, &nested).is_err());
         let named = root.path().join("codex/not-a-uuid");
         fs::create_dir(&named).unwrap();
-        assert!(headroom_home(root.path(), ProviderKind::Codex, &named).is_err());
+        assert!(headroom_home(root.path(), &codex::ID, &named).is_err());
     }
 
     #[test]
@@ -94,11 +93,11 @@ mod tests {
         let outside = tempfile::tempdir().unwrap();
         let cli_home = outside.path().join(".codex");
         fs::create_dir(&cli_home).unwrap();
-        create_home(root.path(), ProviderKind::Codex).unwrap();
-        assert!(headroom_home(root.path(), ProviderKind::Codex, &cli_home).is_err());
+        create_home(root.path(), &codex::ID).unwrap();
+        assert!(headroom_home(root.path(), &codex::ID, &cli_home).is_err());
         let link = root.path().join("codex").join(Uuid::new_v4().to_string());
         symlink(&cli_home, &link).unwrap();
-        assert!(headroom_home(root.path(), ProviderKind::Codex, &link).is_err());
-        assert!(headroom_home(root.path(), ProviderKind::Codex, &root.path().join("x")).is_err());
+        assert!(headroom_home(root.path(), &codex::ID, &link).is_err());
+        assert!(headroom_home(root.path(), &codex::ID, &root.path().join("x")).is_err());
     }
 }

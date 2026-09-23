@@ -7,15 +7,15 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use headroom_core::account::{
-    AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderKind,
-};
+use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
 use headroom_core::units::{MicroUsd, Percent};
 use headroom_core::usage::PriceBook;
+use headroom_daemon::catalog::ProviderCatalog;
 use headroom_daemon::clock::SystemClock;
 use headroom_daemon::notify::text::Locale;
 use headroom_daemon::state::payload::AccountStatus;
@@ -23,6 +23,22 @@ use headroom_daemon::{BusTarget, DaemonConfig, DaemonError, StatePayload};
 use jiff::{SignedDuration, Timestamp};
 use tokio::sync::oneshot;
 use zbus::export::futures_core::Stream;
+
+const CODEX: ProviderId = ProviderId::from_static("codex");
+
+static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: CODEX,
+    display_name: "Codex",
+    add_account: &[AddAccountMethod::CliLogin(CliLogin {
+        program: "codex",
+        args: &["login"],
+        home_var: HomeVar::Direct("CODEX_HOME"),
+        credentials_file: "auth.json",
+        needs_pty: false,
+    })],
+    multi_account: true,
+    local_usage: true,
+};
 
 struct PrivateBus {
     child: Child,
@@ -62,7 +78,7 @@ struct StaticProvider {
 fn codex(name: &str) -> AccountRef {
     AccountRef {
         id: AccountId(format!("codex:{name}")),
-        provider: ProviderKind::Codex,
+        provider: CODEX,
         home: PathBuf::from(format!("/nonexistent/headroom-test/{name}")),
         owner: CredentialOwner::Cli,
     }
@@ -94,8 +110,8 @@ impl StaticProvider {
 
 #[async_trait]
 impl Provider for StaticProvider {
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Codex
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        &DESCRIPTOR
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
@@ -156,6 +172,7 @@ impl PriceBook for NoPrices {
 )]
 trait Daemon {
     fn get_state(&self) -> zbus::Result<String>;
+    fn list_providers(&self) -> zbus::Result<String>;
     fn refresh(&self, account_id: &str) -> zbus::Result<()>;
     fn refresh_now(&self) -> zbus::Result<()>;
     fn rescan(&self) -> zbus::Result<()>;
@@ -177,6 +194,7 @@ fn config(
 ) -> DaemonConfig {
     DaemonConfig {
         providers: vec![provider],
+        catalog: ProviderCatalog::new([&DESCRIPTOR]),
         price_book: Arc::new(NoPrices),
         db_path: db.to_path_buf(),
         clock: Arc::new(SystemClock),
@@ -258,6 +276,21 @@ async fn settings_are_patched(proxy: &DaemonProxy<'_>) -> Checked {
         && display["theme"] == "dark"
         && display["translucent"] == true
         && display["hidden_windows"] == serde_json::json!({}))
+}
+
+async fn providers_are_listed(proxy: &DaemonProxy<'_>) -> Checked {
+    let listed: serde_json::Value = serde_json::from_str(&proxy.list_providers().await?)?;
+    let expected = serde_json::json!({
+        "version": 1,
+        "providers": [{
+            "id": "codex",
+            "display_name": "Codex",
+            "add_account": [{ "kind": "cli_login", "program": "codex" }],
+            "multi_account": true,
+            "local_usage": true
+        }]
+    });
+    Ok(listed == expected)
 }
 
 async fn refresh_accepts_known_accounts(proxy: &DaemonProxy<'_>) -> Checked {
@@ -365,6 +398,8 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
         initial.accounts[0].email.as_deref(),
         Some("ada@example.com")
     );
+    assert_eq!(initial.accounts[0].provider_name, "Codex");
+    assert!(providers_are_listed(&proxy).await.unwrap());
     assert!(settings_are_validated(&proxy).await.unwrap());
     assert!(settings_are_patched(&proxy).await.unwrap());
     assert!(refresh_accepts_known_accounts(&proxy).await.unwrap());

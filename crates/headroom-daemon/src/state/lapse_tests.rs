@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 use headroom_core::provider::ProviderError;
 use jiff::tz::TimeZone;
 
@@ -9,12 +9,13 @@ use super::*;
 use crate::home::HomeDisplay;
 use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin};
 use crate::storage::accounts::AccountRecord;
+use crate::testing::{CLAUDE, CODEX, catalog};
 use crate::testing::{account, session, snapshot, ts};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 const DETAIL: &str = "No active ChatGPT subscription (Free plan).";
 
-fn record(provider: ProviderKind, name: &str, order: i64) -> AccountRecord {
+fn record(provider: ProviderId, name: &str, order: i64) -> AccountRecord {
     AccountRecord {
         reference: account(provider, name),
         label: None,
@@ -45,9 +46,9 @@ fn lapsed_runtime() -> AccountRuntime {
 }
 
 fn model() -> Model {
-    let mut work = record(ProviderKind::Codex, "work", 0);
+    let mut work = record(CODEX, "work", 0);
     work.label = Some("Work".into());
-    let claude = record(ProviderKind::Claude, "main", 1);
+    let claude = record(CLAUDE, "main", 1);
     let mut model = Model {
         accounts: vec![work.clone(), claude.clone()],
         ..Model::default()
@@ -64,6 +65,7 @@ fn assemble_at_now(model: &Model) -> StatePayload {
         now: ts(NOW),
         tz: &TimeZone::UTC,
         homes: &homes,
+        catalog: &catalog(),
     };
     assemble(model, &ctx)
 }

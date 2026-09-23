@@ -30,7 +30,7 @@ fn login_scoped(dir: &Path, account: &str) {
 }
 
 fn id(account: &str) -> AccountId {
-    AccountId::from_stable_key(ProviderKind::Claude, &format!("{account}/org-1"))
+    AccountId::from_stable_key(&super::super::ID, &format!("{account}/org-1"))
 }
 
 fn setup() -> (TempDir, ClaudeConfig) {
@@ -229,4 +229,22 @@ fn config_dir_override_at_default_dir_reads_identity_inside_it() {
         summary(&discover_accounts(&config)),
         [(id("acc-override"), default_dir, CredentialOwner::Cli)]
     );
+}
+
+#[test]
+fn headroom_account_at_reads_exactly_that_dir() {
+    let (home, config) = setup();
+    let cli_dir = home.path().join(".claude");
+    login(&cli_dir, &home.path().join(".claude.json"), "acc-dup");
+    let added = config.headroom_accounts_dir().join("uuid-1");
+    login_scoped(&added, "acc-dup");
+    assert_eq!(discover_accounts(&config).len(), 1);
+    let found = headroom_account_at(&config, &added).unwrap().unwrap();
+    assert_eq!(
+        summary(&[found]),
+        [(id("acc-dup"), added, CredentialOwner::Headroom)]
+    );
+    let empty = config.headroom_accounts_dir().join("uuid-2");
+    fs::create_dir_all(&empty).unwrap();
+    assert_eq!(headroom_account_at(&config, &empty), Ok(None));
 }

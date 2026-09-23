@@ -7,6 +7,7 @@ use headroom_core::provider::Provider;
 use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
 
+use crate::catalog::ProviderCatalog;
 use crate::clock::{Clock, SystemClock};
 use crate::error::DaemonError;
 use crate::notify::text::Locale;
@@ -21,6 +22,7 @@ pub enum BusTarget {
 
 pub struct DaemonConfig {
     pub providers: Vec<Arc<dyn Provider>>,
+    pub catalog: ProviderCatalog,
     pub price_book: Arc<dyn PriceBook>,
     pub db_path: PathBuf,
     pub clock: Arc<dyn Clock>,
@@ -37,6 +39,7 @@ impl DaemonConfig {
         shutdown: Shutdown,
     ) -> Result<DaemonConfig, DaemonError> {
         Ok(DaemonConfig {
+            catalog: ProviderCatalog::of_providers(&providers),
             providers,
             price_book,
             db_path: default_db_path()?,

@@ -5,8 +5,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use headroom_core::account::{AccountId, ProviderKind};
+use headroom_core::account::AccountId;
 use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::ProviderDescriptor;
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::LimitsSnapshot;
@@ -18,6 +19,7 @@ use super::*;
 use crate::error::CommandError;
 use crate::state::payload::AccountStatus;
 use crate::storage::{accounts, lapses, snapshots};
+use crate::testing::{CODEX, CODEX_DESCRIPTOR};
 use crate::testing::{
     Harness, account, eventually, eventually_virtual, harness, session, snapshot,
 };
@@ -36,7 +38,7 @@ struct ScriptedProvider {
 impl ScriptedProvider {
     fn new(script: Vec<Outcome>) -> ScriptedProvider {
         ScriptedProvider {
-            account: account(ProviderKind::Codex, "work"),
+            account: account(CODEX, "work"),
             script: Mutex::new(script.into()),
             calls: AtomicUsize::new(0),
             started: Mutex::new(Vec::new()),
@@ -67,8 +69,8 @@ fn good() -> LimitsSnapshot {
 
 #[async_trait]
 impl Provider for ScriptedProvider {
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Codex
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        &CODEX_DESCRIPTOR
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
@@ -113,7 +115,7 @@ async fn start(provider: &Arc<ScriptedProvider>) -> (Harness, Scheduler) {
 }
 
 fn work_id() -> AccountId {
-    account(ProviderKind::Codex, "work").id
+    account(CODEX, "work").id
 }
 
 fn status(harness: &Harness) -> AccountStatus {

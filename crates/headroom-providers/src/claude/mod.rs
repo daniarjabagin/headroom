@@ -14,8 +14,9 @@ mod usage_homes;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use headroom_core::account::{AccountIdentity, AccountRef, ProviderKind};
+use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
 use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
@@ -26,6 +27,22 @@ use self::identity::ClaudeIdentity;
 use crate::http;
 
 pub use self::config::{ClaudeConfig, DEFAULT_API_BASE};
+
+pub const ID: ProviderId = ProviderId::from_static("claude");
+
+pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: ID,
+    display_name: "Claude",
+    add_account: &[AddAccountMethod::CliLogin(CliLogin {
+        program: "claude",
+        args: &["auth", "login", "--claudeai"],
+        home_var: HomeVar::Direct("CLAUDE_CONFIG_DIR"),
+        credentials_file: ".credentials.json",
+        needs_pty: false,
+    })],
+    multi_account: true,
+    local_usage: true,
+};
 
 pub type Clock = fn() -> Timestamp;
 
@@ -74,12 +91,16 @@ impl ClaudeProvider {
 
 #[async_trait]
 impl Provider for ClaudeProvider {
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Claude
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        &DESCRIPTOR
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
         Ok(accounts::discover_accounts(&self.config))
+    }
+
+    async fn account_at(&self, home: &Path) -> Result<Option<AccountRef>, ProviderError> {
+        accounts::headroom_account_at(&self.config, home)
     }
 
     async fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {

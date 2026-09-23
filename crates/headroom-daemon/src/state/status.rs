@@ -60,6 +60,7 @@ fn error_kind(failure: &RefreshFailure) -> &'static str {
             ProviderError::Network(_) => "network",
             ProviderError::InvalidResponse(_) => "invalid_response",
             ProviderError::LocalData(_) => "local_data",
+            ProviderError::Unsupported(_) => "unsupported",
         },
     }
 }

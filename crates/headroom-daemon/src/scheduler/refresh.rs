@@ -34,7 +34,7 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
 
 async fn fetch(core: &Core, account: &AccountRef) -> Result<LimitsSnapshot, RefreshFailure> {
     let provider = core
-        .provider(account.provider)
+        .provider(&account.provider)
         .ok_or(RefreshFailure::NoProvider)?;
     let limit = std::time::Duration::try_from(FETCH_TIMEOUT).unwrap_or_default();
     match tokio::time::timeout(limit, provider.fetch_limits(account)).await {
@@ -129,11 +129,17 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
         return;
     };
     let locale = Locale::resolve(settings.display.language, core.system_locale);
+    let provider_name = core.catalog.display_name(&record.reference.provider);
     let result = match snapshot {
-        _ if lapsed => core.alerts.review_lapse(&record, locale).await,
+        _ if lapsed => {
+            core.alerts
+                .review_lapse(&record, provider_name, locale)
+                .await
+        }
         Some(snapshot) => {
             let review = Review {
                 account: &record,
+                provider_name,
                 snapshot: &snapshot,
                 settings: settings.notifications,
                 display: &settings.display,

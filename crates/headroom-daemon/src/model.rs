@@ -186,10 +186,10 @@ pub fn window_key(id: &WindowId) -> String {
 
 #[cfg(test)]
 mod tests {
-    use headroom_core::account::ProviderKind;
 
     use super::*;
     use crate::storage::Storage;
+    use crate::testing::{CLAUDE, CODEX};
     use crate::testing::{session, snapshot, ts};
 
     const NOW_TEXT: &str = "2026-09-23T10:00:00Z";
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn failures_accumulate_until_success() {
         let mut model = Model::default();
-        let id = AccountId(format!("{}:a", ProviderKind::Codex));
+        let id = AccountId(format!("{CODEX}:a"));
         let now = ts("2026-09-23T10:00:00Z");
         model.record_failure(&id, RefreshFailure::Timeout, now, None);
         model.record_failure(&id, RefreshFailure::Timeout, now, Some(now));
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn no_subscription_failure_drops_the_snapshot() {
         let mut model = Model::default();
-        let id = AccountId(format!("{}:a", ProviderKind::Claude));
+        let id = AccountId(format!("{CLAUDE}:a"));
         let now = ts("2026-09-23T10:00:00Z");
         let fresh = snapshot(vec![session(1.0, "2026-09-23T12:00:00Z")], NOW_TEXT);
         model.record_success(&id, fresh, now);

@@ -1,51 +1,8 @@
-use std::fs::{self, Permissions};
+use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
+use super::test_support::{FakeBin, homes, spec};
 use super::*;
-
-struct FakeBin {
-    dir: tempfile::TempDir,
-}
-
-impl FakeBin {
-    fn new() -> FakeBin {
-        FakeBin {
-            dir: tempfile::tempdir().unwrap(),
-        }
-    }
-
-    fn install(&self, name: &str, body: &str) {
-        let path = self.dir.path().join(name);
-        fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
-    }
-
-    fn launcher(&self) -> Launcher {
-        Launcher {
-            search_path: Some(self.dir.path().as_os_str().to_owned()),
-        }
-    }
-}
-
-fn homes(root: &Path, provider: &str) -> Vec<PathBuf> {
-    match fs::read_dir(root.join(provider)) {
-        Ok(entries) => entries.map(|entry| entry.unwrap().path()).collect(),
-        Err(_) => Vec::new(),
-    }
-}
-
-#[test]
-fn login_commands_point_the_cli_at_the_new_home() {
-    let home = Path::new("/data/headroom/accounts/codex/1");
-    assert_eq!(
-        login_spec(ProviderKind::Codex).display(home),
-        "CODEX_HOME=/data/headroom/accounts/codex/1 codex login"
-    );
-    assert_eq!(
-        login_spec(ProviderKind::Claude).display(home),
-        "CLAUDE_CONFIG_DIR=/data/headroom/accounts/codex/1 claude auth login --claudeai"
-    );
-}
 
 #[test]
 fn sign_in_runs_the_cli_and_cleans_up_failures() {
@@ -59,7 +16,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     );
     let home = sign_in(
         root.path(),
-        ProviderKind::Codex,
+        spec("codex"),
         &launcher,
         Console::Terminal,
         &Cancel::default(),
@@ -78,7 +35,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     );
     let home = sign_in(
         root.path(),
-        ProviderKind::Claude,
+        spec("claude"),
         &launcher,
         Console::Terminal,
         &Cancel::default(),
@@ -96,7 +53,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     );
     let error = sign_in(
         root.path(),
-        ProviderKind::Claude,
+        spec("claude"),
         &launcher,
         Console::Terminal,
         &Cancel::default(),
@@ -111,7 +68,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     bin.install("codex", "exit 0");
     let error = sign_in(
         root.path(),
-        ProviderKind::Codex,
+        spec("codex"),
         &launcher,
         Console::Terminal,
         &Cancel::default(),
@@ -123,7 +80,7 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     let empty = FakeBin::new();
     let error = sign_in(
         root.path(),
-        ProviderKind::Codex,
+        spec("codex"),
         &empty.launcher(),
         Console::Terminal,
         &Cancel::default(),
@@ -145,7 +102,7 @@ echo '{}' > "$CODEX_HOME/auth.json"
 
 fn streamed_sign_in(
     root: &Path,
-    provider: ProviderKind,
+    provider: LoginSpec,
     launcher: &Launcher,
     input: &str,
 ) -> (Result<PathBuf>, Vec<LoginEvent>) {
@@ -177,12 +134,8 @@ fn streamed_sign_in_reports_output_urls_and_forwards_input() {
     let bin = FakeBin::new();
     let root = tempfile::tempdir().unwrap();
     bin.install("codex", FAKE_CODEX_LOGIN);
-    let (result, events) = streamed_sign_in(
-        root.path(),
-        ProviderKind::Codex,
-        &bin.launcher(),
-        "abc123\n",
-    );
+    let (result, events) =
+        streamed_sign_in(root.path(), spec("codex"), &bin.launcher(), "abc123\n");
     let home = result.unwrap();
     assert_eq!(events[0], LoginEvent::Started(home.clone()));
     let urls: Vec<&LoginEvent> = events
@@ -211,7 +164,7 @@ fn streamed_failures_keep_the_output_and_clean_up() {
     let bin = FakeBin::new();
     let root = tempfile::tempdir().unwrap();
     bin.install("claude", r#"echo "Login failed: denied" >&2; exit 3"#);
-    let (result, events) = streamed_sign_in(root.path(), ProviderKind::Claude, &bin.launcher(), "");
+    let (result, events) = streamed_sign_in(root.path(), spec("claude"), &bin.launcher(), "");
     let error = result.unwrap_err();
     assert!(
         error.to_string().contains("did not finish successfully"),
@@ -221,8 +174,7 @@ fn streamed_failures_keep_the_output_and_clean_up() {
     assert!(homes(root.path(), "claude").is_empty());
 
     let empty = FakeBin::new();
-    let (result, events) =
-        streamed_sign_in(root.path(), ProviderKind::Codex, &empty.launcher(), "");
+    let (result, events) = streamed_sign_in(root.path(), spec("codex"), &empty.launcher(), "");
     let error = result.unwrap_err();
     assert!(
         format!("{error:#}").contains("is it installed"),
@@ -248,7 +200,7 @@ fn a_failing_sink_stops_the_login() {
     let started = std::time::Instant::now();
     let error = sign_in(
         root.path(),
-        ProviderKind::Codex,
+        spec("codex"),
         &bin.launcher(),
         console,
         &Cancel::default(),
@@ -309,7 +261,7 @@ fn cancelled_sign_in(
         wait_for_file(&child_file);
         remote.cancel();
     });
-    let result = sign_in(root, ProviderKind::Codex, &bin.launcher(), console, &cancel);
+    let result = sign_in(root, spec("codex"), &bin.launcher(), console, &cancel);
     watcher.join().unwrap();
     result
 }

@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use headroom_core::account::{
-    AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderKind,
-};
+use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
+use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
 use headroom_core::event::{EventKey, ServiceTier, UsageEvent};
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
@@ -16,6 +15,7 @@ use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
 use jiff::{SignedDuration, Timestamp};
 
+use crate::catalog::ProviderCatalog;
 use crate::clock::testing::ManualClock;
 use crate::core::{Core, CoreParts};
 use crate::home::{HomeDisplay, UsageHome};
@@ -23,22 +23,60 @@ use crate::notify::{Notification, Notifier, NotifyError};
 use crate::random::FixedRandom;
 use crate::storage::Storage;
 
+pub const CODEX: ProviderId = ProviderId::from_static("codex");
+pub const CLAUDE: ProviderId = ProviderId::from_static("claude");
+
+pub static CODEX_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: CODEX,
+    display_name: "Codex",
+    add_account: &[AddAccountMethod::CliLogin(CliLogin {
+        program: "codex",
+        args: &["login"],
+        home_var: HomeVar::Direct("CODEX_HOME"),
+        credentials_file: "auth.json",
+        needs_pty: false,
+    })],
+    multi_account: true,
+    local_usage: true,
+};
+
+pub static CLAUDE_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+    id: CLAUDE,
+    display_name: "Claude",
+    add_account: &[AddAccountMethod::AutoDetect { reason: "test" }],
+    multi_account: true,
+    local_usage: true,
+};
+
+pub fn descriptor_of(id: &ProviderId) -> &'static ProviderDescriptor {
+    if *id == CLAUDE {
+        &CLAUDE_DESCRIPTOR
+    } else {
+        &CODEX_DESCRIPTOR
+    }
+}
+
+pub fn catalog() -> ProviderCatalog {
+    ProviderCatalog::new([&CODEX_DESCRIPTOR, &CLAUDE_DESCRIPTOR])
+}
+
 pub fn ts(text: &str) -> Timestamp {
     text.parse().unwrap()
 }
 
-pub fn account(provider: ProviderKind, name: &str) -> AccountRef {
+pub fn account(provider: ProviderId, name: &str) -> AccountRef {
+    let home = PathBuf::from(format!("/home/ada/.{provider}"));
     AccountRef {
         id: AccountId(format!("{provider}:{name}")),
         provider,
-        home: PathBuf::from(format!("/home/ada/.{provider}")),
+        home,
         owner: CredentialOwner::Cli,
     }
 }
 
 pub fn usage_home_of(account: &AccountRef) -> UsageHome {
     UsageHome {
-        provider: account.provider,
+        provider: account.provider.clone(),
         home: account.home.clone(),
     }
 }
@@ -105,7 +143,7 @@ impl PriceBook for FlatPrices {
 }
 
 pub struct FakeProvider {
-    pub kind: ProviderKind,
+    pub kind: ProviderId,
     pub accounts: Mutex<Vec<AccountRef>>,
     pub limits: Mutex<Result<LimitsSnapshot, ProviderError>>,
     pub usage: Mutex<Vec<UsageEvent>>,
@@ -114,7 +152,7 @@ pub struct FakeProvider {
 }
 
 impl FakeProvider {
-    pub fn new(kind: ProviderKind, accounts: Vec<AccountRef>, limits: LimitsSnapshot) -> Self {
+    pub fn new(kind: ProviderId, accounts: Vec<AccountRef>, limits: LimitsSnapshot) -> Self {
         let homes = accounts.iter().map(|a| a.home.clone()).collect();
         FakeProvider {
             kind,
@@ -129,8 +167,8 @@ impl FakeProvider {
 
 #[async_trait]
 impl Provider for FakeProvider {
-    fn kind(&self) -> ProviderKind {
-        self.kind
+    fn descriptor(&self) -> &'static ProviderDescriptor {
+        descriptor_of(&self.kind)
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
@@ -203,6 +241,7 @@ pub async fn harness(providers: Vec<Arc<dyn Provider>>) -> Harness {
     let parts = CoreParts {
         storage: storage.clone(),
         providers,
+        catalog: catalog(),
         price_book: Arc::new(FlatPrices),
         clock: clock.clone(),
         random: Arc::new(FixedRandom(0.5)),

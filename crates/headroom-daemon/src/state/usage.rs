@@ -19,7 +19,8 @@ pub fn usage_view(
 ) -> UsageView {
     let today = ctx.tz.to_datetime(ctx.now).date();
     UsageView {
-        provider: home.provider,
+        provider: home.provider.clone(),
+        provider_name: ctx.catalog.display_name(&home.provider).to_owned(),
         usage_home: ctx.homes.show(&home.home),
         today: totals_view(&summary.today),
         yesterday: totals_view(&summary.yesterday),

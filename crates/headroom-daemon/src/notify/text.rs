@@ -1,4 +1,3 @@
-use headroom_core::account::ProviderKind;
 use headroom_core::pace::Severity;
 use headroom_core::quota::{QuotaWindow, WindowId};
 use jiff::{SignedDuration, Timestamp};
@@ -120,7 +119,7 @@ pub struct Notification {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subject<'a> {
-    pub provider: ProviderKind,
+    pub provider_name: &'a str,
     pub account_name: Option<&'a str>,
     pub window: &'a QuotaWindow,
 }
@@ -142,35 +141,26 @@ pub fn compose(
 #[must_use]
 pub fn compose_lapse(
     locale: Locale,
-    provider: ProviderKind,
+    provider_name: &str,
     account_name: Option<&str>,
 ) -> Notification {
     let phrases = locale.phrases();
     Notification {
-        title: headed(provider, account_name, phrases.subscription_inactive),
+        title: headed(provider_name, account_name, phrases.subscription_inactive),
         body: phrases.subscription_inactive_body.to_owned(),
     }
 }
 
 fn title(locale: Locale, subject: &Subject<'_>) -> String {
     let window = window_label(locale, subject.window);
-    headed(subject.provider, subject.account_name, window)
+    headed(subject.provider_name, subject.account_name, window)
 }
 
-fn headed(provider: ProviderKind, account_name: Option<&str>, topic: &str) -> String {
-    let provider = provider_name(provider);
+fn headed(provider: &str, account_name: Option<&str>, topic: &str) -> String {
     match account_name {
         Some(name) => format!("{provider} · {name} — {topic}"),
         None => format!("{provider} — {topic}"),
     }
-}
-
-fn provider_name(kind: ProviderKind) -> String {
-    let name = kind.as_str();
-    let mut chars = name.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_uppercase().chain(chars).collect()
-    })
 }
 
 fn window_label(locale: Locale, window: &QuotaWindow) -> &str {

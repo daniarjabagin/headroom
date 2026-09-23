@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
-use headroom_core::account::{AccountId, AccountRef, ProviderKind};
+use headroom_core::account::{AccountId, AccountRef, ProviderId};
 use headroom_core::provider::Provider;
 use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
 use tokio::sync::{Mutex as AsyncMutex, Notify, mpsc, watch};
 
+use crate::catalog::ProviderCatalog;
 use crate::clock::Clock;
 use crate::error::StorageError;
 use crate::home::{HomeDisplay, UsageHome};
@@ -24,6 +25,7 @@ use crate::storage::accounts;
 pub struct CoreParts {
     pub storage: Storage,
     pub providers: Vec<Arc<dyn Provider>>,
+    pub catalog: ProviderCatalog,
     pub price_book: Arc<dyn PriceBook>,
     pub clock: Arc<dyn Clock>,
     pub random: Arc<dyn Random>,
@@ -36,6 +38,7 @@ pub struct CoreParts {
 pub struct Core {
     pub(crate) storage: Storage,
     pub(crate) providers: Vec<Arc<dyn Provider>>,
+    pub(crate) catalog: ProviderCatalog,
     pub(crate) price_book: Arc<dyn PriceBook>,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) random: Arc<dyn Random>,
@@ -62,6 +65,7 @@ impl Core {
         Ok(Core {
             storage: parts.storage,
             providers: parts.providers,
+            catalog: parts.catalog,
             price_book: parts.price_book,
             clock: parts.clock,
             random: parts.random,
@@ -96,6 +100,7 @@ impl Core {
             now: self.clock.now(),
             tz: &self.tz,
             homes: &self.homes,
+            catalog: &self.catalog,
         };
         state::assemble(&self.model(), &ctx)
     }
@@ -104,9 +109,13 @@ impl Core {
         serde_json::to_string(&self.state())
     }
 
+    pub fn providers_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self.catalog.payload())
+    }
+
     #[must_use]
-    pub fn provider(&self, kind: ProviderKind) -> Option<Arc<dyn Provider>> {
-        self.providers.iter().find(|p| p.kind() == kind).cloned()
+    pub fn provider(&self, id: &ProviderId) -> Option<Arc<dyn Provider>> {
+        self.providers.iter().find(|p| p.id() == id).cloned()
     }
 
     #[must_use]
@@ -124,12 +133,15 @@ impl Core {
         Ok(())
     }
 
-    pub fn set_usage_homes(&self, provider: ProviderKind, homes: Vec<PathBuf>) {
+    pub fn set_usage_homes(&self, provider: &ProviderId, homes: Vec<PathBuf>) {
         let mut model = self.model();
-        model.usage_homes.retain(|home| home.provider != provider);
+        model.usage_homes.retain(|home| &home.provider != provider);
         model
             .usage_homes
-            .extend(homes.into_iter().map(|home| UsageHome { provider, home }));
+            .extend(homes.into_iter().map(|home| UsageHome {
+                provider: provider.clone(),
+                home,
+            }));
         drop(model);
         self.mark_changed();
     }

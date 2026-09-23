@@ -23,7 +23,7 @@ pub enum IngestError {
 
 pub async fn ingest(core: &Core, home: &UsageHome) -> Result<usize, IngestError> {
     let provider = core
-        .provider(home.provider)
+        .provider(&home.provider)
         .ok_or_else(|| IngestError::NoProvider(home.provider.to_string()))?;
     let storage = core.storage.clone();
     let home = home.clone();

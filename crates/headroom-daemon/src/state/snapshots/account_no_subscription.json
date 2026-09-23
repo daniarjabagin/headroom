@@ -1,6 +1,7 @@
 {
   "id": "codex:work",
   "provider": "codex",
+  "provider_name": "Codex",
   "label": "Work",
   "email": "ada@example.com",
   "plan": null,

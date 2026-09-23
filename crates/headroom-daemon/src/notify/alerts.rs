@@ -27,6 +27,7 @@ pub struct Alerts {
 
 pub struct Review<'a> {
     pub account: &'a AccountRecord,
+    pub provider_name: &'a str,
     pub snapshot: &'a LimitsSnapshot,
     pub settings: NotificationSettings,
     pub display: &'a DisplaySettings,
@@ -73,6 +74,7 @@ impl Alerts {
     pub async fn review_lapse(
         &self,
         account: &AccountRecord,
+        provider_name: &str,
         locale: Locale,
     ) -> Result<(), StorageError> {
         let id = account.id().clone();
@@ -80,7 +82,7 @@ impl Alerts {
             return Ok(());
         }
         let name = account.label.as_deref().or(account.email.as_deref());
-        let notification = compose_lapse(locale, account.reference.provider, name);
+        let notification = compose_lapse(locale, provider_name, name);
         if let Err(error) = self.notifier.notify(&notification).await {
             tracing::warn!(%error, "subscription notification not delivered, will retry");
             return Ok(());
@@ -133,7 +135,7 @@ impl Alerts {
     ) {
         let account = review.account;
         let subject = Subject {
-            provider: account.reference.provider,
+            provider_name: review.provider_name,
             account_name: account.label.as_deref().or(account.email.as_deref()),
             window,
         };

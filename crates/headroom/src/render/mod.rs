@@ -1,6 +1,7 @@
 pub mod accounts;
 pub mod bar;
 pub mod format;
+pub mod providers;
 pub mod spend;
 pub mod status;
 pub mod style;

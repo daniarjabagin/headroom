@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct UsageHome {
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
     pub home: PathBuf,
 }
 

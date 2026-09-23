@@ -3,6 +3,7 @@ use std::path::Path;
 use headroom_core::usage::PriceBook;
 use jiff::tz::TimeZone;
 
+use crate::catalog::ProviderCatalog;
 use crate::clock::Clock;
 use crate::error::DaemonError;
 use crate::home::HomeDisplay;
@@ -17,6 +18,7 @@ pub struct OnceContext<'a> {
     pub clock: &'a dyn Clock,
     pub tz: &'a TimeZone,
     pub homes: &'a HomeDisplay,
+    pub catalog: &'a ProviderCatalog,
 }
 
 pub fn assemble_state_once(
@@ -41,13 +43,13 @@ pub fn assemble_state_once(
         now,
         tz: ctx.tz,
         homes: ctx.homes,
+        catalog: ctx.catalog,
     };
     Ok(assemble(&model, &assemble_ctx))
 }
 
 #[cfg(test)]
 mod tests {
-    use headroom_core::account::ProviderKind;
     use headroom_core::cursor::LogCursors;
 
     use super::*;
@@ -55,6 +57,7 @@ mod tests {
     use crate::home::UsageHome;
     use crate::state::payload::{AccountStatus, DataSource};
     use crate::storage::{accounts, events, snapshots};
+    use crate::testing::{CLAUDE, CODEX, catalog};
     use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of};
 
     fn ingest(storage: &Storage, home: &UsageHome, key: &str) {
@@ -72,6 +75,7 @@ mod tests {
             clock: &clock,
             tz: &TimeZone::UTC,
             homes: &homes,
+            catalog: &catalog(),
         };
         assemble_state_once(path, &ctx).unwrap()
     }
@@ -80,7 +84,7 @@ mod tests {
     fn assembles_from_the_database_without_a_daemon() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("headroom.db");
-        let mut work = account(ProviderKind::Codex, "work");
+        let mut work = account(CODEX, "work");
         work.home = dir.path().join("codex");
         std::fs::create_dir_all(&work.home).unwrap();
         let limits = snapshot(
@@ -92,7 +96,7 @@ mod tests {
             .blocking(|conn| {
                 accounts::sync_provider(
                     conn,
-                    ProviderKind::Codex,
+                    &CODEX,
                     std::slice::from_ref(&work),
                     ts("2026-09-23T09:00:00Z"),
                 )?;
@@ -115,12 +119,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("headroom.db");
         let api_key = UsageHome {
-            provider: ProviderKind::Claude,
+            provider: CLAUDE,
             home: dir.path().join("claude-api"),
         };
         std::fs::create_dir_all(&api_key.home).unwrap();
         let removed = UsageHome {
-            provider: ProviderKind::Codex,
+            provider: CODEX,
             home: dir.path().join("removed"),
         };
         let storage = Storage::open(&path).unwrap();
@@ -129,8 +133,8 @@ mod tests {
         drop(storage);
         let state = once(&path);
         assert!(state.accounts.is_empty());
-        let listed: Vec<_> = state.usage.iter().map(|u| u.provider).collect();
-        assert_eq!(listed, [ProviderKind::Claude]);
+        let listed: Vec<_> = state.usage.iter().map(|u| u.provider.clone()).collect();
+        assert_eq!(listed, [CLAUDE]);
         assert_eq!(state.spend.today.total_tokens, 120);
     }
 }

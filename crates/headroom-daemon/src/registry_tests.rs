@@ -1,9 +1,8 @@
 use std::sync::atomic::Ordering;
 
-use headroom_core::account::ProviderKind;
-
 use super::*;
 use crate::rescan::Rescans;
+use crate::testing::CODEX;
 use crate::testing::{FakeProvider, Harness, account, eventually, harness, session, snapshot};
 
 struct Running {
@@ -24,8 +23,8 @@ async fn running() -> Running {
         vec![session(20.0, "2026-09-23T12:00:00Z")],
         "2026-09-23T10:00:00Z",
     );
-    let accounts = vec![account(ProviderKind::Codex, "a")];
-    let provider = Arc::new(FakeProvider::new(ProviderKind::Codex, accounts, limits));
+    let accounts = vec![account(CODEX, "a")];
+    let provider = Arc::new(FakeProvider::new(CODEX, accounts, limits));
     let dynamic: Arc<dyn Provider> = provider.clone();
     let harness = harness(vec![dynamic]).await;
     let (rescans, requests) = rescan::channel();
@@ -67,7 +66,7 @@ async fn rescan_lists_new_accounts_before_returning_and_refreshes_them() {
         .accounts
         .lock()
         .unwrap()
-        .push(account(ProviderKind::Codex, "b"));
+        .push(account(CODEX, "b"));
     run.rescans.rescan().await.unwrap();
     assert_eq!(listed(&run.harness), ["codex:a", "codex:b"]);
     eventually(|| refreshed(&run.harness, "codex:b")).await;

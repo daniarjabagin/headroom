@@ -1,14 +1,14 @@
 use std::io::Write;
 
 use anyhow::Result;
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum ProgressEvent {
     Started {
-        provider: ProviderKind,
+        provider: ProviderId,
         home: String,
     },
     Url {
@@ -78,7 +78,7 @@ mod tests {
     fn events_are_one_tagged_object_per_line() {
         let text = lines(&[
             ProgressEvent::Started {
-                provider: ProviderKind::Codex,
+                provider: headroom_providers::codex::ID,
                 home: "/data/codex/1".into(),
             },
             ProgressEvent::Url {

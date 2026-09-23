@@ -24,6 +24,7 @@
   "headline": {
     "account_id": "claude:main",
     "provider": "claude",
+    "provider_name": "Claude",
     "account_label": "ada@claude.example",
     "window": "session",
     "window_label": "Session",
@@ -35,6 +36,7 @@
     {
       "id": "codex:work",
       "provider": "codex",
+      "provider_name": "Codex",
       "label": "Work",
       "email": "ada@example.com",
       "plan": "Pro",
@@ -99,6 +101,7 @@
     {
       "id": "claude:main",
       "provider": "claude",
+      "provider_name": "Claude",
       "label": null,
       "email": "ada@claude.example",
       "plan": "Pro",
@@ -137,6 +140,7 @@
     {
       "id": "codex:hidden",
       "provider": "codex",
+      "provider_name": "Codex",
       "label": null,
       "email": null,
       "plan": null,
@@ -155,6 +159,7 @@
   "usage": [
     {
       "provider": "codex",
+      "provider_name": "Codex",
       "usage_home": "~/.codex",
       "today": {
         "tokens": {
@@ -426,6 +431,7 @@
     },
     {
       "provider": "claude",
+      "provider_name": "Claude",
       "usage_home": "~/.claude",
       "today": {
         "tokens": {
@@ -681,6 +687,7 @@
       "by_provider": [
         {
           "provider": "claude",
+          "provider_name": "Claude",
           "cost_usd_micros": 10000,
           "total_tokens": 5000,
           "partial": false,
@@ -696,6 +703,7 @@
         },
         {
           "provider": "codex",
+          "provider_name": "Codex",
           "cost_usd_micros": 2400,
           "total_tokens": 1200,
           "partial": false,
@@ -718,6 +726,7 @@
       "by_provider": [
         {
           "provider": "codex",
+          "provider_name": "Codex",
           "cost_usd_micros": 1200,
           "total_tokens": 615,
           "partial": true,
@@ -746,6 +755,7 @@
       "by_provider": [
         {
           "provider": "claude",
+          "provider_name": "Claude",
           "cost_usd_micros": 10000,
           "total_tokens": 5000,
           "partial": false,
@@ -761,6 +771,7 @@
         },
         {
           "provider": "codex",
+          "provider_name": "Codex",
           "cost_usd_micros": 3600,
           "total_tokens": 1815,
           "partial": true,

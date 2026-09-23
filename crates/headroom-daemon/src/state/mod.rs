@@ -10,6 +10,7 @@ mod usage;
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
+use crate::catalog::ProviderCatalog;
 use crate::home::HomeDisplay;
 use crate::model::Model;
 use payload::{STATE_VERSION, StatePayload};
@@ -18,6 +19,7 @@ pub struct AssembleContext<'a> {
     pub now: Timestamp,
     pub tz: &'a TimeZone,
     pub homes: &'a HomeDisplay,
+    pub catalog: &'a ProviderCatalog,
 }
 
 #[must_use]
@@ -26,10 +28,14 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .active_accounts()
         .map(|record| account::account_view(record, model, ctx))
         .collect();
-    let full_usage: Vec<_> = model
+    let mut listed: Vec<_> = model
         .usage
         .iter()
         .filter(|(home, _)| model.usage_homes.contains(home))
+        .collect();
+    listed.sort_by_key(|(home, _)| (ctx.catalog.rank(&home.provider), &home.home));
+    let full_usage: Vec<_> = listed
+        .into_iter()
         .map(|(home, summary)| usage::usage_view(home, summary, ctx))
         .collect();
     let spend = spend::spend(&full_usage);

@@ -41,6 +41,12 @@ impl DaemonInterface {
         self.rescans.rescan().await.map_err(|error| to_fdo(&error))
     }
 
+    fn list_providers(&self) -> fdo::Result<String> {
+        self.core
+            .providers_json()
+            .map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
     fn get_settings(&self) -> fdo::Result<String> {
         self.core.settings_json().map_err(|error| to_fdo(&error))
     }

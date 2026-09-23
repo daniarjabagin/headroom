@@ -8,6 +8,7 @@ use jiff::tz::TimeZone;
 
 use crate::client::{self, DaemonProxy};
 use crate::paths::{Globals, pricing_cache_dir};
+use crate::providers;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
@@ -61,6 +62,7 @@ fn cached_state(globals: &Globals) -> Result<impl FnOnce() -> Result<StatePayloa
             clock: &SystemClock,
             tz: &TimeZone::system(),
             homes: &homes,
+            catalog: &providers::catalog(),
         };
         assemble_state_once(&db, &ctx).context("could not read cached data")
     })

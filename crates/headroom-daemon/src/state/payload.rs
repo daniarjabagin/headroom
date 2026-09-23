@@ -1,4 +1,4 @@
-use headroom_core::account::{CredentialOwner, ProviderKind};
+use headroom_core::account::{CredentialOwner, ProviderId};
 use headroom_core::pace::{Severity, Tone};
 use jiff::Timestamp;
 use jiff::civil::Date;
@@ -25,7 +25,8 @@ pub struct StatePayload {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Headline {
     pub account_id: String,
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
+    pub provider_name: String,
     pub account_label: String,
     pub window: String,
     pub window_label: String,
@@ -37,7 +38,8 @@ pub struct Headline {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AccountView {
     pub id: String,
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
+    pub provider_name: String,
     pub label: Option<String>,
     pub email: Option<String>,
     pub plan: Option<String>,
@@ -123,7 +125,8 @@ pub struct NoticeView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UsageView {
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
+    pub provider_name: String,
     pub usage_home: String,
     pub today: TotalsView,
     pub yesterday: TotalsView,
@@ -193,7 +196,8 @@ pub struct PeriodSpendView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderSpendView {
-    pub provider: ProviderKind,
+    pub provider: ProviderId,
+    pub provider_name: String,
     pub cost_usd_micros: i64,
     pub total_tokens: u64,
     pub partial: bool,

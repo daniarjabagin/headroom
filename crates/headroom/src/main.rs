@@ -5,6 +5,7 @@ mod commands;
 mod daemon;
 mod paths;
 mod pricing;
+mod providers;
 mod render;
 mod state;
 mod waybar;
@@ -63,6 +64,7 @@ async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {
         Command::Refresh(args) => commands::refresh(globals, &args).await?,
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
         Command::Waybar => waybar::run(globals).await?,
+        Command::Providers(args) => providers::list(&args)?,
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -78,7 +80,16 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
             provider,
             label,
             progress,
-        } => accounts::add(globals, provider.kind(), label.as_deref(), progress).await,
+            api_key_stdin,
+        } => {
+            let request = accounts::AddRequest {
+                provider: &provider,
+                label: label.as_deref(),
+                progress,
+                api_key_stdin,
+            };
+            accounts::add(globals, &request).await
+        }
         AccountsAction::Remove { id, yes, progress } => {
             accounts::remove(globals, &id, yes, progress).await
         }

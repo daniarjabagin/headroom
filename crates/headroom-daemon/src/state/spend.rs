@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use headroom_core::account::ProviderKind;
+use headroom_core::account::ProviderId;
 
 use super::models::{ModelMerge, top_models};
 use super::payload::{PeriodSpendView, ProviderSpendView, SpendView, TotalsView, UsageView};
@@ -15,15 +15,15 @@ pub fn spend(usage: &[UsageView]) -> SpendView {
 }
 
 fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> PeriodSpendView {
-    let mut by_kind: BTreeMap<ProviderKind, (ProviderSpendView, ModelMerge)> = BTreeMap::new();
+    let mut by_id: BTreeMap<ProviderId, (ProviderSpendView, ModelMerge)> = BTreeMap::new();
     for entry in usage {
-        let (slot, models) = by_kind
-            .entry(entry.provider)
-            .or_insert_with(|| (empty(entry.provider), ModelMerge::default()));
+        let (slot, models) = by_id
+            .entry(entry.provider.clone())
+            .or_insert_with(|| (empty(entry), ModelMerge::default()));
         add(slot, totals(entry));
         models.add(&totals(entry).models);
     }
-    let providers = by_kind.into_values().map(|(mut spend, models)| {
+    let providers = by_id.into_values().map(|(mut spend, models)| {
         (spend.models, spend.models_other) = top_models(models.ranked());
         spend
     });
@@ -40,9 +40,10 @@ fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> Pe
     }
 }
 
-fn empty(provider: ProviderKind) -> ProviderSpendView {
+fn empty(usage: &UsageView) -> ProviderSpendView {
     ProviderSpendView {
-        provider,
+        provider: usage.provider.clone(),
+        provider_name: usage.provider_name.clone(),
         cost_usd_micros: 0,
         total_tokens: 0,
         partial: false,
