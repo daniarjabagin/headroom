@@ -3,12 +3,13 @@ use std::time::Duration;
 use headroom_core::provider::ProviderError;
 use headroom_core::secret::SecretString;
 use jiff::SignedDuration;
-use reqwest::header::{ACCEPT, RETRY_AFTER, USER_AGENT};
+use reqwest::header::{ACCEPT, USER_AGENT};
 use reqwest::{Client, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
 use super::raw::{RawCodeAssist, RawSummaryEnvelope};
+use crate::http;
 
 pub const DEFAULT_CLOUD_BASES: [&str; 2] = [
     "https://daily-cloudcode-pa.googleapis.com",
@@ -159,11 +160,7 @@ async fn parse<T: DeserializeOwned>(response: Response, path: &str) -> Result<T,
 }
 
 fn status_error(response: &Response, path: &str) -> ProviderError {
-    let retry_after = response
-        .headers()
-        .get(RETRY_AFTER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(retry_after_seconds);
+    let retry_after = http::retry_after_seconds(response.headers());
     error_for(response.status(), retry_after, path)
 }
 
@@ -184,14 +181,6 @@ pub(super) fn error_for(
             status.as_u16()
         )),
     }
-}
-
-fn retry_after_seconds(value: &str) -> Option<SignedDuration> {
-    value
-        .trim()
-        .parse::<u32>()
-        .ok()
-        .map(|seconds| SignedDuration::from_secs(i64::from(seconds)))
 }
 
 #[cfg(test)]

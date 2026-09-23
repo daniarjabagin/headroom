@@ -5,6 +5,7 @@ use serde::de::DeserializeOwned;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, StructureBuilder, Type, Value};
 use zbus::{Connection, Message};
 
+use super::ForeignSecret;
 use super::file::decode;
 
 const DESTINATION: &str = "org.freedesktop.secrets";
@@ -188,10 +189,36 @@ async fn read_item(
         }
         (None, None) => return Ok(None),
     };
+    get_secret(session, &path).await.map(Some)
+}
+
+pub(super) async fn lookup(
+    conn: &Connection,
+    attributes: &Attributes<'_>,
+) -> Result<ForeignSecret, ServiceError> {
+    let (unlocked, locked) = search(conn, attributes).await?;
+    let Some(path) = unlocked.into_iter().next() else {
+        return Ok(if locked.is_empty() {
+            ForeignSecret::Absent
+        } else {
+            ForeignSecret::Locked
+        });
+    };
+    let session = OpenSession::open(conn).await?;
+    let found = get_secret(&session, &path).await;
+    session.close().await;
+    found.map(ForeignSecret::Found)
+}
+
+async fn get_secret(
+    session: &OpenSession<'_>,
+    path: &OwnedObjectPath,
+) -> Result<SecretString, ServiceError> {
     let args = vec![Value::from(session.path.clone())];
-    let secret: Secret = call(conn, Target::at(&path, ITEM, "GetSecret"), args).await?;
+    let target = Target::at(path, ITEM, "GetSecret");
+    let secret: Secret = call(session.conn, target, args).await?;
     let (_, _, value, _) = secret;
-    decode(value).map(Some).map_err(|_| {
+    decode(value).map_err(|_| {
         ServiceError::Failed(zbus::Error::Failure("stored secret is not UTF-8".into()))
     })
 }

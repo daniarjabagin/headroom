@@ -2,12 +2,13 @@ use std::time::Duration;
 
 use headroom_core::provider::ProviderError;
 use jiff::{SignedDuration, Timestamp};
-use reqwest::header::{ACCEPT, AUTHORIZATION, RETRY_AFTER};
+use reqwest::header::{ACCEPT, AUTHORIZATION};
 use reqwest::{Client, Method, Response, StatusCode};
 use serde::de::DeserializeOwned;
 
 use super::key::SigningKey;
 use super::raw::{RawMe, RawUsage};
+use crate::http;
 
 pub const DEFAULT_API_BASE: &str = "https://ollama.com";
 const USAGE_PATH: &str = "/api/usage";
@@ -77,11 +78,7 @@ pub(super) fn challenge(method: &Method, request_uri: &str) -> String {
 async fn parse<T: DeserializeOwned>(response: Response, path: &str) -> Result<T, ProviderError> {
     let status = response.status();
     if !status.is_success() {
-        let retry_after = response
-            .headers()
-            .get(RETRY_AFTER)
-            .and_then(|value| value.to_str().ok())
-            .and_then(retry_after_seconds);
+        let retry_after = http::retry_after_seconds(response.headers());
         return Err(status_error(status, retry_after, path));
     }
     let body = response.bytes().await.map_err(transport_error)?;
@@ -110,14 +107,6 @@ pub(super) fn status_error(
             status.as_u16()
         )),
     }
-}
-
-fn retry_after_seconds(value: &str) -> Option<SignedDuration> {
-    value
-        .trim()
-        .parse::<u32>()
-        .ok()
-        .map(|seconds| SignedDuration::from_secs(i64::from(seconds)))
 }
 
 fn transport_error(error: reqwest::Error) -> ProviderError {
@@ -166,14 +155,5 @@ mod tests {
             status_error(StatusCode::NOT_FOUND, None, "/api/usage"),
             ProviderError::InvalidResponse(_)
         ));
-    }
-
-    #[test]
-    fn retry_after_reads_whole_seconds() {
-        assert_eq!(
-            retry_after_seconds(" 120 "),
-            Some(SignedDuration::from_secs(120))
-        );
-        assert_eq!(retry_after_seconds("soon"), None);
     }
 }

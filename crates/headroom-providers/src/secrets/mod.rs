@@ -50,6 +50,32 @@ pub enum SecretError {
     NotUtf8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ForeignSecret {
+    Found(SecretString),
+    Locked,
+    Absent,
+}
+
+/// Another application's Secret Service item, read without ever unlocking or prompting.
+pub async fn read_foreign(bus: &SecretBus, attributes: &[(&str, &str)]) -> ForeignSecret {
+    let Some(conn) = connect(bus).await else {
+        return ForeignSecret::Absent;
+    };
+    let attributes: Attributes = attributes.iter().copied().collect();
+    match tokio::time::timeout(SERVICE_TIMEOUT, service::lookup(&conn, &attributes)).await {
+        Ok(Ok(found)) => found,
+        Ok(Err(error)) => {
+            tracing::debug!(?error, "Secret Service lookup failed");
+            ForeignSecret::Absent
+        }
+        Err(_) => {
+            tracing::debug!("the Secret Service did not answer in time");
+            ForeignSecret::Absent
+        }
+    }
+}
+
 /// API keys in the Secret Service, or in private files when no unlocked keyring is reachable.
 pub struct SecretStore {
     bus: SecretBus,
@@ -247,5 +273,16 @@ mod tests {
             SecretBackend::File
         );
         assert_eq!(store.read(&account).await.unwrap(), Some(key));
+    }
+
+    #[tokio::test]
+    async fn foreign_items_are_absent_without_a_reachable_bus() {
+        let attributes = [("service", "tool")];
+        let disabled = read_foreign(&SecretBus::Disabled, &attributes).await;
+        assert_eq!(disabled, ForeignSecret::Absent);
+        let root = tempfile::tempdir().unwrap();
+        let address = format!("unix:path={}", root.path().join("no-bus").display());
+        let unreachable = read_foreign(&SecretBus::Address(address), &attributes).await;
+        assert_eq!(unreachable, ForeignSecret::Absent);
     }
 }

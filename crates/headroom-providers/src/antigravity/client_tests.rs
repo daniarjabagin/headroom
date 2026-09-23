@@ -98,8 +98,4 @@ fn statuses_map_like_every_provider() {
         error_for(StatusCode::NOT_FOUND, None, SUMMARY_PATH),
         ProviderError::InvalidResponse(_)
     ));
-    assert_eq!(
-        retry_after_seconds("30"),
-        Some(SignedDuration::from_secs(30))
-    );
 }

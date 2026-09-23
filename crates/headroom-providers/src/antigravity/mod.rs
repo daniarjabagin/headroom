@@ -1,6 +1,5 @@
 mod client;
 mod discovery;
-mod keyring;
 mod mapper;
 mod process;
 mod raw;
@@ -22,11 +21,10 @@ use jiff::Timestamp;
 
 use client::{CloudClient, LanguageServerClient};
 use discovery::LanguageServer;
-use keyring::KeyringItem;
 use raw::{RawSummaryEnvelope, RawUserStatusEnvelope};
 use token::AccessToken;
 
-use crate::secrets::SecretBus;
+use crate::secrets::{self, ForeignSecret, SecretBus};
 
 pub use client::DEFAULT_CLOUD_BASES;
 
@@ -49,6 +47,7 @@ const NOT_FOUND_TEXT: &str = "Headroom cannot find an Antigravity sign-in. Start
 const LOCKED_TEXT: &str =
     "The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.";
 const NO_POOLS_TEXT: &str = "Antigravity reports no quota pools for this account.";
+const KEYRING_ATTRIBUTES: [(&str, &str); 2] = [("service", "gemini"), ("username", "antigravity")];
 const NO_TOKEN_TEXT: &str = "the Antigravity keyring item holds no usable access token";
 
 pub type Clock = fn() -> Timestamp;
@@ -137,14 +136,14 @@ impl AntigravityProvider {
     }
 
     async fn query_keyring(&self) -> Result<LimitsSnapshot, ProviderError> {
-        match keyring::read(&self.config.secret_bus).await {
-            KeyringItem::Found(raw) => {
-                let token = token::parse(&raw)
+        match secrets::read_foreign(&self.config.secret_bus, &KEYRING_ATTRIBUTES).await {
+            ForeignSecret::Found(raw) => {
+                let token = token::parse(raw.expose())
                     .ok_or_else(|| ProviderError::LocalData(NO_TOKEN_TEXT.to_owned()))?;
                 self.query_cloud(&token).await
             }
-            KeyringItem::Locked => Ok(self.notice_only(LOCKED_TEXT)),
-            KeyringItem::Absent => Ok(self.notice_only(NOT_FOUND_TEXT)),
+            ForeignSecret::Locked => Ok(self.notice_only(LOCKED_TEXT)),
+            ForeignSecret::Absent => Ok(self.notice_only(NOT_FOUND_TEXT)),
         }
     }
 

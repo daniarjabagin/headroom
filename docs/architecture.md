@@ -422,6 +422,9 @@ daemon (which reads them through `SecretReader`).
   reused, so the daemon holds none until a provider reads a key.
 - Keys are `SecretString` (redacted `Debug`, no `Display`) and never reach logs, errors, argv, the
   environment or D-Bus payloads.
+- `secrets::read_foreign(bus, attributes)` reads another application's item (Antigravity's sign-in)
+  read-only: `SearchItems`, then `GetSecret` on an unlocked match. It never calls `Unlock` and never
+  prompts; a locked-only match is `Locked`, anything else unavailable is `Absent`.
 
 ## API-key accounts
 
