@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![cfg(target_os = "linux")]
 
 mod fake_keyring;
 

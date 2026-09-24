@@ -3,12 +3,17 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
+use crate::paths::{HeadroomDirs, Os, app_config_dir};
+
 pub const DEFAULT_API_BASE: &str = "https://server.codeium.com";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DevinConfig {
+    /// Where the Devin CLI keeps `devin/credentials.toml`: `$XDG_DATA_HOME` on every OS.
     pub xdg_data_home: PathBuf,
-    pub xdg_config_home: PathBuf,
+    /// Where the Devin app keeps its settings: `$XDG_CONFIG_HOME` or Application Support.
+    pub app_config_dir: PathBuf,
+    pub headroom: HeadroomDirs,
     /// Used when the credentials name no `api_server_url`.
     pub api_base: String,
 }
@@ -18,7 +23,8 @@ impl DevinConfig {
     pub fn for_home(home: &Path) -> DevinConfig {
         DevinConfig {
             xdg_data_home: home.join(".local/share"),
-            xdg_config_home: home.join(".config"),
+            app_config_dir: app_config_dir(Os::current(), home, |_| None),
+            headroom: HeadroomDirs::for_home(home),
             api_base: DEFAULT_API_BASE.to_owned(),
         }
     }
@@ -39,7 +45,8 @@ impl DevinConfig {
         let defaults = DevinConfig::for_home(home);
         DevinConfig {
             xdg_data_home: absolute_var("XDG_DATA_HOME").unwrap_or(defaults.xdg_data_home),
-            xdg_config_home: absolute_var("XDG_CONFIG_HOME").unwrap_or(defaults.xdg_config_home),
+            app_config_dir: app_config_dir(Os::current(), home, &var),
+            headroom: HeadroomDirs::from_vars(home, &var),
             ..defaults
         }
     }
@@ -49,11 +56,11 @@ impl DevinConfig {
     }
 
     pub(super) fn app_state_dir(&self) -> PathBuf {
-        self.xdg_config_home.join("Devin/User/globalStorage")
+        self.app_config_dir.join("Devin/User/globalStorage")
     }
 
     pub(super) fn headroom_accounts_dir(&self) -> PathBuf {
-        self.xdg_data_home.join("headroom/accounts/devin")
+        self.headroom.accounts(super::ID.as_str())
     }
 }
 
@@ -93,6 +100,6 @@ mod tests {
     fn absolute_xdg_dirs_override_and_relative_ones_are_ignored() {
         let config = config_with(&[("XDG_DATA_HOME", "/data"), ("XDG_CONFIG_HOME", "cfg")]);
         assert_eq!(config.cli_dir(), PathBuf::from("/data/devin"));
-        assert_eq!(config.xdg_config_home, PathBuf::from("/home/u/.config"));
+        assert_eq!(config.app_config_dir, PathBuf::from("/home/u/.config"));
     }
 }

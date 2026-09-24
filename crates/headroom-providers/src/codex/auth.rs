@@ -11,7 +11,7 @@ use serde_json::Value;
 use super::jwt::{expires_at, id_claims};
 use super::labels::plan_label;
 
-const AUTH_FILE: &str = "auth.json";
+pub(super) const AUTH_FILE: &str = "auth.json";
 
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct Credentials {
@@ -71,6 +71,13 @@ fn read_auth_file(home: &Path) -> Result<AuthFile, ProviderError> {
         document,
         modified_at: modified_at(&file),
     })
+}
+
+pub(super) fn credentials_from_keychain(bytes: &[u8]) -> Result<Credentials, ProviderError> {
+    let document = parse_auth_document(bytes).ok_or_else(|| {
+        ProviderError::LocalData("the Codex Keychain item is not valid JSON".to_owned())
+    })?;
+    credentials_from(&document, None)
 }
 
 fn modified_at(file: &File) -> Option<Timestamp> {

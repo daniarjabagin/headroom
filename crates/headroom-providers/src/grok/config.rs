@@ -7,6 +7,7 @@ use headroom_core::account::CredentialOwner;
 use headroom_core::provider::ProviderError;
 
 use crate::homes::unique_dirs;
+use crate::paths::HeadroomDirs;
 
 pub const DEFAULT_API_BASE: &str = "https://cli-chat-proxy.grok.com/v1";
 pub const DEFAULT_ISSUER: &str = "https://auth.x.ai";
@@ -17,7 +18,7 @@ pub struct GrokConfig {
     pub home: PathBuf,
     /// Value of `GROK_HOME`.
     pub grok_home: Option<PathBuf>,
-    pub xdg_data_home: PathBuf,
+    pub headroom: HeadroomDirs,
     pub api_base: String,
     /// The only OIDC issuer whose tokens Headroom refreshes in homes it owns.
     pub issuer: String,
@@ -28,7 +29,7 @@ impl GrokConfig {
     pub fn for_home(home: PathBuf) -> GrokConfig {
         GrokConfig {
             grok_home: None,
-            xdg_data_home: home.join(".local/share"),
+            headroom: HeadroomDirs::for_home(&home),
             api_base: DEFAULT_API_BASE.to_owned(),
             issuer: DEFAULT_ISSUER.to_owned(),
             home,
@@ -52,10 +53,7 @@ impl GrokConfig {
         let defaults = GrokConfig::for_home(home);
         GrokConfig {
             grok_home: text_var("GROK_HOME").map(|raw| defaults.expand_tilde(&raw)),
-            xdg_data_home: text_var("XDG_DATA_HOME")
-                .map(PathBuf::from)
-                .filter(|path| path.is_absolute())
-                .unwrap_or_else(|| defaults.xdg_data_home.clone()),
+            headroom: HeadroomDirs::from_vars(&defaults.home, &var),
             api_base: text_var("GROK_CLI_CHAT_PROXY_BASE_URL")
                 .unwrap_or_else(|| defaults.api_base.clone()),
             ..defaults
@@ -69,7 +67,7 @@ impl GrokConfig {
     }
 
     pub(super) fn headroom_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
-        subdirectories(&self.xdg_data_home.join("headroom/accounts/grok"))
+        subdirectories(&self.headroom.accounts(super::ID.as_str()))
     }
 
     pub(super) fn homes(&self) -> Result<Vec<(PathBuf, CredentialOwner)>, ProviderError> {
@@ -139,7 +137,10 @@ mod tests {
         let config = config_with(&[]);
         assert_eq!(config.cli_dir(), PathBuf::from("/home/u/.grok"));
         assert_eq!(config.api_base, DEFAULT_API_BASE);
-        assert_eq!(config.xdg_data_home, PathBuf::from("/home/u/.local/share"));
+        assert_eq!(
+            config.headroom.accounts("grok"),
+            PathBuf::from("/home/u/.local/share/headroom/accounts/grok")
+        );
     }
 
     #[test]
@@ -154,7 +155,10 @@ mod tests {
         ]);
         assert_eq!(config.cli_dir(), PathBuf::from("/home/u/work/grok"));
         assert_eq!(config.api_base, "https://proxy.example.com/v1");
-        assert_eq!(config.xdg_data_home, PathBuf::from("/home/u/.local/share"));
+        assert_eq!(
+            config.headroom.accounts("grok"),
+            PathBuf::from("/home/u/.local/share/headroom/accounts/grok")
+        );
         assert_eq!(
             config_with(&[("GROK_HOME", "/srv/grok")]).cli_dir(),
             PathBuf::from("/srv/grok")
@@ -173,7 +177,9 @@ mod tests {
         fs::create_dir_all(accounts.join("a")).unwrap();
         fs::write(accounts.join("stray.txt"), "x").unwrap();
         let config = GrokConfig {
-            xdg_data_home: root.path().join("data"),
+            headroom: HeadroomDirs {
+                data: root.path().join("data/headroom"),
+            },
             ..GrokConfig::for_home(root.path().join("home"))
         };
         assert_eq!(
@@ -194,7 +200,9 @@ mod tests {
         fs::create_dir_all(accounts.join("a/sessions")).unwrap();
         fs::create_dir_all(accounts.join("b")).unwrap();
         let config = GrokConfig {
-            xdg_data_home: root.path().join("data"),
+            headroom: HeadroomDirs {
+                data: root.path().join("data/headroom"),
+            },
             ..GrokConfig::for_home(root.path().join("home"))
         };
         assert_eq!(
