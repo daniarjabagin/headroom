@@ -101,10 +101,22 @@ pub enum SocketError {
     AlreadyListening(PathBuf),
     #[error("{0} exists and is not a socket")]
     NotASocket(PathBuf),
+    #[error("refusing to use {path}: {issue}")]
+    NotPrivate { path: PathBuf, issue: PrivacyIssue },
     #[error("could not {action} {path}: {source}")]
     Io {
         action: &'static str,
         path: PathBuf,
         source: std::io::Error,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum PrivacyIssue {
+    #[error("it is not a directory")]
+    NotADirectory,
+    #[error("it is owned by uid {owner}, not by uid {uid}")]
+    Owner { owner: u32, uid: u32 },
+    #[error("its mode is {0:04o}, not 0700")]
+    Mode(u32),
 }
