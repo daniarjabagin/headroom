@@ -8,8 +8,27 @@ public enum MenuBarContent: Sendable, Hashable {
         let text =
             switch state.display.panelLabel {
             case .percent: formatter.panelPercent(percent)
-            case .window: formatter.windowLabel(id: headline.window, label: headline.windowLabel)
+            case .window: windowText(headline, formatter: formatter)
             }
-        return .reading(text: text, fraction: min(1, max(0, percent / 100)))
+        let capacity = capacity(of: headline, in: state.combined)
+        return .reading(text: text, fraction: min(1, max(0, percent / capacity)))
+    }
+
+    public static func subject(_ headline: Headline) -> String {
+        guard headline.combined else { return headline.accountLabel ?? headline.providerName }
+        return headline.accountCount.map { "\(headline.providerName) ×\($0)" } ?? headline.providerName
+    }
+
+    static func windowText(_ headline: Headline, formatter: DisplayFormatter) -> String {
+        let window = formatter.windowLabel(id: headline.window, label: headline.windowLabel)
+        return headline.combined ? "\(subject(headline)) · \(window)" : window
+    }
+
+    static func capacity(of headline: Headline, in groups: [CombinedGroup]) -> Double {
+        guard headline.combined else { return 100 }
+        let group = groups.first { $0.provider == headline.provider }
+        let capacity = group?.windows.first { $0.id == headline.window }?.capacityPercent
+        guard let capacity, capacity.isFinite, capacity > 0 else { return 100 }
+        return capacity
     }
 }
