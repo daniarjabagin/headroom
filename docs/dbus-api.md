@@ -710,7 +710,9 @@ Without `--check`, `headroom update` fetches the latest release and, when it is 
 
 - For a `self` install it asks for confirmation (`--yes` skips it; without a terminal or with
   `--progress json` it fails unless `--yes` is given), downloads `SHA256SUMS` and
-  `headroom-<version>-<arch>-linux-musl.tar.gz` from the release, checks the tarball's SHA-256,
+  `SHA256SUMS.sig` from the release and checks the Ed25519 signature against the release key built
+  into the binary (a missing or invalid signature fails the update), then downloads
+  `headroom-<version>-<arch>-linux-musl.tar.gz`, checks its SHA-256,
   unpacks it into a temporary directory and runs its `install.sh` with the options recorded in the
   install receipt. That replaces the binary, icons, unit, D-Bus file, GNOME extension and Plasma
   widget and restarts `headroom.service`. On Wayland GNOME Shell loads the new extension only after
@@ -728,11 +730,12 @@ remaining output is dropped and the installation still runs to the end.
 | --- | --- | --- |
 | `step` | `text` | Human-readable progress, e.g. `"Downloading Headroom 0.5.0…"`. |
 | `done` | `version`, `relogin` | Success. `version` is the installed release (the running one when it was already current). `relogin` is `true` when a GNOME Shell extension or Plasma widget was updated, so the user should log out and back in. |
-| `error` | `message` | Failure (checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
+| `error` | `message` | Failure (missing or invalid signature, checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
 
 ```
 {"event":"step","text":"Checking for a new release…"}
 {"event":"step","text":"Downloading Headroom 0.5.0…"}
+{"event":"step","text":"Verifying the signature…"}
 {"event":"step","text":"Verifying the checksum…"}
 {"event":"step","text":"Unpacking…"}
 {"event":"step","text":"Installing /home/ada/.local/bin/headroom"}

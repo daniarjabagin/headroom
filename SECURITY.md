@@ -29,8 +29,8 @@ anonymous. Please give the fix a reasonable time to ship before disclosing detai
   anything that could leak a secret into logs, errors, process arguments or IPC payloads.
 - **IPC exposure:** the D-Bus service on the session bus and the Unix socket, including anything
   that lets another user or process read state or trigger actions it should not.
-- **Updates:** the Linux updater and its `SHA256SUMS` verification, and the macOS Sparkle updates
-  with their EdDSA signatures.
+- **Updates:** the Linux updater with its signed `SHA256SUMS` verification, and the macOS Sparkle
+  updates with their EdDSA signatures.
 - **Install scripts:** `get-headroom.sh`, `packaging/install.sh`, the packages and the Homebrew cask.
 
 Out of scope: vulnerabilities in the providers' own services and CLIs, and attacks that require
@@ -49,8 +49,10 @@ control of your user account (someone who can run code as you can already read y
 - **Only your user can talk to the daemon.** D-Bus uses your session bus; the socket is `0600` inside
   a `0700` directory. Panels and the menu-bar app never see secrets.
 - **One request a day to GitHub** checks for updates. Nothing is sent besides the request itself,
-  and the check can be turned off. Downloads are verified with SHA-256 on Linux and with Sparkle's
-  EdDSA signature on macOS before they are installed.
+  and the check can be turned off. On Linux every release's `SHA256SUMS` is signed with an Ed25519
+  release key (`SHA256SUMS.sig`); `headroom update` refuses a release whose signature is missing or
+  does not match the key built into it, and `get-headroom.sh` checks it with OpenSSL. Downloads are
+  then verified with SHA-256. On macOS Sparkle checks its EdDSA signature before installing.
 
 The [Privacy](README.md#privacy) section of the README and [docs/architecture.md](docs/architecture.md)
 describe the model in more detail.
