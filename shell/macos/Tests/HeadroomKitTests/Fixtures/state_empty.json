@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-23T10:00:00Z",
+  "next_refresh_at": null,
+  "last_success_at": null,
+  "offline": false,
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "translucent": false,
+    "hidden_windows": {}
+  },
+  "headline": null,
+  "accounts": [],
+  "usage": [],
+  "spend": {
+    "today": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    },
+    "yesterday": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    },
+    "last_30_days": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "by_provider": []
+    }
+  }
+}

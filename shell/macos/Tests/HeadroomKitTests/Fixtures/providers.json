@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "codex",
+      "display_name": "Codex",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "codex"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "claude",
+      "display_name": "Claude",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "claude"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://opencode.ai/auth",
+          "hint": "The key's workspace needs an OpenCode Go subscription"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "sign in to OpenCode Go with `opencode auth login`"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "openrouter",
+      "display_name": "OpenRouter",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://openrouter.ai/settings/keys",
+          "hint": "Starts with sk-or-; a management key also shows the credit balance"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "zai",
+      "display_name": "Z.ai",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "API key",
+          "console_url": "https://z.ai/manage-apikey/apikey-list",
+          "hint": "A key from the account that holds your GLM Coding Plan"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "kimi",
+      "display_name": "Kimi Code",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Kimi Code API key",
+          "console_url": "https://www.kimi.com/code/console",
+          "hint": "Create it in the Kimi Code console; Moonshot platform keys do not work"
+        },
+        {
+          "kind": "cli_login",
+          "program": "kimi"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "minimax",
+      "display_name": "MiniMax",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "MiniMax Token Plan key",
+          "console_url": "https://platform.minimax.io/user-center/payment/token-plan",
+          "hint": "Use the Token Plan subscription key from platform.minimax.io; pay-as-you-go keys have no plan limits"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "grok",
+      "display_name": "Grok",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "grok"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Found from the Grok CLI sign-in in ~/.grok, which expires while the CLI is closed"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": true
+    },
+    {
+      "id": "cline",
+      "display_name": "Cline",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "cline"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "the Cline CLI sign-in in ~/.cline is picked up automatically, but it expires about an hour after Cline last ran"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "devin",
+      "display_name": "Devin",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "devin"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Found when you sign in with the Devin CLI or the Devin app"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "copilot",
+      "display_name": "Copilot",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "gh"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Every account signed in to the GitHub CLI (gh) is found"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "cursor",
+      "display_name": "Cursor",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Cursor keeps one login per machine: sign in to the Cursor app (or run `agent login`) and Headroom picks it up."
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "antigravity",
+      "display_name": "Antigravity",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Headroom reads quota from the running Antigravity app or `agy`, or from the sign-in Antigravity keeps in the keyring"
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "ollama",
+      "display_name": "Ollama Cloud",
+      "add_account": [
+        {
+          "kind": "auto_detect",
+          "reason": "Headroom signs requests with the key Ollama keeps in ~/.ollama/id_ed25519; run `ollama signin` to link it to your ollama.com account"
+        }
+      ],
+      "multi_account": false,
+      "local_usage": false
+    }
+  ]
+}
