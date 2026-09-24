@@ -13,7 +13,7 @@ final class PresentationSVGTests: XCTestCase {
     func testEveryBundledProviderIconParsesInsideItsViewBox() throws {
         let files = try FileManager.default.contentsOfDirectory(atPath: iconDirectory.path)
             .filter { $0.hasSuffix(".svg") }
-        XCTAssertEqual(files.count, 12)
+        XCTAssertEqual(files.count, 16)
         for file in files {
             let text = try String(contentsOf: iconDirectory.appendingPathComponent(file), encoding: .utf8)
             let icon = try SVGIcon.parse(text)

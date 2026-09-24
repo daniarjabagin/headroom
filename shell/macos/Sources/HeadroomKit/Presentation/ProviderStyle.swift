@@ -21,6 +21,11 @@ public enum ProviderStyle {
         "cursor": SeriesColor(light: 0x13120A, dark: 0xF5F5F7),
         "antigravity": SeriesColor(light: 0x4285F4, dark: 0x5B96F6),
         "ollama": SeriesColor(light: 0x65A30D, dark: 0x84CC16),
+        "kilo": SeriesColor(light: 0xB59A00, dark: 0xF8F675),
+        "warp": SeriesColor(light: 0x005A9E, dark: 0x6CCBFF),
+        "poe": SeriesColor(light: 0xB42BC9, dark: 0xDE7BF0),
+        "deepseek": SeriesColor(light: 0x2C3FC2, dark: 0xA3B1FF),
+        "moonshot": SeriesColor(light: 0x475A78, dark: 0xA5B4CC),
     ]
 
     private static let fallbackSeries: [SeriesColor] = [
