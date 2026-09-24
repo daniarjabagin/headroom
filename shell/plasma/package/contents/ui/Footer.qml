@@ -49,6 +49,10 @@ PlasmaExtras.PlasmoidHeading {
                 Accessible.description: I18n.tr(footer.lang, "Refresh")
                 onClicked: footer.refreshRequested()
 
+                PointerHover {
+                    id: pointer
+                }
+
                 contentItem: RowLayout {
                     id: statusRow
 
@@ -58,7 +62,7 @@ PlasmaExtras.PlasmoidHeading {
                         id: statusText
 
                         role: "caption"
-                        emphasis: statusButton.hovered ? "primary" : "secondary"
+                        emphasis: pointer.shown ? "primary" : "secondary"
                         color: footer.status.notice ? Kirigami.Theme.neutralTextColor : statusText.colorFor(statusText.emphasis)
                         text: footer.status.text
                     }

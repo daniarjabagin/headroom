@@ -6,6 +6,7 @@ import "logic/Account.js" as Account
 import "logic/Format.js" as Format
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/Providers.js" as Providers
 import "logic/Tokens.js" as Tokens
 
@@ -30,7 +31,7 @@ Item {
     Layout.fillWidth: true
     implicitHeight: row.implicitHeight
 
-    HoverHandler {
+    PointerHover {
         id: hover
 
         cursorShape: header.canReorder ? (drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
@@ -129,11 +130,12 @@ Item {
             source: "handle-sort"
             isMask: true
             color: Tokens.tertiaryText(Kirigami.Theme)
-            opacity: header.canReorder && (hover.hovered || drag.active) ? 1 : 0
+            opacity: header.canReorder && (hover.shown || drag.active) ? 1 : 0
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: Kirigami.Units.shortDuration
+                    duration: Motion.hoverDuration(Kirigami.Units)
+                    easing.type: Easing.OutCubic
                 }
             }
         }

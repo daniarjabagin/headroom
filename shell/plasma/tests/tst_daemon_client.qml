@@ -31,6 +31,15 @@ TestCase {
         client = null;
     }
 
+    function test_restore_accounts_targets_one_provider() {
+        client.restoreAccounts("opencode");
+        compare(members(), ["RestoreAccounts"]);
+        compare(DBus.SessionBus.messages[0].signature, "(s)");
+        compare(DBus.SessionBus.messages[0].arguments, ["opencode"]);
+        verify(!members().includes("Rescan"));
+        wait(100);
+    }
+
     function test_sends_only_changed_fields_in_order() {
         client.updateSettings({
             display: {

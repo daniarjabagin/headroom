@@ -27,8 +27,12 @@ function addAccountCommand(provider, label, closePrompt) {
     return `if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c ${script}; else exec konsole -e sh -c ${script}; fi`;
 }
 
+function opensTerminal(method) {
+    return TERMINAL_METHODS.includes(method?.kind);
+}
+
 function addPlan(provider, label, closePrompt) {
-    if (TERMINAL_METHODS.includes(provider.method.kind))
+    if (opensTerminal(provider.method))
         return {
             kind: "terminal",
             command: addAccountCommand(provider.id, label, closePrompt)

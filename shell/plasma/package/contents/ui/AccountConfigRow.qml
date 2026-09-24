@@ -163,10 +163,13 @@ Item {
                     }
                 }
 
-                background: Rectangle {
-                    radius: Metrics.chipRadius(Kirigami.Units)
-                    color: Tokens.chip(Kirigami.Theme)
-                    opacity: expander.hovered ? 1 : 0
+                background: HoverFill {
+                    radius: Metrics.controlRadius(Kirigami.Units)
+                    shown: pointer.shown || expander.visualFocus
+                }
+
+                PointerHover {
+                    id: pointer
                 }
             }
         }

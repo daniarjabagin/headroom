@@ -8,6 +8,7 @@ RowLayout {
     id: actionRow
 
     property var actions: []
+    property bool animated: true
 
     signal triggered(string kind, string value)
 
@@ -20,6 +21,8 @@ RowLayout {
             required property var modelData
 
             text: modelData.label
+            busy: modelData.busy ?? false
+            animated: actionRow.animated
             onClicked: actionRow.triggered(modelData.kind, modelData.value)
         }
     }

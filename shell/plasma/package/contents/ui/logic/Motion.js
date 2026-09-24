@@ -28,6 +28,14 @@ function easeOutCubic(value) {
     return 1 - inverse * inverse * inverse;
 }
 
+function hoverDuration(units) {
+    return units.longDuration;
+}
+
+function moved(from, to) {
+    return from.x !== to.x || from.y !== to.y;
+}
+
 function openDuration(units) {
     return units.longDuration * OPEN_FACTOR;
 }

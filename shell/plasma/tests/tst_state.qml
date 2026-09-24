@@ -229,21 +229,22 @@ TestCase {
         compare(Account.notices("en", state.accounts[1], false, providers())[0].kind, "warning");
         const signedOut = Account.notices("en", state.accounts[3], false, providers());
         compare(signedOut.length, 1);
-        compare(signedOut[0].detail, "Sign in again, then Retry");
+        compare(signedOut[0].detail, "Sign in again through Headroom (Settings → Accounts → Add Account) or remove the account.");
         compare(signedOut[0].actions, [
             {
                 kind: "signin",
-                label: "Sign in again…",
+                label: "Sign in…",
                 value: "claude"
             },
             {
                 kind: "retry",
                 label: "Retry",
-                value: state.accounts[3].id
+                value: state.accounts[3].id,
+                busy: false
             }
         ]);
-        compare(Account.notices("ru", state.accounts[3], false, providers())[0].actions[0].label, "Войти снова…");
-        compare(Account.notices("en", state.accounts[3], false, [])[0].actions.map(action => action.kind), ["retry"]);
+        compare(Account.notices("ru", state.accounts[3], false, providers())[0].actions[0].label, "Войти…");
+        compare(Account.notices("en", state.accounts[3], false, [])[0].actions.map(action => action.kind), ["settings", "retry"]);
         const offline = Object.assign({}, state.accounts[2], {
             error: {
                 kind: "network",
@@ -261,8 +262,8 @@ TestCase {
         });
         const notice = Account.notices("en", signedOut, false, providers())[0];
         compare(notice.title, "Signed out of Z.ai");
-        compare(notice.detail, "Sign in again, then Retry");
-        compare(notice.actions.map(action => action.kind), ["retry"]);
+        compare(notice.detail, "Sign in again through Headroom (Settings → Accounts → Add Account) or remove the account.");
+        compare(notice.actions.map(action => action.kind), ["signin", "retry"]);
         for (const kind of ["unsupported", "no_provider"]) {
             const failed = Object.assign({}, zai, {
                 status: "error",
@@ -273,6 +274,43 @@ TestCase {
             });
             compare(Account.notices("en", failed, false, providers())[0].actions, []);
         }
+    }
+
+    function test_signed_out_retry_shows_progress() {
+        const signedOut = sample().accounts[3];
+        const retrying = Object.assign({}, signedOut, {
+            status: "refreshing"
+        });
+        const notices = Account.notices("en", retrying, false, providers());
+        compare(notices.map(notice => notice.title), ["Signed out of Claude"]);
+        compare(notices[0].actions.map(action => [action.kind, action.busy ?? false]), [["signin", false], ["retry", true]]);
+        compare(Account.statusSlot(retrying, false), "refreshing");
+        verify(!Account.showsQuotas(retrying));
+        const refreshingHealthy = Object.assign({}, sample().accounts[0], {
+            status: "refreshing"
+        });
+        compare(Account.notices("en", refreshingHealthy, false, providers()), []);
+    }
+
+    function test_signed_out_without_terminal_sign_in_opens_settings() {
+        const opencode = Object.assign({}, sample().accounts[5], {
+            provider: "opencode",
+            providerName: "OpenCode",
+            status: "signed_out"
+        });
+        const actions = Account.notices("en", opencode, false, providers())[0].actions;
+        compare(actions.map(action => action.kind), ["settings", "retry"]);
+        compare(actions[0].label, "Sign in…");
+    }
+
+    function test_removal_text_by_owner() {
+        const state = sample();
+        const headroom = Account.removal("en", state.accounts[1]);
+        compare(headroom.confirmation, "Headroom deletes the sign-in it created for this account. The account itself is not affected.");
+        const cli = Account.removal("en", state.accounts[3]);
+        compare(cli.confirmation, "Headroom will stop showing this account. The Claude CLI stays signed in; you can sign in again through Headroom.");
+        compare(cli.subtitle, "Stops showing this account; the Claude CLI stays signed in");
+        compare(Account.removal("ru", state.accounts[3]).confirmation, "Headroom перестанет показывать этот аккаунт. Вход в CLI Claude сохранится; войти снова можно через Headroom.");
     }
 
     function test_balance_only_account_opens_extras() {
@@ -312,7 +350,8 @@ TestCase {
                     {
                         kind: "retry",
                         label: "Retry",
-                        value: "codex:3c4d5e6f7a8b"
+                        value: "codex:3c4d5e6f7a8b",
+                        busy: false
                     }
                 ]
             }

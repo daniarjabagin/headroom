@@ -80,7 +80,7 @@ ConfigScaffold {
             if (plan.kind === "terminal")
                 launch(plan.command, "add");
             else
-                daemon.rescan();
+                daemon.restoreAccounts(provider.id);
         } catch (error) {
             showCommandError(error);
         }

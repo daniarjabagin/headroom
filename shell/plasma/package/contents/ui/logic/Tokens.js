@@ -1,7 +1,14 @@
 .pragma library
 
 const CARD = 0.03;
-const CARD_HOVER = 0.06;
+const CARD_HOVER = {
+    light: 0.05,
+    dark: 0.06
+};
+const HOVER = {
+    light: 0.05,
+    dark: 0.08
+};
 const CHIP = 0.08;
 const PRESSED = 0.14;
 const CONTROL = 0.07;
@@ -49,8 +56,16 @@ function card(theme) {
     return surface(theme, CARD);
 }
 
+function shade(theme) {
+    return isDark(theme) ? "dark" : "light";
+}
+
 function cardHover(theme) {
-    return surface(theme, CARD_HOVER);
+    return surface(theme, CARD_HOVER[shade(theme)]);
+}
+
+function hover(theme) {
+    return surface(theme, HOVER[shade(theme)]);
 }
 
 function chip(theme) {

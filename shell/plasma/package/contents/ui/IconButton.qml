@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/Tokens.js" as Tokens
 
 T.AbstractButton {
@@ -9,7 +10,7 @@ T.AbstractButton {
 
     required property string iconName
     property bool animated: true
-    readonly property bool active: button.hovered || button.down || button.visualFocus
+    readonly property bool active: pointer.shown || button.down || button.visualFocus
 
     implicitWidth: Metrics.controlHeight(Kirigami.Units)
     implicitHeight: implicitWidth
@@ -34,20 +35,22 @@ T.AbstractButton {
 
     background: Rectangle {
         radius: Metrics.controlRadius(Kirigami.Units)
-        color: button.down ? Tokens.pressed(Kirigami.Theme) : Tokens.chip(Kirigami.Theme)
+        color: button.down ? Tokens.pressed(Kirigami.Theme) : Tokens.hover(Kirigami.Theme)
         border.width: button.visualFocus ? Metrics.hairline(Kirigami.Units) : 0
         border.color: Kirigami.Theme.highlightColor
         opacity: button.active ? 1 : 0
 
         Behavior on opacity {
             NumberAnimation {
-                duration: Kirigami.Units.shortDuration
+                duration: Motion.hoverDuration(Kirigami.Units)
                 easing.type: Easing.OutCubic
             }
         }
     }
 
     HoverTip {
+        id: pointer
+
         text: button.text
     }
 

@@ -15,6 +15,7 @@ ColumnLayout {
     required property var period
     required property string periodKey
     required property string lang
+    readonly property bool single: period.providers.length === 1
 
     spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
@@ -29,17 +30,10 @@ ColumnLayout {
             Layout.fillWidth: true
             implicitHeight: row.implicitHeight + Kirigami.Units.smallSpacing * 1.5
 
-            Rectangle {
+            HoverFill {
                 anchors.fill: parent
                 radius: Metrics.chipRadius(Kirigami.Units)
-                color: Tokens.chip(Kirigami.Theme)
-                opacity: tip.hovered ? 1 : 0
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Kirigami.Units.shortDuration
-                    }
-                }
+                shown: tip.shown
             }
 
             RowLayout {
@@ -60,11 +54,26 @@ ColumnLayout {
                     color: Providers.ringColor(entry.modelData.provider, Tokens.isDark(Kirigami.Theme))
                 }
 
-                TextLabel {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    text: entry.modelData.providerName
-                    wrapMode: Text.Wrap
-                    maximumLineCount: 2
+                    spacing: 0
+
+                    TextLabel {
+                        Layout.fillWidth: true
+                        text: entry.modelData.providerName
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                    }
+
+                    TextLabel {
+                        objectName: "legendTokens"
+                        visible: legend.single
+                        Layout.fillWidth: true
+                        role: "caption"
+                        emphasis: "secondary"
+                        text: Format.tokenCount(legend.lang, entry.modelData.totalTokens)
+                        elide: Text.ElideRight
+                    }
                 }
 
                 TextLabel {

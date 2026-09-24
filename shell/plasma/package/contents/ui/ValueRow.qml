@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Format.js" as Format
 import "logic/Metrics.js" as Metrics
-import "logic/Tokens.js" as Tokens
 
 RowLayout {
     id: valueRow
@@ -32,17 +31,10 @@ RowLayout {
         implicitWidth: valueLabel.implicitWidth + Kirigami.Units.smallSpacing * 2
         implicitHeight: valueLabel.implicitHeight + Kirigami.Units.smallSpacing / 2
 
-        Rectangle {
+        HoverFill {
             anchors.fill: parent
             radius: Metrics.chipRadius(Kirigami.Units)
-            color: Tokens.chip(Kirigami.Theme)
-            opacity: valueRow.hasTip && tip.hovered ? 1 : 0
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Kirigami.Units.shortDuration
-                }
-            }
+            shown: valueRow.hasTip && tip.shown
         }
 
         TextLabel {
