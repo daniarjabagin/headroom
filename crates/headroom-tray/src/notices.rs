@@ -20,7 +20,7 @@ impl NoticeKind {
     }
 }
 
-const FIXED_TEXTS: [&str; 11] = [
+const FIXED_TEXTS: [&str; 18] = [
     "Weekly limit shared with Codex Cloud",
     "Offline — showing limits from local logs.",
     "Sign-in expired — open Codex to sign in again. Showing limits from local logs.",
@@ -30,6 +30,13 @@ const FIXED_TEXTS: [&str; 11] = [
     "Legacy Grok billing has no weekly pool.",
     "Ollama reports no Cloud limits for this account yet.",
     "Could not read the Ollama plan; the usage above is up to date.",
+    "Kilo credits are used up",
+    "Unlimited credits",
+    "No monthly credits on this plan",
+    "Balance is not enough for API calls",
+    "Balance is used up; API calls fail until you top up",
+    "Balance is used up; API requests fail until you top up",
+    "Cash balance is negative: the account is in debt",
     "Antigravity reports no quota pools for this account.",
     "The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.",
 ];
@@ -67,6 +74,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_fixed_notice_has_a_russian_text() {
+        for text in FIXED_TEXTS {
+            assert_ne!(notice_text(Lang::Ru, text), text, "{text}");
+            assert_eq!(notice_text(Lang::En, text), text);
+        }
+    }
+
+    #[test]
     fn maps_tones_to_kinds() {
         assert_eq!(NoticeKind::from_tone(Tone::Critical), NoticeKind::Error);
         assert_eq!(NoticeKind::from_tone(Tone::Warning), NoticeKind::Warning);
@@ -93,6 +108,10 @@ mod tests {
             "Pro заканчивается 2026-10-01 (UTC)."
         );
         assert_eq!(notice_text(Lang::Ru, "Something new"), "Something new");
+        assert_eq!(
+            notice_text(Lang::Ru, "Kilo credits are used up"),
+            "Кредиты Kilo закончились"
+        );
         assert_eq!(
             notice_text(Lang::En, "Extra usage on, cap $5"),
             "Extra usage on, cap $5"

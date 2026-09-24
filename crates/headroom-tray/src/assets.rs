@@ -7,7 +7,7 @@ pub const MARK: &str = include_str!("../../../assets/brand/headroom-symbolic.svg
 pub const FLAME: &str = include_str!("../../../shell/gnome/icons/flame-symbolic.svg");
 const GENERIC: &str = include_str!("../../../shell/gnome/icons/provider-symbolic.svg");
 
-const LOGOS: [(&str, &str); 12] = [
+const LOGOS: [(&str, &str); 16] = [
     (
         "codex",
         include_str!("../../../assets/providers/openai.svg"),
@@ -46,6 +46,16 @@ const LOGOS: [(&str, &str); 12] = [
     (
         "ollama",
         include_str!("../../../assets/providers/ollama.svg"),
+    ),
+    ("warp", include_str!("../../../assets/providers/warp.svg")),
+    ("poe", include_str!("../../../assets/providers/poe.svg")),
+    (
+        "deepseek",
+        include_str!("../../../assets/providers/deepseek.svg"),
+    ),
+    (
+        "moonshot",
+        include_str!("../../../assets/providers/moonshotai.svg"),
     ),
 ];
 
@@ -91,6 +101,15 @@ mod tests {
         assert_eq!(provider_logo("claude").1, Tint::Brand);
         assert_eq!(provider_logo("grok").0, GENERIC);
         assert_eq!(provider_logo("grok").1, Tint::Text);
+        for (provider, title) in [
+            ("warp", "Warp"),
+            ("poe", "Poe"),
+            ("deepseek", "DeepSeek"),
+            ("moonshot", "Moonshot"),
+        ] {
+            assert!(provider_logo(provider).0.contains(title), "{provider}");
+        }
+        assert_eq!(provider_logo("kilo"), (GENERIC, Tint::Text));
     }
 
     #[test]

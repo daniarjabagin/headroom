@@ -151,7 +151,8 @@ pub enum ResetFormat {
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Headline {
-    pub account_id: String,
+    #[serde(default)]
+    pub account_id: Option<String>,
     pub provider: String,
     pub provider_name: String,
     #[serde(default)]

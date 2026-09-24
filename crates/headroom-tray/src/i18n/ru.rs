@@ -60,6 +60,14 @@ const CATALOG: &[(&str, &str)] = &[
     ("No data", "Нет данных"),
     ("Credits", "Кредиты"),
     ("Extra usage", "Доп. использование"),
+    ("Balance", "Баланс"),
+    ("Vouchers", "Ваучеры"),
+    ("Cash", "Денежный баланс"),
+    ("Credit balance", "Кредиты"),
+    ("Organization credits", "Кредиты организации"),
+    ("Point balance", "Баланс баллов"),
+    ("Bonus credits", "Бонусные кредиты"),
+    ("Monthly credits", "Кредиты на месяц"),
     (" · some models unpriced", " · часть моделей без цены"),
     ("No usage", "Без использования"),
     ("Usage Trend", "Динамика"),
@@ -161,6 +169,28 @@ const CATALOG: &[(&str, &str)] = &[
     (
         "The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.",
         "Связка ключей со входом в Antigravity заблокирована. Разблокируйте её или запустите Antigravity.",
+    ),
+    ("Kilo credits are used up", "Кредиты Kilo закончились"),
+    ("Unlimited credits", "Безлимитные кредиты"),
+    (
+        "No monthly credits on this plan",
+        "В этом тарифе нет ежемесячных кредитов",
+    ),
+    (
+        "Balance is not enough for API calls",
+        "Баланса не хватает для вызовов API",
+    ),
+    (
+        "Balance is used up; API calls fail until you top up",
+        "Баланс исчерпан — вызовы API не пройдут, пока вы не пополните счёт",
+    ),
+    (
+        "Balance is used up; API requests fail until you top up",
+        "Баланс исчерпан — запросы к API не пройдут, пока вы не пополните счёт",
+    ),
+    (
+        "Cash balance is negative: the account is in debt",
+        "Денежный баланс отрицательный — на счёте долг",
     ),
     (
         "Extra usage on, cap {amount}",

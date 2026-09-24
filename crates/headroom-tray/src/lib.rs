@@ -11,6 +11,8 @@ pub mod events;
 pub mod format;
 pub mod i18n;
 pub mod icon;
+pub mod labels;
+pub mod meter_shape;
 pub mod notices;
 pub mod numbers;
 pub mod palette;

@@ -90,7 +90,7 @@ fn headline_resets_at(state: &State, headline: &Headline) -> Option<Timestamp> {
     state
         .accounts
         .iter()
-        .find(|account| account.id == headline.account_id)?
+        .find(|account| headline.account_id.as_deref() == Some(account.id.as_str()))?
         .windows
         .iter()
         .find(|window| window.id == headline.window)?

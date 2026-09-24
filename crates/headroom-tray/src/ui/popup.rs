@@ -55,7 +55,7 @@ fn section(
             .iter()
             .find(|id| accounts.iter().any(|a| &a.id == *id));
         return (first == Some(&account.id))
-            .then(|| combined_section(ctx, group, frame.now).upcast());
+            .then(|| combined_section(ctx, group, &state.accounts, frame.now).upcast());
     }
     let input = SectionInput {
         account,
