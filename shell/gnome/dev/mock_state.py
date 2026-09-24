@@ -389,6 +389,7 @@ DEFAULT_SETTINGS = {
     "notifications": {"almost_out": True, "cutting_it_close": True, "will_run_out": True, "reset": False},
     "headline": {"mode": "auto"},
     "reduced_motion": False,
+    "updates": {"check": True},
     "display": {
         "theme": "system",
         "language": "system",
@@ -447,6 +448,7 @@ def assemble(now, accounts, usage, preferred, **extra):
         "accounts": accounts,
         "usage": [published_usage(entry) for entry in usage],
         "spend": {period: published_spend(period_spend(usage, period)) for period in PERIODS},
+        "update": None,
     }
     state.update(extra)
     return state
@@ -466,6 +468,23 @@ def full_state(now):
 
 def showcase_state(now):
     return assemble(now, showcase_accounts(now), showcase_usage(now), ("claude:0a1b2c3d4e5f", "weekly"))
+
+
+UPDATE_COMMANDS = {"self": "headroom update", "package": "sudo pacman -Syu headroom", "unknown": ""}
+
+
+def available_update(install, now):
+    return {
+        "version": "0.5.0",
+        "url": "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0",
+        "published_at": iso(now - timedelta(days=2)),
+        "install": install,
+        "command": UPDATE_COMMANDS[install],
+    }
+
+
+def showcase_update_state(install):
+    return lambda now: {**showcase_state(now), "update": available_update(install, now)}
 
 
 def critical_state(now):
@@ -497,6 +516,9 @@ def empty_state(now):
 SCENARIOS = {
     "full": full_state,
     "showcase": showcase_state,
+    "showcase-update": showcase_update_state("self"),
+    "showcase-update-package": showcase_update_state("package"),
+    "showcase-update-unknown": showcase_update_state("unknown"),
     "empty": empty_state,
     "offline": offline_state,
     "single": single_state,

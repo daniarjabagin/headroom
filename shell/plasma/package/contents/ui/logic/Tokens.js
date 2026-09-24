@@ -21,6 +21,10 @@ const NOTICE_FILL = 0.12;
 const NOTICE_TILE = 0.16;
 const NOTICE_BORDER = 0.22;
 const PANEL_TRACK = 0.28;
+const UPDATE_FILL = {
+    light: 0.07,
+    dark: 0.12
+};
 const CONTROL_SHADOW = 0.18;
 const SKELETON = 0.09;
 const SHIMMER = 0.1;
@@ -163,4 +167,8 @@ function noticeTile(theme, kind) {
 
 function noticeBorder(theme, kind) {
     return alpha(noticeColor(theme, kind), NOTICE_BORDER);
+}
+
+function updateFill(theme) {
+    return mixAlpha(theme.backgroundColor, theme.highlightColor, UPDATE_FILL[shade(theme)], theme.backgroundColor.a);
 }

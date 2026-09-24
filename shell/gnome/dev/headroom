@@ -86,6 +86,27 @@ def remove(args):
     return 0
 
 
+UPDATE_STEPS = ["Downloading Headroom 0.5.0", "Verifying the checksum", "Installing the new version",
+                "Restarting the Headroom service"]
+
+
+def update(_args):
+    for step in UPDATE_STEPS:
+        emit("step", text=step)
+        time.sleep(STEP_SECONDS)
+        if os.environ.get("HEADROOM_FAKE_RESULT") == "error" and step.startswith("Verifying"):
+            emit("error", message="checksum mismatch for headroom-0.5.0-x86_64-linux.tar.gz")
+            return 1
+    emit("done", version="0.5.0", relogin=True)
+    return 0
+
+
+def run(args):
+    if args.command == "update":
+        return update(args)
+    return add(args) if args.action == "add" else remove(args)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="headroom", description="Fake headroom CLI for the GNOME dev kit.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -99,8 +120,10 @@ def main():
     remove_parser.add_argument("id")
     remove_parser.add_argument("--yes", action="store_true")
     remove_parser.add_argument("--progress", choices=["json"])
-    args = parser.parse_args()
-    sys.exit(add(args) if args.action == "add" else remove(args))
+    update_parser = commands.add_parser("update")
+    update_parser.add_argument("--yes", action="store_true")
+    update_parser.add_argument("--progress", choices=["json"])
+    sys.exit(run(parser.parse_args()))
 
 
 if __name__ == "__main__":

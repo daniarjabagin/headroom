@@ -19,8 +19,15 @@ function known(raw) {
             return text(raw.url) && { event: 'url', url: raw.url };
         case 'output':
             return typeof raw.line === 'string' ? { event: 'output', line: raw.line } : null;
+        case 'step':
+            return text(raw.text) && { event: 'step', text: raw.text };
         case 'done':
-            return { event: 'done', accountId: text(raw.account_id) };
+            return {
+                event: 'done',
+                accountId: text(raw.account_id),
+                version: text(raw.version),
+                relogin: raw.relogin === true,
+            };
         case 'error':
             return { event: 'error', message: text(raw.message) ?? 'unknown error' };
         default:

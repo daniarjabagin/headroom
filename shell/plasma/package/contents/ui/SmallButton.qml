@@ -10,6 +10,7 @@ T.Button {
     id: button
 
     property bool busy: false
+    property bool primary: false
     property bool animated: true
 
     implicitWidth: implicitContentWidth + leftPadding + rightPadding
@@ -43,6 +44,7 @@ T.Button {
             role: "caption"
             weight: Font.DemiBold
             emphasis: button.busy ? "secondary" : "primary"
+            color: button.primary ? Kirigami.Theme.highlightedTextColor : colorFor(emphasis)
             text: button.text
             horizontalAlignment: Text.AlignHCenter
         }
@@ -50,8 +52,8 @@ T.Button {
 
     background: Rectangle {
         radius: Metrics.buttonRadius(Kirigami.Units)
-        color: pointer.shown ? Tokens.chip(Kirigami.Theme) : Tokens.control(Kirigami.Theme)
-        border.width: Metrics.hairline(Kirigami.Units)
+        color: button.primary ? (pointer.shown ? Qt.lighter(Kirigami.Theme.highlightColor, 1.08) : Kirigami.Theme.highlightColor) : (pointer.shown ? Tokens.chip(Kirigami.Theme) : Tokens.control(Kirigami.Theme))
+        border.width: button.primary && !button.visualFocus ? 0 : Metrics.hairline(Kirigami.Units)
         border.color: button.visualFocus ? Kirigami.Theme.highlightColor : Tokens.separator(Kirigami.Theme)
 
         Behavior on color {

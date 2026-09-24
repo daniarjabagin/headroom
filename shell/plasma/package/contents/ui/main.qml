@@ -66,6 +66,7 @@ PlasmoidItem {
         systemTheme: root.systemTheme
         reducedMotion: root.reducedMotion
         versionText: `Headroom ${Plasmoid.metaData.version}`
+        updater: updater
         onRefreshRequested: accountId => daemon.refresh(accountId)
         onSignInRequested: providerId => root.signIn(providerId)
         onRefreshNowRequested: onFailed => daemon.refreshNow(onFailed)
@@ -83,6 +84,12 @@ PlasmoidItem {
         trackProviders: true
         lang: root.lang
         onOpenRequested: root.expanded = true
+    }
+
+    UpdateActions {
+        id: updater
+
+        update: root.ready ? root.view.state.update : null
     }
 
     CommandRunner {

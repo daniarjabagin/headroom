@@ -67,6 +67,11 @@ function parseNotifications(raw) {
     };
 }
 
+function parseUpdates(raw) {
+    const updates = isObject(raw) ? raw : {};
+    return { check: flag(updates.check, true) };
+}
+
 function parseHeadline(raw) {
     const headline = isObject(raw) ? raw : {};
     const accountId = nonEmpty(headline.account_id);
@@ -96,6 +101,7 @@ export function settingsFrom(raw) {
         headline: parseHeadline(raw.headline),
         reducedMotion: flag(raw.reduced_motion, false),
         display: parseDisplay(raw.display),
+        updates: parseUpdates(raw.updates),
     };
 }
 
@@ -142,6 +148,10 @@ export function notificationsPatch(changes) {
 
 export function refreshIntervalPatch(secs) {
     return { refresh_interval_secs: refreshInterval(secs) };
+}
+
+export function updatesPatch(check) {
+    return { updates: { check: check === true } };
 }
 
 export function headlinePatch(headline) {

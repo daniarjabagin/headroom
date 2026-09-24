@@ -96,6 +96,7 @@
     background-color: var(--glass-track);
 }
 
+.headroom-translucent .headroom-update-command-text,
 .headroom-translucent .headroom-segmented {
     background-color: var(--glass-chip);
 }
@@ -113,6 +114,7 @@
 .headroom-translucent .headroom-notice-detail,
 .headroom-translucent .headroom-notice-line-icon,
 .headroom-translucent .headroom-notice-line-text,
+.headroom-translucent .headroom-update-detail,
 .headroom-translucent .headroom-empty-period,
 .headroom-translucent .headroom-stale-tag,
 .headroom-translucent .headroom-icon-button {

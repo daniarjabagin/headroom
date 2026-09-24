@@ -20,7 +20,9 @@ Item {
             "list-add": "actions/list-add-symbolic.svg",
             "edit-delete": "actions/edit-delete-symbolic.svg",
             "utilities-terminal": "legacy/utilities-terminal-symbolic.svg",
-            "application-x-executable": "legacy/system-users-symbolic.svg"
+            "application-x-executable": "legacy/system-users-symbolic.svg",
+            "system-software-update": "status/software-update-available-symbolic.svg",
+            "checkmark": "actions/object-select-symbolic.svg"
         })
     readonly property string url: {
         const value = String(source);

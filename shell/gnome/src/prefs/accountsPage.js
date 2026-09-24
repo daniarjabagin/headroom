@@ -5,7 +5,7 @@ import { moveItem } from '../order.js';
 import { accountName } from '../providers.js';
 import { AccountRow } from './accountRow.js';
 import { AddAccountDialog } from './addAccountDialog.js';
-import { ProgressProcess } from './cli.js';
+import { ProgressProcess } from '../cli.js';
 import { RowDragger } from './rowDragger.js';
 
 function removalBody(account) {

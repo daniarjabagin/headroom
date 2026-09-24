@@ -6,12 +6,19 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Options.js" as Options
 import "logic/Settings.js" as Settings
+import "logic/Update.js" as Update
 
 ConfigScaffold {
     id: page
 
     readonly property var display: current.display
     readonly property real controlWidth: Kirigami.Units.gridUnit * 13
+
+    function releaseActionLabel() {
+        if (updater.kind === "command")
+            return updater.copied ? tr("Copied") : tr("Copy");
+        return Update.actionLabel(lang, updater.kind);
+    }
 
     SettingsGroup {
         title: page.tr("Appearance")
@@ -133,7 +140,7 @@ ConfigScaffold {
     }
 
     SettingsGroup {
-        title: page.tr("Updates")
+        title: page.tr("Data refresh")
 
         SettingsRow {
             separated: false
@@ -147,5 +154,58 @@ ConfigScaffold {
                 onPicked: value => page.updateSettings(Settings.refreshIntervalPatch(value))
             }
         }
+    }
+
+    SettingsGroup {
+        title: page.tr("Updates")
+
+        SettingsRow {
+            separated: false
+            title: page.tr("Check for updates")
+            subtitle: page.tr("Once a day, asks GitHub for the latest release. Nothing else is sent.")
+
+            QQC2.Switch {
+                objectName: "updatesCheck"
+                checked: page.current.updates.check
+                onToggled: page.updateSettings(Settings.updatesPatch(checked))
+            }
+        }
+
+        SettingsRow {
+            id: releaseRow
+
+            readonly property var run: updater.kind === "install" ? updater.run : Update.IDLE
+
+            objectName: "updateRelease"
+            visible: updater.update !== null
+            title: updater.update !== null ? Update.title(page.lang, updater.update) : ""
+            subtitle: Update.runLine(page.lang, run) || (updater.kind === "command" ? updater.update.command : "")
+
+            QQC2.Button {
+                visible: updater.update !== null && Update.showsWhatsNew(updater.update) && releaseRow.run.phase === "idle"
+                flat: true
+                text: page.tr("What's new")
+                onClicked: updater.openRelease()
+            }
+
+            QQC2.BusyIndicator {
+                visible: releaseRow.run.phase === "running"
+                running: visible
+            }
+
+            QQC2.Button {
+                objectName: "updateReleaseAction"
+                visible: updater.kind !== "" && (releaseRow.run.phase === "idle" || releaseRow.run.phase === "failed")
+                highlighted: updater.kind === "install" && releaseRow.run.phase === "idle"
+                text: releaseRow.run.phase === "failed" ? page.tr("Retry") : page.releaseActionLabel()
+                onClicked: updater.trigger()
+            }
+        }
+    }
+
+    UpdateActions {
+        id: updater
+
+        update: page.snapshot?.update ?? null
     }
 }

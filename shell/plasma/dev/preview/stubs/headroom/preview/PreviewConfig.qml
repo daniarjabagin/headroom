@@ -16,6 +16,7 @@ QtObject {
     readonly property int dialogRadius: 8
     readonly property int clockCushionMs: 30000
     readonly property var refreshingFrom: ["fresh", "stale"]
+    readonly property string updatePrefix: "update-"
 
     function readFile(url) {
         const request = new XMLHttpRequest();
@@ -36,6 +37,10 @@ QtObject {
             shifted.accounts.filter(account => account.status === "signed_out").forEach(account => account.status = "refreshing");
         if (scenario === "single-spend")
             keepFirstSpender(shifted.spend);
+        if (scenario.startsWith(updatePrefix))
+            shifted.update = availableUpdate(scenario.slice(updatePrefix.length));
+        if (appliedSettings?.updates?.check === false)
+            shifted.update = null;
         return JSON.stringify(shifted);
     }
 
@@ -47,6 +52,16 @@ QtObject {
             period.total_tokens = first.total_tokens;
             period.partial = first.partial;
         }
+    }
+
+    function availableUpdate(install) {
+        return {
+            version: "0.5.0",
+            url: "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0",
+            published_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+            install,
+            command: install === "package" ? "sudo pacman -Syu headroom" : ""
+        };
     }
 
     function providersJson() {
@@ -66,6 +81,9 @@ QtObject {
                 mode: "auto"
             },
             reduced_motion: false,
+            updates: {
+                check: true
+            },
             display: JSON.parse(shiftedState()).display
         };
     }

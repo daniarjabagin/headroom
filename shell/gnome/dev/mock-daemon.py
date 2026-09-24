@@ -129,6 +129,8 @@ class MockDaemon:
         pinned = (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
         state["headline"] = choose_headline(state["accounts"], pinned, preferred)
         state["display"] = self.settings["display"]
+        if not self.settings["updates"]["check"]:
+            state["update"] = None
         if self.refreshed_at and state.get("last_success_at"):
             state["last_success_at"] = iso(self.refreshed_at)
         return json.dumps(state)

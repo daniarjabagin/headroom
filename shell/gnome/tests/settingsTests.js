@@ -34,6 +34,10 @@ function testParse() {
     check('settings translucent', settings.parseDisplay({ translucent: true }).translucent, true);
     check('settings translucent missing', settings.parseDisplay({}).translucent, false);
     check('settings translucent invalid', settings.parseDisplay({ translucent: 'yes' }).translucent, false);
+    check('settings updates default', settings.parseSettings('{}').updates, { check: true });
+    check('settings updates off', settings.parseSettings('{"updates":{"check":false}}').updates, { check: false });
+    check('settings updates invalid', settings.parseSettings('{"updates":{"check":"no"}}').updates, { check: true });
+    check('updates patch', settings.updatesPatch(false), { updates: { check: false } });
     throws('settings json', () => settings.parseSettings('['), settings.SettingsError);
     throws('settings array', () => settings.parseSettings('[]'), settings.SettingsError);
 }

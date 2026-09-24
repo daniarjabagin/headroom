@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import { currentLanguage, resolveLanguage, setLanguage } from '../i18n.js';
+import { UpdateRunner } from '../updateRunner.js';
 import { AccountsPage } from './accountsPage.js';
 import { PrefsClient } from './client.js';
 import { GeneralPage } from './generalPage.js';
@@ -29,12 +30,14 @@ export class PrefsController {
             onSettings: () => this._refresh(),
             onError: message => window.add_toast(new Adw.Toast({ title: message, timeout: 5 })),
         });
+        this._updater = new UpdateRunner(() => this._general.syncUpdateRun());
         setLanguage(resolveLanguage('system', GLib.get_language_names()));
         this._buildPages();
         this._showPages([this._service.page]);
     }
 
     destroy() {
+        this._updater.detach();
         this._client.destroy();
         this._service.destroy();
         Gtk.StyleContext.remove_provider_for_display(this._window.get_display(), this._css);
@@ -42,7 +45,7 @@ export class PrefsController {
 
     _buildPages() {
         this._service = new ServicePage(this._dir);
-        this._general = new GeneralPage(this._client);
+        this._general = new GeneralPage(this._client, this._updater);
         this._accounts = new AccountsPage({ window: this._window, dir: this._dir, client: this._client });
         this._notifications = new NotificationsPage(this._client);
     }

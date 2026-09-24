@@ -2,7 +2,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Pango from 'gi://Pango';
 import { _, fill } from '../i18n.js';
-import { ProgressProcess } from './cli.js';
+import { ProgressProcess } from '../cli.js';
 import { flowBody, navigationPage, pageStack, resultPage, stack } from './flowPage.js';
 import { LogView } from './logView.js';
 import { addAccountArgs, LABEL_MAX_CHARS } from './registry.js';

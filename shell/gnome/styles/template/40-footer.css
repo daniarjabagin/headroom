@@ -131,7 +131,8 @@
 .headroom-primary-button:focus,
 .headroom-toggle:focus,
 .headroom-caret:focus,
-.headroom-footer-link:focus {
+.headroom-footer-link:focus,
+.headroom-update-link:focus {
     box-shadow: inset 0 0 0 2px var(--focus-ring);
     box-shadow: inset 0 0 0 2px st-transparentize(-st-accent-color, 0.35);
 }

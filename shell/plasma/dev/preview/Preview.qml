@@ -53,6 +53,8 @@ Window {
             findObjects(stage, item => typeof item.expandToggled === "function" && item.account !== undefined, []).forEach(section => section.gap === undefined ? section.expandToggled() : section.expandToggled(section.account.id));
         if (option("--pick", "") !== "")
             findObjects(stage, item => item.selectedProvider !== undefined && item.chosenProvider !== undefined, []).forEach(page => page.selectedProvider = option("--pick", ""));
+        if (flag("--update"))
+            findObjects(stage, item => item.objectName === "updateRow", []).forEach(row => row.activate());
         if (flag("--tooltip"))
             findObjects(stage, item => item.breakdown !== undefined && item.breakdown !== null && item.tip !== undefined, []).slice(0, 1).forEach(handler => handler.tip.visible = true);
     }

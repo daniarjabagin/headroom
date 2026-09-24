@@ -96,6 +96,13 @@ function parseNotifications(raw) {
     };
 }
 
+function parseUpdates(raw) {
+    const updates = isObject(raw) ? raw : {};
+    return {
+        check: flag(updates.check, true)
+    };
+}
+
 function parseHeadline(raw) {
     const headline = isObject(raw) ? raw : {};
     const accountId = nonEmpty(headline.account_id);
@@ -131,7 +138,8 @@ function fromRaw(raw) {
         notifications: parseNotifications(raw.notifications),
         headline: parseHeadline(raw.headline),
         reducedMotion: flag(raw.reduced_motion, false),
-        display: parseDisplay(raw.display)
+        display: parseDisplay(raw.display),
+        updates: parseUpdates(raw.updates)
     };
 }
 
@@ -171,6 +179,14 @@ function notificationsPatch(patch) {
 function refreshIntervalPatch(seconds) {
     return {
         refresh_interval_secs: refreshInterval(seconds)
+    };
+}
+
+function updatesPatch(check) {
+    return {
+        updates: {
+            check: check === true
+        }
     };
 }
 

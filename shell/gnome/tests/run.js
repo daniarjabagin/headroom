@@ -14,6 +14,7 @@ import { testProviders } from './providerTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testStatus } from './statusTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
+import { testUpdate } from './updateTests.js';
 
 function readRelative(...parts) {
     const [testFile] = GLib.filename_from_uri(import.meta.url);
@@ -190,6 +191,7 @@ testStatus();
 testNotices();
 testDonut();
 testRefresh();
+testUpdate();
 await testSerialQueue();
 await testProgressProcess();
 if (failures.length > 0) {

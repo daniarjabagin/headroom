@@ -8,7 +8,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { DaemonClient } from './dbus.js';
 import { panelPercent, shortWindowLabel } from './format.js';
 import { Glass } from './glass.js';
-import { currentLanguage, resolveLanguage, setLanguage } from './i18n.js';
+import { _, currentLanguage, resolveLanguage, setLanguage } from './i18n.js';
 import { Motion } from './motion.js';
 import { PanelRing } from './panelRing.js';
 import { PopupView } from './popup/popup.js';
@@ -16,6 +16,7 @@ import { startService } from './service.js';
 import { displayPatch, toggledResetFormat, toggledValueMode } from './settings.js';
 import { parseState, StateError } from './state.js';
 import { Ticker } from './ticker.js';
+import { UpdateRunner } from './updateRunner.js';
 import { fileIcon, label, providerIcon, row } from './widgets.js';
 
 const STALE_OPACITY = 140;
@@ -58,6 +59,7 @@ export const Indicator = GObject.registerClass(
             });
             this._buildPanel();
             this._popup = this._createPopup();
+            this._updater = new UpdateRunner(run => this._popup.setUpdateRun(run));
             this.menu.actor.add_style_class_name('headroom-menu');
             this._glass = new Glass(this.menu);
             this.menu.box.add_child(this._popup.actor);
@@ -107,6 +109,8 @@ export const Indicator = GObject.registerClass(
                     toggleResetFormat: () => this._patchDisplay(toggledResetFormat),
                     copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text),
                     openPreferences: () => this._openPreferences(),
+                    openUrl: url => this._openUrl(url),
+                    installUpdate: () => this._updater.start(),
                     startService: () => this._startService(),
                 },
             });
@@ -224,6 +228,16 @@ export const Indicator = GObject.registerClass(
             this._extension.openPreferences();
         }
 
+        _openUrl(url) {
+            this.menu.close();
+            try {
+                Gio.AppInfo.launch_default_for_uri(url, global.create_app_launch_context(0, -1));
+            } catch (error) {
+                if (!(error instanceof GLib.Error)) throw error;
+                Main.notifyError(_("Couldn't open the release page"), error.message);
+            }
+        }
+
         async _startService() {
             this._setView({ kind: 'unavailable', state: null, starting: true });
             try {
@@ -242,6 +256,7 @@ export const Indicator = GObject.registerClass(
             this._ticker.stop();
             this._glass.destroy();
             this._cancellable.cancel();
+            this._updater.detach();
             this._client.destroy();
             this._popup.destroy();
             super._onDestroy();
