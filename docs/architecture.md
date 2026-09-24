@@ -319,8 +319,8 @@ pub enum ProviderError {
   and `/settings` with `Authorization: Bearer`, `X-XAI-Token-Auth: xai-grok-cli`. A
   `USAGE_PERIOD_TYPE_WEEKLY` period becomes the Weekly window (`creditUsagePercent`, absent = 0);
   otherwise a Neutral "Legacy Grok billing" notice, or `NoSubscription` when settings report no
-  `subscription_tier_display`. `onDemandCap.val > 0` gives an "Extra usage on, cap N" notice, else
-  "Extra usage off". A failed settings call only drops the plan name.
+  `subscription_tier_display`. `onDemandCap.val` (US cents) `> 0` gives a Neutral "Extra usage on, cap $X.XX" notice,
+  otherwise no notice. A failed settings call only drops the plan name.
 - Tokens: an expired CLI token is `SignInExpired` and is never refreshed. A Headroom-owned token that
   expires within 5 min, or is rejected with 401/403, is refreshed once: exclusive `flock` on
   `auth.json.lock`, re-read (a token refreshed meanwhile is reused), `POST {issuer}/oauth2/token`
