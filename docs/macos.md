@@ -9,6 +9,32 @@ Requirements: macOS 14 (Sonoma) or newer. The popup is an opaque surface by defa
 General → Translucent background switches it to a blurred system material (ignored under Reduce
 Transparency). Popup and Settings follow `display.theme`.
 
+## Install with Homebrew (recommended)
+
+```sh
+brew install --cask daniarjabagin/tap/headroom
+```
+
+The cask lives in the tap [`daniarjabagin/homebrew-tap`](https://github.com/daniarjabagin/homebrew-tap)
+(`Casks/headroom.rb`). It installs the same universal DMG as the release page, checks its SHA-256
+and needs macOS 14 or newer. Headroom then appears in the menu bar; continue with
+[First run](#5-first-run).
+
+- **Gatekeeper.** The app is ad-hoc signed and not notarized, so the cask removes the
+  `com.apple.quarantine` attribute from `/Applications/Headroom.app` after installing (a
+  `postflight_steps` `xattr -dr`, allowed in third-party taps). The first launch then needs none of
+  the steps of the DMG install below; the cask's caveats say so.
+- **Updates.** The cask declares `auto_updates true`: Sparkle updates the app in place
+  ([Updates](#updates)), and a plain `brew upgrade` leaves it alone. `brew upgrade --cask --greedy
+  headroom` upgrades through Homebrew instead.
+- **Uninstall.** `brew uninstall --cask headroom` quits the app (`io.github.daniarjabagin.headroom`)
+  and removes it. `--zap` also deletes `~/Library/Application Support/Headroom`,
+  `~/Library/Logs/Headroom`, the preferences plist and the caches, including Sparkle's. API keys stay
+  in the Keychain until you delete them in Keychain Access.
+- **Publishing.** The release workflow's `homebrew` job renders `packaging/homebrew/headroom.rb` with
+  the new version and the DMG's checksum (`packaging/homebrew/update-tap.sh`) and pushes it to the
+  tap over SSH with a deploy key (secret `HOMEBREW_TAP_DEPLOY_KEY`); pre-releases are skipped.
+
 ## Install from a release (DMG)
 
 Every GitHub release has `Headroom-<version>-universal.dmg` (Apple silicon and Intel) and its
