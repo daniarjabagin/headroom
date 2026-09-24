@@ -1,30 +1,49 @@
 #if canImport(AppKit)
+    import AppKit
     import Foundation
     import HeadroomKit
+    import HeadroomSettings
+    import Observation
     import os
 
     @MainActor
     final class AppController {
         let model: AppModel
+        let store: SettingsStore
+        let environment: AppEnvironment
         var onOpenRequested: (@MainActor () -> Void)?
 
-        private let environment: AppEnvironment
         private let client: DaemonClient
         private let alerts: AlertPoster?
         private let log = Logger(subsystem: "io.github.headroom", category: "app")
         private var supervisor: DaemonSupervisor?
         private var pumps: [Task<Void, Never>] = []
+        private var helperEnvironment: [String: String]
+        private var appliedTheme: ThemePreference?
 
         init(environment: AppEnvironment) {
             self.environment = environment
-            model = AppModel(preferredLanguages: Locale.preferredLanguages)
             client = DaemonClient(transport: UnixSocketTransport(path: environment.socketPath))
+            let commands = CommandQueue(client: client)
+            model = AppModel(
+                preferredLanguages: Locale.preferredLanguages, appVersion: environment.bundledVersion,
+                commands: commands)
+            store = SettingsStore(client: client, queue: commands)
             alerts = Bundle.main.bundleIdentifier == nil ? nil : AlertPoster()
+            helperEnvironment = DaemonEnvironment.helper(
+                daemon: environment.processEnvironment, socketPath: environment.socketPath)
+        }
+
+        var notificationAuthorizer: NotificationAuthorizer? { alerts?.authorizer }
+
+        var helperLauncher: HelperLauncher {
+            HelperLauncher(executable: environment.helper, environment: helperEnvironment)
         }
 
         func start() async {
             alerts?.onActivate = { [weak self] in self?.onOpenRequested?() }
             alerts?.start()
+            followTheme()
             if let helper = environment.helper {
                 guard await helperMatchesApp(helper) else { return }
                 await startSupervisor(helper: helper)
@@ -40,16 +59,6 @@
             pumps.forEach { $0.cancel() }
             await client.stop()
             await supervisor?.stop()
-        }
-
-        func refreshNow() {
-            Task { [client] in
-                do {
-                    try await client.refreshNow()
-                } catch {
-                    self.handle(.failure(DaemonError.wrapping(error)))
-                }
-            }
         }
 
         func refreshIfDue() {
@@ -73,6 +82,7 @@
             let variables = DaemonEnvironment.build(
                 base: environment.processEnvironment, loginShell: login,
                 preferredLanguage: Locale.preferredLanguages.first)
+            helperEnvironment = DaemonEnvironment.helper(daemon: variables, socketPath: environment.socketPath)
             let spec = LaunchSpec.daemon(
                 helper: helper, socketPath: environment.socketPath, environment: variables,
                 logFile: environment.logFile)
@@ -83,6 +93,26 @@
                     for await event in supervisor.events { self.handle(event) }
                 })
             await supervisor.start()
+        }
+
+        private func followTheme() {
+            let theme = withObservationTracking {
+                model.state?.display.theme
+            } onChange: { [weak self] in
+                Task { @MainActor in self?.followTheme() }
+            }
+            let wanted = theme ?? .system
+            guard wanted != appliedTheme else { return }
+            appliedTheme = wanted
+            NSApp.appearance = Self.appearance(for: wanted)
+        }
+
+        private static func appearance(for theme: ThemePreference) -> NSAppearance? {
+            switch theme {
+            case .system: nil
+            case .light: NSAppearance(named: .aqua)
+            case .dark: NSAppearance(named: .darkAqua)
+            }
         }
 
         private func handle(_ event: DaemonEvent) {

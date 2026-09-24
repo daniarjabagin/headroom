@@ -11,17 +11,20 @@ identity="${CODESIGN_IDENTITY:--}"
 install=false
 open_after=false
 universal=false
+build_cargo=true
 
 usage() {
     cat <<'EOF'
-Usage: script/bundle.sh [--install] [--open] [--universal]
+Usage: script/bundle.sh [--install] [--open] [--universal] [--no-cargo]
 
-Builds the headroom daemon (cargo) and the menu-bar app (SwiftPM) in release mode and
-assembles dist/Headroom.app.
+Builds the headroom daemon (cargo) and the menu-bar app (SwiftPM: HeadroomKit, HeadroomUI,
+HeadroomSettings, Headroom) in release mode and assembles dist/Headroom.app.
 
   --install     copy the app to /Applications (quits a running Headroom first)
   --open        launch the app when done
   --universal   build arm64 + x86_64 instead of the native architecture only
+  --no-cargo    skip the cargo build and reuse the helper from the previous dist/Headroom.app
+                (or the last cargo release build) for UI-only rebuilds
 
 Environment:
   CODESIGN_IDENTITY   signing identity, default "-" (ad-hoc). Use an "Apple Development: …"
@@ -35,6 +38,7 @@ parse_arguments() {
             --install) install=true ;;
             --open) open_after=true ;;
             --universal) universal=true ;;
+            --no-cargo) build_cargo=false ;;
             -h | --help)
                 usage
                 exit 0
@@ -79,6 +83,20 @@ build_helper() {
         (cd "$repo_root" && cargo build --release -p headroom)
         cp "$target_dir/release/headroom" "$dist_dir/headroom"
     fi
+}
+
+reuse_helper() {
+    local previous="$app/Contents/Helpers/headroom" built
+    if [[ -x "$previous" ]]; then
+        cp "$previous" "$dist_dir/headroom"
+        return
+    fi
+    built="$(cargo_target_dir)/release/headroom"
+    if [[ ! -x "$built" ]]; then
+        echo "--no-cargo: no helper at $previous or $built; run once without --no-cargo" >&2
+        exit 1
+    fi
+    cp "$built" "$dist_dir/headroom"
 }
 
 swift_arguments() {
@@ -192,7 +210,7 @@ main() {
     version="$(workspace_version)"
     [[ -n "$version" ]] || { echo "cannot read the workspace version from Cargo.toml" >&2; exit 1; }
     mkdir -p "$dist_dir"
-    build_helper
+    if [[ "$build_cargo" == true ]]; then build_helper; else reuse_helper; fi
     build_app_binary
     assemble "$version"
     sign
