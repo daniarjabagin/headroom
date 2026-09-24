@@ -37,6 +37,8 @@ pub enum SettingsError {
     EmptyHeadlineTarget,
     #[error("hidden windows need non-empty account and window ids")]
     BlankHiddenWindow,
+    #[error("dismissed accounts need non-empty account ids")]
+    BlankDismissedAccount,
     #[error("a settings patch must be a JSON object")]
     PatchNotObject,
 }
@@ -47,6 +49,10 @@ pub enum CommandError {
     UnknownAccount(String),
     #[error("duplicate account in order: {0}")]
     DuplicateAccount(String),
+    #[error("unknown provider: {0}")]
+    UnknownProvider(String),
+    #[error("{0} is signed in through Headroom; remove it to delete its home instead")]
+    NotDismissable(String),
     #[error("label is longer than {0} characters")]
     LabelTooLong(usize),
     #[error(transparent)]

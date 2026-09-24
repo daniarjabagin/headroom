@@ -23,7 +23,8 @@ fn defaults_match_the_spec() {
             "show_forecast": true,
             "translucent": false,
             "hidden_windows": {}
-        }
+        },
+        "dismissed_accounts": []
     });
     assert_eq!(serde_json::to_value(Settings::default()).unwrap(), expected);
     assert_eq!(Settings::parse("{}").unwrap(), Settings::default());

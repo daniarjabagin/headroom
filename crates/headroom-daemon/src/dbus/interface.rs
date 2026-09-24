@@ -86,6 +86,22 @@ impl DaemonInterface {
             .map_err(|error| to_fdo(&error))
     }
 
+    async fn dismiss_account(&self, account_id: &str) -> fdo::Result<()> {
+        self.core
+            .dismiss_account(account_id)
+            .await
+            .map_err(|error| to_fdo(&error))?;
+        self.rescans.rescan().await.map_err(|error| to_fdo(&error))
+    }
+
+    async fn restore_accounts(&self, provider: &str) -> fdo::Result<()> {
+        self.core
+            .restore_accounts(provider)
+            .await
+            .map_err(|error| to_fdo(&error))?;
+        self.rescans.rescan().await.map_err(|error| to_fdo(&error))
+    }
+
     #[zbus(signal)]
     pub async fn state_changed(emitter: &SignalEmitter<'_>, state: &str) -> zbus::Result<()>;
 
@@ -97,6 +113,8 @@ fn to_fdo(error: &CommandError) -> fdo::Error {
     match error {
         CommandError::UnknownAccount(_)
         | CommandError::DuplicateAccount(_)
+        | CommandError::UnknownProvider(_)
+        | CommandError::NotDismissable(_)
         | CommandError::LabelTooLong(_)
         | CommandError::Settings(_) => fdo::Error::InvalidArgs(error.to_string()),
         CommandError::Storage(_) | CommandError::Encode(_) | CommandError::Stopping => {

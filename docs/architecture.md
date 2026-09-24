@@ -131,6 +131,14 @@ pub struct AccountIdentity { pub email: Option<String>, pub plan: Option<String>
   key (see [API-key accounts](#api-key-accounts)). Headroom may refresh these tokens, writing back by
   patching a `serde_json::Value` and atomically replacing the file only if its content is unchanged
   since it was read.
+- Removing an account (`headroom accounts remove <id>`) depends on the owner. A Headroom-owned account
+  is signed out by deleting its home (and its stored API key). A CLI-owned home is never deleted or
+  changed, so removing a CLI-owned account *dismisses* it: D-Bus `DismissAccount` adds the id to the
+  `dismissed_accounts` setting and the daemon leaves it out of `accounts[]`, the headline,
+  notifications and refreshes, while discovery keeps storing it. The same person can then be added
+  again through `headroom accounts add` (a Headroom-owned home whose tokens Headroom refreshes).
+  `headroom accounts restore [<provider>]` (D-Bus `RestoreAccounts`) clears dismissals. Usage homes
+  are independent of accounts, so a dismissed account's local usage and spend still count.
 - Local token usage belongs to a **usage home** (a directory with the tool's logs), not an account.
   Usage homes are discovered on their own (`Provider::usage_homes`): a home with logs but no OAuth
   account (API-key users, signed-out users) still counts, and so does a second config dir signed into
@@ -468,11 +476,14 @@ that take API keys, the stored key.
 
 - **Scheduler**: per account, refresh every 5 min with ±10 % jitter; on the popup opening (D-Bus
   `Refresh`) refresh accounts older than 60 s. Single-flight per account; a forced request during a
-  refresh queues one follow-up. Failures back off exponentially 60 s → 30 min with jitter; 429 honours
+  refresh queues one follow-up. `Refresh(account_id)` forces that account now (rate-limit holds
+  excepted) and publishes it as `refreshing` at once; every refresh reads credentials from disk again,
+  so a retry after a new CLI sign-in picks it up. Failures back off exponentially 60 s → 30 min with jitter; 429 honours
   `retry_after` (default 5 min). Per-call timeout 30 s.
 - **Discovery**: every 10 min and on D-Bus `Rescan` (coalesced; a request during a running discovery
   waits for one follow-up). Accounts found by a rescan refresh at once; `headroom accounts add|remove`
-  call it.
+  call it. Discovery that finds nothing to discover (`ProviderError::NotSignedIn`: tool not installed
+  or not signed in) logs at `debug`; real discovery failures log at `warn`.
 - **Usage**: the usage home set is refreshed with every discovery (a failed or timed-out
   `usage_homes` keeps that provider's previous set). inotify on each usage home, debounced 2 s, plus a
   60 s poll fallback. Events are stored per home and a session is logged in one home only, so summing
@@ -488,7 +499,8 @@ that take API keys, the stored key.
   `CuttingItClose` (severity rises to Close), `WillRunOut` (rises to RunningOut/Spent), `Reset` (a
   window that was Warning or worse has reset). First observation primes without alerting. State
   (fired set per window + `resets_at`) is persisted so restarts do not re-alert. Default action opens
-  the popup via the shell. Hidden accounts and hidden windows (`display.hidden_windows`) are skipped.
+  the popup via the shell. Hidden accounts, dismissed accounts and hidden windows
+  (`display.hidden_windows`) are skipped.
   Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
   `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`. Titles name the
   provider by its registry display name.
@@ -500,7 +512,8 @@ that take API keys, the stored key.
 - Methods: `GetState() -> s`, `ListProviders() -> s` (compiled-in providers and how to add their
   accounts), `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts now),
   `GetSettings() -> s`, `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
-  `SetAccountHidden(account_id: s, hidden: b)`.
+  `SetAccountHidden(account_id: s, hidden: b)`, `DismissAccount(account_id: s)` (CLI-owned accounts
+  only), `RestoreAccounts(provider: s)` (`""` = all).
 - Signal: `StateChanged(state: s)`.
 - Payloads are JSON (easy in GJS, QML and Rust alike), schema versioned by a top-level `"version"`.
   Full schema: `docs/dbus-api.md`, maintained with the daemon.

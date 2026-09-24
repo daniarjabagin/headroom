@@ -118,11 +118,18 @@ impl Model {
 
     #[must_use]
     pub fn account(&self, id: &AccountId) -> Option<&AccountRecord> {
+        self.active_accounts().find(|a| a.id() == id)
+    }
+
+    #[must_use]
+    pub fn discovered_account(&self, id: &AccountId) -> Option<&AccountRecord> {
         self.accounts.iter().find(|a| a.id() == id && !a.gone)
     }
 
     pub fn active_accounts(&self) -> impl Iterator<Item = &AccountRecord> {
-        self.accounts.iter().filter(|a| !a.gone)
+        self.accounts
+            .iter()
+            .filter(|a| !a.gone && !self.settings.is_dismissed(&a.id().0))
     }
 
     pub fn runtime_mut(&mut self, id: &AccountId) -> &mut AccountRuntime {

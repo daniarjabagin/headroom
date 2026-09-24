@@ -106,7 +106,9 @@ pub enum AccountsAction {
         )]
         api_key_stdin: bool,
     },
-    #[command(about = "Delete the home of an account added with `accounts add`")]
+    #[command(
+        about = "Remove an account: delete a Headroom-owned home, or stop showing a CLI account"
+    )]
     Remove {
         id: String,
         #[arg(long, help = "Do not ask for confirmation")]
@@ -118,6 +120,14 @@ pub enum AccountsAction {
             help = "Report the outcome as JSON lines on stdout"
         )]
         progress: Option<ProgressFormat>,
+    },
+    #[command(about = "Show CLI accounts removed with `accounts remove` again")]
+    Restore {
+        #[arg(
+            value_name = "PROVIDER",
+            help = "Provider id, see `headroom providers`; all providers when omitted"
+        )]
+        provider: Option<String>,
     },
 }
 

@@ -30,6 +30,10 @@ pub trait Daemon {
 
     fn set_account_hidden(&self, account_id: &str, hidden: bool) -> zbus::Result<()>;
 
+    fn dismiss_account(&self, account_id: &str) -> zbus::Result<()>;
+
+    fn restore_accounts(&self, provider: &str) -> zbus::Result<()>;
+
     #[zbus(signal)]
     fn state_changed(&self, state: String) -> zbus::Result<()>;
 }
