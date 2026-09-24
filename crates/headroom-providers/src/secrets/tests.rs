@@ -32,6 +32,21 @@ fn attributes_name_the_application_account_and_provider() {
     assert_eq!(attributes(None, &account).len(), 2);
 }
 
+#[test]
+fn the_platform_store_is_the_keychain_on_macos_and_the_secret_service_on_linux() {
+    let cases = [
+        (Os::MacOs, SecretBus::Platform, SecretBackend::Keychain),
+        (Os::MacOs, SecretBus::Session, SecretBackend::Keychain),
+        (Os::MacOs, SecretBus::Disabled, SecretBackend::File),
+        (Os::Linux, SecretBus::Platform, SecretBackend::SecretService),
+        (Os::Linux, SecretBus::Session, SecretBackend::SecretService),
+        (Os::Linux, SecretBus::Disabled, SecretBackend::File),
+    ];
+    for (os, bus, expected) in cases {
+        assert_eq!(backend_kind(os, &bus), expected, "{os:?} {bus:?}");
+    }
+}
+
 #[tokio::test]
 async fn without_a_keyring_keys_use_the_file_fallback() {
     let root = tempfile::tempdir().unwrap();

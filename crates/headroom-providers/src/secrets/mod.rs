@@ -25,8 +25,11 @@ const APPLICATION: &str = "io.github.headroom";
 #[cfg(target_os = "linux")]
 const SERVICE_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Where the keyring lives; `Platform` is the Secret Service on the session bus on Linux and the
+/// Keychain on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SecretBus {
+    Platform,
     Session,
     Address(String),
     Disabled,
@@ -94,13 +97,15 @@ impl SecretStore {
     /// The Secret Service on Linux, the Keychain on macOS; `Disabled` keeps keys in files only.
     #[must_use]
     pub fn new(bus: SecretBus, fallback_dir: PathBuf) -> SecretStore {
-        let backend = match (Os::current(), bus) {
-            (_, SecretBus::Disabled) => Backend::None,
-            (Os::MacOs, _) => Backend::Keychain(Security::system()),
+        let backend = match (backend_kind(Os::current(), &bus), bus) {
+            (SecretBackend::Keychain, _) => Backend::Keychain(Security::system()),
             #[cfg(target_os = "linux")]
-            (Os::Linux, bus) => Backend::SecretService(session::SecretService::new(bus)),
+            (SecretBackend::SecretService, bus) => {
+                Backend::SecretService(session::SecretService::new(bus))
+            }
             #[cfg(not(target_os = "linux"))]
-            (Os::Linux, _) => Backend::None,
+            (SecretBackend::SecretService, _) => Backend::None,
+            (SecretBackend::File, _) => Backend::None,
         };
         SecretStore::with_backend(backend, fallback_dir)
     }
@@ -179,6 +184,14 @@ impl SecretReader for SecretStore {
         self.read(account)
             .await
             .map_err(|error| ProviderError::LocalData(error.to_string()))
+    }
+}
+
+fn backend_kind(os: Os, bus: &SecretBus) -> SecretBackend {
+    match (os, bus) {
+        (_, SecretBus::Disabled) => SecretBackend::File,
+        (Os::MacOs, _) => SecretBackend::Keychain,
+        (Os::Linux, _) => SecretBackend::SecretService,
     }
 }
 
