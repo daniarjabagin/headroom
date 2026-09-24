@@ -131,8 +131,10 @@ Item {
                         display: full.display
                         lang: full.lang
                         reveal: full.reveal
+                        reducedMotion: full.reducedMotion
                         onRefreshRequested: accountId => full.refreshRequested(accountId)
                         onSignInRequested: providerId => full.signInRequested(providerId)
+                        onSettingsRequested: full.settingsRequested()
                         onOrderRequested: ids => full.orderRequested(ids)
                         onDisplayPatched: patch => full.displayPatched(patch)
                     }

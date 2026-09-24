@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/Tokens.js" as Tokens
 
 Item {
@@ -54,6 +55,10 @@ Item {
         Accessible.checked: current
         onClicked: picker.picked(modelData.id)
 
+        PointerHover {
+            id: pointer
+        }
+
         contentItem: RowLayout {
             spacing: Kirigami.Units.smallSpacing
 
@@ -72,13 +77,14 @@ Item {
 
         background: Rectangle {
             radius: Metrics.buttonRadius(Kirigami.Units)
-            color: chip.current ? Tokens.alpha(Kirigami.Theme.highlightColor, picker.selectedFill) : (chip.hovered ? Tokens.chip(Kirigami.Theme) : Tokens.control(Kirigami.Theme))
+            color: chip.current ? Tokens.alpha(Kirigami.Theme.highlightColor, picker.selectedFill) : (pointer.shown ? Tokens.chip(Kirigami.Theme) : Tokens.control(Kirigami.Theme))
             border.width: Metrics.hairline(Kirigami.Units)
             border.color: chip.current || chip.visualFocus ? Kirigami.Theme.highlightColor : Tokens.separator(Kirigami.Theme)
 
             Behavior on color {
                 ColorAnimation {
-                    duration: Kirigami.Units.shortDuration
+                    duration: Motion.hoverDuration(Kirigami.Units)
+                    easing.type: Easing.OutCubic
                 }
             }
         }

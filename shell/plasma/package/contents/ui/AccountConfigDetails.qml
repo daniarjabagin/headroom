@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Account.js" as Account
 import "logic/Format.js" as Format
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
@@ -18,6 +19,7 @@ Item {
     required property string lang
     required property bool expanded
     property bool confirming: false
+    readonly property var removal: Account.removal(lang, account)
 
     signal labelApplied(string label)
     signal windowToggled(string windowId, bool hidden)
@@ -102,7 +104,7 @@ Item {
         }
 
         RowLayout {
-            visible: details.account.owner === "headroom" && !details.confirming
+            visible: !details.confirming
             Layout.topMargin: Kirigami.Units.smallSpacing
             spacing: Kirigami.Units.largeSpacing
 
@@ -119,7 +121,7 @@ Item {
                     role: "caption"
                     emphasis: "secondary"
                     wrapMode: Text.Wrap
-                    text: details.tr("Deletes the sign-in Headroom created for this account")
+                    text: details.removal.subtitle
                 }
             }
 
@@ -138,7 +140,7 @@ Item {
                     title: details.tr("Remove {name}?", {
                         name: Providers.accountName(details.account)
                     }),
-                    detail: details.tr("Headroom deletes the sign-in it created for this account. The account itself is not affected."),
+                    detail: details.removal.confirmation,
                     note: "",
                     actions: [
                         {

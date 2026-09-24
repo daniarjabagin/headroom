@@ -83,15 +83,6 @@ ColumnLayout {
             }
         }
 
-        SpendStats {
-            visible: spendCard.body === "stats"
-            Layout.leftMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
-            Layout.rightMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
-            period: spendCard.current
-            periodKey: spendCard.period
-            lang: spendCard.lang
-        }
-
         TextLabel {
             visible: spendCard.body === "empty"
             Layout.alignment: Qt.AlignHCenter

@@ -364,6 +364,26 @@ TestCase {
         compare(Spend.bodyKind({
             providers: []
         }), "empty");
+        compare(Spend.bodyKind({
+            providers: [
+                {
+                    provider: "codex",
+                    costMicros: 1200000
+                }
+            ]
+        }), "ring");
+        compare(Spend.bodyKind({
+            providers: [
+                {
+                    provider: "codex",
+                    costMicros: 1200000
+                },
+                {
+                    provider: "claude",
+                    costMicros: 300000
+                }
+            ]
+        }), "ring");
     }
 
     function test_breakdown() {

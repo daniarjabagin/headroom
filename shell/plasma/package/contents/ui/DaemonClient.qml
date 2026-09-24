@@ -169,6 +169,10 @@ Item {
         command("Rescan", "", []);
     }
 
+    function restoreAccounts(providerId) {
+        command("RestoreAccounts", "(s)", [providerId]);
+    }
+
     function setHidden(accountId, hidden) {
         command("SetAccountHidden", "(sb)", [accountId, hidden]);
     }

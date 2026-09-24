@@ -4,6 +4,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.workspace.dbus as DBus
 import headroom.preview
 import "../package/contents/ui/logic/Commands.js" as Commands
+import "../package/contents/ui/logic/Format.js" as Format
 
 TestCase {
     id: suite
@@ -164,6 +165,55 @@ TestCase {
         });
         tryVerify(() => calls("Rescan").length === 1, settleMs);
         compare(refreshCalls(), []);
+    }
+
+    function test_signed_out_retry_shows_progress_while_refreshing() {
+        open("retrying");
+        const section = sections().find(item => item.account.id === "claude:5e4d3c2b1a0f");
+        verify(section !== undefined);
+        compare(section.account.status, "refreshing");
+        compare(section.notices.map(notice => notice.title), ["Signed out of Claude"]);
+        const retry = findAll(section, item => item.busy !== undefined && item.text === "Retry", [])[0];
+        verify(retry !== undefined);
+        verify(retry.busy);
+        verify(!retry.enabled);
+        const spinner = findAll(retry, item => item.objectName === "smallButtonSpinner", [])[0];
+        verify(spinner.visible);
+        verify(spinner.spinning);
+    }
+
+    function test_signed_out_retry_is_idle_when_not_refreshing() {
+        open("ready");
+        const section = sections().find(item => item.account.status === "signed_out");
+        const retry = findAll(section, item => item.busy !== undefined && item.text === "Retry", [])[0];
+        verify(!retry.busy);
+        verify(retry.enabled);
+        retry.clicked();
+        tryVerify(() => refreshCalls().length === 1, settleMs);
+        compare(refreshCalls()[0].arguments, [section.account.id]);
+    }
+
+    function test_sign_in_without_terminal_opens_configuration() {
+        open("ready");
+        const section = sections().find(item => item.account.status === "signed_out");
+        section.runAction("settings", section.account.provider);
+        compare(Plasmoid.triggeredActions, ["configure"]);
+        compare(refreshCalls(), []);
+    }
+
+    function test_single_provider_spend_keeps_the_donut() {
+        open("single-spend");
+        const card = findAll(plasmoid, item => item.body !== undefined && item.periodSelected !== undefined, [])[0];
+        verify(card !== undefined);
+        compare(card.current.providers.length, 1);
+        compare(card.body, "ring");
+        const donut = findAll(card, item => item.slices !== undefined && item.holeRatio !== undefined, [])[0];
+        verify(donut.visible);
+        compare(donut.slices.length, 1);
+        compare(donut.slices[0].sweep, 360);
+        const tokens = findAll(card, item => item.objectName === "legendTokens", [])[0];
+        verify(tokens.visible);
+        compare(tokens.text, Format.tokenCount("en", card.current.providers[0].totalTokens));
     }
 
     function test_settings_button_opens_configuration() {

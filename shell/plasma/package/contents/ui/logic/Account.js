@@ -1,10 +1,12 @@
 .pragma library
 
+.import "Commands.js" as Commands
 .import "I18n.js" as I18n
 .import "Registry.js" as Registry
 .import "State.js" as State
 
 const PERMANENT_ERRORS = ["unsupported", "no_provider"];
+const SIGNED_OUT_ERRORS = ["not_signed_in", "sign_in_expired"];
 const SPEND_PERIODS = [[I18n.N("Today"), "today"], [I18n.N("Yesterday"), "yesterday"], [I18n.N("Last 30 Days"), "last30Days"]];
 
 function failedOffline(account, offline) {
@@ -25,23 +27,24 @@ function retryAction(lang, account) {
     return {
         kind: "retry",
         label: I18n.tr(lang, "Retry"),
-        value: account.id
+        value: account.id,
+        busy: account.status === "refreshing"
     };
 }
 
-function signsInFromTerminal(providers, id) {
-    return Registry.findProvider(providers, id)?.method.kind === "cli_login";
+function isSignedOut(account) {
+    if (account.status === "signed_out")
+        return true;
+    return account.status === "refreshing" && SIGNED_OUT_ERRORS.includes(account.error?.kind);
 }
 
-function signedOutActions(lang, account, providers) {
-    const retry = retryAction(lang, account);
-    if (!signsInFromTerminal(providers, account.provider))
-        return [retry];
-    return [{
-            kind: "signin",
-            label: I18n.tr(lang, "Sign in again…"),
-            value: account.provider
-        }, retry];
+function signInAction(lang, account, providers) {
+    const method = Registry.findProvider(providers, account.provider)?.method;
+    return {
+        kind: Commands.opensTerminal(method) ? "signin" : "settings",
+        label: I18n.tr(lang, "Sign in…"),
+        value: account.provider
+    };
 }
 
 function signedOutNotice(lang, account, providers) {
@@ -50,9 +53,9 @@ function signedOutNotice(lang, account, providers) {
         title: I18n.tr(lang, "Signed out of {provider}", {
             provider: account.providerName
         }),
-        detail: I18n.tr(lang, "Sign in again, then Retry"),
+        detail: I18n.tr(lang, "Sign in again through Headroom (Settings → Accounts → Add Account) or remove the account."),
         note: "",
-        actions: signedOutActions(lang, account, providers)
+        actions: [signInAction(lang, account, providers), retryAction(lang, account)]
     };
 }
 
@@ -94,7 +97,7 @@ function providerNotice(notice) {
 }
 
 function notices(lang, account, offline, providers) {
-    if (account.status === "signed_out")
+    if (isSignedOut(account))
         return [signedOutNotice(lang, account, providers)];
     if (account.status === "no_subscription")
         return [noSubscriptionNotice(lang, account)];
@@ -105,7 +108,7 @@ function notices(lang, account, offline, providers) {
 }
 
 function showsQuotas(account) {
-    return State.hasQuotas(account);
+    return State.hasQuotas(account) && !isSignedOut(account);
 }
 
 function showsSpend(account, display) {
@@ -136,4 +139,20 @@ function spendRows(lang, account, display) {
             totals: account.usage[key]
         };
     });
+}
+
+function removal(lang, account) {
+    if (account.owner === "headroom")
+        return {
+            subtitle: I18n.tr(lang, "Deletes the sign-in Headroom created for this account"),
+            confirmation: I18n.tr(lang, "Headroom deletes the sign-in it created for this account. The account itself is not affected.")
+        };
+    return {
+        subtitle: I18n.tr(lang, "Stops showing this account; the {provider} CLI stays signed in", {
+            provider: account.providerName
+        }),
+        confirmation: I18n.tr(lang, "Headroom will stop showing this account. The {provider} CLI stays signed in; you can sign in again through Headroom.", {
+            provider: account.providerName
+        })
+    };
 }

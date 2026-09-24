@@ -1,7 +1,7 @@
 import QtQuick
 import org.kde.plasma.components as PlasmaComponents3
 
-HoverHandler {
+PointerHover {
     id: hover
 
     property string text: ""
@@ -9,6 +9,6 @@ HoverHandler {
     property PlasmaComponents3.ToolTip tip: PlasmaComponents3.ToolTip {
         parent: hover.parent
         text: hover.text
-        visible: hover.hovered && hover.text !== ""
+        visible: hover.shown && hover.text !== ""
     }
 }

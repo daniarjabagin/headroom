@@ -32,7 +32,21 @@ QtObject {
         shifted.display = appliedSettings?.display ?? Object.assign({}, shifted.display ?? {}, displayPatch);
         if (scenario === "refreshing")
             shifted.accounts.filter(account => refreshingFrom.includes(account.status)).forEach(account => account.status = "refreshing");
+        if (scenario === "retrying")
+            shifted.accounts.filter(account => account.status === "signed_out").forEach(account => account.status = "refreshing");
+        if (scenario === "single-spend")
+            keepFirstSpender(shifted.spend);
         return JSON.stringify(shifted);
+    }
+
+    function keepFirstSpender(spend) {
+        for (const period of Object.values(spend).filter(value => value?.by_provider !== undefined)) {
+            const first = period.by_provider[0];
+            period.by_provider = [first];
+            period.cost_usd_micros = first.cost_usd_micros;
+            period.total_tokens = first.total_tokens;
+            period.partial = first.partial;
+        }
     }
 
     function providersJson() {

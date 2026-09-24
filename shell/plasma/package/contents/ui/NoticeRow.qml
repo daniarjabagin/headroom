@@ -10,6 +10,7 @@ Rectangle {
     required property var entry
     readonly property var actions: entry.actions
     readonly property bool inlineAction: actions.length === 1
+    property bool animated: true
 
     signal actionTriggered(string kind, string value)
 
@@ -91,6 +92,7 @@ Rectangle {
                 visible: !notice.inlineAction && notice.actions.length > 0
                 Layout.topMargin: Kirigami.Units.mediumSpacing
                 actions: notice.actions
+                animated: notice.animated
                 onTriggered: (kind, value) => notice.actionTriggered(kind, value)
             }
         }
@@ -99,6 +101,7 @@ Rectangle {
             visible: notice.inlineAction
             Layout.alignment: Qt.AlignVCenter
             actions: notice.actions
+            animated: notice.animated
             onTriggered: (kind, value) => notice.actionTriggered(kind, value)
         }
     }

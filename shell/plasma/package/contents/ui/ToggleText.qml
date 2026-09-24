@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
-import "logic/Tokens.js" as Tokens
+import "logic/Motion.js" as Motion
 
 T.AbstractButton {
     id: toggle
@@ -21,29 +21,25 @@ T.AbstractButton {
     contentItem: TextLabel {
         id: label
 
-        emphasis: toggle.hovered ? "primary" : toggle.emphasis
+        emphasis: pointer.shown ? "primary" : toggle.emphasis
         text: toggle.text
 
         Behavior on color {
             ColorAnimation {
-                duration: Kirigami.Units.shortDuration
+                duration: Motion.hoverDuration(Kirigami.Units)
+                easing.type: Easing.OutCubic
             }
         }
     }
 
-    background: Rectangle {
+    background: HoverFill {
         radius: Metrics.chipRadius(Kirigami.Units)
-        color: Tokens.chip(Kirigami.Theme)
-        opacity: toggle.hovered || toggle.visualFocus ? 1 : 0
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Kirigami.Units.shortDuration
-            }
-        }
+        shown: pointer.shown || toggle.visualFocus
     }
 
     HoverTip {
+        id: pointer
+
         text: toggle.hint
     }
 }

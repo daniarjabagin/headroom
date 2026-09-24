@@ -9,7 +9,7 @@ import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Tokens.js" as Tokens
 
-HoverHandler {
+PointerHover {
     id: hover
 
     property string lang: "en"
@@ -37,7 +37,7 @@ HoverHandler {
 
     property PlasmaComponents3.ToolTip tip: PlasmaComponents3.ToolTip {
         parent: hover.parent
-        visible: hover.hovered && (hover.breakdown !== null || hover.fallback !== "")
+        visible: hover.shown && (hover.breakdown !== null || hover.fallback !== "")
 
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing

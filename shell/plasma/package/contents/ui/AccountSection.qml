@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Account.js" as Account
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/State.js" as State
 
 Item {
@@ -25,12 +26,14 @@ Item {
     required property real dragOffset
     required property string indicator
     required property real gap
+    required property bool reducedMotion
     readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
     readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
     signal refreshRequested(string accountId)
     signal signInRequested(string providerId)
+    signal settingsRequested
     signal expandToggled(string accountId)
     signal dragMoved(real offset)
     signal dragFinished
@@ -40,6 +43,8 @@ Item {
     function runAction(kind, value) {
         if (kind === "signin")
             signInRequested(value);
+        else if (kind === "settings")
+            settingsRequested();
         else
             refreshRequested(value);
     }
@@ -84,6 +89,7 @@ Item {
                     required property int index
 
                     entry: section.notices[index]
+                    animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
                     onActionTriggered: (kind, value) => section.runAction(kind, value)
                 }
             }

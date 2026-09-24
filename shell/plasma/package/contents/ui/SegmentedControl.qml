@@ -65,10 +65,14 @@ Rectangle {
                 hoverEnabled: true
                 onClicked: switcher.selected(modelData.value)
 
+                PointerHover {
+                    id: pointer
+                }
+
                 contentItem: TextLabel {
                     role: "caption"
                     weight: segment.isCurrent ? Font.DemiBold : Font.Medium
-                    emphasis: segment.isCurrent || segment.hovered ? "primary" : "secondary"
+                    emphasis: segment.isCurrent || pointer.shown ? "primary" : "secondary"
                     text: segment.modelData.label
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight

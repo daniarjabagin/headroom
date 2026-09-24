@@ -90,9 +90,7 @@ function revealed(slice, progress) {
 }
 
 function bodyKind(period) {
-    if (period.providers.length === 0)
-        return "empty";
-    return period.providers.length === 1 ? "stats" : "ring";
+    return period.providers.length === 0 ? "empty" : "ring";
 }
 
 function infoText(lang, period) {

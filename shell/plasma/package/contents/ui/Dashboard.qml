@@ -19,6 +19,7 @@ ColumnLayout {
     required property var display
     required property string lang
     required property real reveal
+    required property bool reducedMotion
     readonly property var accounts: State.visibleAccounts(snapshot)
     readonly property bool showSpend: display.showSpend && snapshot.spend !== null
     readonly property int spendOffset: showSpend ? 1 : 0
@@ -32,6 +33,7 @@ ColumnLayout {
 
     signal refreshRequested(string accountId)
     signal signInRequested(string providerId)
+    signal settingsRequested
     signal orderRequested(var ids)
     signal displayPatched(var patch)
 
@@ -111,8 +113,10 @@ ColumnLayout {
             dragOffset: lifted ? dashboard.dragOffset : 0
             indicator: dashboard.dropSlot?.index === index ? (dashboard.dropSlot.below ? "below" : "above") : ""
             gap: dashboard.spacing
+            reducedMotion: dashboard.reducedMotion
             onRefreshRequested: accountId => dashboard.refreshRequested(accountId)
             onSignInRequested: providerId => dashboard.signInRequested(providerId)
+            onSettingsRequested: dashboard.settingsRequested()
             onExpandToggled: accountId => dashboard.toggleExpanded(accountId)
             onDragMoved: offset => dashboard.dragMoved(index, offset)
             onDragFinished: dashboard.dragFinished(index)

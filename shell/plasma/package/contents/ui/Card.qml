@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/Tokens.js" as Tokens
 
 Rectangle {
@@ -12,7 +13,7 @@ Rectangle {
     property alias spacing: column.spacing
     property bool hoverable: false
     property bool lifted: false
-    readonly property bool tinted: lifted || (hoverable && hover.hovered)
+    readonly property bool tinted: lifted || (hoverable && hover.shown)
 
     Layout.fillWidth: true
     implicitHeight: column.implicitHeight + verticalPadding * 2
@@ -21,7 +22,7 @@ Rectangle {
     border.width: lifted ? Metrics.hairline(Kirigami.Units) : 0
     border.color: Tokens.separator(Kirigami.Theme)
 
-    HoverHandler {
+    PointerHover {
         id: hover
 
         enabled: card.hoverable
@@ -39,7 +40,8 @@ Rectangle {
 
     Behavior on color {
         ColorAnimation {
-            duration: Kirigami.Units.shortDuration
+            duration: Motion.hoverDuration(Kirigami.Units)
+            easing.type: Easing.OutCubic
         }
     }
 }

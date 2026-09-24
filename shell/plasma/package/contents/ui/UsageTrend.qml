@@ -20,7 +20,7 @@ Item {
     readonly property real stripHeight: Metrics.trendHeight(Kirigami.Units)
     readonly property real barWidth: Kirigami.Units.smallSpacing
     readonly property real barGap: Metrics.hairline(Kirigami.Units)
-    readonly property int hoveredIndex: stripHover.hovered ? Trend.indexAt(stripHover.point.position.x, barWidth + barGap, days.length) : -1
+    readonly property int hoveredIndex: stripHover.shown ? Trend.indexAt(stripHover.point.position.x, barWidth + barGap, days.length) : -1
     readonly property string tipText: hoveredIndex >= 0 ? Format.dayTooltip(lang, days[hoveredIndex]) : Trend.peakDescription(lang, days)
 
     Layout.fillWidth: true
@@ -71,13 +71,13 @@ Item {
                 }
             }
 
-            HoverHandler {
+            PointerHover {
                 id: stripHover
             }
 
             PlasmaComponents3.ToolTip {
                 text: trend.tipText
-                visible: stripHover.hovered && trend.tipText !== ""
+                visible: stripHover.shown && trend.tipText !== ""
                 delay: 0
             }
         }

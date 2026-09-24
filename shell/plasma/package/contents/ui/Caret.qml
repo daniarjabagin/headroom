@@ -36,15 +36,12 @@ T.AbstractButton {
         }
     }
 
-    background: Rectangle {
+    background: HoverFill {
         radius: Metrics.chipRadius(Kirigami.Units)
-        color: Tokens.chip(Kirigami.Theme)
-        opacity: caret.hovered || caret.visualFocus ? 1 : 0
+        shown: pointer.shown || caret.visualFocus
+    }
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Kirigami.Units.shortDuration
-            }
-        }
+    PointerHover {
+        id: pointer
     }
 }
