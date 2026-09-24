@@ -6,6 +6,23 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-24
+
+### Added
+
+- **Homebrew cask, now the recommended way to install on macOS:**
+  `brew install --cask daniarjabagin/tap/headroom`. The cask installs the universal DMG, clears the
+  quarantine flag of the ad-hoc signed app so the first launch needs no Gatekeeper steps, leaves
+  updates to Sparkle, and `--zap` removes settings, logs and caches. The release workflow updates
+  the tap for every release.
+
+### Changed
+
+- **Install docs lead with the recommended way per platform.** On Linux that is the one-line
+  installer, with the deb, rpm and Arch packages from the release page and building from source as
+  alternatives; on macOS it is Homebrew, with the DMG (and its Gatekeeper steps) and building from
+  source as alternatives.
+
 ## [0.4.0] - 2026-09-24
 
 The first public release. Headroom now runs on macOS too, ships a ready-made macOS download, keeps
@@ -167,5 +184,6 @@ First version.
 - Settings changes from several windows no longer overwrite each other.
 - Cancelling an account sign-in cleans up after itself.
 
-[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/daniarjabagin/headroom/releases/tag/v0.4.0
