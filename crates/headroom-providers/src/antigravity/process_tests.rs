@@ -86,6 +86,10 @@ fn only_listening_sockets_of_the_process_count() {
    3: garbage\n";
     let inodes = BTreeSet::from([12_345, 12_346]);
     assert_eq!(listening_ports(table, &inodes), BTreeSet::from([0xCBD8]));
+    assert_eq!(
+        bound_ports(table, &inodes),
+        BTreeSet::from([0xCBD8, 0xCBD9])
+    );
 }
 
 #[test]

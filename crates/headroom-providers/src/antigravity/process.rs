@@ -101,19 +101,27 @@ pub(super) fn socket_inode(link: &str) -> Option<u64> {
 }
 
 pub(super) fn listening_ports(table: &str, inodes: &BTreeSet<u64>) -> BTreeSet<u16> {
+    owned_ports(table, inodes, |state| state == LISTEN_STATE)
+}
+
+pub(super) fn bound_ports(table: &str, inodes: &BTreeSet<u64>) -> BTreeSet<u16> {
+    owned_ports(table, inodes, |_| true)
+}
+
+fn owned_ports(table: &str, inodes: &BTreeSet<u64>, keep: fn(&str) -> bool) -> BTreeSet<u16> {
     table
         .lines()
         .skip(1)
-        .filter_map(|line| listening_port(line, inodes))
+        .filter_map(|line| owned_port(line, inodes, keep))
         .collect()
 }
 
-fn listening_port(line: &str, inodes: &BTreeSet<u64>) -> Option<u16> {
+fn owned_port(line: &str, inodes: &BTreeSet<u64>, keep: fn(&str) -> bool) -> Option<u16> {
     let fields: Vec<&str> = line.split_whitespace().collect();
     let local = fields.get(1)?;
     let state = fields.get(3)?;
     let inode: u64 = fields.get(9)?.parse().ok()?;
-    if *state != LISTEN_STATE || !inodes.contains(&inode) {
+    if !keep(state) || !inodes.contains(&inode) {
         return None;
     }
     let (_, port) = local.rsplit_once(':')?;
