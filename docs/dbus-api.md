@@ -14,6 +14,9 @@ session bus. Payloads are JSON strings so every toolkit can parse them the same 
 The daemon requests the name with `DO_NOT_QUEUE` and without `ALLOW_REPLACEMENT`. If another daemon
 already owns it, the new one exits with "another Headroom daemon already owns the bus name".
 
+The same methods, payloads and events are served over a Unix socket as JSON-RPC 2.0, see
+[Socket API](ipc.md). That is the transport on macOS; on Linux `headroom daemon --socket` adds it.
+
 ## Methods
 
 | method | signature | description |

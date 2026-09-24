@@ -3,7 +3,7 @@ use std::io::{self, IsTerminal, Write};
 use anyhow::Result;
 
 use crate::cli::{RefreshArgs, StatusArgs};
-use crate::client::{self, call_error};
+use crate::client;
 use crate::paths::Globals;
 use crate::render::accounts::render_accounts;
 use crate::render::status::render_status;
@@ -29,16 +29,13 @@ pub async fn status(globals: &Globals, args: &StatusArgs) -> Result<()> {
 }
 
 pub async fn refresh(globals: &Globals, args: &RefreshArgs) -> Result<()> {
-    let proxy = client::require_daemon(&globals.bus).await?;
+    let daemon = client::require_daemon(globals).await?;
     let account_id = args.account_id.as_deref();
     let target = if args.now {
-        proxy.refresh_now().await.map_err(call_error)?;
+        daemon.refresh_now().await?;
         "every account now"
     } else {
-        proxy
-            .refresh(account_id.unwrap_or(""))
-            .await
-            .map_err(call_error)?;
+        daemon.refresh(account_id.unwrap_or("")).await?;
         account_id.unwrap_or("all due accounts")
     };
     writeln!(io::stdout(), "Refresh requested for {target}")?;
@@ -55,20 +52,17 @@ pub async fn list_accounts(globals: &Globals) -> Result<()> {
 }
 
 pub async fn label_account(globals: &Globals, id: &str, label: &str) -> Result<()> {
-    let proxy = client::require_daemon(&globals.bus).await?;
-    proxy.set_account_label(id, label).await.map_err(call_error)
+    let daemon = client::require_daemon(globals).await?;
+    daemon.set_account_label(id, label).await
 }
 
 pub async fn hide_account(globals: &Globals, id: &str, hidden: bool) -> Result<()> {
-    let proxy = client::require_daemon(&globals.bus).await?;
-    proxy
-        .set_account_hidden(id, hidden)
-        .await
-        .map_err(call_error)
+    let daemon = client::require_daemon(globals).await?;
+    daemon.set_account_hidden(id, hidden).await
 }
 
 pub async fn order_accounts(globals: &Globals, ids: &[String]) -> Result<()> {
-    let proxy = client::require_daemon(&globals.bus).await?;
+    let daemon = client::require_daemon(globals).await?;
     let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
-    proxy.set_account_order(&ids).await.map_err(call_error)
+    daemon.set_account_order(&ids).await
 }

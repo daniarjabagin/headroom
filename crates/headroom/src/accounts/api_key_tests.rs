@@ -9,6 +9,7 @@ use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, ProviderDescript
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::ProviderError;
 use headroom_core::quota::LimitsSnapshot;
+#[cfg(target_os = "linux")]
 use headroom_daemon::BusTarget;
 use headroom_providers::secrets::SecretBus;
 use tempfile::TempDir;
@@ -80,15 +81,19 @@ struct Sandbox {
 impl Sandbox {
     fn new() -> Sandbox {
         let dir = tempfile::tempdir().unwrap();
-        let bus = format!("unix:path={}", dir.path().join("no-bus").display());
         Sandbox {
             provider: KeyedProvider {
                 root: dir.path().join("accounts"),
             },
             secrets: SecretStore::new(SecretBus::Disabled, dir.path().join("secrets")),
             globals: Globals {
-                bus: BusTarget::Address(bus),
+                #[cfg(target_os = "linux")]
+                bus: BusTarget::Address(format!(
+                    "unix:path={}",
+                    dir.path().join("no-bus").display()
+                )),
                 db: None,
+                socket: None,
             },
             dir,
         }

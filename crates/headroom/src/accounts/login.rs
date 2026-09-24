@@ -9,6 +9,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use headroom_core::account::ProviderId;
 use headroom_core::descriptor::{CliLogin, ProviderDescriptor};
+use headroom_core::provider::Provider;
 
 use super::ansi::CleanLine;
 use super::cancel::{CANCELLED, Cancel};
@@ -122,7 +123,7 @@ fn run_login(
             spawn_streamed(runner, command, input, events, cancel)?
         }
     };
-    check_outcome(spec, home, status)
+    check_outcome(spec, status)
 }
 
 fn spawn_attached(mut command: Command, cancel: &Cancel) -> Result<ExitStatus> {
@@ -173,18 +174,34 @@ fn spawn_streamed(
     runner(command, input, &mut on_line, cancel)
 }
 
-fn check_outcome(spec: &LoginSpec, home: &Path, status: ExitStatus) -> Result<()> {
-    let command = spec.command_line();
+fn check_outcome(spec: &LoginSpec, status: ExitStatus) -> Result<()> {
     if !status.success() {
-        bail!("`{command}` did not finish successfully ({status})");
-    }
-    if !spec.login.credentials_path(home).is_file() {
         bail!(
-            "`{command}` finished but wrote no {}",
-            spec.login.credentials_file
+            "`{}` did not finish successfully ({status})",
+            spec.command_line()
         );
     }
     Ok(())
+}
+
+pub async fn confirm_sign_in(provider: &dyn Provider, spec: &LoginSpec, home: &Path) -> Result<()> {
+    if spec.login.credentials_path(home).is_file() {
+        return Ok(());
+    }
+    let found = provider.account_at(home).await;
+    if matches!(found, Ok(Some(_))) {
+        return Ok(());
+    }
+    discard_home(home);
+    let missing = format!(
+        "`{}` finished but wrote no {}",
+        spec.command_line(),
+        spec.login.credentials_file
+    );
+    match found {
+        Err(error) => Err(error).context(missing),
+        Ok(_) => bail!(missing),
+    }
 }
 
 #[cfg(test)]

@@ -29,7 +29,7 @@ use api_key::KeyTarget;
 use cancel::{CANCELLED, Cancel};
 use discovery::discover_local;
 use home::discard_home;
-use login::{Console, Launcher, LoginEvent, LoginSpec, sign_in};
+use login::{Console, Launcher, LoginEvent, LoginSpec, confirm_sign_in, sign_in};
 use plan::{AddPlan, KeyInput, choose_add_plan};
 use progress::{JsonLines, ProgressEvent};
 
@@ -165,6 +165,7 @@ async fn login_in_terminal(
         sign_in(&root, spec, &launcher, Console::Terminal, &login)
     })
     .await??;
+    confirm_sign_in(provider.as_ref(), &spec, &home).await?;
     register(
         globals,
         target,
@@ -196,6 +197,7 @@ async fn login_streamed(
         sign_in(&root, spec, &Launcher::default(), console, &login)
     })
     .await??;
+    confirm_sign_in(provider.as_ref(), &spec, &home).await?;
     register(
         globals,
         target,

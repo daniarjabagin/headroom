@@ -63,16 +63,48 @@ pub enum CommandError {
     Stopping,
 }
 
+impl CommandError {
+    #[must_use]
+    pub fn is_invalid_argument(&self) -> bool {
+        match self {
+            CommandError::UnknownAccount(_)
+            | CommandError::DuplicateAccount(_)
+            | CommandError::UnknownProvider(_)
+            | CommandError::NotDismissable(_)
+            | CommandError::LabelTooLong(_)
+            | CommandError::Settings(_) => true,
+            CommandError::Storage(_) | CommandError::Encode(_) | CommandError::Stopping => false,
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DaemonError {
     #[error(transparent)]
     Storage(#[from] StorageError),
+    #[cfg(target_os = "linux")]
     #[error("D-Bus error: {0}")]
     Bus(#[from] zbus::Error),
     #[error("another Headroom daemon already owns the bus name")]
     AlreadyRunning,
-    #[error("no XDG state directory is available")]
+    #[error(transparent)]
+    Socket(#[from] SocketError),
+    #[error("no state or data directory is available")]
     NoStateDir,
     #[error("could not encode JSON: {0}")]
     Encode(#[from] serde_json::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SocketError {
+    #[error("another Headroom daemon is already listening on {0}")]
+    AlreadyListening(PathBuf),
+    #[error("{0} exists and is not a socket")]
+    NotASocket(PathBuf),
+    #[error("could not {action} {path}: {source}")]
+    Io {
+        action: &'static str,
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }

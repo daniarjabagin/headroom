@@ -10,7 +10,7 @@ use zbus::proxy::CacheProperties;
 use zbus::zvariant::Value;
 
 use super::{Notification, Notifier, NotifyError};
-use crate::dbus::signals::SignalSink;
+use crate::events::EventSink;
 
 const APP_NAME: &str = "Headroom";
 const ICON: &str = "headroom";
@@ -65,15 +65,18 @@ impl DesktopNotifier {
         })
     }
 
-    pub async fn forward_actions(&self, sink: Arc<dyn SignalSink>) -> zbus::Result<()> {
+    pub async fn forward_actions(&self, sink: Arc<dyn EventSink>) -> zbus::Result<()> {
         let mut invoked = self.proxy.receive_action_invoked().await?;
         let mut closed = self.proxy.receive_notification_closed().await?;
         loop {
             tokio::select! {
                 Some(signal) = next(&mut invoked) => {
                     let args = signal.args()?;
-                    if self.forget(args.id) && is_open_action(&args.action_key) {
-                        sink.open_requested().await?;
+                    if self.forget(args.id)
+                        && is_open_action(&args.action_key)
+                        && let Err(error) = sink.open_requested().await
+                    {
+                        tracing::warn!(%error, "could not emit OpenRequested");
                     }
                 }
                 Some(signal) = next(&mut closed) => {

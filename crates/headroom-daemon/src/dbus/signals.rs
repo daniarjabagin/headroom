@@ -4,12 +4,7 @@ use zbus::object_server::SignalEmitter;
 
 use super::OBJECT_PATH;
 use super::interface::DaemonInterface;
-
-#[async_trait]
-pub trait SignalSink: Send + Sync {
-    async fn state_changed(&self, state: &str) -> zbus::Result<()>;
-    async fn open_requested(&self) -> zbus::Result<()>;
-}
+use crate::events::{EventError, EventSink};
 
 pub struct BusSignals {
     conn: Connection,
@@ -27,12 +22,12 @@ impl BusSignals {
 }
 
 #[async_trait]
-impl SignalSink for BusSignals {
-    async fn state_changed(&self, state: &str) -> zbus::Result<()> {
-        DaemonInterface::state_changed(&self.emitter()?, state).await
+impl EventSink for BusSignals {
+    async fn state_changed(&self, state: &str) -> Result<(), EventError> {
+        Ok(DaemonInterface::state_changed(&self.emitter()?, state).await?)
     }
 
-    async fn open_requested(&self) -> zbus::Result<()> {
-        DaemonInterface::open_requested(&self.emitter()?).await
+    async fn open_requested(&self) -> Result<(), EventError> {
+        Ok(DaemonInterface::open_requested(&self.emitter()?).await?)
     }
 }

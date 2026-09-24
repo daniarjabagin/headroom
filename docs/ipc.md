@@ -13,9 +13,10 @@ framing differs.
 | item | value |
 | --- | --- |
 | default path (macOS) | `~/Library/Application Support/Headroom/daemon.sock` |
+| default path (Linux, `--socket` without a path) | `$XDG_RUNTIME_DIR/headroom/daemon.sock` |
 | fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>.sock` |
 | override | `headroom daemon --socket <path>`, clients: `HEADROOM_SOCKET=<path>` |
-| permissions | socket `0600`, parent directory `0700` |
+| permissions | socket `0600`, parent directory created `0700` when missing (an existing directory is left as it is) |
 | framing | UTF-8 JSON-RPC 2.0, one JSON object per line terminated by `\n` |
 
 The daemon removes a stale socket file on start. If another daemon is listening on the path, the new
@@ -30,6 +31,8 @@ shutdown.
 
 - `params` is a positional array with the D-Bus arguments in order (strings, booleans, string
   arrays). Methods without arguments take `[]` or omit `params`.
+- `id` is a number, a string or `null`. A request without `id` is a JSON-RPC notification: it is
+  executed and gets no response, not even an error. Blank lines are ignored.
 - A client may send several requests without waiting; responses carry the request `id` and may arrive
   in any order, interleaved with notifications.
 
@@ -69,7 +72,9 @@ string, as on D-Bus.
 | `-32602` | invalid arguments: wrong param count/types, plus every `InvalidArgs` case in dbus-api.md | `InvalidArgs` |
 | `-32000` | failure inside the daemon | `Failed` |
 
-`message` is human readable and safe to show. A line longer than 1 MiB closes the connection.
+`message` is human readable and safe to show. `-32700` and `-32600` responses carry `"id": null`
+when the id could not be read. A line longer than 1 MiB (1,048,576 bytes before the `\n`) closes the
+connection without a response.
 
 ## Notifications
 
@@ -87,4 +92,11 @@ Sent only to connections that called `Subscribe`. They have no `id`.
 | `OpenRequested` | a client asked the daemon to open the popup (reserved; the macOS app handles its own notification clicks) |
 | `Alert` | on macOS, instead of `org.freedesktop.Notifications`: the app posts it with `UNUserNotificationCenter`. `urgency` is `low`, `normal` or `critical`. Texts follow `display.language` exactly as in [Notifications](dbus-api.md#notifications). A delivery counts as successful when at least one subscribed connection received it; otherwise it is rolled back and retried at the next refresh, like a failed desktop notification on Linux. |
 
-A subscriber should call `GetState` after `Subscribe` and then follow `StateChanged`.
+A subscriber should call `GetState` after `Subscribe` and then follow `StateChanged`. A subscriber
+that stops reading loses notifications once 64 are queued for it.
+
+`Alert` fields: `id` is `<account_id>/<window>/<milestone>` for window milestones (`window` as in the
+state payload, `milestone` one of `almost_out`, `cutting_it_close`, `will_run_out`, `reset`) and
+`<account_id>/subscription_inactive` for a subscription lapse; the same id may repeat after the
+milestone re-arms, so it suits replacing a shown notification. `urgency` is `low` for `reset`,
+`critical` for `will_run_out` when the limit is already reached, `normal` otherwise.

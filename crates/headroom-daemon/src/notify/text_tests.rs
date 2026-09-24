@@ -18,6 +18,7 @@ fn observed(severity: Severity, remaining: f64) -> Observation {
 fn body_of(locale: Locale, milestone: Milestone, observation: &Observation) -> String {
     let window = session(50.0, "2026-09-23T10:42:00Z");
     let subject = Subject {
+        account_id: "codex:work",
         provider_name: "Codex",
         account_name: Some("Work"),
         window: &window,
@@ -93,6 +94,7 @@ fn titles_translate_known_windows_only() {
     let observation = observed(Severity::Close, 8.0);
     for (window, account_name, english, russian) in cases {
         let subject = Subject {
+            account_id: "codex:work",
             provider_name: "Codex",
             account_name,
             window,
@@ -115,6 +117,7 @@ fn titles_translate_known_windows_only() {
 fn claude_titles_name_the_provider() {
     let window = weekly(50.0, NOW);
     let subject = Subject {
+        account_id: "codex:work",
         provider_name: "Claude",
         account_name: None,
         window: &window,
@@ -174,15 +177,68 @@ fn system_locale_follows_the_first_set_variable() {
 
 #[test]
 fn lapse_notifications_are_translated() {
-    let en = compose_lapse(Locale::En, "Codex", Some("Work"));
+    let en = compose_lapse(Locale::En, "codex:work", "Codex", Some("Work"));
     assert_eq!(en.title, "Codex · Work — subscription inactive");
     assert_eq!(en.body, "Limits are unavailable until the plan is renewed.");
-    let ru = compose_lapse(Locale::Ru, "Codex", Some("Work"));
+    let ru = compose_lapse(Locale::Ru, "codex:work", "Codex", Some("Work"));
     assert_eq!(ru.title, "Codex · Work — подписка неактивна");
     assert_eq!(
         ru.body,
         "Данные о лимитах недоступны, пока подписка не продлена."
     );
-    let anonymous = compose_lapse(Locale::En, "Claude", None);
+    let anonymous = compose_lapse(Locale::En, "claude:x", "Claude", None);
     assert_eq!(anonymous.title, "Claude — subscription inactive");
+}
+
+#[test]
+fn alerts_carry_a_stable_id_and_an_urgency() {
+    let window = session(50.0, "2026-09-23T10:42:00Z");
+    let subject = Subject {
+        account_id: "codex:work",
+        provider_name: "Codex",
+        account_name: None,
+        window: &window,
+    };
+    let cases = [
+        (
+            Milestone::AlmostOut,
+            Severity::Close,
+            "almost_out",
+            Urgency::Normal,
+        ),
+        (
+            Milestone::CuttingItClose,
+            Severity::Close,
+            "cutting_it_close",
+            Urgency::Normal,
+        ),
+        (
+            Milestone::WillRunOut,
+            Severity::RunningOut,
+            "will_run_out",
+            Urgency::Normal,
+        ),
+        (
+            Milestone::WillRunOut,
+            Severity::Spent,
+            "will_run_out",
+            Urgency::Critical,
+        ),
+        (Milestone::Reset, Severity::Untracked, "reset", Urgency::Low),
+    ];
+    for (milestone, severity, key, expected) in cases {
+        let text = compose(
+            Locale::En,
+            milestone,
+            &subject,
+            &observed(severity, 5.0),
+            ts(NOW),
+        );
+        assert_eq!(text.id, format!("codex:work/session/{key}"));
+        assert_eq!(text.account_id, "codex:work");
+        assert_eq!(text.urgency, expected);
+    }
+    let lapse = compose_lapse(Locale::En, "codex:work", "Codex", None);
+    assert_eq!(lapse.id, "codex:work/subscription_inactive");
+    assert_eq!(lapse.urgency.as_str(), "normal");
 }

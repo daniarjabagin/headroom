@@ -14,6 +14,13 @@ use crate::notify::text::Locale;
 
 pub type Shutdown = Pin<Box<dyn Future<Output = ()> + Send>>;
 
+#[cfg(target_os = "macos")]
+const DATA_DIR_NAME: &str = "Headroom";
+#[cfg(not(target_os = "macos"))]
+const DATA_DIR_NAME: &str = "headroom";
+const STATE_DIR_NAME: &str = "headroom";
+
+#[cfg(target_os = "linux")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BusTarget {
     Session,
@@ -27,7 +34,9 @@ pub struct DaemonConfig {
     pub db_path: PathBuf,
     pub clock: Arc<dyn Clock>,
     pub tz: TimeZone,
+    #[cfg(target_os = "linux")]
     pub bus: BusTarget,
+    pub socket: Option<PathBuf>,
     pub system_locale: Locale,
     pub shutdown: Shutdown,
 }
@@ -45,7 +54,12 @@ impl DaemonConfig {
             db_path: default_db_path()?,
             clock: Arc::new(SystemClock),
             tz: TimeZone::system(),
+            #[cfg(target_os = "linux")]
             bus: BusTarget::Session,
+            #[cfg(target_os = "linux")]
+            socket: None,
+            #[cfg(not(target_os = "linux"))]
+            socket: Some(crate::ipc::default_socket_path()?),
             system_locale: Locale::from_env(),
             shutdown,
         })
@@ -53,6 +67,12 @@ impl DaemonConfig {
 }
 
 pub fn default_db_path() -> Result<PathBuf, DaemonError> {
-    let state = dirs::state_dir().ok_or(DaemonError::NoStateDir)?;
-    Ok(state.join("headroom").join("headroom.db"))
+    Ok(app_dir()?.join("headroom.db"))
+}
+
+pub fn app_dir() -> Result<PathBuf, DaemonError> {
+    dirs::state_dir()
+        .map(|state| state.join(STATE_DIR_NAME))
+        .or_else(|| dirs::data_dir().map(|data| data.join(DATA_DIR_NAME)))
+        .ok_or(DaemonError::NoStateDir)
 }

@@ -151,6 +151,31 @@ jobs:
             exit 1
           fi
 
+  rust-macos:
+    name: Rust build, clippy and tests (macOS)
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: cargo build
+        run: cargo build --workspace --all-targets --locked
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace --locked
+
   gnome-extension:
     name: GNOME Shell extension
     runs-on: ubuntu-latest

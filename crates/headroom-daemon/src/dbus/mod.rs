@@ -1,17 +1,13 @@
 pub mod interface;
-pub mod publisher;
 pub mod signals;
-
-use std::sync::Arc;
 
 use zbus::Connection;
 use zbus::connection::Builder;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 
 use crate::config::BusTarget;
-use crate::core::Core;
 use crate::error::DaemonError;
-use crate::rescan::Rescans;
+use crate::service::Service;
 use interface::DaemonInterface;
 
 pub const BUS_NAME: &str = "io.github.headroom.Daemon";
@@ -25,13 +21,9 @@ pub async fn connect(target: &BusTarget) -> Result<Connection, DaemonError> {
     Ok(builder.build().await?)
 }
 
-pub async fn serve(
-    conn: &Connection,
-    core: Arc<Core>,
-    rescans: Rescans,
-) -> Result<(), DaemonError> {
+pub async fn serve(conn: &Connection, service: Service) -> Result<(), DaemonError> {
     conn.object_server()
-        .at(OBJECT_PATH, DaemonInterface::new(core, rescans))
+        .at(OBJECT_PATH, DaemonInterface::new(service))
         .await?;
     let reply = conn
         .request_name_with_flags(BUS_NAME, RequestNameFlags::DoNotQueue.into())

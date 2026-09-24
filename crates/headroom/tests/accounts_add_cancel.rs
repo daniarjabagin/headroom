@@ -8,6 +8,7 @@ use std::process::{Child, ChildStdout, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use headroom_providers::paths::HeadroomDirs;
 use rustix::process::{Pid, Signal, kill_process};
 use tempfile::TempDir;
 
@@ -44,7 +45,7 @@ impl Sandbox {
     fn spawn_add(&self) -> Child {
         let bus = format!("unix:path={}", self.path("no-bus").display());
         Command::new(env!("CARGO_BIN_EXE_headroom"))
-            .args(["--bus-address", &bus, "accounts", "add", "codex"])
+            .args(["accounts", "add", "codex"])
             .args(["--progress", "json"])
             .env_clear()
             .env(
@@ -69,7 +70,11 @@ impl Sandbox {
     }
 
     fn account_homes(&self) -> Vec<PathBuf> {
-        match fs::read_dir(self.path("data").join("headroom/accounts/codex")) {
+        let data = self.path("data");
+        let dirs = HeadroomDirs::from_vars(&self.path("home"), |name| {
+            (name == "XDG_DATA_HOME").then(|| data.clone().into_os_string())
+        });
+        match fs::read_dir(dirs.accounts("codex")) {
             Ok(entries) => entries.map(|entry| entry.unwrap().path()).collect(),
             Err(_) => Vec::new(),
         }
