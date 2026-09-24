@@ -5,6 +5,12 @@ export const RU = {
     W: 'Н',
     '{percent}% left': 'Осталось {percent}%',
     '{percent}% used': 'Использовано {percent}%',
+    '{percent}% left of {capacity}%': 'Осталось {percent}% из {capacity}%',
+    '{percent}% used of {capacity}%': 'Использовано {percent}% из {capacity}%',
+    '{count} account': ['{count} аккаунт', '{count} аккаунта', '{count} аккаунтов'],
+    'Combine accounts of the same provider': 'Объединять аккаунты одного сервиса',
+    'Show one card per provider and add up the limits of its accounts':
+        'Одна карточка на сервис, лимиты его аккаунтов складываются',
     '{seconds}s': '{seconds} с',
     '{minutes}m {seconds}s': '{minutes} мин {seconds} с',
     '{days}d {hours}h': '{days} д {hours} ч',

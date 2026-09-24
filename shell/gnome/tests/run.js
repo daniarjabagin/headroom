@@ -2,6 +2,7 @@ import GLib from 'gi://GLib';
 import { parseDisplay } from '../src/settings.js';
 import { parseState, StateError } from '../src/state.js';
 import { check, failures, throws } from './check.js';
+import { testCombined } from './combinedTests.js';
 import { testDonut } from './donutTests.js';
 import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
@@ -49,9 +50,8 @@ function shapeMismatches(sample, daemon, path) {
     return Object.keys(daemon).flatMap(key => shapeMismatches(sample[key], daemon[key], `${path}.${key}`));
 }
 
-function testSampleAccounts() {
+function testSampleHeadline() {
     const state = parseState(readSample());
-    check('accounts', state.accounts.length, 6);
     check('headline', state.headline, {
         accountId: 'codex:1a2b3c4d5e6f',
         windowId: 'session',
@@ -62,7 +62,14 @@ function testSampleAccounts() {
         usedPercent: 38,
         remainingPercent: 62,
         tone: 'good',
+        combined: false,
+        accountCount: null,
     });
+}
+
+function testSampleAccounts() {
+    const state = parseState(readSample());
+    check('accounts', state.accounts.length, 6);
     check('next refresh', state.nextRefreshAt.toISOString(), '2026-09-23T10:03:10.000Z');
     check('last success', state.lastSuccessAt.toISOString(), '2026-09-23T09:58:00.000Z');
     check('online', state.offline, false);
@@ -181,6 +188,7 @@ testSettingsUpdates();
 testModelBreakdown();
 testOrder();
 testProgress();
+testSampleHeadline();
 testSampleAccounts();
 testProviders(parseState(readSample()));
 testSampleContract();
@@ -190,6 +198,7 @@ testEdgeStates();
 testStatus();
 testNotices();
 testDonut();
+testCombined();
 testRefresh();
 testUpdate();
 await testSerialQueue();

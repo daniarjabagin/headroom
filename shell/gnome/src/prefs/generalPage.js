@@ -67,7 +67,9 @@ export class GeneralPage {
         this.page.add(
             group(_('Appearance'), [this._rows.theme.row, this._rows.language.row, this._rows.translucent.row])
         );
-        this.page.add(group(_('Popup'), [this._rows.valueMode.row, this._rows.resetFormat.row]));
+        this.page.add(
+            group(_('Popup'), [this._rows.valueMode.row, this._rows.resetFormat.row, this._rows.combineAccounts.row])
+        );
         this.page.add(group(_('Top Panel'), [this._rows.limit.row, this._rows.panelLabel.row]));
         this.page.add(
             group(
@@ -86,6 +88,7 @@ export class GeneralPage {
         this._rows.translucent.set(display.translucent);
         this._rows.valueMode.set(display.valueMode);
         this._rows.resetFormat.set(display.resetFormat);
+        this._rows.combineAccounts.set(display.combineAccounts);
         this._rows.panelLabel.set(display.panelLabel);
         SECTIONS.forEach(([key], index) => this._rows.sections[index].set(display[key]));
         this._rows.refresh.setOptions(refreshOptions(settings.refreshIntervalSecs));
@@ -174,6 +177,11 @@ export class GeneralPage {
                     { value: 'exact', label: _('Exact time') },
                 ],
                 onChange: this._display('resetFormat'),
+            }),
+            combineAccounts: switchRow({
+                title: _('Combine accounts of the same provider'),
+                subtitle: _('Show one card per provider and add up the limits of its accounts'),
+                onChange: this._display('combineAccounts'),
             }),
         };
     }

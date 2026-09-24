@@ -41,8 +41,19 @@ export function percentReading(percent, valueMode) {
     return valueMode === 'used' ? percentUsed(percent) : percentLeft(percent);
 }
 
+export function capacityReading(percent, capacityPercent, valueMode) {
+    if (percent === null) return DASH;
+    const values = { percent: roundPercent(percent), capacity: roundPercent(capacityPercent) };
+    if (valueMode === 'used') return fill(_('{percent}% used of {capacity}%'), values);
+    return fill(_('{percent}% left of {capacity}%'), values);
+}
+
 export function panelPercent(percent) {
     return `${roundPercent(percent)}%`;
+}
+
+export function panelCount(count) {
+    return `\u00d7${count}`;
 }
 
 export function windowLabel(windowId, label) {

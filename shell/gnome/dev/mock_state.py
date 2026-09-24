@@ -401,6 +401,7 @@ DEFAULT_SETTINGS = {
         "show_trend": True,
         "show_forecast": True,
         "translucent": False,
+        "combine_accounts": False,
         "hidden_windows": {},
     },
 }
@@ -417,6 +418,8 @@ def headline_for(entry, window_entry):
         "used_percent": window_entry["used_percent"],
         "remaining_percent": window_entry["remaining_percent"],
         "tone": window_entry["tone"],
+        "combined": False,
+        "account_count": None,
     }
 
 
@@ -446,6 +449,7 @@ def assemble(now, accounts, usage, preferred, **extra):
         "headline": choose_headline(accounts, preferred),
         "display": DEFAULT_SETTINGS["display"],
         "accounts": accounts,
+        "combined": [],
         "usage": [published_usage(entry) for entry in usage],
         "spend": {period: published_spend(period_spend(usage, period)) for period in PERIODS},
         "update": None,

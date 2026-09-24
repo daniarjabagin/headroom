@@ -178,6 +178,10 @@
     height: 9px;
 }
 
+.headroom-segmented-meter {
+    spacing: 2px;
+}
+
 .headroom-meter-track,
 .headroom-meter-fill {
     height: 5px;

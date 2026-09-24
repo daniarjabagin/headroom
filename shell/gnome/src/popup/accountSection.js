@@ -103,6 +103,10 @@ export class AccountSection {
         return this._account.id;
     }
 
+    get accountIds() {
+        return [this._account.id];
+    }
+
     get header() {
         return this._header.actor;
     }
