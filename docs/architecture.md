@@ -1,7 +1,7 @@
 # Headroom architecture
 
-This is the contract every crate and shell implements. Research behind it lives in `docs/research/`,
-visual design in `docs/design/`.
+This is the contract every crate and shell implements: the domain model, the pacing formula, the
+providers, the daemon and the transports.
 
 ## Crates
 
@@ -194,8 +194,8 @@ pub enum Severity { Untracked, Healthy, Close, RunningOut, Spent }
 pub enum Tone { Neutral, Good, Warning, Critical }
 ```
 
-Formula (based on OpenQuota, see `docs/research/providers-codex-claude.md` §5.1, softened so an
-early burst in a long window does not look alarming):
+Formula (based on OpenQuota's pace model, softened so an early burst in a long window does not look
+alarming):
 
 ```
 spent      remaining rounds to 0                                   → Spent

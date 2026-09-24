@@ -3,7 +3,7 @@
 Headroom on macOS is a native menu-bar app (`shell/macos`, SwiftUI + AppKit) that bundles the same
 `headroom` binary the Linux build uses. The app starts `headroom daemon --socket <path>` as a child
 process, talks to it over the [socket API](ipc.md) and only renders what the daemon sends. All
-numbers, tones and pace come from the daemon, exactly as on Linux. Background: [research/macos.md](research/macos.md).
+numbers, tones and pace come from the daemon, exactly as on Linux.
 
 Requirements: macOS 14 (Sonoma) or newer. The popup is an opaque surface by default; Settings →
 General → Translucent background switches it to a blurred system material (ignored under Reduce
@@ -128,22 +128,15 @@ apps can only be updated by hand.
    Personal-team certificates expire after a while; when signing starts failing, create a new one
    the same way.
 
-## 2. Get the code onto the Mac
-
-The repository has no remote. Copy it from the Linux machine either as a git bundle (keeps the
-history, and later updates are a `git pull` away):
+## 2. Get the code
 
 ```sh
-# on Linux, in the repository
-git bundle create headroom.bundle --all
-# AirDrop / scp / USB headroom.bundle to the Mac, then on the Mac:
-git clone headroom.bundle headroom
+git clone https://github.com/daniarjabagin/headroom.git
 cd headroom
-# later: make a new bundle on Linux, copy it over the old file, then
-git pull
 ```
 
-or as a plain copy of the working tree, run from the repository root:
+To try uncommitted changes from another machine, copy its working tree over, run from the
+repository root there:
 
 ```sh
 rsync -a --delete --exclude target --exclude shell/macos/.build --exclude shell/macos/dist \

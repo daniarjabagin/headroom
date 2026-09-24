@@ -6,29 +6,10 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
-### Changed
-
-- **Breaking for development installs:** Headroom's identifiers moved to the project's own GitHub
-  namespace, `github.com/daniarjabagin/headroom`. The D-Bus name is now
-  `io.github.daniarjabagin.Headroom` (object `/io/github/daniarjabagin/Headroom`, interface
-  `io.github.daniarjabagin.Headroom1`), the GNOME extension `headroom@daniarjabagin.github.io`, the
-  Plasma widget `io.github.daniarjabagin.headroom` and the macOS bundle id
-  `io.github.daniarjabagin.headroom`. They replace `io.github.headroom.Daemon`,
-  `headroom@headroom.github.io`, `io.github.headroom.plasmoid` and `io.github.headroom`.
-  `install.sh`, the release installer and `uninstall.sh` remove the old extension, widget and D-Bus
-  activation file; enable the new extension after logging back in. API keys added with
-  `headroom accounts add` are stored under the new keyring name, so add them again. On macOS,
-  delete the old app (see [docs/macos.md](docs/macos.md)).
-
-### Fixed
-
-- `headroom update --progress json` keeps installing when the window that started it closes: output
-  to a closed stdout or stderr is dropped instead of stopping the update, and the installer's own
-  output no longer goes straight to the closed pipe.
-
 ## [0.4.0] - 2026-09-24
 
-Headroom now runs on macOS too.
+The first public release. Headroom now runs on macOS too, ships a ready-made macOS download, keeps
+itself up to date and has its own brand.
 
 ### Added
 
@@ -36,6 +17,19 @@ Headroom now runs on macOS too.
   the same popup as on Linux: the spend donut, every limit with its pace forecast, usage trends and
   provider notices. The menu-bar item shows the limit that needs attention most, or one you pin, as
   a percentage or with the provider and limit name.
+- **A download for macOS.** Every release carries `Headroom-<version>-universal.dmg` (Apple silicon
+  and Intel) with a `.sha256`. The app is ad-hoc signed and not notarized yet; the
+  [macOS guide](docs/macos.md#install-from-a-release-dmg) explains the one-time Gatekeeper step.
+- **Automatic updates on macOS** with Sparkle 2: a daily check, **Check for Updates…** in the menu,
+  and Settings → Service → App updates. Updates are verified with an EdDSA signature.
+- **Update notices on Linux.** The daemon asks GitHub once a day whether a newer release exists, and
+  the GNOME and Plasma popups show "Headroom X is available". Script installs update with one click
+  or `headroom update`, which verifies the download against `SHA256SUMS`; package installs show how
+  to get the new package. The checks can be turned off in the settings (`updates.check`) or with
+  `headroom daemon --no-update-check`.
+- **Brand.** The Headroom logo and mark by Asteru Studio replace the placeholder icons in the panel,
+  the Plasma widget, the Linux app icon, notifications and the macOS app icon. The brand assets are
+  not covered by the MIT license; see [NOTICE.md](NOTICE.md).
 - A native preferences window with toolbar tabs (General, Accounts, Notifications, Service).
 - Add and remove accounts on macOS: CLI sign-ins with the sign-in page, device code and progress
   shown in the window, API keys stored in the Keychain, and a "Detect again" button for apps
@@ -55,6 +49,12 @@ Headroom now runs on macOS too.
 
 ### Changed
 
+- Headroom uses identifiers in its own GitHub namespace: the D-Bus name
+  `io.github.daniarjabagin.Headroom`, the GNOME extension `headroom@daniarjabagin.github.io`, the
+  Plasma widget `io.github.daniarjabagin.headroom` and the macOS bundle id
+  `io.github.daniarjabagin.headroom`. Development installs from before this release are cleaned up
+  by `install.sh` and `uninstall.sh`; add API keys again and enable the new GNOME extension after
+  logging back in.
 - Retry on a signed-out account now shows progress and re-reads the CLI credentials, so signing in
   again in a terminal and pressing Retry is enough.
 - The spend donut is shown even when only one provider has spend.
@@ -66,6 +66,7 @@ Headroom now runs on macOS too.
 
 ### Fixed
 
+- `headroom update --progress json` keeps installing when the window that started it closes.
 - With the translucent background on GNOME, the popup is fully redrawn while open, and hovering no
   longer leaves dark or light squares behind buttons and rows.
 - Translucent hover in Plasma is a light tint instead of an almost opaque patch.
@@ -79,7 +80,7 @@ Headroom now runs on macOS too.
 - On macOS, secrets reach the Keychain through `security` on stdin, never on a command line, and
   the app passes API keys to the CLI on stdin as well.
 
-## [0.3.0] - 2026-09-23
+## 0.3.0 - 2026-09-23
 
 ### Added
 
@@ -112,7 +113,7 @@ Headroom now runs on macOS too.
 - Price feeds are filtered while streaming instead of being parsed whole, which lowers memory use
   during price updates.
 
-## [0.2.0] - 2026-09-23
+## 0.2.0 - 2026-09-23
 
 ### Added
 
@@ -132,7 +133,7 @@ Headroom now runs on macOS too.
   bounded.
 - The release binary shrank from 15.5 MB to 9.7 MB.
 
-## [0.1.0] - 2026-09-23
+## 0.1.0 - 2026-09-23
 
 First version.
 
@@ -167,7 +168,4 @@ First version.
 - Cancelling an account sign-in cleans up after itself.
 
 [Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/daniarjabagin/headroom/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/daniarjabagin/headroom/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/daniarjabagin/headroom/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/daniarjabagin/headroom/releases/tag/v0.1.0
+[0.4.0]: https://github.com/daniarjabagin/headroom/releases/tag/v0.4.0
