@@ -32,7 +32,7 @@ public struct CommandRunner: CommandRunning {
         process.standardInput = FileHandle.nullDevice
         let running = FoundationProcess(process: process)
         do {
-            try process.run()
+            try process.runWithDefaultSignalMask()
         } catch {
             throw .launchFailed(String(describing: error))
         }
@@ -56,7 +56,7 @@ public struct CommandRunner: CommandRunning {
     }
 
     private static func drain(_ running: FoundationProcess, reader: FileHandle) async -> CommandOutput {
-        let data = await Task.detached { (try? reader.readToEnd()) ?? Data() }.value
+        let data = await PipeReader.readToEnd(reader)
         let status = await running.waitForExit()
         return CommandOutput(status: status, stdout: String(decoding: data, as: UTF8.self))
     }

@@ -120,9 +120,14 @@
             switch event {
             case .alert(let alert): alerts?.post(alert)
             case .openRequested: onOpenRequested?()
+            case .connected: reloadSettings()
             case .failure(let error): log.error("daemon client: \(String(describing: error), privacy: .public)")
             default: return
             }
+        }
+
+        private func reloadSettings() {
+            Task { [store] in await store.reload() }
         }
 
         private func handle(_ event: SupervisorEvent) {

@@ -2,7 +2,7 @@
     import AppKit
     import HeadroomKit
     import HeadroomUI
-    import Observation
+    import QuartzCore
     import SwiftUI
 
     final class HeadroomPanel: NSPanel {
@@ -16,27 +16,50 @@
         }
     }
 
+    struct PanelRoot: View {
+        let model: AppModel
+        let actions: PopupActions
+        let presentation: Int
+        let onResize: @MainActor (CGSize) -> Void
+
+        var body: some View {
+            PopupView(model: model, actions: actions, presentation: presentation, onResize: onResize)
+                .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
+
     @MainActor
     final class PanelController: NSObject, NSWindowDelegate {
         private static let gap: CGFloat = 4
         private static let screenMargin: CGFloat = 8
         private static let reopenGuard: TimeInterval = 0.3
+        private static let resizeDuration: TimeInterval = 0.2
+        private static let settleWindow: TimeInterval = 0.25
+        private static let width: CGFloat = 320
 
         private let panel: HeadroomPanel
-        private let hosting: NSHostingView<PopupView>
+        private let hosting: NSHostingView<PanelRoot>
         private let model: AppModel
+        private let actions: PopupActions
         private var outsideClickMonitor: Any?
         private weak var anchor: NSStatusBarButton?
         private var lastAutoClose = Date.distantPast
+        private var presentation = 0
+        private var contentSize: CGSize?
+        private var shownAt = Date.distantPast
 
         init(model: AppModel, actions: PopupActions) {
             self.model = model
-            hosting = NSHostingView(rootView: PopupView(model: model, actions: actions))
+            self.actions = actions
+            hosting = NSHostingView(
+                rootView: PanelRoot(model: model, actions: actions, presentation: 0, onResize: { _ in }))
             panel = HeadroomPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 320, height: 200),
+                contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 200),
                 styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
                 backing: .buffered, defer: true)
             super.init()
+            hosting.sizingOptions = []
+            hosting.rootView = root()
             configurePanel()
         }
 
@@ -58,6 +81,12 @@
             close()
         }
 
+        private func root() -> PanelRoot {
+            PanelRoot(model: model, actions: actions, presentation: presentation) { [weak self] size in
+                self?.contentSizeChanged(size)
+            }
+        }
+
         private func configurePanel() {
             panel.isFloatingPanel = true
             panel.level = .popUpMenu
@@ -75,11 +104,13 @@
 
         private func show(relativeTo button: NSStatusBarButton) {
             anchor = button
-            layout()
+            shownAt = Date()
+            presentation += 1
+            hosting.rootView = root()
+            layout(animated: false)
             panel.makeKeyAndOrderFront(nil)
             button.highlight(true)
             startOutsideClickMonitor()
-            trackContentSize()
         }
 
         private func close() {
@@ -88,32 +119,48 @@
             panel.orderOut(nil)
         }
 
-        private func trackContentSize() {
-            withObservationTracking {
-                _ = model.state
-                _ = model.phase
-            } onChange: { [weak self] in
-                Task { @MainActor in
-                    guard let self, self.panel.isVisible else { return }
-                    self.layout()
-                    self.trackContentSize()
-                }
-            }
+        private func contentSizeChanged(_ size: CGSize) {
+            guard size.height > 0, size != contentSize else { return }
+            contentSize = size
+            guard panel.isVisible else { return }
+            let settled = Date().timeIntervalSince(shownAt) > Self.settleWindow
+            layout(animated: settled && !reducedMotion)
         }
 
-        private func layout() {
+        private func measuredSize() -> CGSize {
+            let measuring = NSHostingController(rootView: PopupView(model: model, actions: actions))
+            return measuring.sizeThatFits(in: CGSize(width: Self.width, height: .greatestFiniteMagnitude))
+        }
+
+        private var reducedMotion: Bool {
+            actions.reducedMotion() || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+
+        private func layout(animated: Bool) {
             guard let button = anchor, let window = button.window, let screen = window.screen ?? NSScreen.main
             else { return }
             let buttonFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
-            let visible = screen.visibleFrame
-            let fitting = hosting.fittingSize
-            let height = min(fitting.height, visible.height - 2 * Self.screenMargin)
-            let width = fitting.width
-            let x = min(
-                max(buttonFrame.midX - width / 2, visible.minX + Self.screenMargin),
-                visible.maxX - width - Self.screenMargin)
-            let y = buttonFrame.minY - Self.gap - height
-            panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
+            let size = contentSize ?? measuredSize()
+            let frame = PanelPlacement.frame(
+                content: size, below: buttonFrame, within: screen.visibleFrame, gap: Self.gap,
+                margin: Self.screenMargin)
+            guard frame != panel.frame else { return }
+            apply(frame, animated: animated)
+        }
+
+        private func apply(_ frame: NSRect, animated: Bool) {
+            guard animated else {
+                panel.setFrame(frame, display: true)
+                panel.invalidateShadow()
+                return
+            }
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Self.resizeDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(frame, display: true)
+            } completionHandler: { [weak self] in
+                MainActor.assumeIsolated { self?.panel.invalidateShadow() }
+            }
         }
 
         private func startOutsideClickMonitor() {

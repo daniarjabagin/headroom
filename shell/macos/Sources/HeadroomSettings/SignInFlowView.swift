@@ -61,8 +61,8 @@
             VStack(spacing: 12) {
                 TextField(strings.text(AddAccountText.labelOptional), text: $label)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit(start)
-                Button(strings.text(SignInText.continueAction), action: start).keyboardShortcut(.defaultAction)
+                    .onSubmit { start() }
+                Button(strings.text(SignInText.continueAction)) { start() }.keyboardShortcut(.defaultAction)
             }
         }
 
@@ -94,8 +94,8 @@
                 HStack {
                     TextField(strings.text(SignInText.pasteCode), text: $code)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit(sendCode)
-                    Button(strings.text(SignInText.send), action: sendCode)
+                        .onSubmit { sendCode() }
+                    Button(strings.text(SignInText.send)) { sendCode() }
                         .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 Text(strings.text(codeSent ? SignInText.codeSent : SignInText.pasteCodeHint))

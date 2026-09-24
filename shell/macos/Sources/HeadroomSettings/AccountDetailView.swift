@@ -57,8 +57,8 @@
         private var labelEditor: some View {
             HStack {
                 TextField(strings.text(AccountsText.label), text: $draftLabel, prompt: Text(account.email ?? ""))
-                    .onSubmit(saveLabel)
-                Button(strings.text(AccountsText.saveLabel), action: saveLabel)
+                    .onSubmit { saveLabel() }
+                Button(strings.text(AccountsText.saveLabel)) { saveLabel() }
                     .disabled(trimmedDraft == (account.label ?? ""))
             }
         }

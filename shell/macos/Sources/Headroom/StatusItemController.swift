@@ -3,6 +3,7 @@
     import HeadroomKit
     import HeadroomUI
     import Observation
+    import SwiftUI
 
     @MainActor
     final class StatusItemController: NSObject {

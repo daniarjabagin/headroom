@@ -70,7 +70,32 @@ final class HelperProcessTests: XCTestCase {
         handle.write("ignored after close")
         let last = await iterator.next()
         guard case .exited(let status) = last else { return XCTFail("expected exit, got \(String(describing: last))") }
-        XCTAssertNotEqual(status, 0)
+        XCTAssertEqual(status, SIGTERM)
+    }
+
+    func testChildStartsWithUnblockedSignalsFromABlockedThread() async throws {
+        let helper = try script("echo ready; exec sleep 30")
+        let handle = try await Task.detached {
+            try SignalMaskFixture.withTerminationBlocked {
+                try HelperLauncher(executable: helper, environment: [:]).launch(.remove(accountID: "x"))
+            }
+        }.value
+        var iterator = handle.output.makeAsyncIterator()
+        _ = await iterator.next()
+        handle.cancel()
+        let last = await iterator.next()
+        XCTAssertEqual(last, .exited(SIGTERM))
+    }
+
+    func testBackToBackLaunchesAllDeliverEndOfOutput() async throws {
+        let helper = try script(#"read -r line; echo "{\"event\":\"output\",\"line\":\"$line\"}""#)
+        for index in 0..<40 {
+            let handle = try HelperLauncher(executable: helper, environment: [:]).launch(.remove(accountID: "x"))
+            handle.write("n\(index)")
+            handle.closeInput()
+            let outputs = await collect(handle)
+            XCTAssertEqual(outputs, [.event(.output("n\(index)")), .exited(0)])
+        }
     }
 
     func testMissingHelperFailsToLaunch() {
@@ -79,5 +104,17 @@ final class HelperProcessTests: XCTestCase {
         }
         let absent = directory.appendingPathComponent("absent")
         XCTAssertThrowsError(try HelperLauncher(executable: absent, environment: [:]).launch(.remove(accountID: "x")))
+    }
+}
+
+private enum SignalMaskFixture {
+    static func withTerminationBlocked<Value>(_ body: () throws -> Value) rethrows -> Value {
+        var blocked = sigset_t()
+        var previous = sigset_t()
+        sigemptyset(&blocked)
+        sigaddset(&blocked, SIGTERM)
+        _ = pthread_sigmask(SIG_BLOCK, &blocked, &previous)
+        defer { _ = pthread_sigmask(SIG_SETMASK, &previous, nil) }
+        return try body()
     }
 }

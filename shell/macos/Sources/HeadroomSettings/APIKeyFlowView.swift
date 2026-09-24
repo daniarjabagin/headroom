@@ -58,10 +58,10 @@
             VStack(alignment: .leading, spacing: 10) {
                 SecureField(field.label.isEmpty ? strings.text(AddAccountText.apiKey) : field.label, text: $key)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit(add)
+                    .onSubmit { add() }
                 TextField(strings.text(AddAccountText.labelOptional), text: $label)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit(add)
+                    .onSubmit { add() }
                 if !field.hint.isEmpty {
                     Text(field.hint).font(.caption).foregroundStyle(.secondary)
                 }
@@ -70,7 +70,7 @@
                     if let consoleURL = field.consoleURL {
                         Button(strings.text(SignInText.getKey)) { openURL(consoleURL) }
                     }
-                    Button(strings.text(SignInText.add), action: add)
+                    Button(strings.text(SignInText.add)) { add() }
                         .keyboardShortcut(.defaultAction)
                         .disabled(trimmedKey.isEmpty)
                 }

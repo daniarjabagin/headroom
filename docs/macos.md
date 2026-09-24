@@ -64,6 +64,35 @@ rsync -a --delete --exclude target --exclude shell/macos/.build --exclude shell/
 
 ## 3. Build and install
 
+### First build checklist
+
+The AppKit and SwiftUI targets are only compiled on a Mac, so the first build there is also their
+first compile. Go through these steps in order and stop at the first one that fails:
+
+1. `xcode-select -p` prints `/Applications/Xcode.app/Contents/Developer` and `swift --version` shows
+   Swift 6.0 or newer.
+2. `cd shell/macos && swift build 2>&1 | tee /tmp/headroom-swift-build.log` compiles all four
+   targets (debug).
+3. `swift test 2>&1 | tee /tmp/headroom-swift-test.log` passes (it finishes in a few seconds; a
+   run longer than a minute is a hang worth reporting).
+4. From the repository root: `shell/macos/script/bundle.sh --open 2>&1 | tee /tmp/headroom-bundle.log`
+   (add `CODESIGN_IDENTITY=…` once you have one). The log lists `resources:
+   HeadroomMac_HeadroomUI.bundle` and ends with `built …/Headroom.app`.
+5. The menu-bar item appears; the popup opens under it, shows provider logos, grows and shrinks with
+   its content (expand an account, switch the spend period) and starts at the top when reopened.
+
+If a step fails, send back:
+
+- the complete log of the failing step (`/tmp/headroom-swift-build.log`, `-test.log` or
+  `-bundle.log`), not only the last lines: the first `error:` is usually the one that matters;
+- the output of `swift --version` and `sw_vers`;
+- for a crash or wrong behaviour after launch: `log show --last 5m --predicate 'subsystem ==
+  "io.github.headroom"'` and `~/Library/Logs/Headroom/daemon.log`, plus a screenshot.
+
+The logs contain file paths but no credentials; still skim them for account emails before sending.
+
+### Build
+
 From the repository root, with your identity from §1.3:
 
 ```sh
@@ -81,7 +110,9 @@ CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID1234)" \
   `dist/Headroom.app` (or the last `cargo build --release`); the helper's `--version` must still match
   the workspace version, otherwise the app refuses to start it,
 - assembles `shell/macos/dist/Headroom.app`:
-  `Contents/MacOS/Headroom`, `Contents/Helpers/headroom`, `Contents/Resources/AppIcon.icns`
+  `Contents/MacOS/Headroom`, `Contents/Helpers/headroom`, every SwiftPM resource bundle from
+  `swift build --show-bin-path` in `Contents/Resources/` (`HeadroomMac_HeadroomUI.bundle` with the
+  provider logos; the build fails when none is found), `Contents/Resources/AppIcon.icns`
   (a placeholder generated from the symbolic mark; skipped with a note if `qlmanage`/`sips`/`iconutil`
   fail) and `Info.plist` (`LSUIElement`, `io.github.headroom`, version from the workspace
   `Cargo.toml`, minimum macOS 14.0),
@@ -101,7 +132,9 @@ System Settings → General → Login Items.
 
 Settings… opens a regular window (the app comes to the front even though it has no Dock icon). All
 values live in the daemon; every change is sent at once as an `UpdateSettings` merge patch, in order,
-and the window re-reads the settings when the writes are done. Texts follow `display.language`
+and the window re-reads the settings when the writes are done. The app also loads them every time it
+(re)connects to the daemon, so app-side options such as reduce motion apply to the popup before
+Settings is ever opened. Texts follow `display.language`
 (`system` uses the macOS preferred language).
 
 | tab | contents |
@@ -172,7 +205,10 @@ Package layout:
 
 Running the app outside a bundle (`swift run Headroom`) does not start a helper; it connects to a
 daemon that is already listening, e.g. `cargo run -p headroom -- daemon --socket /tmp/h.sock` with
-`HEADROOM_SOCKET=/tmp/h.sock swift run Headroom`. Notifications need the bundled app.
+`HEADROOM_SOCKET=/tmp/h.sock swift run Headroom`. Notifications need the bundled app. Provider logos
+are looked up in `HeadroomMac_HeadroomUI.bundle` under the app's `Contents/Resources`, then next to
+the executable (so `swift run` finds the bundle in the build directory); both the flat SwiftPM layout
+and a `Contents/Resources` layout inside the bundle work.
 
 On Linux, `HeadroomKit` can be built and tested with the swift.org toolchain (`swift build --target
 HeadroomKit && swift test`); the AppKit targets compile to nothing there.

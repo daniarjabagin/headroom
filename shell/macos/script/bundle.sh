@@ -12,6 +12,7 @@ install=false
 open_after=false
 universal=false
 build_cargo=true
+swift_bin_path=""
 
 usage() {
     cat <<'EOF'
@@ -111,9 +112,23 @@ build_app_binary() {
     local arguments=()
     while IFS= read -r argument; do arguments+=("$argument"); done < <(swift_arguments)
     swift build "${arguments[@]}"
-    local bin_path
-    bin_path="$(swift build "${arguments[@]}" --show-bin-path)"
-    cp "$bin_path/Headroom" "$dist_dir/Headroom"
+    swift_bin_path="$(swift build "${arguments[@]}" --show-bin-path)"
+    cp "$swift_bin_path/Headroom" "$dist_dir/Headroom"
+}
+
+copy_resource_bundles() {
+    local bundle copied=0
+    for bundle in "$swift_bin_path"/*.bundle; do
+        [[ -d "$bundle" ]] || continue
+        [[ "$(basename "$bundle")" == *Tests.bundle ]] && continue
+        cp -R "$bundle" "$app/Contents/Resources/"
+        echo "resources: $(basename "$bundle")"
+        copied=$((copied + 1))
+    done
+    if ((copied == 0)); then
+        echo "no SwiftPM resource bundles found in $swift_bin_path" >&2
+        exit 1
+    fi
 }
 
 write_info_plist() {
@@ -184,6 +199,7 @@ assemble() {
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
     mv "$dist_dir/Headroom" "$app/Contents/MacOS/Headroom"
     mv "$dist_dir/headroom" "$app/Contents/Helpers/headroom"
+    copy_resource_bundles
     build_icon || echo "note: app icon skipped (qlmanage, sips or iconutil unavailable or failed)"
     write_info_plist "$version"
 }
