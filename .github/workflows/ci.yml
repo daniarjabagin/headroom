@@ -137,7 +137,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
             | sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
-          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          printf '%s\n' /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin "$CARGO_HOME/bin" >> "$GITHUB_PATH"
           "$CARGO_HOME/bin/rustup" toolchain install --profile minimal
 
       - name: Check that dbus-daemon is available
