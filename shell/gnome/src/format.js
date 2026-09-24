@@ -117,6 +117,7 @@ export function limitText(runsOutAt, now) {
 
 function runOutForecast(window, now, resetFormat) {
     const { runsOutAt } = window.pace;
+    if (runsOutAt === null && window.capacityPercent !== undefined) return _('At this pace: runs out before reset');
     if (runsOutAt === null || runsOutAt <= now) return _('At this pace: runs out any minute');
     const runsOut = fill(_('runs out in {duration}'), { duration: duration(runsOutAt - now) });
     if (window.resetsAt === null) return fill(_('At this pace: {runsOut}'), { runsOut });
@@ -124,7 +125,23 @@ function runOutForecast(window, now, resetFormat) {
     return fill(_('At this pace: {runsOut} · {resets}'), { runsOut, resets });
 }
 
-function atResetForecast(pace, valueMode) {
+function capacityForecast(window, valueMode) {
+    const { pace } = window;
+    const capacity = roundPercent(window.capacityPercent);
+    if (valueMode === 'used' && pace.projectedPercent !== null)
+        return fill(_('At this pace: ~{percent}% of {capacity}% used at reset'), {
+            percent: roundPercent(pace.projectedPercent),
+            capacity,
+        });
+    return fill(_('At this pace: ~{percent}% of {capacity}% left at reset'), {
+        percent: roundPercent(pace.sparePercent),
+        capacity,
+    });
+}
+
+function atResetForecast(window, valueMode) {
+    const { pace } = window;
+    if (window.capacityPercent !== undefined) return capacityForecast(window, valueMode);
     if (valueMode === 'used' && pace.projectedPercent !== null)
         return fill(_('At this pace: ~{percent}% used at reset'), { percent: roundPercent(pace.projectedPercent) });
     return fill(_('At this pace: ~{percent}% left at reset'), { percent: roundPercent(pace.sparePercent) });
@@ -135,7 +152,7 @@ export function forecastText(window, now, display) {
     if (window.remainingPercent === null) return null;
     if (severity === 'running_out') return runOutForecast(window, now, display.resetFormat);
     if ((severity === 'healthy' || severity === 'close') && sparePercent !== null)
-        return atResetForecast(window.pace, display.valueMode);
+        return atResetForecast(window, display.valueMode);
     return null;
 }
 

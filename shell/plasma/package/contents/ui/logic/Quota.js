@@ -37,6 +37,10 @@ function tickPosition(window, display) {
     return Math.min(1, Math.max(0, position));
 }
 
+function combinedEstimate(window) {
+    return window.capacityPercent !== undefined && window.pace.runsOutAt === null;
+}
+
 function paceNote(lang, window, now, showForecast) {
     const pace = window.pace;
     if (pace.severity === "spent")
@@ -47,7 +51,7 @@ function paceNote(lang, window, now, showForecast) {
     if (pace.severity === "running_out")
         return {
             flame: true,
-            text: showForecast ? I18n.tr(lang, "Over pace") : Format.limitText(lang, pace.runsOutAt, now)
+            text: showForecast || combinedEstimate(window) ? I18n.tr(lang, "Over pace") : Format.limitText(lang, pace.runsOutAt, now)
         };
     if (pace.severity === "close" && pace.sparePercent !== null && !showForecast)
         return {

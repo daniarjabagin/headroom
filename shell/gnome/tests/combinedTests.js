@@ -1,5 +1,6 @@
 import * as combined from '../src/combined.js';
-import { capacityReading, panelCount } from '../src/format.js';
+import { capacityReading, forecastText, panelCount } from '../src/format.js';
+import { paceNote } from '../src/quota.js';
 import { setLanguage } from '../src/i18n.js';
 import { parseDisplay, displayPatch } from '../src/settings.js';
 import { parseState } from '../src/state.js';
@@ -216,6 +217,28 @@ function testBreakdown() {
     );
 }
 
+function testForecast() {
+    setLanguage('en');
+    const window = parseState(sampleJson(true)).combined[0].windows[0];
+    const display = parseDisplay(null);
+    check('capacity forecast left', forecastText(window, NOW, display), 'At this pace: ~20% of 200% left at reset');
+    check(
+        'capacity forecast used',
+        forecastText(window, NOW, { ...display, valueMode: 'used' }),
+        'At this pace: ~180% of 200% used at reset'
+    );
+    const over = { ...window, pace: { ...window.pace, severity: 'running_out', sparePercent: null, runsOutAt: null } };
+    check('combined runs out', forecastText(over, NOW, display), 'At this pace: runs out before reset');
+    check('combined over pace note', paceNote(over, NOW, false), { flame: true, text: 'Over pace' });
+    setLanguage('ru');
+    check(
+        'ru capacity forecast',
+        forecastText(window, NOW, display),
+        'При текущем темпе к сбросу останется ~20% из 200%'
+    );
+    setLanguage('en');
+}
+
 function testSetting() {
     check('combine default', parseDisplay(null).combineAccounts, false);
     check('combine on', parseDisplay({ combine_accounts: true }).combineAccounts, true);
@@ -229,5 +252,6 @@ export function testCombined() {
     testMeter();
     testLayout();
     testBreakdown();
+    testForecast();
     testSetting();
 }

@@ -36,3 +36,7 @@ function indicatorSlot(draggedIndex, target, count) {
 function reordered(allIds, visibleIds, from, to) {
     return mergeOrder(allIds, moveItem(visibleIds, from, to));
 }
+
+function reorderedGroups(allIds, groups, from, to) {
+    return mergeOrder(allIds, moveItem(groups, from, to).reduce((ids, group) => ids.concat(group), []));
+}

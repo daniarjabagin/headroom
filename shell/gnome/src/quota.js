@@ -27,11 +27,18 @@ export function tickPosition(window, display) {
     return display.valueMode === 'used' ? even / 100 : 1 - even / 100;
 }
 
+function combinedEstimate(window) {
+    return window.capacityPercent !== undefined && window.pace.runsOutAt === null;
+}
+
 export function paceNote(window, now, showForecast) {
     const { severity, sparePercent, runsOutAt } = window.pace;
     if (severity === 'spent') return { flame: true, text: _('Limit reached') };
     if (severity === 'running_out')
-        return { flame: true, text: showForecast ? _('Over pace') : limitText(runsOutAt, now) };
+        return {
+            flame: true,
+            text: showForecast || combinedEstimate(window) ? _('Over pace') : limitText(runsOutAt, now),
+        };
     if (severity === 'close' && sparePercent !== null && !showForecast)
         return { flame: false, text: spareText(sparePercent) };
     return null;

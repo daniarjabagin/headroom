@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Combined.js" as Combined
 import "logic/Format.js" as Format
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
@@ -16,13 +17,21 @@ ColumnLayout {
     required property var display
     required property string lang
     required property real appear
+    property var members: []
+    readonly property bool combined: window.segments !== undefined
     readonly property var note: Quota.paceNote(lang, window, now, display.showForecast)
-    readonly property var percent: Quota.shownPercent(window, display.valueMode)
+    readonly property var percent: combined ? Combined.combinedPercent(window, display.valueMode) : Quota.shownPercent(window, display.valueMode)
     readonly property var forecast: Quota.forecast(lang, window, now, display)
     property real tweenedPercent: percent ?? 0
 
     signal valueModeToggled
     signal resetFormatToggled
+
+    function reading(value) {
+        if (combined)
+            return Format.capacityReading(lang, value, window.capacityPercent, display.valueMode);
+        return Format.readingFor(lang, value, display.valueMode);
+    }
 
     Layout.fillWidth: true
     Layout.leftMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
@@ -60,6 +69,7 @@ ColumnLayout {
     }
 
     Meter {
+        visible: !row.combined
         Layout.leftMargin: Kirigami.Units.smallSpacing
         Layout.rightMargin: Kirigami.Units.smallSpacing
         fraction: Quota.fillFraction(row.window, row.display.valueMode)
@@ -68,11 +78,19 @@ ColumnLayout {
         tick: Quota.tickPosition(row.window, row.display)
     }
 
+    SegmentedMeter {
+        visible: row.combined
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        segments: row.combined ? Combined.segments(row.window, row.members, row.display) : []
+        progress: row.appear
+    }
+
     RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
         ToggleText {
-            text: row.percent === null ? "—" : Format.readingFor(row.lang, row.tweenedPercent, row.display.valueMode)
+            text: row.percent === null ? "—" : row.reading(row.tweenedPercent)
             hint: I18n.tr(row.lang, "Click to switch between left and used")
             onClicked: row.valueModeToggled()
         }
@@ -98,6 +116,10 @@ ColumnLayout {
         emphasis: "secondary"
         wrapMode: Text.Wrap
         text: row.forecast ?? ""
+    }
+
+    HoverTip {
+        text: row.combined ? Combined.breakdown(row.lang, row.window, row.members, row.now, row.display) : ""
     }
 
     Behavior on tweenedPercent {
