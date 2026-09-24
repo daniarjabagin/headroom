@@ -60,7 +60,7 @@ QtObject {
             url: "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0",
             published_at: new Date(Date.now() - 2 * 86400000).toISOString(),
             install,
-            command: install === "package" ? "sudo pacman -Syu headroom" : ""
+            command: install === "package" ? "Download the new Arch package from https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0 and install it with sudo pacman -U" : "headroom update"
         };
     }
 

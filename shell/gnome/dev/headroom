@@ -86,8 +86,8 @@ def remove(args):
     return 0
 
 
-UPDATE_STEPS = ["Downloading Headroom 0.5.0", "Verifying the checksum", "Installing the new version",
-                "Restarting the Headroom service"]
+UPDATE_STEPS = ["Checking for a new release…", "Downloading Headroom 0.5.0…", "Verifying the checksum…", "Unpacking…",
+                "Installing /home/ada/.local/bin/headroom"]
 
 
 def update(_args):

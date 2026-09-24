@@ -119,8 +119,7 @@ Rectangle {
                     anchors.margins: Kirigami.Units.smallSpacing
                     anchors.leftMargin: Kirigami.Units.mediumSpacing
                     role: "caption"
-                    font.family: "monospace"
-                    wrapMode: Text.WrapAnywhere
+                    wrapMode: Text.Wrap
                     verticalAlignment: Text.AlignVCenter
                     text: updateRow.update?.command ?? ""
                 }

@@ -470,16 +470,21 @@ def showcase_state(now):
     return assemble(now, showcase_accounts(now), showcase_usage(now), ("claude:0a1b2c3d4e5f", "weekly"))
 
 
-UPDATE_COMMANDS = {"self": "headroom update", "package": "sudo pacman -Syu headroom", "unknown": ""}
+UPDATE_COMMANDS = {
+    "self": "headroom update",
+    "package": "Download the new Arch package from {url} and install it with sudo pacman -U",
+    "unknown": "{url}",
+}
 
 
 def available_update(install, now):
+    url = "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0"
     return {
         "version": "0.5.0",
-        "url": "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0",
+        "url": url,
         "published_at": iso(now - timedelta(days=2)),
         "install": install,
-        "command": UPDATE_COMMANDS[install],
+        "command": UPDATE_COMMANDS[install].format(url=url),
     }
 
 
