@@ -16,7 +16,7 @@ const SETTINGS_PATH: &str = "/settings";
 const TOKEN_PATH: &str = "/oauth2/token";
 const TOKEN_AUTH_HEADER: &str = "X-XAI-Token-Auth";
 const TOKEN_AUTH_VALUE: &str = "xai-grok-cli";
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(6);
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 pub(super) struct RawBilling {
