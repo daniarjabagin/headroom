@@ -39,14 +39,14 @@ extension AccountSectionModel {
 
     static func memberNotices(_ members: [Account], offline: Bool, strings: UIStrings) -> [NoticeModel] {
         var seen: Set<String> = []
-        let notices = members.flatMap { member in
-            notices(member, offline: offline, strings: strings, name: title(member, showsName: true)).map {
+        let collected = members.flatMap { member in
+            Self.notices(member, offline: offline, strings: strings, name: title(member, showsName: true)).map {
                 NoticeModel(
                     id: "\(member.id):\($0.id)", kind: $0.kind, title: $0.title, detail: $0.detail,
                     retryAccountID: $0.retryAccountID)
             }
         }
-        return notices.filter { seen.insert($0.title).inserted }
+        return collected.filter { seen.insert($0.title).inserted }
     }
 
     private static func rank(_ status: HeaderStatus) -> Int {
