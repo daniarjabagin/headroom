@@ -24,7 +24,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-x11rb = "0.13.2"
+x11rb = "0.14.0"
 zbus.workspace = true
 
 [dev-dependencies]
