@@ -11,9 +11,11 @@ public struct DaemonState: Decodable, Sendable, Hashable {
     public let accounts: [Account]
     public let usage: [Usage]
     public let spend: Spend
+    public let appVersion: String?
 
     enum CodingKeys: String, CodingKey {
         case version, offline, display, headline, accounts, usage, spend
+        case appVersion = "app_version"
         case generatedAt = "generated_at"
         case nextRefreshAt = "next_refresh_at"
         case lastSuccessAt = "last_success_at"

@@ -60,6 +60,10 @@ public enum DaemonEnvironment {
         return environment
     }
 
+    public static func helper(daemon environment: [String: String], socketPath: String) -> [String: String] {
+        environment.merging([SocketPath.overrideVariable: socketPath]) { _, socket in socket }
+    }
+
     public static func posixLocale(fromLanguageTag tag: String) -> String {
         let parts = tag.split(whereSeparator: { $0 == "-" || $0 == "_" }).map(String.init)
         let language = parts.first?.lowercased() ?? "en"

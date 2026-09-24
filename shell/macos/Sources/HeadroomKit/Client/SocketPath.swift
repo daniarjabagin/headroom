@@ -1,6 +1,7 @@
 public enum SocketPath {
     public static let overrideVariable = "HEADROOM_SOCKET"
     public static let maximumLength = 103
+    public static let socketName = "daemon.sock"
 
     public static func resolve(environment: [String: String], home: String, uid: UInt32) -> String {
         if let override = environment[overrideVariable], !override.isEmpty {
@@ -12,12 +13,12 @@ public enum SocketPath {
     }
 
     public static func defaultPath(home: String) -> String {
-        joined(home, "Library/Application Support/Headroom/daemon.sock")
+        joined(joined(home, "Library/Application Support/Headroom"), socketName)
     }
 
     static func fallbackPath(temporaryDirectory: String?, uid: UInt32) -> String {
         let directory = temporaryDirectory.flatMap { $0.isEmpty ? nil : $0 } ?? "/tmp"
-        return joined(directory, "headroom-\(uid).sock")
+        return joined(joined(directory, "headroom-\(uid)"), socketName)
     }
 
     private static func joined(_ directory: String, _ name: String) -> String {

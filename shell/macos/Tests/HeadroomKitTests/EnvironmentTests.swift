@@ -45,6 +45,12 @@ final class EnvironmentTests: XCTestCase {
         XCTAssertEqual(kept["LANG"], "en_GB.UTF-8")
     }
 
+    func testHelperEnvironmentAddsTheSocket() {
+        let helper = DaemonEnvironment.helper(
+            daemon: ["PATH": "/opt/homebrew/bin", "HEADROOM_SOCKET": "/old"], socketPath: "/tmp/h/daemon.sock")
+        XCTAssertEqual(helper, ["PATH": "/opt/homebrew/bin", "HEADROOM_SOCKET": "/tmp/h/daemon.sock"])
+    }
+
     func testPosixLocaleFromLanguageTags() {
         XCTAssertEqual(DaemonEnvironment.posixLocale(fromLanguageTag: "ru-RU"), "ru_RU.UTF-8")
         XCTAssertEqual(DaemonEnvironment.posixLocale(fromLanguageTag: "en"), "en.UTF-8")

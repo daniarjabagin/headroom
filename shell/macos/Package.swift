@@ -7,12 +7,14 @@ let package = Package(
     products: [
         .library(name: "HeadroomKit", targets: ["HeadroomKit"]),
         .library(name: "HeadroomUI", targets: ["HeadroomUI"]),
+        .library(name: "HeadroomSettings", targets: ["HeadroomSettings"]),
         .executable(name: "Headroom", targets: ["Headroom"]),
     ],
     targets: [
         .target(name: "HeadroomKit"),
         .target(name: "HeadroomUI", dependencies: ["HeadroomKit"]),
-        .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI"]),
+        .target(name: "HeadroomSettings", dependencies: ["HeadroomKit"]),
+        .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI", "HeadroomSettings"]),
         .testTarget(
             name: "HeadroomKitTests",
             dependencies: ["HeadroomKit"],

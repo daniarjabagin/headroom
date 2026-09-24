@@ -26,7 +26,7 @@ public enum UILanguage: String, Sendable, Hashable {
 public enum UIText: Sendable, CaseIterable {
     case session, weekly, notStarted, resetPending, resetsSoon, noData, limitReached
     case refresh, quit, serviceNotRunning, connecting, updating, offline, noAccounts
-    case justNow, nextUpdateSoon, signedOut, noSubscription, schemaMismatch, helperMismatch
+    case justNow, nextUpdateSoon, signedOut, noSubscription, schemaMismatch, helperMismatch, differentService
 
     var english: String {
         switch self {
@@ -50,6 +50,7 @@ public enum UIText: Sendable, CaseIterable {
         case .noSubscription: "No active subscription"
         case .schemaMismatch: "The Headroom service is a different version. Restart Headroom."
         case .helperMismatch: "The bundled Headroom service does not match this app. Reinstall Headroom."
+        case .differentService: "A different Headroom service is running."
         }
     }
 
@@ -75,6 +76,7 @@ public enum UIText: Sendable, CaseIterable {
         case .noSubscription: "Нет активной подписки"
         case .schemaMismatch: "Служба Headroom другой версии. Перезапустите Headroom."
         case .helperMismatch: "Встроенная служба Headroom не совпадает с приложением. Переустановите Headroom."
+        case .differentService: "Запущена другая служба Headroom."
         }
     }
 }

@@ -56,6 +56,38 @@ final class AppModelTests: XCTestCase {
     }
 
     @MainActor
+    func testDifferentServiceVersionIsNotRendered() async throws {
+        let model = AppModel(preferredLanguages: ["en"], appVersion: "0.3.0")
+        let snapshot = try Fixture.decode(DaemonState.self, "state_full")
+        XCTAssertEqual(snapshot.appVersion, "0.0.0-snapshot")
+        model.apply(.connected)
+        model.apply(.state(snapshot))
+        XCTAssertEqual(model.phase, .incompatible(.differentService))
+        XCTAssertNil(model.state)
+        XCTAssertEqual(model.menuBarContent, .glyph)
+        model.apply(.connected)
+        XCTAssertEqual(model.phase, .incompatible(.differentService))
+        let matching = try Fixture.text("state_full").replacingOccurrences(of: "0.0.0-snapshot", with: "0.3.0")
+        model.apply(.state(try Fixture.decode(DaemonState.self, json: matching)))
+        XCTAssertEqual(model.phase, .connected)
+        XCTAssertNotNil(model.state)
+    }
+
+    @MainActor
+    func testMissingVersionOnEitherSideIsAccepted() async throws {
+        let unversioned = try Fixture.text("state_full").replacingOccurrences(
+            of: #""app_version": "0.0.0-snapshot","#, with: "")
+        let state = try Fixture.decode(DaemonState.self, json: unversioned)
+        XCTAssertNil(state.appVersion)
+        let model = AppModel(preferredLanguages: ["en"], appVersion: "0.3.0")
+        model.apply(.state(state))
+        XCTAssertEqual(model.phase, .connected)
+        let unbundled = AppModel(preferredLanguages: ["en"])
+        unbundled.apply(.state(try Fixture.decode(DaemonState.self, "state_full")))
+        XCTAssertEqual(unbundled.phase, .connected)
+    }
+
+    @MainActor
     func testLanguageFollowsDisplaySettingThenSystem() async throws {
         let model = AppModel(preferredLanguages: ["ru-RU"])
         XCTAssertEqual(model.formatter.language, .ru)
