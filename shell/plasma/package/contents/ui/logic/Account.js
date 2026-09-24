@@ -86,9 +86,17 @@ function errorNotice(lang, account) {
     };
 }
 
+function providerKind(tone) {
+    if (tone === "critical")
+        return "error";
+    if (tone === "warning")
+        return "warning";
+    return "info";
+}
+
 function providerNotice(notice) {
     return {
-        kind: notice.tone === "critical" ? "error" : "warning",
+        kind: providerKind(notice.tone),
         title: notice.text,
         detail: "",
         note: "",
@@ -105,6 +113,14 @@ function notices(lang, account, offline, providers) {
     if (account.status === "error" && !failedOffline(account, offline))
         rows.unshift(errorNotice(lang, account));
     return rows;
+}
+
+function plates(notices) {
+    return notices.filter(notice => notice.kind !== "info");
+}
+
+function infoLines(notices) {
+    return notices.filter(notice => notice.kind === "info");
 }
 
 function showsQuotas(account) {

@@ -64,8 +64,14 @@ function cardHover(theme) {
     return surface(theme, CARD_HOVER[shade(theme)]);
 }
 
+function overlay(theme, amount) {
+    if (theme.backgroundColor.a < 1)
+        return alpha(theme.textColor, amount);
+    return surface(theme, amount);
+}
+
 function hover(theme) {
-    return surface(theme, HOVER[shade(theme)]);
+    return overlay(theme, HOVER[shade(theme)]);
 }
 
 function chip(theme) {
@@ -73,7 +79,7 @@ function chip(theme) {
 }
 
 function pressed(theme) {
-    return surface(theme, PRESSED);
+    return overlay(theme, PRESSED);
 }
 
 function control(theme) {

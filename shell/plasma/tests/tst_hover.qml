@@ -62,6 +62,24 @@ TestCase {
         verify(lightShift < darkShift);
     }
 
+    function test_translucent_hover_is_a_tint_not_a_denser_plate() {
+        const opaque = {
+            backgroundColor: Qt.rgba(1, 1, 1, 1),
+            textColor: Qt.rgba(0, 0, 0, 1)
+        };
+        const translucent = {
+            backgroundColor: Qt.rgba(1, 1, 1, 0.72),
+            textColor: Qt.rgba(0, 0, 0, 1)
+        };
+        for (const token of [Tokens.hover, Tokens.pressed]) {
+            const solid = token(opaque);
+            const tint = token(translucent);
+            compare(solid.a, 1);
+            compare(tint.r, 0);
+            fuzzyCompare(tint.a, 1 - solid.r, 0.005);
+        }
+    }
+
     function test_hover_fill_matches_its_element_radius() {
         const fill = createTemporaryObject(fillComponent, suite);
         compare(fill.radius, Kirigami.Units.smallSpacing);

@@ -28,6 +28,8 @@ Item {
     required property real gap
     required property bool reducedMotion
     readonly property var notices: Account.notices(lang, account, offline, providers)
+    readonly property var plates: Account.plates(notices)
+    readonly property var infoLines: Account.infoLines(notices)
     readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
     readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
@@ -83,12 +85,12 @@ Item {
             lifted: section.lifted
 
             Repeater {
-                model: section.notices.length
+                model: section.plates.length
 
                 NoticeRow {
                     required property int index
 
-                    entry: section.notices[index]
+                    entry: section.plates[index]
                     animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
                     onActionTriggered: (kind, value) => section.runAction(kind, value)
                 }
@@ -108,6 +110,16 @@ Item {
                     appear: section.appear
                     onValueModeToggled: section.valueModeToggled()
                     onResetFormatToggled: section.resetFormatToggled()
+                }
+            }
+
+            Repeater {
+                model: section.infoLines.length
+
+                NoticeLine {
+                    required property int index
+
+                    text: section.infoLines[index].title
                 }
             }
 
