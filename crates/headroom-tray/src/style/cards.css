@@ -1,0 +1,293 @@
+.headroom-notice {
+    margin: 6px 8px;
+    padding: 8px 9px;
+    border-radius: 9px;
+    border: 1px solid var(--notice-border);
+    background-color: var(--notice-bg);
+}
+
+.headroom-notice.error {
+    border-color: var(--error-border);
+    background-color: var(--error-bg);
+}
+
+.headroom-notice-tile {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 7px;
+    background-color: var(--notice-tile);
+    color: var(--notice-fg);
+}
+
+.headroom-notice.error .headroom-notice-tile {
+    background-color: var(--error-tile);
+    color: var(--error-fg);
+}
+
+.headroom-popup .headroom-notice-title {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-notice-detail {
+    font-size: 10px;
+}
+
+.headroom-popup .headroom-notice-note {
+    padding-top: 3px;
+}
+
+.headroom-notice-line {
+    margin: 6px 14px 0;
+}
+
+.headroom-popup .headroom-notice-line-text {
+    font-size: 11px;
+}
+
+.headroom-popup button.headroom-small-button {
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid var(--separator);
+    background-color: var(--control);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.headroom-popup button.headroom-small-button:hover {
+    background-color: var(--control-hover);
+}
+
+.headroom-popup button.headroom-small-button:active,
+.headroom-popup button.headroom-small-button.checked {
+    background-color: var(--chip);
+}
+
+.headroom-popup button.headroom-small-button:disabled label {
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-small-button.primary,
+.headroom-popup button.headroom-primary-button {
+    border-color: transparent;
+    background-color: var(--accent);
+}
+
+.headroom-popup button.headroom-small-button.primary label,
+.headroom-popup button.headroom-primary-button label {
+    color: var(--accent-fg);
+}
+
+.headroom-popup button.headroom-small-button.primary:hover,
+.headroom-popup button.headroom-primary-button:hover {
+    background-image: image(rgba(255, 255, 255, 0.08));
+}
+
+.headroom-popup button.headroom-primary-button {
+    margin-top: 4px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.headroom-spend-card {
+    padding: 12px 8px 12px 14px;
+}
+
+.headroom-segmented {
+    margin-right: 6px;
+    padding: 3px;
+    border-radius: 999px;
+    background-color: var(--chip);
+}
+
+.headroom-popup button.headroom-segment {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.headroom-popup button.headroom-segment label {
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-segment:hover {
+    background: none;
+}
+
+.headroom-popup button.headroom-segment:hover label,
+.headroom-popup button.headroom-segment.checked label {
+    color: var(--text);
+}
+
+.headroom-popup button.headroom-segment.checked {
+    font-weight: 600;
+    background-color: var(--tray);
+    box-shadow: 0 1px 2px var(--control-shadow);
+}
+
+.headroom-popup .headroom-donut-value {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.headroom-legend-entry {
+    padding: 3px 6px;
+}
+
+.headroom-popup .headroom-legend-name,
+.headroom-popup .headroom-legend-value {
+    font-size: 12px;
+}
+
+.headroom-popup .headroom-legend-value {
+    font-weight: 500;
+}
+
+.headroom-popup .headroom-legend-tokens {
+    margin-left: 14px;
+    font-size: 11px;
+}
+
+.headroom-popup .headroom-empty-period {
+    padding: 18px 0;
+    font-size: 12px;
+}
+
+.headroom-status-card {
+    padding: 24px 16px;
+}
+
+.headroom-popup .headroom-status-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-status-detail {
+    font-size: 12px;
+}
+
+.headroom-popup .headroom-status-error {
+    font-size: 11px;
+    color: var(--error-fg);
+}
+
+.headroom-footer {
+    padding: 12px 14px;
+    border-top: 1px solid var(--separator);
+    border-radius: 0 0 12px 12px;
+    background-color: var(--footer);
+}
+
+.headroom-popup .headroom-footer-text {
+    font-size: 10px;
+}
+
+.headroom-popup .headroom-footer-text.notice {
+    color: var(--notice);
+}
+
+.headroom-popup button.headroom-footer-link {
+    border-radius: 4px;
+}
+
+.headroom-popup button.headroom-footer-link:hover .headroom-footer-text {
+    color: var(--text);
+}
+
+.headroom-popup button.headroom-icon-button {
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 14px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-icon-button:hover {
+    color: var(--text);
+}
+
+.headroom-popup button.headroom-refresh-button {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 12px;
+}
+
+.headroom-popup button.headroom-refresh-button.busy {
+    color: var(--accent);
+}
+
+.headroom-popup button.headroom-refresh-button.failed {
+    color: var(--crit);
+}
+
+.headroom-top-bar {
+    padding: 0 0 0 10px;
+}
+
+.headroom-update {
+    padding: 10px 14px;
+    border-top: 1px solid var(--separator);
+    background-color: var(--update-bg);
+}
+
+.headroom-update-icon {
+    color: var(--accent);
+}
+
+.headroom-popup .headroom-update-title {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-update-detail {
+    font-size: 10px;
+}
+
+.headroom-popup .headroom-update-detail.failed,
+.headroom-update-badge.failed {
+    color: var(--error-fg);
+}
+
+.headroom-update-badge.done {
+    color: var(--positive);
+}
+
+.headroom-popup button.headroom-update-link {
+    border-radius: 4px;
+}
+
+.headroom-popup .headroom-update-link-text {
+    font-size: 10px;
+    color: var(--accent);
+}
+
+.headroom-update-command {
+    padding-left: 26px;
+}
+
+.headroom-popup .headroom-update-command-text {
+    padding: 4px 6px;
+    border-radius: 5px;
+    background-color: var(--chip);
+    font-size: 10px;
+}
+
+.headroom-skeleton-block {
+    border-radius: 4px;
+    background-color: var(--skeleton);
+}
+
+.headroom-popup spinner {
+    color: var(--text-secondary);
+}
+
+.headroom-popup scrollbar slider {
+    background-color: var(--scrollbar);
+}
+
+.headroom-popup tooltip,
+tooltip.background {
+    font-feature-settings: "tnum";
+}

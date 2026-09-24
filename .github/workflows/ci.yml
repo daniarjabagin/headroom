@@ -48,7 +48,7 @@ jobs:
         run: cargo fmt --all --check
 
       - name: cargo clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --exclude headroom-tray --all-targets --locked -- -D warnings
 
   rust-build:
     name: Rust build (pinned toolchain)
@@ -70,7 +70,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: cargo build
-        run: cargo build --workspace --all-targets --locked
+        run: cargo build --workspace --exclude headroom-tray --all-targets --locked
 
   rust-test:
     name: Rust tests (${{ matrix.distro }})
@@ -149,7 +149,7 @@ jobs:
           key: ${{ matrix.distro }}
 
       - name: cargo test
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --exclude headroom-tray --locked
 
       - name: Check that the D-Bus integration test ran on a real bus
         run: |
@@ -176,13 +176,13 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - name: cargo build
-        run: cargo build --workspace --all-targets --locked
+        run: cargo build --workspace --exclude headroom-tray --all-targets --locked
 
       - name: cargo clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --exclude headroom-tray --all-targets --locked -- -D warnings
 
       - name: cargo test
-        run: cargo test --workspace --locked --no-fail-fast
+        run: cargo test --workspace --exclude headroom-tray --locked --no-fail-fast
 
       - name: swift build
         working-directory: shell/macos
@@ -191,6 +191,65 @@ jobs:
       - name: swift test
         working-directory: shell/macos
         run: swift test
+
+  tray:
+    name: Tray (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu-24.04
+            image: ubuntu:24.04
+            packages: libgtk-4-dev libadwaita-1-dev
+            features: ""
+          - distro: debian-trixie-layer-shell
+            image: debian:trixie
+            packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev
+            features: --features layer-shell
+    env:
+      CARGO_HOME: /usr/local/cargo
+      RUSTUP_HOME: /usr/local/rustup
+    steps:
+      - name: Install build dependencies
+        run: >-
+          for attempt in 1 2 3; do
+          apt-get -o Acquire::Retries=5 update &&
+          DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
+          build-essential pkg-config git curl ca-certificates binutils ${{ matrix.packages }} && break;
+          [ "$attempt" = 3 ] && exit 1; sleep 30; done
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install rustup and the pinned toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
+          printf '%s\n' /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          "$CARGO_HOME/bin/rustup" toolchain install --profile minimal --component clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: tray-${{ matrix.distro }}
+
+      - name: cargo clippy
+        run: cargo clippy -p headroom-tray ${{ matrix.features }} --all-targets --locked -- -D warnings
+
+      - name: cargo test
+        run: cargo test -p headroom-tray ${{ matrix.features }} --locked
+
+      - name: cargo build --release
+        run: cargo build -p headroom-tray ${{ matrix.features }} --release --locked
+
+      - name: Check the gtk4-layer-shell link order
+        if: matrix.features != ''
+        run: .github/scripts/check-layer-shell-link.sh target/release/headroom-tray
 
   gnome-extension:
     name: GNOME Shell extension lint and tests
