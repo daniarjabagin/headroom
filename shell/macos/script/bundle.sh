@@ -13,11 +13,12 @@ install=false
 open_after=false
 universal=false
 build_cargo=true
+make_dmg=false
 swift_bin_path=""
 
 usage() {
     cat <<'EOF'
-Usage: script/bundle.sh [--install] [--open] [--universal] [--no-cargo]
+Usage: script/bundle.sh [--install] [--open] [--universal] [--no-cargo] [--dmg]
 
 Builds the headroom daemon (cargo) and the menu-bar app (SwiftPM: HeadroomKit, HeadroomUI,
 HeadroomSettings, Headroom) in release mode and assembles dist/Headroom.app.
@@ -27,10 +28,13 @@ HeadroomSettings, Headroom) in release mode and assembles dist/Headroom.app.
   --universal   build arm64 + x86_64 instead of the native architecture only
   --no-cargo    skip the cargo build and reuse the helper from the previous dist/Headroom.app
                 (or the last cargo release build) for UI-only rebuilds
+  --dmg         also create dist/Headroom-<version>-<arch>.dmg (arch: native or universal)
+                with a drag-to-Applications layout and its .sha256
 
 Environment:
   CODESIGN_IDENTITY   signing identity, default "-" (ad-hoc). Use an "Apple Development: …"
                       identity so Keychain "Always Allow" grants survive rebuilds.
+                      The DMG is signed only when an identity other than "-" is set.
 EOF
 }
 
@@ -41,6 +45,7 @@ parse_arguments() {
             --open) open_after=true ;;
             --universal) universal=true ;;
             --no-cargo) build_cargo=false ;;
+            --dmg) make_dmg=true ;;
             -h | --help)
                 usage
                 exit 0
@@ -221,6 +226,61 @@ install_app() {
     echo "installed $app"
 }
 
+dmg_arch() {
+    if [[ "$universal" == true ]]; then echo universal; else uname -m; fi
+}
+
+stage_dmg_contents() {
+    local staging="$1"
+    ditto "$app" "$staging/Headroom.app"
+    ln -s /Applications "$staging/Applications"
+}
+
+hdiutil_create() {
+    local volume="$1" staging="$2" dmg="$3" attempt
+    for attempt in 1 2 3; do
+        if hdiutil create -volname "$volume" -srcfolder "$staging" -fs HFS+ \
+            -format UDZO -imagekey zlib-level=9 -ov "$dmg"; then
+            return 0
+        fi
+        echo "hdiutil create failed (attempt $attempt of 3)" >&2
+        sleep $((attempt * 5))
+    done
+    return 1
+}
+
+sign_dmg() {
+    local dmg="$1"
+    [[ "$identity" != "-" ]] || return 0
+    codesign --force --timestamp=none --sign "$identity" "$dmg"
+    codesign --verify --verbose=1 "$dmg"
+}
+
+write_checksum() {
+    local dmg="$1" name
+    name="$(basename "$dmg")"
+    (cd "$(dirname "$dmg")" && shasum -a 256 "$name" >"$name.sha256")
+    echo "sha256: $(cat "$dmg.sha256")"
+}
+
+create_dmg() {
+    local version="$1" dmg staging
+    dmg="$dist_dir/Headroom-$version-$(dmg_arch).dmg"
+    staging="$(mktemp -d)"
+    stage_dmg_contents "$staging"
+    rm -f "$dmg" "$dmg.sha256"
+    hdiutil_create "Headroom $version" "$staging" "$dmg" || {
+        rm -rf "$staging"
+        echo "cannot create $dmg" >&2
+        exit 1
+    }
+    rm -rf "$staging"
+    hdiutil verify "$dmg" >/dev/null
+    sign_dmg "$dmg"
+    write_checksum "$dmg"
+    echo "built $dmg"
+}
+
 main() {
     parse_arguments "$@"
     local version
@@ -232,6 +292,7 @@ main() {
     assemble "$version"
     sign
     echo "built $app ($version, signed with '$identity')"
+    if [[ "$make_dmg" == true ]]; then create_dmg "$version"; fi
     if [[ "$install" == true ]]; then install_app; fi
     if [[ "$open_after" == true ]]; then open "$app"; fi
 }
