@@ -116,6 +116,45 @@ async fn several_requests_are_answered_without_waiting() {
     assert_eq!(ids, [1, 2, 3]);
 }
 
+fn hold_storage(server: &Server) -> std::sync::mpsc::Sender<()> {
+    let (release, released) = std::sync::mpsc::channel::<()>();
+    let (held, holding) = std::sync::mpsc::channel();
+    let storage = server.harness.core.storage.clone();
+    std::thread::spawn(move || {
+        storage
+            .blocking(|_| {
+                held.send(()).unwrap();
+                released.recv().ok();
+                Ok(())
+            })
+            .unwrap();
+    });
+    holding.recv().unwrap();
+    release
+}
+
+#[tokio::test]
+async fn a_connection_stops_reading_while_sixteen_commands_are_in_flight() {
+    let server = Server::start().await;
+    let mut client = server.client().await;
+    let release = hold_storage(&server);
+    for id in 1..=17 {
+        client
+            .request(id, "SetAccountLabel", json!(["codex:a", "Work"]))
+            .await;
+    }
+    client.request(99, "Subscribe", json!([["state"]])).await;
+    let early = tokio::time::timeout(Duration::from_millis(300), client.next()).await;
+    assert!(early.is_err(), "answered while saturated: {early:?}");
+    release.send(()).unwrap();
+    let mut ids = Vec::new();
+    for _ in 0..18 {
+        ids.push(client.next().await.unwrap()["id"].as_u64().unwrap());
+    }
+    ids.sort_unstable();
+    assert_eq!(ids, (1..=17).chain([99]).collect::<Vec<_>>());
+}
+
 #[tokio::test]
 async fn subscribers_receive_state_changes_and_alerts() {
     let server = Server::start().await;

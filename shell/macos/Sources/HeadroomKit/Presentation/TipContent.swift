@@ -2,6 +2,7 @@ public enum TipContent: Sendable, Hashable {
     case text(String)
     case breakdown(ModelBreakdown)
     case day(title: String, detail: String)
+    case lines(title: String, lines: [String])
 }
 
 public struct ModelBreakdownRow: Sendable, Hashable {

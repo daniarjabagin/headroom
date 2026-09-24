@@ -181,6 +181,9 @@ impl ParserState {
             .filter(|id| !id.is_empty())
             .map_or_else(|| self.fallback_key(at, &tokens), EventKey);
         let event = self.event(key, at, tokens);
+        if !event.fits_in_i64() {
+            return;
+        }
         if self.model.is_some() {
             events.push(event);
         } else {
@@ -212,7 +215,10 @@ impl ParserState {
         };
         let tokens = usage.token_counts();
         let key = self.fallback_key(at, &tokens);
-        self.pending.push(self.event(key, at, tokens));
+        let event = self.event(key, at, tokens);
+        if event.fits_in_i64() {
+            self.pending.push(event);
+        }
     }
 
     fn token_count_usage(&mut self, info: RawTokenInfo) -> Option<RawTokenUsage> {

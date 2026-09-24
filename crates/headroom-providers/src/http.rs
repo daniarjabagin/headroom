@@ -11,8 +11,6 @@ const POOL_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const POOL_IDLE_PER_HOST: usize = 1;
 const MAX_REDIRECTS: usize = 5;
 const MAX_RETRY_AFTER: SignedDuration = SignedDuration::from_hours(24);
-const RELEASE_HOST: &str = "github.com";
-const RELEASE_ASSET_DOMAIN: &str = ".githubusercontent.com";
 
 #[derive(Debug, thiserror::Error)]
 enum RedirectRefused {
@@ -46,16 +44,7 @@ fn follow_same_origin(attempt: Attempt<'_>) -> Action {
 }
 
 fn redirect_allowed(from: &Url, to: &Url) -> bool {
-    from.origin() == to.origin() || is_release_asset_hop(from, to)
-}
-
-fn is_release_asset_hop(from: &Url, to: &Url) -> bool {
-    let https = from.scheme() == "https" && to.scheme() == "https";
-    let from_release = from.host_str() == Some(RELEASE_HOST);
-    let to_assets = to
-        .host_str()
-        .is_some_and(|host| host.ends_with(RELEASE_ASSET_DOMAIN));
-    https && from_release && to_assets
+    from.origin() == to.origin()
 }
 
 /// The `Retry-After` wait in delay-seconds or as an HTTP date, rounded up to whole seconds.

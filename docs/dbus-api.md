@@ -29,7 +29,7 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
-| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
+| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters; control characters (C0, DEL, C1) are rejected. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
 | `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). The daemon records the account's current CLI home (provider, account id, home path) as dismissed, then rescans; that record leaves `accounts[]` at once, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Only that CLI record is dismissed: the same person signed in through a Headroom-owned home still shows (see [Rescan semantics](#rescan-semantics)). Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
@@ -75,7 +75,7 @@ Refresh semantics:
 
 | D-Bus error | when |
 | --- | --- |
-| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
+| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters or containing control characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
 | `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
@@ -847,7 +847,9 @@ Without `--check`, `headroom update` fetches the latest release and, when it is 
 
 - For a `self` install it asks for confirmation (`--yes` skips it; without a terminal or with
   `--progress json` it fails unless `--yes` is given), downloads `SHA256SUMS` and
-  `headroom-<version>-<arch>-linux-musl.tar.gz` from the release, checks the tarball's SHA-256,
+  `SHA256SUMS.sig` from the release and checks the Ed25519 signature against the release key built
+  into the binary (a missing or invalid signature fails the update), then downloads
+  `headroom-<version>-<arch>-linux-musl.tar.gz`, checks its SHA-256,
   unpacks it into a temporary directory and runs its `install.sh` with the options recorded in the
   install receipt. That replaces the binary, icons, unit, D-Bus file, GNOME extension and Plasma
   widget and restarts `headroom.service`. On Wayland GNOME Shell loads the new extension only after
@@ -865,11 +867,12 @@ remaining output is dropped and the installation still runs to the end.
 | --- | --- | --- |
 | `step` | `text` | Human-readable progress, e.g. `"Downloading Headroom 0.5.0…"`. |
 | `done` | `version`, `relogin` | Success. `version` is the installed release (the running one when it was already current). `relogin` is `true` when a GNOME Shell extension or Plasma widget was updated, so the user should log out and back in. |
-| `error` | `message` | Failure (checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
+| `error` | `message` | Failure (missing or invalid signature, checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
 
 ```
 {"event":"step","text":"Checking for a new release…"}
 {"event":"step","text":"Downloading Headroom 0.5.0…"}
+{"event":"step","text":"Verifying the signature…"}
 {"event":"step","text":"Verifying the checksum…"}
 {"event":"step","text":"Unpacking…"}
 {"event":"step","text":"Installing /home/ada/.local/bin/headroom"}

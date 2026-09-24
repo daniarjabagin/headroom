@@ -40,7 +40,8 @@ fn ingest_blocking(
 ) -> Result<usize, IngestError> {
     let mut cursors = storage.blocking(|conn| cursors::load(conn, home))?;
     let events = provider.read_usage(&home.home, &mut cursors)?;
-    Ok(storage.blocking(|conn| events::ingest(conn, home, &events, &cursors))?)
+    let ingested = storage.blocking(|conn| events::ingest(conn, home, &events, &cursors))?;
+    Ok(ingested.changed)
 }
 
 pub async fn refresh_summary(core: &Core, home: &UsageHome) -> Result<(), StorageError> {

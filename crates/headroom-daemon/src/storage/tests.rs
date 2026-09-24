@@ -122,7 +122,7 @@ fn upsert_keeps_the_event_with_the_larger_total() {
         .blocking(|conn| {
             let first = events::ingest(conn, &home, std::slice::from_ref(&big), &cursors)?;
             let second = events::ingest(conn, &home, &[small], &cursors)?;
-            Ok((first, second))
+            Ok((first.changed, second.changed))
         })
         .unwrap();
     assert_eq!(changes, (1, 0));
@@ -201,25 +201,36 @@ fn cursors_persist_with_events() {
 }
 
 #[test]
-fn failed_ingest_rolls_back_events_and_cursors() {
+fn unstorable_events_are_skipped_and_the_cursor_still_advances() {
     let storage = memory();
     let home = codex_home();
     let mut cursors = LogCursors::default();
     cursors
         .cursor_mut(Path::new("/home/ada/.codex/s.jsonl"))
         .offset = 42;
-    let good = event("ok", "2026-09-23T09:00:00Z", "gpt-5.5", 1, 1);
-    let mut huge = event("huge", "2026-09-23T09:00:00Z", "gpt-5.5", 1, 1);
+    let first = event("first", "2026-09-23T09:00:00Z", "gpt-5.5", 1, 1);
+    let mut huge = event("huge", "2026-09-23T09:01:00Z", "gpt-5.5", 1, 1);
     huge.tokens.input = Tokens(u64::MAX);
-    let result = storage.blocking(|conn| events::ingest(conn, &home, &[good, huge], &cursors));
-    assert!(matches!(result, Err(StorageError::OutOfRange(_))));
+    let far_future = event("future", "2300-01-01T00:00:00Z", "gpt-5.5", 1, 1);
+    let last = event("last", "2026-09-23T09:02:00Z", "gpt-5.5", 2, 2);
+    let batch = [first.clone(), huge, far_future, last.clone()];
+    let ingested = storage
+        .blocking(|conn| events::ingest(conn, &home, &batch, &cursors))
+        .unwrap();
+    assert_eq!(
+        ingested,
+        events::Ingested {
+            changed: 2,
+            skipped: 2
+        }
+    );
     let stored = storage
         .blocking(|conn| events::load_since(conn, &home, Timestamp::UNIX_EPOCH))
         .unwrap();
-    assert!(stored.is_empty());
+    assert_eq!(stored, [first, last]);
     assert_eq!(
         storage.blocking(|conn| cursors::load(conn, &home)).unwrap(),
-        LogCursors::default()
+        cursors
     );
 }
 

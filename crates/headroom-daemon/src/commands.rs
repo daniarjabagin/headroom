@@ -159,6 +159,9 @@ fn normalize_label(label: &str) -> Result<Option<String>, CommandError> {
     if trimmed.chars().count() > MAX_LABEL_CHARS {
         return Err(CommandError::LabelTooLong(MAX_LABEL_CHARS));
     }
+    if trimmed.chars().any(char::is_control) {
+        return Err(CommandError::LabelControlCharacters);
+    }
     Ok((!trimmed.is_empty()).then(|| trimmed.to_owned()))
 }
 

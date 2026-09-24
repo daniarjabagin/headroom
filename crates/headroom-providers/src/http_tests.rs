@@ -122,26 +122,14 @@ fn redirects_stay_on_the_same_origin() {
 }
 
 #[test]
-fn release_downloads_may_leave_for_the_asset_host_over_https_only() {
+fn release_downloads_get_no_cross_origin_exception() {
     let release = "https://github.com/o/r/releases/download/v1/a.tar.gz";
-    let cases = [
-        ("https://release-assets.githubusercontent.com/x", true),
-        ("https://objects.githubusercontent.com/x", true),
-        ("http://objects.githubusercontent.com/x", false),
-        ("https://githubusercontent.com.evil.example/x", false),
-        ("https://evil.example/x", false),
-    ];
-    for (to, allowed) in cases {
-        assert_eq!(redirect_allowed(&url(release), &url(to)), allowed, "{to}");
+    for to in [
+        "https://release-assets.githubusercontent.com/x",
+        "https://objects.githubusercontent.com/x",
+    ] {
+        assert!(!redirect_allowed(&url(release), &url(to)), "{to}");
     }
-    assert!(!redirect_allowed(
-        &url("https://api.example.com/a"),
-        &url("https://objects.githubusercontent.com/x")
-    ));
-    assert!(!redirect_allowed(
-        &url("http://github.com/a"),
-        &url("https://objects.githubusercontent.com/x")
-    ));
 }
 
 #[tokio::test]

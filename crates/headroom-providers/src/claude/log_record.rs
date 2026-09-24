@@ -81,6 +81,7 @@ pub(super) fn parse_line(line: &str) -> Vec<UsageEvent> {
     };
     let mut events: Vec<UsageEvent> = record.top_level_event().into_iter().collect();
     events.extend(record.earlier_iteration_events());
+    events.retain(UsageEvent::fits_in_i64);
     events
 }
 
