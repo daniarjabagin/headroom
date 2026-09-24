@@ -254,6 +254,7 @@ async fn the_socket_is_private_and_removed_on_shutdown() {
         |path: &std::path::Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(&server.path), 0o600);
     assert_eq!(mode(server.path.parent().unwrap()), 0o700);
+    assert_eq!(mode(&server.path.with_file_name("daemon.lock")), 0o600);
     drop(server.file.take());
     assert!(!server.path.exists());
 }
@@ -265,6 +266,20 @@ async fn a_second_daemon_is_refused_while_the_first_listens() {
     assert!(matches!(refused, Err(SocketError::AlreadyListening(ref p)) if *p == server.path));
     let mut client = server.client().await;
     assert!(client.call(1, "GetState", json!([])).await["result"].is_object());
+}
+
+#[tokio::test]
+async fn two_daemons_starting_together_cannot_both_listen() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("daemon.sock");
+    let (first_listener, first) = bind(&path).unwrap();
+    std::fs::remove_file(&path).unwrap();
+    let second = bind(&path);
+    assert!(matches!(second, Err(SocketError::AlreadyListening(ref p)) if *p == path));
+    drop(first_listener);
+    drop(first);
+    let (_listener, _file) = bind(&path).unwrap();
+    assert!(path.exists());
 }
 
 #[tokio::test]
@@ -289,7 +304,7 @@ async fn a_replaced_socket_file_is_not_removed_by_the_old_owner() {
     let mut client = Client::connect(&server.path).await;
     client.call(1, "GetState", json!([])).await;
     std::fs::remove_file(&server.path).unwrap();
-    let (_listener, _file) = bind(&server.path).unwrap();
+    let _replacement = std::os::unix::net::UnixListener::bind(&server.path).unwrap();
     let mut server = server;
     drop(server.file.take());
     assert!(server.path.exists());

@@ -1,23 +1,28 @@
-use std::fs::{self, DirBuilder, Permissions};
+use std::fs::{self, DirBuilder, File, OpenOptions, Permissions};
 use std::io::ErrorKind;
-use std::os::unix::fs::{DirBuilderExt, FileTypeExt, MetadataExt, PermissionsExt};
+use std::os::unix::fs::{DirBuilderExt, FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
+use rustix::fs::{FlockOperation, flock};
+use rustix::io::Errno;
 use tokio::net::UnixListener;
 
 use crate::error::SocketError;
 
 const DIR_MODE: u32 = 0o700;
 const SOCKET_MODE: u32 = 0o600;
+const LOCK_MODE: u32 = 0o600;
 
 pub struct SocketFile {
     path: PathBuf,
     identity: (u64, u64),
+    _lock: File,
 }
 
 pub fn bind(path: &Path) -> Result<(UnixListener, SocketFile), SocketError> {
     prepare_parent(path)?;
+    let lock = lock_sibling(path)?;
     clear_stale(path)?;
     let listener = UnixListener::bind(path).map_err(|source| match source.kind() {
         ErrorKind::AddrInUse => SocketError::AlreadyListening(path.to_path_buf()),
@@ -26,6 +31,7 @@ pub fn bind(path: &Path) -> Result<(UnixListener, SocketFile), SocketError> {
     let file = SocketFile {
         path: path.to_path_buf(),
         identity: identity(path).map_err(|source| io_error("inspect", path, source))?,
+        _lock: lock,
     };
     fs::set_permissions(path, Permissions::from_mode(SOCKET_MODE))
         .map_err(|source| io_error("restrict", path, source))?;
@@ -59,6 +65,22 @@ fn prepare_parent(path: &Path) -> Result<(), SocketError> {
         .mode(DIR_MODE)
         .create(parent)
         .map_err(|source| io_error("create", parent, source))
+}
+
+fn lock_sibling(socket: &Path) -> Result<File, SocketError> {
+    let path = socket.with_extension("lock");
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .mode(LOCK_MODE)
+        .open(&path)
+        .map_err(|source| io_error("open", &path, source))?;
+    match flock(&file, FlockOperation::NonBlockingLockExclusive) {
+        Ok(()) => Ok(file),
+        Err(Errno::WOULDBLOCK) => Err(SocketError::AlreadyListening(socket.to_path_buf())),
+        Err(errno) => Err(io_error("lock", &path, errno.into())),
+    }
 }
 
 fn clear_stale(path: &Path) -> Result<(), SocketError> {
