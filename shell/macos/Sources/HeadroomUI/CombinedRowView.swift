@@ -10,13 +10,26 @@
 
         var body: some View {
             ForEach(limits.notices) { notice in NoticeRow(notice: notice, context: context) }
-            ForEach(limits.windows) { window in
-                CombinedRowView(
-                    tipID: "combined.\(sectionID).\(window.id)",
-                    row: CombinedRowModel.make(
-                        window, display: context.display, now: now, formatter: context.formatter),
-                    toggleValueMode: { context.toggleValueMode() },
-                    toggleResetFormat: { context.toggleResetFormat() })
+            ForEach(rows) { row in
+                switch row {
+                case .single(let model):
+                    QuotaRowView(
+                        row: model, toggleValueMode: { context.toggleValueMode() },
+                        toggleResetFormat: { context.toggleResetFormat() })
+                case .pooled(let model):
+                    CombinedRowView(
+                        tipID: "combined.\(sectionID).\(model.id)", row: model,
+                        toggleValueMode: { context.toggleValueMode() },
+                        toggleResetFormat: { context.toggleResetFormat() })
+                }
+            }
+        }
+
+        private var rows: [CombinedLimitRow] {
+            limits.windows.map { window in
+                CombinedLimitRow.make(
+                    window, members: limits.members, display: context.display, now: now,
+                    formatter: context.formatter)
             }
         }
     }
@@ -72,8 +85,10 @@
                         segmentView(pair.0, span: pair.1)
                     }
                 }
+                .frame(height: PopupMetrics.tickHeight)
             }
-            .frame(height: PopupMetrics.meterHeight)
+            .frame(height: PopupMetrics.tickHeight)
+            .padding(.vertical, (PopupMetrics.meterHeight - PopupMetrics.tickHeight) / 2)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: segments)
             .accessibilityHidden(true)
         }
@@ -82,11 +97,22 @@
             let fill = SegmentedMeter.fillWidth(
                 segment.fill, span: span.width, minimum: Double(PopupMetrics.meterHeight))
             return ZStack(alignment: .leading) {
-                Capsule().fill(Palette.track)
-                Capsule().fill(segment.tone.color).frame(width: CGFloat(fill))
+                Capsule().fill(Palette.track).frame(height: PopupMetrics.meterHeight)
+                Capsule().fill(segment.tone.color).frame(width: CGFloat(fill), height: PopupMetrics.meterHeight)
+                if let tick = segment.tick {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(Palette.tick)
+                        .frame(width: PopupMetrics.tickWidth, height: PopupMetrics.tickHeight)
+                        .offset(x: tickOffset(tick, span: span))
+                }
             }
-            .frame(width: CGFloat(span.width), height: PopupMetrics.meterHeight)
+            .frame(width: CGFloat(span.width), height: PopupMetrics.tickHeight, alignment: .leading)
             .offset(x: CGFloat(span.offset))
+        }
+
+        private func tickOffset(_ tick: Double, span: MeterSpan) -> CGFloat {
+            CGFloat(
+                SegmentedMeter.tickOffset(tick, span: span.width, tickWidth: Double(PopupMetrics.tickWidth)))
         }
     }
 #endif

@@ -1,6 +1,7 @@
 public struct CombinedLimits: Sendable, Hashable {
     public let notices: [NoticeModel]
     public let windows: [CombinedWindow]
+    public let members: [Account]
 
     public var isEmpty: Bool { notices.isEmpty && windows.isEmpty }
 }
@@ -19,7 +20,8 @@ extension AccountSectionModel {
             status: groupStatus(members, offline: state.offline),
             accountCount: strings.fill(.accounts, count: UInt64(group.accountIDs.count)))
         let limits = CombinedLimits(
-            notices: memberNotices(members, offline: state.offline, strings: strings), windows: group.windows)
+            notices: memberNotices(members, offline: state.offline, strings: strings), windows: group.windows,
+            members: members)
         return AccountSectionModel(
             id: "combined:\(group.provider)", provider: group.provider, memberIDs: members.map(\.id), header: header,
             body: .combined(limits))

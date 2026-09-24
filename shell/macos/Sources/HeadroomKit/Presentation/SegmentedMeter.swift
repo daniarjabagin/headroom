@@ -18,6 +18,11 @@ public enum SegmentedMeter {
         return min(span, max(minimum, span * clamped))
     }
 
+    public static func tickOffset(_ tick: Double, span: Double, tickWidth: Double) -> Double {
+        guard span > tickWidth else { return 0 }
+        return min(max(0, span * clamp(tick) - tickWidth / 2), span - tickWidth)
+    }
+
     static func clamp(_ fraction: Double) -> Double {
         fraction.isFinite ? min(1, max(0, fraction)) : 0
     }

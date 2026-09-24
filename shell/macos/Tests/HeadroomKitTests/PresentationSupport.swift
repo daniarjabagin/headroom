@@ -77,3 +77,47 @@ enum Build {
         try Fixture.decode(DaemonState.self, "state_full")
     }
 }
+
+extension Build {
+    static func mutated(_ fixture: String, _ edit: (inout [String: Any]) -> Void) throws -> DaemonState {
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Fixture.data(fixture)) as? [String: Any])
+        edit(&object)
+        return try JSONDecoder().decode(DaemonState.self, from: JSONSerialization.data(withJSONObject: object))
+    }
+
+    static func combined(_ edit: (inout [String: Any]) -> Void) throws -> DaemonState {
+        try mutated("state_combined", edit)
+    }
+
+    static func combined(headline: [String: Any], label: String = "percent") throws -> DaemonState {
+        try combined { object in
+            object["headline"] = headline
+            var display = object["display"] as? [String: Any] ?? [:]
+            display["panel_label"] = label
+            object["display"] = display
+        }
+    }
+
+    static func combinedHeadline(window: String, count: Int) -> [String: Any] {
+        [
+            "account_id": "codex:work", "provider": "codex", "provider_name": "Codex", "account_label": NSNull(),
+            "window": window, "window_label": window.capitalized, "used_percent": 37.5, "remaining_percent": 62.5,
+            "tone": "good", "combined": true, "account_count": count,
+        ]
+    }
+
+    static func setSessionPace(_ object: inout [String: Any], _ pace: [String: Any]) {
+        guard var groups = object["combined"] as? [[String: Any]], var group = groups.first,
+            var windows = group["windows"] as? [[String: Any]], var session = windows.first
+        else { return }
+        let empty: [String: Any] = [
+            "even_pace_percent": NSNull(), "projected_percent": NSNull(), "spare_percent": NSNull(),
+            "runs_out_at": NSNull(),
+        ]
+        session["pace"] = empty.merging(pace) { _, new in new }
+        windows[0] = session
+        group["windows"] = windows
+        groups[0] = group
+        object["combined"] = groups
+    }
+}

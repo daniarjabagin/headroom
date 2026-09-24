@@ -15,7 +15,8 @@ public enum MenuBarContent: Sendable, Hashable {
 
     public static func subject(_ headline: Headline) -> String {
         guard headline.combined else { return headline.accountLabel ?? headline.providerName }
-        return headline.accountCount.map { "\(headline.providerName) ×\($0)" } ?? headline.providerName
+        guard let count = headline.accountCount, count > 1 else { return headline.providerName }
+        return "\(headline.providerName) ×\(count)"
     }
 
     static func windowText(_ headline: Headline, formatter: DisplayFormatter) -> String {

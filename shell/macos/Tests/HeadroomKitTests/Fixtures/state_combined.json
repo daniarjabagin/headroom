@@ -3,7 +3,7 @@
   "app_version": "0.0.0-snapshot",
   "generated_at": "2026-09-23T10:00:00Z",
   "next_refresh_at": "2026-09-23T10:03:00Z",
-  "last_success_at": "2026-09-23T09:58:00Z",
+  "last_success_at": "2026-09-23T09:59:00Z",
   "offline": false,
   "update": null,
   "display": {
@@ -17,21 +17,25 @@
     "show_trend": true,
     "show_forecast": true,
     "translucent": false,
-    "hidden_windows": {},
-    "combine_accounts": true
+    "combine_accounts": true,
+    "hidden_windows": {
+      "codex:work": [
+        "weekly"
+      ]
+    }
   },
   "headline": {
-    "account_id": "codex:work",
-    "provider": "codex",
-    "provider_name": "Codex",
-    "account_label": null,
-    "window": "weekly",
-    "window_label": "Weekly",
-    "used_percent": 55.0,
-    "remaining_percent": 45.0,
-    "tone": "warning",
-    "combined": true,
-    "account_count": 2
+    "account_id": "claude:main",
+    "provider": "claude",
+    "provider_name": "Claude",
+    "account_label": "ada@claude.example",
+    "window": "session",
+    "window_label": "Session",
+    "used_percent": 92.0,
+    "remaining_percent": 8.0,
+    "tone": "critical",
+    "combined": false,
+    "account_count": 1
   },
   "accounts": [
     {
@@ -51,16 +55,16 @@
         {
           "id": "session",
           "label": "Session",
-          "used_percent": 5.0,
-          "remaining_percent": 95.0,
+          "used_percent": 55.0,
+          "remaining_percent": 45.0,
           "resets_at": "2026-09-23T12:00:00Z",
           "period_seconds": 18000,
-          "tone": "good",
+          "tone": "warning",
           "pace": {
-            "severity": "healthy",
+            "severity": "close",
             "even_pace_percent": 60.0,
-            "projected_percent": 8.0,
-            "spare_percent": 92.0,
+            "projected_percent": 91.66666666666667,
+            "spare_percent": 8.333333333333329,
             "runs_out_at": null
           },
           "hidden": false
@@ -80,7 +84,7 @@
             "spare_percent": 47.5,
             "runs_out_at": null
           },
-          "hidden": false
+          "hidden": true
         }
       ],
       "balances": [
@@ -91,7 +95,12 @@
           "usd_micros": 12500000
         }
       ],
-      "notices": [],
+      "notices": [
+        {
+          "tone": "warning",
+          "text": "Weekly limit shared with Codex Cloud"
+        }
+      ],
       "usage_home": "~/.codex"
     },
     {
@@ -103,10 +112,13 @@
       "plan": "Pro",
       "hidden": false,
       "owner": "cli",
-      "status": "fresh",
-      "error": null,
+      "status": "signed_out",
+      "error": {
+        "kind": "sign_in_expired",
+        "message": "sign-in expired, open the CLI to sign in again"
+      },
       "updated_at": "2026-09-23T09:00:00Z",
-      "source": "live",
+      "source": "cache",
       "windows": [
         {
           "id": "session",
@@ -131,32 +143,50 @@
       "usage_home": "~/.claude"
     },
     {
+      "id": "codex:hidden",
+      "provider": "codex",
+      "provider_name": "Codex",
+      "label": null,
+      "email": null,
+      "plan": null,
+      "hidden": true,
+      "owner": "cli",
+      "status": "stale",
+      "error": null,
+      "updated_at": null,
+      "source": null,
+      "windows": [],
+      "balances": [],
+      "notices": [],
+      "usage_home": "/srv/codex"
+    },
+    {
       "id": "codex:personal",
       "provider": "codex",
       "provider_name": "Codex",
       "label": "Personal",
-      "email": "ada@personal.example",
+      "email": "ada@example.com",
       "plan": "Plus",
       "hidden": false,
       "owner": "cli",
       "status": "fresh",
       "error": null,
-      "updated_at": "2026-09-23T09:58:00Z",
+      "updated_at": "2026-09-23T09:59:00Z",
       "source": "live",
       "windows": [
         {
           "id": "session",
           "label": "Session",
-          "used_percent": 50.0,
-          "remaining_percent": 50.0,
-          "resets_at": "2026-09-23T11:00:00Z",
+          "used_percent": 20.0,
+          "remaining_percent": 80.0,
+          "resets_at": "2026-09-23T12:30:00Z",
           "period_seconds": 18000,
           "tone": "good",
           "pace": {
             "severity": "healthy",
-            "even_pace_percent": 60.0,
-            "projected_percent": 8.0,
-            "spare_percent": 92.0,
+            "even_pace_percent": 50.0,
+            "projected_percent": 40.0,
+            "spare_percent": 60.0,
             "runs_out_at": null
           },
           "hidden": false
@@ -164,16 +194,16 @@
         {
           "id": "weekly",
           "label": "Weekly",
-          "used_percent": 80.0,
-          "remaining_percent": 20.0,
+          "used_percent": 60.0,
+          "remaining_percent": 40.0,
           "resets_at": "2026-09-25T10:00:00Z",
           "period_seconds": 604800,
-          "tone": "warning",
+          "tone": "good",
           "pace": {
             "severity": "healthy",
-            "even_pace_percent": 57.14285714285714,
-            "projected_percent": 52.5,
-            "spare_percent": 47.5,
+            "even_pace_percent": 71.42857142857143,
+            "projected_percent": 84.0,
+            "spare_percent": 16.0,
             "runs_out_at": null
           },
           "hidden": false
@@ -182,6 +212,90 @@
       "balances": [],
       "notices": [],
       "usage_home": "~/.codex"
+    }
+  ],
+  "combined": [
+    {
+      "provider": "codex",
+      "provider_name": "Codex",
+      "account_ids": [
+        "codex:work",
+        "codex:personal"
+      ],
+      "accounts": [
+        {
+          "account_id": "codex:work",
+          "label": "Work",
+          "plan": "Pro"
+        },
+        {
+          "account_id": "codex:personal",
+          "label": "Personal",
+          "plan": "Plus"
+        }
+      ],
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "capacity_percent": 200,
+          "remaining_percent": 125.0,
+          "used_percent": 75.0,
+          "resets_at": "2026-09-23T12:00:00Z",
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 110.0,
+            "projected_percent": 131.66666666666669,
+            "spare_percent": 68.33333333333331,
+            "runs_out_at": null
+          },
+          "segments": [
+            {
+              "account_id": "codex:work",
+              "label": "Work",
+              "remaining_percent": 45.0,
+              "used_percent": 55.0,
+              "resets_at": "2026-09-23T12:00:00Z",
+              "tone": "warning"
+            },
+            {
+              "account_id": "codex:personal",
+              "label": "Personal",
+              "remaining_percent": 80.0,
+              "used_percent": 20.0,
+              "resets_at": "2026-09-23T12:30:00Z",
+              "tone": "good"
+            }
+          ]
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "capacity_percent": 100,
+          "remaining_percent": 40.0,
+          "used_percent": 60.0,
+          "resets_at": "2026-09-25T10:00:00Z",
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 71.42857142857143,
+            "projected_percent": 84.0,
+            "spare_percent": 16.0,
+            "runs_out_at": null
+          },
+          "segments": [
+            {
+              "account_id": "codex:personal",
+              "label": "Personal",
+              "remaining_percent": 40.0,
+              "used_percent": 60.0,
+              "resets_at": "2026-09-25T10:00:00Z",
+              "tone": "good"
+            }
+          ]
+        }
+      ]
     }
   ],
   "usage": [
@@ -821,97 +935,5 @@
         }
       ]
     }
-  },
-  "combined": [
-    {
-      "provider": "codex",
-      "provider_name": "Codex",
-      "account_ids": [
-        "codex:work",
-        "codex:personal"
-      ],
-      "accounts": [
-        {
-          "account_id": "codex:work",
-          "label": "Work",
-          "plan": "Pro"
-        },
-        {
-          "account_id": "codex:personal",
-          "label": "Personal",
-          "plan": "Plus"
-        }
-      ],
-      "windows": [
-        {
-          "id": "session",
-          "label": "Session",
-          "capacity_percent": 200.0,
-          "remaining_percent": 145.0,
-          "used_percent": 55.0,
-          "resets_at": "2026-09-23T11:00:00Z",
-          "tone": "good",
-          "pace": {
-            "severity": "healthy",
-            "even_pace_percent": 60.0,
-            "projected_percent": 30.0,
-            "spare_percent": 70.0,
-            "runs_out_at": null
-          },
-          "segments": [
-            {
-              "account_id": "codex:work",
-              "label": "Work",
-              "remaining_percent": 95.0,
-              "used_percent": 5.0,
-              "resets_at": "2026-09-23T12:00:00Z",
-              "tone": "good"
-            },
-            {
-              "account_id": "codex:personal",
-              "label": "Personal",
-              "remaining_percent": 50.0,
-              "used_percent": 50.0,
-              "resets_at": "2026-09-23T11:00:00Z",
-              "tone": "good"
-            }
-          ]
-        },
-        {
-          "id": "weekly",
-          "label": "Weekly",
-          "capacity_percent": 200.0,
-          "remaining_percent": 90.0,
-          "used_percent": 110.0,
-          "resets_at": "2026-09-25T10:00:00Z",
-          "tone": "warning",
-          "pace": {
-            "severity": "running_out",
-            "even_pace_percent": 57.1,
-            "projected_percent": 120.0,
-            "spare_percent": null,
-            "runs_out_at": "2026-09-24T22:00:00Z"
-          },
-          "segments": [
-            {
-              "account_id": "codex:work",
-              "label": "Work",
-              "remaining_percent": 70.0,
-              "used_percent": 30.0,
-              "resets_at": "2026-09-26T10:00:00Z",
-              "tone": "good"
-            },
-            {
-              "account_id": "codex:personal",
-              "label": "Personal",
-              "remaining_percent": 20.0,
-              "used_percent": 80.0,
-              "resets_at": "2026-09-25T10:00:00Z",
-              "tone": "warning"
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  }
 }
