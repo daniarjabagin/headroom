@@ -138,10 +138,7 @@ copy_resource_bundles() {
 }
 
 write_info_plist() {
-    local version="$1" icon_entry=""
-    if [[ -f "$app/Contents/Resources/AppIcon.icns" ]]; then
-        icon_entry="<key>CFBundleIconFile</key><string>AppIcon</string>"
-    fi
+    local version="$1"
     cat >"$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -157,7 +154,7 @@ write_info_plist() {
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$version</string>
     <key>CFBundleVersion</key><string>$version</string>
-    $icon_entry
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
@@ -168,35 +165,8 @@ EOF
     plutil -lint "$app/Contents/Info.plist" >/dev/null
 }
 
-icon_svg() {
-    local glyph
-    glyph="$(sed -e 's/<svg[^>]*>//' -e 's#</svg>##' -e 's/#bebebe/#ffffff/g' \
-        "$repo_root/shell/gnome/icons/headroom-symbolic.svg")"
-    cat <<EOF
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 16 16">
-<rect x="0.8" y="0.8" width="14.4" height="14.4" rx="3.2" fill="#1E1E1E"/>
-<g transform="translate(3 3.2) scale(0.625)">$glyph</g>
-</svg>
-EOF
-}
-
 build_icon() {
-    command -v qlmanage >/dev/null && command -v sips >/dev/null && command -v iconutil >/dev/null || return 1
-    local work
-    work="$(mktemp -d)"
-    icon_svg >"$work/icon.svg"
-    qlmanage -t -s 1024 -o "$work" "$work/icon.svg" >/dev/null 2>&1 || return 1
-    [[ -f "$work/icon.svg.png" ]] || return 1
-    mkdir -p "$work/AppIcon.iconset"
-    local size
-    for size in 16 32 128 256 512; do
-        sips -z "$size" "$size" "$work/icon.svg.png" \
-            --out "$work/AppIcon.iconset/icon_${size}x${size}.png" >/dev/null || return 1
-        sips -z $((size * 2)) $((size * 2)) "$work/icon.svg.png" \
-            --out "$work/AppIcon.iconset/icon_${size}x${size}@2x.png" >/dev/null || return 1
-    done
-    iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$work/AppIcon.iconset" || return 1
-    rm -rf "$work"
+    iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$package_dir/Icon/AppIcon.iconset"
 }
 
 assemble() {
@@ -206,7 +176,7 @@ assemble() {
     mv "$dist_dir/Headroom" "$app/Contents/MacOS/Headroom"
     mv "$staged_helper" "$app/Contents/Helpers/headroom"
     copy_resource_bundles
-    build_icon || echo "note: app icon skipped (qlmanage, sips or iconutil unavailable or failed)"
+    build_icon
     write_info_plist "$version"
 }
 

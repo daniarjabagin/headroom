@@ -9,7 +9,7 @@
         "Category": "System Information",
         "Description": "How much of your AI coding limits is left — Codex, Claude and more. Requires the Headroom service.",
         "EnabledByDefault": true,
-        "Icon": "utilities-system-monitor",
+        "Icon": "headroom",
         "Id": "io.github.headroom.plasmoid",
         "License": "MIT",
         "Name": "Headroom",

@@ -78,15 +78,15 @@
     }
 
     struct StatusCard<Actions: View>: View {
-        var symbol: String?
+        var showsMark = false
         let title: String
         var detail: String?
         @ViewBuilder var actions: () -> Actions
 
         var body: some View {
             VStack(spacing: 8) {
-                if let symbol {
-                    Image(systemName: symbol).font(.system(size: 28, weight: .regular)).foregroundStyle(.secondary)
+                if showsMark {
+                    BrandMarkView(size: 28).foregroundStyle(.secondary)
                 }
                 Text(title).font(Typeface.label)
                 if let detail {
@@ -123,10 +123,10 @@
             case .loading, .dashboard:
                 LoadingSections()
             case .incompatible(let text):
-                StatusCard(symbol: "gauge.with.dots.needle.50percent", title: strings.text(text)) { EmptyView() }
+                StatusCard(showsMark: true, title: strings.text(text)) { EmptyView() }
             case .serviceDown(let detail):
                 StatusCard(
-                    symbol: "gauge.with.dots.needle.50percent", title: strings.text(.serviceDownTitle),
+                    showsMark: true, title: strings.text(.serviceDownTitle),
                     detail: detail ?? strings.text(.serviceDownDetail)
                 ) { EmptyView() }
             case .unreadable(let message):

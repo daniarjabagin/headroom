@@ -64,13 +64,15 @@ stage_extension() {
 assemble_bundle() {
     step "Assembling $bundle_name"
     rm -rf "$bundle"
-    mkdir -p "$bundle/systemd" "$bundle/dbus" "$bundle/gnome" "$bundle/plasma"
+    mkdir -p "$bundle/systemd" "$bundle/dbus" "$bundle/gnome" "$bundle/plasma" "$bundle/icons"
     install -m 0755 "$stage/headroom" "$bundle/headroom"
     install -m 0755 "$root/packaging/release/install-from-tarball.sh" "$bundle/install.sh"
     install -m 0755 "$root/packaging/uninstall.sh" "$bundle/uninstall.sh"
     install -m 0644 "$root/packaging/systemd/headroom.service" "$bundle/systemd/headroom.service"
     install -m 0644 "$root/packaging/dbus/io.github.headroom.Daemon.service" \
         "$bundle/dbus/io.github.headroom.Daemon.service"
+    install -m 0644 "$root/packaging/icons/headroom.svg" "$bundle/icons/headroom.svg"
+    install -m 0644 "$root/assets/brand/headroom-symbolic.svg" "$bundle/icons/headroom-symbolic.svg"
     install -m 0644 "$extension_zip" "$bundle/gnome/headroom@headroom.github.io.shell-extension.zip"
     cp -R "$root/shell/plasma/package" "$bundle/plasma/io.github.headroom.plasmoid"
     install -m 0644 "$root/LICENSE" "$root/README.md" "$bundle/"

@@ -27,5 +27,7 @@ Antigravity uses Google's logo, since Simple Icons has none for the product itse
 Providers without a Simple Icons logo (Grok, Devin) and any id without a file use
 `provider-generic.svg`.
 
-`headroom-symbolic.svg`, `flame-symbolic.svg` and `provider-generic.svg` are Headroom's own glyphs;
-the first two are shared with the GNOME extension.
+`headroom-symbolic.svg` is the monochrome Headroom mark from the Asteru Studio brandbook
+(© Asteru Studio / Daniar Jabagin, all rights reserved; not covered by the MIT license, see
+`assets/brand/README.md`), shared with the GNOME extension. `flame-symbolic.svg` and
+`provider-generic.svg` are Headroom's own glyphs; the flame is shared with the GNOME extension.
