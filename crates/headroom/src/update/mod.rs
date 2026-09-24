@@ -2,7 +2,9 @@ mod apply;
 mod feed;
 mod lossy;
 mod method;
+mod origins;
 mod report;
+mod signature;
 mod verify;
 
 use std::io::{self, BufRead, IsTerminal, Write};
@@ -15,7 +17,9 @@ use crate::cli::{ProgressFormat, UpdateArgs};
 use apply::Bundle;
 use lossy::LossyWriter;
 use method::Detected;
+use origins::Origins;
 use report::{Finished, Reporter};
+use signature::{PublicKey, RELEASE_KEY};
 
 pub use feed::GithubFeed;
 
@@ -23,6 +27,7 @@ pub struct Updater<'a> {
     pub feed: &'a GithubFeed,
     pub current: &'a Version,
     pub arch: &'a str,
+    pub release_key: &'a PublicKey,
     pub detected: &'a Detected,
     pub on_path: &'a dyn Fn(&str) -> bool,
 }
@@ -33,23 +38,23 @@ pub fn current_version() -> Result<Version> {
         .context("this build's version is not a semantic version")
 }
 
-pub fn daemon_config(client: reqwest::Client) -> Result<UpdateConfig> {
+pub fn daemon_config() -> Result<UpdateConfig> {
     Ok(UpdateConfig {
-        feed: Arc::new(GithubFeed::new(client, LATEST_RELEASE_API)),
+        feed: Arc::new(GithubFeed::new(LATEST_RELEASE_API, Origins::github())?),
         install: method::detect().install,
         current: current_version()?,
     })
 }
 
 pub async fn run(args: &UpdateArgs) -> Result<()> {
-    let client = headroom_providers::http::client().context("cannot create the HTTP client")?;
-    let feed = GithubFeed::new(client, LATEST_RELEASE_API);
+    let feed = GithubFeed::new(LATEST_RELEASE_API, Origins::github())?;
     let current = current_version()?;
     let detected = method::detect();
     let updater = Updater {
         feed: &feed,
         current: &current,
         arch: std::env::consts::ARCH,
+        release_key: &RELEASE_KEY,
         detected: &detected,
         on_path: &on_path,
     };
@@ -125,6 +130,7 @@ async fn update<W: Write, E: Write>(
         release: &raw,
         version: &release.version,
         arch: updater.arch,
+        release_key: updater.release_key,
     };
     apply::install(updater.feed, &bundle, options, reporter).await?;
     Ok(finished(&release.version, options, updater.on_path))
