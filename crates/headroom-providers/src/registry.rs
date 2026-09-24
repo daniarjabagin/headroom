@@ -12,11 +12,14 @@ use crate::copilot::{self, CopilotConfig, CopilotProvider};
 use crate::cursor::{self, CursorConfig, CursorProvider};
 use crate::devin::{self, DevinConfig, DevinProvider};
 use crate::grok::{self, GrokConfig, GrokProvider};
+use crate::kilo::{self, KiloConfig, KiloProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
 use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
 use crate::ollama::{self, OllamaConfig, OllamaProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
 use crate::openrouter::{self, OpenRouterConfig, OpenRouterProvider};
+use crate::poe::{self, PoeConfig, PoeProvider};
+use crate::warp::{self, WarpConfig, WarpProvider};
 use crate::zai::{self, ZaiConfig, ZaiProvider};
 
 /// What every provider may need; each one takes its own settings from the process environment.
@@ -32,7 +35,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 14] = [
+static ENTRIES: [Entry; 17] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -88,6 +91,18 @@ static ENTRIES: [Entry; 14] = [
     Entry {
         descriptor: &ollama::DESCRIPTOR,
         build: build_ollama,
+    },
+    Entry {
+        descriptor: &kilo::DESCRIPTOR,
+        build: build_kilo,
+    },
+    Entry {
+        descriptor: &warp::DESCRIPTOR,
+        build: build_warp,
+    },
+    Entry {
+        descriptor: &poe::DESCRIPTOR,
+        build: build_poe,
     },
 ];
 
@@ -249,6 +264,35 @@ fn build_ollama(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provider
     Ok(Arc::new(OllamaProvider::with_http(
         config,
         context.http.clone(),
+    )))
+}
+
+fn build_kilo(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = KiloConfig::from_env()?;
+    Ok(Arc::new(KiloProvider::with_http(
+        config,
+        context.http.clone(),
+        Arc::clone(&context.secrets),
+    )))
+}
+
+fn build_warp(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = WarpConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(WarpProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
+    )))
+}
+
+fn build_poe(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = PoeConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(PoeProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
     )))
 }
 

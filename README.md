@@ -108,6 +108,9 @@ default.</sub>
 | **Cursor** | Total, Auto, API and request usage, on-demand spend | Detected from the Cursor app or `agent login` (one account) |
 | **Antigravity** | Session and weekly limits, Claude model limits | Detected from the running app or `agy` (one account). **Linux only** for now |
 | **Ollama Cloud** | Session, weekly and monthly limits, extra usage | Detected from `~/.ollama/id_ed25519` when linked to ollama.com (one account) |
+| **Kilo Code** | Credit balance in USD (personal or organization), used-up warning | Sign in with `kilo`, paste a Kilo API key, or detected from `kilo auth login` |
+| **Warp** | Monthly credits and reset time, bonus credits | Paste a Warp API key (`wk-…`) |
+| **Poe** | Point balance | Paste a Poe API key |
 
 On macOS, Claude Code and Codex sign-ins are read from the Keychain (read-only, after an "Always
 Allow" prompt), Copilot asks `gh`, which keeps its tokens there too, and API keys you add go into

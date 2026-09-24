@@ -336,6 +336,39 @@ pub enum ProviderError {
   model): 1 tick = 1e-10 USD, so micro-USD = ticks / 10 000 in integer math, rounding half up
   (remainder ≥ 5 000 adds one); negative or fractional ticks give `None` and the price book is used.
 
+## Kilo Code, Warp and Poe
+
+- **Kilo Code** (`kilo`): `GET https://api.kilo.ai/api/profile/balance` with `Authorization: Bearer`,
+  plus `x-kilocode-organizationid` when the sign-in chose an organization (`accountId` in the
+  `kilo` entry of `auth.json`). `{ balance, isDepleted }`: `balance` is USD that the server derives
+  from micro-USD, so the JSON number's own text is parsed into `MicroUsd` exactly (plain decimal,
+  at most six decimals, never through `f64`; anything else is an invalid response). One USD balance
+  "Credit balance" (or "Organization credits"); `isDepleted` adds a Critical notice.
+  `GET /api/profile` supplies the email; if it fails only the email is missing. Accounts: pasted
+  keys (`key_accounts`), the CLI's `$XDG_DATA_HOME/kilo/auth.json` (`~/.local/share/kilo` on Linux
+  and macOS, read-only) and Headroom-owned homes where `kilo auth login --provider kilo` ran with
+  `XDG_DATA_HOME` pointing at the home (the CLI uses `xdg-basedir`, so it writes
+  `<home>/kilo/auth.json`). The login uses clack prompts, so it runs on a PTY, and it scrubs
+  `KILO_API_URL` and `KILO_AUTH_CONTENT`; Headroom always calls `api.kilo.ai`. Identity is the
+  SHA-256 of the token (`key-sha256:…`, plus `/org:<id>` for an organization login); tokens live a
+  year and are never refreshed. Local `kilo.db` usage is not read yet (Headroom has no OpenCode
+  SQLite reader to reuse).
+- **Warp** (`warp`): `POST https://app.warp.dev/graphql/v2?op=GetRequestLimitInfo` with the API key
+  as Bearer, `User-Agent: Warp/1.0` (the edge limiter answers 429 without it), `x-warp-client-id:
+  warp-app` and `x-warp-os-*` headers matching the `osContext` variables (`Linux` or `macOS`,
+  version `unknown`). `requestLimitInfo` becomes the window `Other("monthly")` "Monthly credits",
+  used = `requestsUsedSinceLastRefresh / requestLimit`, reset `nextRefreshTime` (RFC 3339, or a
+  time without offset read as UTC), no period; `isUnlimited` gives a Neutral "Unlimited credits"
+  notice and a zero limit "No monthly credits on this plan". `requestCreditsRemaining` of the
+  user's and every workspace's bonus grants is summed into one Count balance "Bonus credits"
+  (unit `credits`) when any grant exists. `UserFacingError` and GraphQL `errors` become invalid
+  responses carrying Warp's message (200 characters at most).
+- **Poe** (`poe`): `GET https://api.poe.com/usage/current_balance` with Bearer →
+  `current_point_balance` as a Count balance "Point balance" (unit `points`). The points history
+  is not read: points are not USD, so there is no spend to add.
+- All three: 401/403 → `SignInExpired` (a pasted key is rejected with a message naming the console
+  URL), 429 → `RateLimited` with `Retry-After`, 5xx → `Network`.
+
 ## Provider registry
 
 Descriptors live in `headroom-core::descriptor` (types only), the registry in
@@ -417,6 +450,9 @@ Registered providers, in registry order:
 | `cursor` | Cursor | detected from the IDE login (one account) | no |
 | `antigravity` | Antigravity | detected (one account) | no |
 | `ollama` | Ollama Cloud | detected from `~/.ollama/id_ed25519` (one account) | no |
+| `kilo` | Kilo Code | `kilo auth login` (PTY), API key, or detected | no |
+| `warp` | Warp | API key | no |
+| `poe` | Poe | API key | no |
 
 Ollama discovery signs one `POST /api/me` per discovery pass (every 10 min): 401/403 means the key
 is not linked to an ollama.com account (local-only user) and no account is listed; any other failure

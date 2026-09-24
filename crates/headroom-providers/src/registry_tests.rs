@@ -38,11 +38,14 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
             "cursor",
             "devin",
             "grok",
+            "kilo",
             "kimi",
             "minimax",
             "ollama",
             "opencode",
             "openrouter",
+            "poe",
+            "warp",
             "zai"
         ]
     );
@@ -81,7 +84,10 @@ fn built_providers_follow_the_registry_order() {
             "copilot",
             "cursor",
             "antigravity",
-            "ollama"
+            "ollama",
+            "kilo",
+            "warp",
+            "poe"
         ]
     );
     for provider in &providers {
