@@ -94,11 +94,11 @@
 
         private func fillWidth(in width: CGFloat) -> CGFloat {
             let clamped = min(1, max(0, fraction))
-            return clamped == 0 ? 0 : max(PopupMetrics.meterHeight, width * clamped)
+            return clamped == 0 ? 0 : max(PopupMetrics.meterHeight, width * CGFloat(clamped))
         }
 
         private func tickOffset(_ tick: Double, in width: CGFloat) -> CGFloat {
-            let position = width * min(1, max(0, tick)) - PopupMetrics.tickWidth / 2
+            let position = width * CGFloat(min(1, max(0, tick))) - PopupMetrics.tickWidth / 2
             return min(max(0, position), max(0, width - PopupMetrics.tickWidth))
         }
     }

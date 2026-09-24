@@ -88,19 +88,21 @@
 
         private func others(excluding id: String) -> [SectionSpan] {
             sections.filter { $0.id != id }.compactMap { frames[$0.id] }.map {
-                SectionSpan(top: $0.minY, bottom: $0.maxY)
+                SectionSpan(top: Double($0.minY), bottom: Double($0.maxY))
             }
         }
 
         private func target(for drag: DragState) -> (from: Int, to: Int)? {
             guard let from = sections.firstIndex(where: { $0.id == drag.id }) else { return nil }
-            return (from, AccountOrder.dropIndex(others: others(excluding: drag.id), pointer: drag.pointer))
+            return (from, AccountOrder.dropIndex(others: others(excluding: drag.id), pointer: Double(drag.pointer)))
         }
 
         private func indicatorPosition(_ drag: DragState) -> CGFloat? {
             guard let move = target(for: drag) else { return nil }
             return AccountOrder.indicatorPosition(
-                others: others(excluding: drag.id), target: move.to, from: move.from, gap: PopupMetrics.sectionGap)
+                others: others(excluding: drag.id), target: move.to, from: move.from,
+                gap: Double(PopupMetrics.sectionGap)
+            ).map { CGFloat($0) }
         }
 
         private func finishDrag() {

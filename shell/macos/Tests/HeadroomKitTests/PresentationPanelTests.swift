@@ -3,6 +3,10 @@ import XCTest
 
 @testable import HeadroomKit
 
+#if canImport(CoreGraphics)
+    import CoreGraphics
+#endif
+
 final class PresentationPanelTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
     private let button = CGRect(x: 1000, y: 877, width: 40, height: 22)

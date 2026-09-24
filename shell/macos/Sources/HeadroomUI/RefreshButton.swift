@@ -104,7 +104,7 @@
 
         private func shakeOffset(at date: Date) -> CGFloat {
             guard let start = control.shakeStartedAt else { return 0 }
-            return ShakeMotion.offset(elapsed: date.timeIntervalSince(start))
+            return CGFloat(ShakeMotion.offset(elapsed: date.timeIntervalSince(start)))
         }
     }
 #endif

@@ -42,10 +42,14 @@
         let icon: SVGIcon
 
         func path(in rect: CGRect) -> Path {
-            let scale = min(rect.width / icon.width, rect.height / icon.height)
-            let offsetX = rect.minX + (rect.width - icon.width * scale) / 2 - icon.origin.x * scale
-            let offsetY = rect.minY + (rect.height - icon.height * scale) / 2 - icon.origin.y * scale
-            let map = { (point: PlanePoint) in CGPoint(x: offsetX + point.x * scale, y: offsetY + point.y * scale) }
+            let width = CGFloat(icon.width)
+            let height = CGFloat(icon.height)
+            let scale = min(rect.width / width, rect.height / height)
+            let offsetX = rect.minX + (rect.width - width * scale) / 2 - CGFloat(icon.origin.x) * scale
+            let offsetY = rect.minY + (rect.height - height * scale) / 2 - CGFloat(icon.origin.y) * scale
+            let map = { (point: PlanePoint) in
+                CGPoint(x: offsetX + CGFloat(point.x) * scale, y: offsetY + CGFloat(point.y) * scale)
+            }
             var path = Path()
             for command in icon.commands {
                 switch command {

@@ -53,7 +53,7 @@
 
         func path(in rect: CGRect) -> Path {
             let size = min(rect.width, rect.height)
-            let geometry = DonutGeometry(size: size)
+            let geometry = DonutGeometry(size: Double(size))
             let originX = rect.midX - size / 2
             let originY = rect.midY - size / 2
             var path = Path()
@@ -62,7 +62,7 @@
                 let outline = geometry.outline(segment)
             else { return path }
             for loop in outline {
-                path.addLines(loop.map { CGPoint(x: originX + $0.x, y: originY + $0.y) })
+                path.addLines(loop.map { CGPoint(x: originX + CGFloat($0.x), y: originY + CGFloat($0.y)) })
                 path.closeSubpath()
             }
             return path

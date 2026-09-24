@@ -35,7 +35,7 @@
             ZStack {
                 Circle().stroke(Color.black.opacity(0.25), lineWidth: 2.5)
                 Circle()
-                    .trim(from: 0, to: min(1, max(0, fraction)))
+                    .trim(from: 0, to: CGFloat(min(1, max(0, fraction))))
                     .stroke(Color.black, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }

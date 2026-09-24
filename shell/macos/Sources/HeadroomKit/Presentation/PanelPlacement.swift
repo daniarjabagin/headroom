@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(CoreGraphics)
+    import CoreGraphics
+#endif
+
 public enum PanelPlacement {
     public static func frame(
         content: CGSize, below anchor: CGRect, within visible: CGRect, gap: CGFloat, margin: CGFloat

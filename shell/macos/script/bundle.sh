@@ -5,6 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 package_dir="$(cd "$script_dir/.." && pwd)"
 repo_root="$(cd "$package_dir/../.." && pwd)"
 dist_dir="$package_dir/dist"
+staged_helper="$dist_dir/headroom-daemon"
 app="$dist_dir/Headroom.app"
 bundle_id="io.github.headroom"
 identity="${CODESIGN_IDENTITY:--}"
@@ -77,19 +78,19 @@ build_helper() {
     if [[ "$universal" == true ]]; then
         (cd "$repo_root" && cargo build --release -p headroom --target aarch64-apple-darwin)
         (cd "$repo_root" && cargo build --release -p headroom --target x86_64-apple-darwin)
-        lipo -create -output "$dist_dir/headroom" \
+        lipo -create -output "$staged_helper" \
             "$target_dir/aarch64-apple-darwin/release/headroom" \
             "$target_dir/x86_64-apple-darwin/release/headroom"
     else
         (cd "$repo_root" && cargo build --release -p headroom)
-        cp "$target_dir/release/headroom" "$dist_dir/headroom"
+        cp "$target_dir/release/headroom" "$staged_helper"
     fi
 }
 
 reuse_helper() {
     local previous="$app/Contents/Helpers/headroom" built
     if [[ -x "$previous" ]]; then
-        cp "$previous" "$dist_dir/headroom"
+        cp "$previous" "$staged_helper"
         return
     fi
     built="$(cargo_target_dir)/release/headroom"
@@ -97,7 +98,7 @@ reuse_helper() {
         echo "--no-cargo: no helper at $previous or $built; run once without --no-cargo" >&2
         exit 1
     fi
-    cp "$built" "$dist_dir/headroom"
+    cp "$built" "$staged_helper"
 }
 
 swift_arguments() {
@@ -198,7 +199,7 @@ assemble() {
     rm -rf "$app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
     mv "$dist_dir/Headroom" "$app/Contents/MacOS/Headroom"
-    mv "$dist_dir/headroom" "$app/Contents/Helpers/headroom"
+    mv "$staged_helper" "$app/Contents/Helpers/headroom"
     copy_resource_bundles
     build_icon || echo "note: app icon skipped (qlmanage, sips or iconutil unavailable or failed)"
     write_info_plist "$version"
