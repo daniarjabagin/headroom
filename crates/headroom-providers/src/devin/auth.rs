@@ -8,7 +8,7 @@ use headroom_core::secret::SecretString;
 use sha2::{Digest, Sha256};
 
 use super::state_db::{STATE_DB_FILE, read_app_key};
-use super::toml::top_level_string;
+use crate::toml::top_level_string;
 
 pub(super) const CREDENTIALS_FILE: &str = "credentials.toml";
 const KEY_FIELD: &str = "windsurf_api_key";

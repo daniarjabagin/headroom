@@ -18,6 +18,7 @@ use jiff::Timestamp;
 
 use self::client::KeyClient;
 use crate::key_accounts;
+use crate::paths::HeadroomDirs;
 
 pub const ID: ProviderId = ProviderId::from_static("openrouter");
 pub const DEFAULT_API_BASE: &str = "https://openrouter.ai";
@@ -45,10 +46,10 @@ pub struct OpenRouterConfig {
 
 impl OpenRouterConfig {
     pub fn from_process() -> Result<OpenRouterConfig, ProviderError> {
-        let data = dirs::data_dir()
-            .ok_or_else(|| ProviderError::LocalData("no XDG data directory".to_owned()))?;
+        let dirs = HeadroomDirs::from_process()
+            .ok_or_else(|| ProviderError::LocalData("home directory not found".to_owned()))?;
         Ok(OpenRouterConfig {
-            accounts_dir: data.join("headroom/accounts").join(ID.as_str()),
+            accounts_dir: dirs.accounts(ID.as_str()),
             api_base: DEFAULT_API_BASE.to_owned(),
         })
     }

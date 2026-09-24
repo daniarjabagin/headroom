@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
+use crate::paths::HeadroomDirs;
+
 pub const DEFAULT_API_BASE: &str = "https://api.github.com";
 const GH_PROGRAM: &str = "gh";
 
@@ -10,7 +12,7 @@ const GH_PROGRAM: &str = "gh";
 pub struct CopilotConfig {
     /// The GitHub CLI's own config dir: `$GH_CONFIG_DIR`, else `$XDG_CONFIG_HOME/gh`.
     pub gh_config_dir: PathBuf,
-    pub xdg_data_home: PathBuf,
+    pub headroom: HeadroomDirs,
     pub api_base: String,
     /// The `gh` executable asked for account tokens; a bare name is looked up on `PATH`.
     pub gh_program: PathBuf,
@@ -21,7 +23,7 @@ impl CopilotConfig {
     pub fn for_home(home: &Path) -> CopilotConfig {
         CopilotConfig {
             gh_config_dir: home.join(".config/gh"),
-            xdg_data_home: home.join(".local/share"),
+            headroom: HeadroomDirs::for_home(home),
             api_base: DEFAULT_API_BASE.to_owned(),
             gh_program: PathBuf::from(GH_PROGRAM),
         }
@@ -49,13 +51,13 @@ impl CopilotConfig {
             .unwrap_or(defaults.gh_config_dir);
         CopilotConfig {
             gh_config_dir,
-            xdg_data_home: absolute_var("XDG_DATA_HOME").unwrap_or(defaults.xdg_data_home),
+            headroom: HeadroomDirs::from_vars(home, &var),
             ..defaults
         }
     }
 
     pub(super) fn headroom_accounts_dir(&self) -> PathBuf {
-        self.xdg_data_home.join("headroom/accounts/copilot")
+        self.headroom.accounts(super::ID.as_str())
     }
 }
 
@@ -89,7 +91,10 @@ mod tests {
     fn gh_config_dir_wins_over_xdg_config_home() {
         let xdg = config_with(&[("XDG_CONFIG_HOME", "/cfg"), ("XDG_DATA_HOME", "/data")]);
         assert_eq!(xdg.gh_config_dir, PathBuf::from("/cfg/gh"));
-        assert_eq!(xdg.xdg_data_home, PathBuf::from("/data"));
+        assert_eq!(
+            xdg.headroom_accounts_dir(),
+            PathBuf::from("/data/headroom/accounts/copilot")
+        );
         let direct = config_with(&[("GH_CONFIG_DIR", "/gh"), ("XDG_CONFIG_HOME", "/cfg")]);
         assert_eq!(direct.gh_config_dir, PathBuf::from("/gh"));
         let relative = config_with(&[("XDG_CONFIG_HOME", "cfg"), ("GH_CONFIG_DIR", "")]);

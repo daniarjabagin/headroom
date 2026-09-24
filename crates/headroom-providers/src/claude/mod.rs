@@ -2,7 +2,9 @@ mod accounts;
 mod auth;
 mod client;
 mod config;
+mod credentials;
 mod identity;
+mod keychain;
 mod local_usage;
 mod log_record;
 mod mapper;
@@ -110,7 +112,7 @@ impl Provider for ClaudeProvider {
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         let identity = self.current_identity(account)?;
-        let credentials = auth::load_credentials(&account.home)?;
+        let credentials = credentials::load(&self.config, account).await?;
         let now = (self.clock)();
         let fetched = match credentials.usable_token(now) {
             Ok(token) => self.client.fetch(token, now).await,

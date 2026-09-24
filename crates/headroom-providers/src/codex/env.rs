@@ -7,16 +7,19 @@ use headroom_core::provider::ProviderError;
 
 use super::local_usage::has_logs;
 use crate::homes::unique_dirs;
+use crate::keychain::Security;
+use crate::paths::{HeadroomDirs, Os};
 
 const CODEX_HOME_VAR: &str = "CODEX_HOME";
 const DEFAULT_HOME_DIR: &str = ".codex";
-const HEADROOM_ACCOUNTS_DIR: [&str; 3] = ["headroom", "accounts", "codex"];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CodexEnvironment {
     pub codex_home: Option<String>,
     pub home_dir: Option<PathBuf>,
-    pub data_dir: Option<PathBuf>,
+    pub headroom: Option<HeadroomDirs>,
+    /// Read when `cli_auth_credentials_store` keeps the sign-in in the macOS Keychain.
+    pub keychain: Option<Security>,
 }
 
 impl CodexEnvironment {
@@ -25,7 +28,8 @@ impl CodexEnvironment {
         CodexEnvironment {
             codex_home: std::env::var(CODEX_HOME_VAR).ok(),
             home_dir: dirs::home_dir(),
-            data_dir: dirs::data_dir(),
+            headroom: HeadroomDirs::from_process(),
+            keychain: (Os::current() == Os::MacOs).then(Security::system),
         }
     }
 
@@ -40,13 +44,10 @@ impl CodexEnvironment {
     }
 
     pub(super) fn headroom_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
-        let Some(data_dir) = &self.data_dir else {
+        let Some(headroom) = &self.headroom else {
             return Ok(Vec::new());
         };
-        let root = HEADROOM_ACCOUNTS_DIR
-            .iter()
-            .fold(data_dir.clone(), |path, part| path.join(part));
-        subdirectories(&root)
+        subdirectories(&headroom.accounts(super::ID.as_str()))
     }
 
     pub(super) fn usage_homes(&self) -> Result<Vec<PathBuf>, ProviderError> {
@@ -106,7 +107,7 @@ mod tests {
         CodexEnvironment {
             codex_home: codex_home.map(str::to_owned),
             home_dir: Some(PathBuf::from("/home/user")),
-            data_dir: None,
+            ..CodexEnvironment::default()
         }
     }
 
@@ -143,7 +144,9 @@ mod tests {
         fs::create_dir_all(root.join("a-uuid")).unwrap();
         fs::write(root.join("stray.txt"), "x").unwrap();
         let environment = CodexEnvironment {
-            data_dir: Some(dir.path().to_path_buf()),
+            headroom: Some(HeadroomDirs {
+                data: dir.path().join("headroom"),
+            }),
             ..env(None)
         };
         assert_eq!(
@@ -160,7 +163,9 @@ mod tests {
     fn missing_data_dir_has_no_headroom_homes() {
         let dir = tempfile::tempdir().unwrap();
         let environment = CodexEnvironment {
-            data_dir: Some(dir.path().join("absent")),
+            headroom: Some(HeadroomDirs {
+                data: dir.path().join("absent"),
+            }),
             ..env(None)
         };
         assert!(environment.headroom_homes().unwrap().is_empty());

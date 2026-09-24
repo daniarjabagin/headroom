@@ -24,6 +24,7 @@ use discovery::LanguageServer;
 use raw::{RawSummaryEnvelope, RawUserStatusEnvelope};
 use token::AccessToken;
 
+use crate::paths::Os;
 use crate::secrets::{self, ForeignSecret, SecretBus};
 
 pub use client::DEFAULT_CLOUD_BASES;
@@ -220,6 +221,9 @@ impl Provider for AntigravityProvider {
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
+        if Os::current() != Os::Linux {
+            return Err(ProviderError::NotSignedIn);
+        }
         if discovery::installed(&self.config.gemini_dir)
             || !self.language_servers().await.is_empty()
         {

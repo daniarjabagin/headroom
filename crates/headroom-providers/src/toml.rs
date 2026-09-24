@@ -1,4 +1,4 @@
-pub(super) fn top_level_string(text: &str, key: &str) -> Option<String> {
+pub(crate) fn top_level_string(text: &str, key: &str) -> Option<String> {
     for line in text.lines().map(str::trim) {
         if line.starts_with('[') {
             return None;

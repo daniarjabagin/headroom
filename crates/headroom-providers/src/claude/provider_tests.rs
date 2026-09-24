@@ -161,3 +161,35 @@ fn id_is_claude() {
     assert_eq!(provider.id().as_str(), "claude");
     assert_eq!(provider.descriptor().display_name, "Claude");
 }
+
+#[tokio::test]
+async fn a_keychain_signed_in_headroom_home_is_discovered_and_fetched() {
+    let root = tempfile::tempdir().unwrap();
+    let fake = crate::keychain::fake::FakeKeychain::new(root.path());
+    let server = usage_server(1).await;
+    let mut config = ClaudeConfig::for_home(root.path().join("home"));
+    config.api_base = server.uri();
+    config.user = Some("someone".to_owned());
+    config.keychain = Some(fake.security());
+    let home = config.headroom_accounts_dir().join("h1");
+    write_json(
+        &home.join(".claude.json"),
+        &json!({ "oauthAccount": { "accountUuid": "acc-9", "organizationUuid": "org-1" } }),
+    );
+    let credentials = json!({ "claudeAiOauth": {
+        "accessToken": "keychain-token",
+        "expiresAt": one_hour_later().as_millisecond(),
+        "subscriptionType": "max",
+        "scopes": ["user:profile"]
+    }});
+    let service = keychain::scoped_service(home.to_str().unwrap());
+    fake.insert(&service, Some("someone"), &credentials.to_string());
+    let provider = ClaudeProvider::with_clock(config, fixed_now).unwrap();
+    let account = provider.account_at(&home).await.unwrap().unwrap();
+    assert_eq!(account.owner, CredentialOwner::Headroom);
+    let discovered = provider.discover().await.unwrap();
+    assert_eq!(discovered, std::slice::from_ref(&account));
+    let snapshot = provider.fetch_limits(&account).await.unwrap();
+    assert_eq!(snapshot.identity.stable_key, "acc-9/org-1");
+    assert!(!fake.argv_log().contains("keychain-token"));
+}

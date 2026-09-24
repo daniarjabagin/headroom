@@ -17,6 +17,7 @@ use jiff::Timestamp;
 
 use self::client::{QuotaClient, Scheme};
 use crate::key_accounts;
+use crate::paths::HeadroomDirs;
 
 pub const ID: ProviderId = ProviderId::from_static("zai");
 pub const DEFAULT_API_BASE: &str = "https://api.z.ai";
@@ -44,10 +45,10 @@ pub struct ZaiConfig {
 
 impl ZaiConfig {
     pub fn from_process() -> Result<ZaiConfig, ProviderError> {
-        let data = dirs::data_dir()
-            .ok_or_else(|| ProviderError::LocalData("no XDG data directory".to_owned()))?;
+        let dirs = HeadroomDirs::from_process()
+            .ok_or_else(|| ProviderError::LocalData("home directory not found".to_owned()))?;
         Ok(ZaiConfig {
-            accounts_dir: data.join("headroom/accounts").join(ID.as_str()),
+            accounts_dir: dirs.accounts(ID.as_str()),
             api_base: DEFAULT_API_BASE.to_owned(),
         })
     }

@@ -12,6 +12,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::jwt::unsigned_token;
 use super::{CodexConfig, CodexEnvironment, CodexProvider};
+use crate::paths::HeadroomDirs;
 
 pub(super) const USER_ID: &str = "user-fake0001";
 pub(super) const ACCOUNT_ID: &str = "acct-fake0001";
@@ -117,7 +118,10 @@ impl Setup {
             environment: CodexEnvironment {
                 codex_home: None,
                 home_dir: Some(self.root.path().join("home")),
-                data_dir: Some(self.root.path().join("data")),
+                headroom: Some(HeadroomDirs {
+                    data: self.root.path().join("data/headroom"),
+                }),
+                keychain: None,
             },
             api_base: api_base.to_owned(),
             clock: Arc::new(|| at(NOW)),

@@ -447,6 +447,47 @@ daemon (which reads them through `SecretReader`).
   read-only: `SearchItems`, then `GetSecret` on an unlocked match. It never calls `Unlock` and never
   prompts; a locked-only match is `Locked`, anything else unavailable is `Absent`.
 
+### macOS credentials
+
+- **Headroom's data dir** comes from one helper, `headroom-providers::paths::HeadroomDirs`:
+  `$XDG_DATA_HOME/headroom` (else `~/.local/share/headroom`) on Linux,
+  `~/Library/Application Support/Headroom` on macOS. Every provider takes its Headroom-owned homes
+  from `HeadroomDirs::accounts(<provider>)` and the secrets fallback from `HeadroomDirs::secrets()`.
+  Desktop apps' settings (Cursor and Devin `state.vscdb`) come from `paths::app_config_dir`:
+  `$XDG_CONFIG_HOME` on Linux, `~/Library/Application Support` on macOS. CLI dot-dirs (`~/.codex`,
+  `~/.claude`, `~/.grok`, `~/.kimi`, `~/.cline`, `~/.config/gh`, XDG paths of OpenCode and the Devin
+  CLI) are the same on both systems.
+- **Keychain access** goes only through `headroom-providers::keychain::Security`, which runs
+  `/usr/bin/security` (5 s timeout, `tokio::process`, killed on drop, stderr discarded). Reads are
+  `find-generic-password -s <service> [-a <account>] -w`; exit 44 is "not found", exits 36/51/128
+  (interaction not allowed, auth failed, cancelled) are `Denied`, any other exit is `Failed`, and a
+  missing program or a timeout is unavailable. Writes run `security -i` and send
+  `add-generic-password -U -s "<service>" -l "<label>" -a "<account>" -X "<hex secret>"` on
+  **stdin**; the secret never appears in argv, the line is limited to 4032 bytes, quoted values may not
+  contain `"`, `\` or control characters, and every write is read back and compared. Items created by
+  `/usr/bin/security` trust that tool, so reading them does not prompt. The program path and timeout are
+  injectable; tests run a fake `security` script on Linux and assert its argv and stdin.
+- **Secret store on macOS**: `SecretStore::new` picks the Keychain (service `io.github.headroom`,
+  account = account id, label `Headroom <provider> API key`) instead of the Secret Service, which with
+  its `zbus` dependency is compiled on Linux only. The file fallback and its rules are unchanged; a
+  denied Keychain behaves like a locked keyring. `read_foreign` returns `Absent` off Linux.
+- **Claude**: on macOS (`ClaudeConfig::keychain` is set) credentials are read from the Keychain first,
+  then from `.credentials.json`. Service names: `Claude Code-credentials` for `~/.claude` reached
+  without `CLAUDE_CONFIG_DIR`; `Claude Code-credentials-<first 8 hex of sha256(NFC(dir))>` for
+  `$CLAUDE_CONFIG_DIR` (then the plain name, as Claude Code does), for scanned config dirs and for
+  Headroom-owned homes (scoped name only, so a Headroom home never picks up the CLI's sign-in).
+  Accounts tried: `$USER`, then a legacy item without an account. Item text is JSON, or hex-encoded
+  JSON. Not found → the file; any other failure is a `LocalData` account error. Discovery on macOS
+  accepts a config dir with `.claude.json` even without `.credentials.json` and never runs `security`.
+  Claude has no token refresh on any OS, so nothing writes Claude Keychain items.
+- **Codex**: with `cli_auth_credentials_store = "keyring"` in `$CODEX_HOME/config.toml` (or `"auto"`
+  and no `auth.json`) the sign-in is read from the Keychain item `Codex Auth`, account
+  `cli|<first 16 hex of sha256(canonical CODEX_HOME)>` (Codex `compute_store_key`; test vector
+  `~/.codex` → `cli|940db7b1d0e4eb40`). Read-only; a missing item falls back to `auth.json`.
+- **Copilot** needs no Keychain code: tokens come from `gh auth token`, and `gh` reads its own
+  `gh:github.com` item. **Antigravity** discovery reads `/proc` and is Linux-only; on macOS the
+  provider reports `NotSignedIn`.
+
 ## API-key accounts
 
 `headroom accounts add <provider> --api-key-stdin` reads one line from stdin, calls

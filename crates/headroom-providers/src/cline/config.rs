@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use headroom_core::account::CredentialOwner;
 use headroom_core::provider::ProviderError;
 
+use crate::paths::HeadroomDirs;
+
 pub const DEFAULT_API_BASE: &str = "https://api.cline.bot";
 const DATA_DIR: &str = "data";
 const PROVIDERS_FILE: [&str; 2] = ["settings", "providers.json"];
@@ -15,7 +17,7 @@ pub struct ClineConfig {
     pub cline_dir: Option<PathBuf>,
     /// Value of `CLINE_DATA_DIR`.
     pub data_dir: Option<PathBuf>,
-    pub xdg_data_home: PathBuf,
+    pub headroom: HeadroomDirs,
     pub api_base: String,
 }
 
@@ -25,7 +27,7 @@ impl ClineConfig {
         ClineConfig {
             cline_dir: None,
             data_dir: None,
-            xdg_data_home: home.join(".local/share"),
+            headroom: HeadroomDirs::for_home(&home),
             api_base: DEFAULT_API_BASE.to_owned(),
             home,
         }
@@ -48,7 +50,7 @@ impl ClineConfig {
         ClineConfig {
             cline_dir: absolute_var("CLINE_DIR"),
             data_dir: absolute_var("CLINE_DATA_DIR"),
-            xdg_data_home: absolute_var("XDG_DATA_HOME").unwrap_or(defaults.xdg_data_home),
+            headroom: HeadroomDirs::from_vars(&defaults.home, &var),
             ..defaults
         }
     }
@@ -60,7 +62,7 @@ impl ClineConfig {
     }
 
     pub(super) fn headroom_accounts_dir(&self) -> PathBuf {
-        self.xdg_data_home.join("headroom/accounts/cline")
+        self.headroom.accounts(super::ID.as_str())
     }
 
     pub(super) fn providers_file(&self, home: &Path, owner: CredentialOwner) -> PathBuf {

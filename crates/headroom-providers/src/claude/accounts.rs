@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use headroom_core::account::{AccountRef, CredentialOwner};
 use headroom_core::provider::ProviderError;
 
-use super::auth::CREDENTIALS_FILE;
 use super::config::ClaudeConfig;
+use super::credentials::has_sign_in;
 use super::identity::{ClaudeIdentity, load_identity};
 use crate::homes::canonical;
 
@@ -78,7 +78,7 @@ fn is_hidden(path: &Path) -> bool {
 }
 
 fn inspect(config: &ClaudeConfig, candidate: Candidate) -> Option<AccountRef> {
-    if candidate.needs_credentials && !candidate.dir.join(CREDENTIALS_FILE).is_file() {
+    if candidate.needs_credentials && !has_sign_in(config, &candidate.dir) {
         return None;
     }
     let identity = match load_identity(config, &candidate.dir) {
@@ -95,7 +95,7 @@ pub(super) fn headroom_account_at(
     config: &ClaudeConfig,
     dir: &Path,
 ) -> Result<Option<AccountRef>, ProviderError> {
-    if !dir.join(CREDENTIALS_FILE).is_file() {
+    if !has_sign_in(config, dir) {
         return Ok(None);
     }
     let identity = load_identity(config, dir)?;

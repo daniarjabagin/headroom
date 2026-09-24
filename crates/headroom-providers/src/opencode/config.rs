@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
+use crate::paths::HeadroomDirs;
+
 pub const DEFAULT_API_BASE: &str = "https://opencode.ai";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,7 +17,7 @@ pub struct OpenCodeConfig {
 impl OpenCodeConfig {
     #[must_use]
     pub fn for_home(home: &Path) -> OpenCodeConfig {
-        OpenCodeConfig::from_data_home(&home.join(".local/share"))
+        OpenCodeConfig::from_vars(home, |_| None)
     }
 
     pub fn from_env() -> Result<OpenCodeConfig, ProviderError> {
@@ -34,17 +36,10 @@ impl OpenCodeConfig {
                 .filter(|path| path.is_absolute())
         };
         let data_home = absolute_var("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local/share"));
-        let defaults = OpenCodeConfig::from_data_home(&data_home);
         OpenCodeConfig {
-            data_dir: absolute_var("OPENCODE_DATA_DIR").unwrap_or(defaults.data_dir),
-            ..defaults
-        }
-    }
-
-    fn from_data_home(data_home: &Path) -> OpenCodeConfig {
-        OpenCodeConfig {
-            data_dir: data_home.join("opencode"),
-            accounts_dir: data_home.join("headroom/accounts/opencode"),
+            data_dir: absolute_var("OPENCODE_DATA_DIR")
+                .unwrap_or_else(|| data_home.join("opencode")),
+            accounts_dir: HeadroomDirs::from_vars(home, &var).accounts(super::ID.as_str()),
             api_base: DEFAULT_API_BASE.to_owned(),
         }
     }

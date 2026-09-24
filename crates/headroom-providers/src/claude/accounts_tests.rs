@@ -2,6 +2,7 @@ use headroom_core::account::{AccountId, first_per_id};
 use serde_json::json;
 use tempfile::TempDir;
 
+use super::super::auth::CREDENTIALS_FILE;
 use super::*;
 
 fn state(account: &str, organization: &str) -> String {
