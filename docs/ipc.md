@@ -1,0 +1,90 @@
+# Headroom socket API
+
+On macOS the daemon has no session bus. It serves the same commands and events as the
+[D-Bus API](dbus-api.md) over a Unix domain socket instead. The macOS app (`shell/macos`) and the
+`headroom` CLI on macOS use it. On Linux D-Bus stays the primary transport; `headroom daemon --socket`
+serves the socket in addition, which is how the socket transport is tested on Linux.
+
+Every payload (state, settings, providers) is the same JSON document the D-Bus API returns. Only the
+framing differs.
+
+## Socket
+
+| item | value |
+| --- | --- |
+| default path (macOS) | `~/Library/Application Support/Headroom/daemon.sock` |
+| fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>.sock` |
+| override | `headroom daemon --socket <path>`, clients: `HEADROOM_SOCKET=<path>` |
+| permissions | socket `0600`, parent directory `0700` |
+| framing | UTF-8 JSON-RPC 2.0, one JSON object per line terminated by `\n` |
+
+The daemon removes a stale socket file on start. If another daemon is listening on the path, the new
+one exits with "another Headroom daemon is already listening on <path>". The socket is removed on
+shutdown.
+
+## Requests
+
+```json
+{"jsonrpc":"2.0","id":7,"method":"Refresh","params":["codex:1f3a…"]}
+```
+
+- `params` is a positional array with the D-Bus arguments in order (strings, booleans, string
+  arrays). Methods without arguments take `[]` or omit `params`.
+- A client may send several requests without waiting; responses carry the request `id` and may arrive
+  in any order, interleaved with notifications.
+
+| method | params | result |
+| --- | --- | --- |
+| `GetState` | `[]` | state payload as a JSON **object** (not a string) |
+| `ListProviders` | `[]` | providers payload as a JSON object |
+| `GetSettings` | `[]` | settings as a JSON object |
+| `Refresh` | `[account_id]` | `null` |
+| `RefreshNow` | `[]` | `null` |
+| `Rescan` | `[]` | `null` |
+| `SetSettings` | `[json_string]` | `null` |
+| `UpdateSettings` | `[patch_string]` | `null` |
+| `SetAccountLabel` | `[account_id, label]` | `null` |
+| `SetAccountOrder` | `[[id, …]]` | `null` |
+| `SetAccountHidden` | `[account_id, hidden_bool]` | `null` |
+| `DismissAccount` | `[account_id]` | `null` |
+| `RestoreAccounts` | `[provider]` | `null` |
+| `Subscribe` | `[]` | `null`; from now on this connection receives notifications |
+
+Semantics, validation and side effects of every method are exactly those in
+[dbus-api.md](dbus-api.md#methods). `SetSettings` and `UpdateSettings` take the settings JSON as a
+string, as on D-Bus.
+
+## Responses and errors
+
+```json
+{"jsonrpc":"2.0","id":7,"result":null}
+{"jsonrpc":"2.0","id":8,"error":{"code":-32602,"message":"unknown account id codex:zz"}}
+```
+
+| code | meaning | D-Bus equivalent |
+| --- | --- | --- |
+| `-32700` | line is not valid JSON | — |
+| `-32600` | not a JSON-RPC 2.0 request object | — |
+| `-32601` | unknown method | `UnknownMethod` |
+| `-32602` | invalid arguments: wrong param count/types, plus every `InvalidArgs` case in dbus-api.md | `InvalidArgs` |
+| `-32000` | failure inside the daemon | `Failed` |
+
+`message` is human readable and safe to show. A line longer than 1 MiB closes the connection.
+
+## Notifications
+
+Sent only to connections that called `Subscribe`. They have no `id`.
+
+```json
+{"jsonrpc":"2.0","method":"StateChanged","params":{"state":{…}}}
+{"jsonrpc":"2.0","method":"OpenRequested","params":{}}
+{"jsonrpc":"2.0","method":"Alert","params":{"id":"codex:1f3a…/session/almost_out","title":"Codex · Work — Session","body":"Under 10% left · resets in 42m","account_id":"codex:1f3a…","urgency":"normal"}}
+```
+
+| notification | when |
+| --- | --- |
+| `StateChanged` | same as the D-Bus signal: full state payload, debounced by 250 ms |
+| `OpenRequested` | a client asked the daemon to open the popup (reserved; the macOS app handles its own notification clicks) |
+| `Alert` | on macOS, instead of `org.freedesktop.Notifications`: the app posts it with `UNUserNotificationCenter`. `urgency` is `low`, `normal` or `critical`. Texts follow `display.language` exactly as in [Notifications](dbus-api.md#notifications). A delivery counts as successful when at least one subscribed connection received it; otherwise it is rolled back and retried at the next refresh, like a failed desktop notification on Linux. |
+
+A subscriber should call `GetState` after `Subscribe` and then follow `StateChanged`.
