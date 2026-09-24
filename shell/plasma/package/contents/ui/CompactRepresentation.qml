@@ -71,17 +71,21 @@ MouseArea {
         }
 
         PlasmaComponents3.Label {
+            objectName: "compactWindowLabel"
             visible: compact.windowMode
             Layout.alignment: Qt.AlignCenter
             opacity: 0.7
+            textFormat: Text.PlainText
             text: compact.windowMode ? Format.shortWindowLabel(compact.lang, compact.headline.windowId, compact.headline.windowLabel) : ""
             font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
             font.weight: Font.DemiBold
         }
 
         PlasmaComponents3.Label {
+            objectName: "compactPercentLabel"
             visible: compact.hasHeadline
             Layout.alignment: Qt.AlignCenter
+            textFormat: Text.PlainText
             text: compact.hasHeadline ? Format.panelPercent(compact.percent) : ""
             color: compact.windowMode && compact.headline.tone === "critical" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
             font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize

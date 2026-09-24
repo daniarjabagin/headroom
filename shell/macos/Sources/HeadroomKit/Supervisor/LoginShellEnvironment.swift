@@ -1,7 +1,8 @@
 import Foundation
 
 public enum LoginShellEnvironment {
-    public static let marker = "__HEADROOM_ENVIRONMENT__"
+    public static let beginMarker = "__HEADROOM_ENV_BEGIN__"
+    public static let endMarker = "__HEADROOM_ENV_END__"
     public static let timeout: Duration = .seconds(5)
 
     static let exactKeys: Set<String> = [
@@ -9,26 +10,34 @@ public enum LoginShellEnvironment {
     ]
     static let keyPrefixes = ["XDG_", "LC_"]
 
+    static let script = "printf '\\n%s\\n' \(beginMarker); /usr/bin/env -0; printf '%s' \(endMarker)"
+
     public static func capture(
         shell: String, runner: any CommandRunning = CommandRunner(), timeout: Duration = timeout
     ) async -> [String: String] {
-        let script = "printf '%s\\n' \(marker); /usr/bin/env"
-        let output = try? await runner.run(
-            URL(fileURLWithPath: shell), arguments: ["-i", "-l", "-c", script], environment: nil,
+        let output = try? await runner.output(
+            of: URL(fileURLWithPath: shell), arguments: ["-i", "-l", "-c", script], until: endMarker,
             timeout: timeout)
-        guard let output, output.status == 0 else { return [:] }
-        return relevant(parse(output.stdout))
+        guard let output else { return [:] }
+        return relevant(parse(output))
     }
 
     public static func parse(_ output: String) -> [String: String] {
-        let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
-        guard let start = lines.lastIndex(where: { $0 == marker }) else { return [:] }
+        guard let block = markedBlock(output) else { return [:] }
         var environment: [String: String] = [:]
-        for line in lines[lines.index(after: start)...] {
-            guard let (key, value) = assignment(line) else { continue }
+        for entry in block.split(separator: "\0") {
+            guard let (key, value) = assignment(entry) else { continue }
             environment[key] = value
         }
         return environment
+    }
+
+    private static func markedBlock(_ output: String) -> Substring? {
+        guard let end = output.range(of: endMarker, options: .backwards),
+            let begin = output.range(
+                of: "\n\(beginMarker)\n", options: .backwards, range: output.startIndex..<end.lowerBound)
+        else { return nil }
+        return output[begin.upperBound..<end.lowerBound]
     }
 
     public static func relevant(_ environment: [String: String]) -> [String: String] {
@@ -39,13 +48,13 @@ public enum LoginShellEnvironment {
         exactKeys.contains(key) || keyPrefixes.contains { key.hasPrefix($0) }
     }
 
-    private static func assignment(_ line: Substring) -> (String, String)? {
-        guard let equals = line.firstIndex(of: "="), equals > line.startIndex else { return nil }
-        let key = String(line[..<equals])
+    private static func assignment(_ entry: Substring) -> (String, String)? {
+        guard let equals = entry.firstIndex(of: "="), equals > entry.startIndex else { return nil }
+        let key = String(entry[..<equals])
         guard key.allSatisfy({ $0 == "_" || ($0.isASCII && ($0.isLetter || $0.isNumber)) }) else {
             return nil
         }
-        return (key, String(line[line.index(after: equals)...]))
+        return (key, String(entry[entry.index(after: equals)...]))
     }
 }
 

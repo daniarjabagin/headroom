@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.components as PlasmaComponents3
 import "logic/Format.js" as Format
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
@@ -75,7 +74,7 @@ Item {
                 id: stripHover
             }
 
-            PlasmaComponents3.ToolTip {
+            PlainToolTip {
                 text: trend.tipText
                 visible: stripHover.shown && trend.tipText !== ""
                 delay: 0

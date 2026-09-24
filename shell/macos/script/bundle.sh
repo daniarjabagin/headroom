@@ -83,13 +83,13 @@ build_helper() {
     local target_dir
     target_dir="$(cargo_target_dir)"
     if [[ "$universal" == true ]]; then
-        (cd "$repo_root" && cargo build --release -p headroom --target aarch64-apple-darwin)
-        (cd "$repo_root" && cargo build --release -p headroom --target x86_64-apple-darwin)
+        (cd "$repo_root" && cargo build --release --locked -p headroom --target aarch64-apple-darwin)
+        (cd "$repo_root" && cargo build --release --locked -p headroom --target x86_64-apple-darwin)
         lipo -create -output "$staged_helper" \
             "$target_dir/aarch64-apple-darwin/release/headroom" \
             "$target_dir/x86_64-apple-darwin/release/headroom"
     else
-        (cd "$repo_root" && cargo build --release -p headroom)
+        (cd "$repo_root" && cargo build --release --locked -p headroom)
         cp "$target_dir/release/headroom" "$staged_helper"
     fi
 }

@@ -22,7 +22,7 @@ export class UpdateRows {
             subtitle: _('Once a day, asks GitHub for the latest release. Nothing else is sent.'),
             onChange: value => client.updateSettings(updatesPatch(value)),
         });
-        this.release = new Adw.ActionRow({ visible: false });
+        this.release = new Adw.ActionRow({ visible: false, use_markup: false });
         this._spinner = spinner();
         this._spinner.valign = Gtk.Align.CENTER;
         this._whatsNew = suffixButton(() => this._openRelease(), ['flat']);

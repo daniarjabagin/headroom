@@ -14,6 +14,28 @@ All notable changes to Headroom are documented here. The format is based on
   added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
   Homebrew cask's caveats now say to start the app with `open -a Headroom`.
 
+### Security
+
+- **The Sparkle signing key never reaches a build job.** The release workflow builds and tests the
+  macOS DMG in one job without secrets, then signs it and writes `appcast.xml` in a separate job that
+  runs no build tools: it checks the DMG's SHA-256, reads the version from the mounted DMG, and uses
+  the pinned, checksum-verified `sign_update`. A stable release without the signing key now fails
+  instead of shipping without an update feed. `bundle.sh` builds the helper with `cargo --locked`.
+- **The GNOME extension bundle is packed without npm.** CI packs the release zip in its own job
+  with only GNOME Shell tools installed; eslint, prettier and the unit tests run in a separate job.
+- **Dependabot** keeps the pinned GitHub Actions, Cargo crates, the GNOME extension's dev tools and
+  the Swift packages current, weekly and with a small limit on open pull requests.
+
+### Fixed
+
+- **macOS: the login-shell environment is captured even when `.zshrc` starts background jobs.**
+  Headroom stops reading at an end marker instead of waiting for every process holding the shell's
+  output to exit, and parses `env -0` output, so values with newlines survive. Before, a background
+  job made the capture time out and the daemon ran without the login `PATH`.
+- **GNOME preferences and the Plasma widget show daemon and provider text as plain text.** Error
+  toasts, the update row, the API-key form and the "No providers available" page no longer interpret
+  Pango markup, and the Plasma panel labels and tooltips no longer interpret rich text.
+
 ### Project
 
 - **Community files:** issue forms for bugs, feature requests and new providers, a pull request

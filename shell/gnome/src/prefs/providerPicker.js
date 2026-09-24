@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import { _, fill } from '../i18n.js';
 import { navigationPage } from './flowPage.js';
@@ -31,7 +32,7 @@ function unavailablePage(error) {
     const status = new Adw.StatusPage({
         icon_name: 'dialog-warning-symbolic',
         title: _('No providers available'),
-        description: error ?? _('The Headroom service did not list any providers.'),
+        description: GLib.markup_escape_text(error ?? _('The Headroom service did not list any providers.'), -1),
     });
     return navigationPage(_('Add Account'), status);
 }

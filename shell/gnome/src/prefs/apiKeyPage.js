@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import { _, fill } from '../i18n.js';
 import { ProgressProcess } from '../cli.js';
@@ -40,12 +41,17 @@ export class ApiKeyPage {
     }
 
     _formPage() {
-        this._keyRow = new Adw.PasswordEntryRow({ title: this._method.label ?? _('API key') });
+        this._keyRow = new Adw.PasswordEntryRow({
+            title: this._method.label ?? _('API key'),
+            use_markup: false,
+        });
         this._keyRow.connect('changed', () => this._syncAddButton());
         this._keyRow.connect('entry-activated', () => this._start());
         this._labelRow = new Adw.EntryRow({ title: _('Label (optional)'), max_length: LABEL_MAX_CHARS });
         this._labelRow.connect('entry-activated', () => this._start());
-        const group = new Adw.PreferencesGroup({ description: this._method.hint ?? '' });
+        const group = new Adw.PreferencesGroup({
+            description: GLib.markup_escape_text(this._method.hint ?? '', -1),
+        });
         group.add(this._keyRow);
         group.add(this._labelRow);
         this._addButton = pillButton(_('Add'), true, () => this._start());
