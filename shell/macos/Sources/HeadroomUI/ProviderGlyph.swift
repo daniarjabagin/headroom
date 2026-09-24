@@ -7,7 +7,6 @@
     @MainActor
     @Observable
     final class ProviderIconStore {
-        nonisolated private static let bundleName = "HeadroomMac_HeadroomUI.bundle"
         nonisolated private static let folder = "ProviderIcons"
 
         @ObservationIgnored private var icons: [String: SVGIcon] = [:]
@@ -32,10 +31,10 @@
         }
 
         nonisolated private static func locateDirectory() -> URL? {
-            let roots = [Bundle.main.resourceURL, Bundle.main.bundleURL].compactMap { $0 }
-            return roots.lazy
-                .map { $0.appendingPathComponent(bundleName).appendingPathComponent(folder) }
-                .first { FileManager.default.fileExists(atPath: $0.path) }
+            let main = Bundle.main
+            let roots = [main.resourceURL, main.bundleURL, main.executableURL?.deletingLastPathComponent()]
+            return ResourceLocator.directory(
+                named: folder, inBundle: ResourceLocator.uiBundleName, roots: roots.compactMap { $0 })
         }
     }
 
