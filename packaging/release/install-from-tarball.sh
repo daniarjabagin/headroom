@@ -44,7 +44,6 @@ dbus_dir="$data_home/dbus-1/services"
 icon_dir="$data_home/icons/hicolor"
 receipt="$data_home/headroom/install.json"
 extension_uuid="headroom@daniarjabagin.github.io"
-extension_dir="$data_home/gnome-shell/extensions/$extension_uuid"
 plasmoid_id="io.github.daniarjabagin.headroom"
 plasmoid_dir="$data_home/plasma/plasmoids/$plasmoid_id"
 
@@ -130,7 +129,6 @@ start_service() {
 install_extension() {
     step "Installing the GNOME Shell extension"
     gnome-extensions install --force "$here/gnome/$extension_uuid.shell-extension.zip"
-    glib-compile-schemas --strict "$extension_dir/schemas"
     cat <<EOF
 
 GNOME Shell extension installed. Enable it with:

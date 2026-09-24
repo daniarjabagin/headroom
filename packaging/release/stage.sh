@@ -7,7 +7,7 @@ Usage: packaging/release/stage.sh --version VERSION --arch ARCH --binary PATH --
 
 Assembles release inputs from a built headroom binary and the packed GNOME Shell extension:
   DIR/stage/headroom                  the binary nfpm packages as /usr/bin/headroom
-  DIR/stage/gnome-extension/          the unpacked extension with compiled schemas
+  DIR/stage/gnome-extension/          the unpacked extension
   DIR/headroom-VERSION-ARCH-linux-musl.tar.gz
                                       the self-contained tarball for ~/.local installs
 
@@ -53,12 +53,11 @@ stage_binary() {
 }
 
 stage_extension() {
-    step "Unpacking the GNOME Shell extension and compiling its schemas"
+    step "Unpacking the GNOME Shell extension"
     mkdir -p "$stage/gnome-extension"
     python3 -m zipfile -e "$extension_zip" "$stage/gnome-extension"
     find "$stage/gnome-extension" -type d -exec chmod 0755 {} +
     find "$stage/gnome-extension" -type f -exec chmod 0644 {} +
-    glib-compile-schemas --strict "$stage/gnome-extension/schemas"
 }
 
 assemble_bundle() {
