@@ -102,6 +102,14 @@ mod tests {
     }
 
     #[test]
+    fn an_openssl_signature_by_the_release_key_verifies() {
+        let message = include_bytes!("fixtures/interop.txt");
+        let signature = include_bytes!("fixtures/interop.txt.sig");
+        assert!(verify_signature(&RELEASE_KEY, message, signature).is_ok());
+        assert!(verify_signature(&RELEASE_KEY, b"changed", signature).is_err());
+    }
+
+    #[test]
     fn the_pinned_key_matches_the_published_public_key_file() {
         let body: String = PINNED_PEM
             .lines()
