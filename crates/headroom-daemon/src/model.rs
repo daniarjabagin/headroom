@@ -7,17 +7,19 @@ use headroom_core::usage::UsageSummary;
 use jiff::Timestamp;
 use rusqlite::Connection;
 
+use crate::dismissed::DismissedHomes;
 use crate::error::StorageError;
 use crate::home::UsageHome;
 use crate::settings::Settings;
 use crate::storage::accounts::{self, AccountRecord};
 use crate::storage::lapses::{self, Lapse};
-use crate::storage::{settings, snapshots};
+use crate::storage::{dismissed, settings, snapshots};
 
 #[derive(Debug, Clone, Default)]
 pub struct Model {
     pub settings: Settings,
     pub accounts: Vec<AccountRecord>,
+    pub dismissed: DismissedHomes,
     pub snapshots: HashMap<AccountId, SnapshotEntry>,
     pub runtime: HashMap<AccountId, AccountRuntime>,
     pub usage_homes: BTreeSet<UsageHome>,
@@ -109,6 +111,7 @@ impl Model {
         Ok(Model {
             settings: settings::load(conn)?,
             accounts: accounts::load_all(conn)?,
+            dismissed: dismissed::load_all(conn)?,
             snapshots,
             runtime: lapsed_runtime(lapses::load_all(conn)?),
             usage_homes: BTreeSet::new(),
@@ -122,14 +125,14 @@ impl Model {
     }
 
     #[must_use]
-    pub fn discovered_account(&self, id: &AccountId) -> Option<&AccountRecord> {
-        self.accounts.iter().find(|a| a.id() == id && !a.gone)
+    pub fn stored_account(&self, id: &AccountId) -> Option<&AccountRecord> {
+        self.accounts.iter().find(|a| a.id() == id)
     }
 
     pub fn active_accounts(&self) -> impl Iterator<Item = &AccountRecord> {
         self.accounts
             .iter()
-            .filter(|a| !a.gone && !self.settings.is_dismissed(&a.id().0))
+            .filter(|a| !a.gone && !self.dismissed.hides(&a.reference))
     }
 
     pub fn runtime_mut(&mut self, id: &AccountId) -> &mut AccountRuntime {

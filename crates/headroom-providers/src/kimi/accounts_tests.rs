@@ -51,13 +51,16 @@ fn nothing_signed_in_finds_nothing() {
 }
 
 #[test]
-fn a_share_dir_inside_the_accounts_root_is_listed_once() {
+fn a_share_dir_inside_the_accounts_root_is_listed_cli_first() {
     let root = tempfile::tempdir().unwrap();
     let mut config = config(&root);
     let login = config.accounts_dir.join("login");
     sign_in(&login);
     config.share_dir = login;
-    assert_eq!(discover(&config).unwrap().len(), 1);
+    let accounts = discover(&config).unwrap();
+    let owners: Vec<_> = accounts.iter().map(|account| account.owner).collect();
+    assert_eq!(owners, [CredentialOwner::Cli, CredentialOwner::Headroom]);
+    assert_eq!(accounts[0].id, accounts[1].id);
 }
 
 #[test]

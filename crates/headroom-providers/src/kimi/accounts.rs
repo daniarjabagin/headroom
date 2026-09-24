@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -26,8 +25,6 @@ pub(super) fn discover(config: &KimiConfig) -> Result<Vec<AccountRef>, ProviderE
             .iter()
             .map(|home| oauth_account(home, CredentialOwner::Headroom)),
     );
-    let mut seen = BTreeSet::new();
-    accounts.retain(|account| seen.insert(account.id.clone()));
     Ok(accounts)
 }
 

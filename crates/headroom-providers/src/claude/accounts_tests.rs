@@ -1,4 +1,4 @@
-use headroom_core::account::AccountId;
+use headroom_core::account::{AccountId, first_per_id};
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -107,7 +107,7 @@ fn extra_dirs_in_home_and_config_are_discovered() {
 }
 
 #[test]
-fn same_identity_in_two_dirs_appears_once() {
+fn same_identity_in_two_dirs_is_listed_per_dir_and_resolves_to_the_first() {
     let (home, config) = setup();
     login(
         &home.path().join(".claude"),
@@ -117,8 +117,10 @@ fn same_identity_in_two_dirs_appears_once() {
     login_scoped(&home.path().join(".claude-copy"), "acc-default");
     login_scoped(&home.path().join(".claude-x"), "acc-x");
     login_scoped(&home.path().join(".claude-y"), "acc-x");
+    let found = discover_accounts(&config);
+    assert_eq!(found.len(), 4);
     assert_eq!(
-        summary(&discover_accounts(&config)),
+        summary(&first_per_id(found)),
         [
             (
                 id("acc-default"),
@@ -238,7 +240,7 @@ fn headroom_account_at_reads_exactly_that_dir() {
     login(&cli_dir, &home.path().join(".claude.json"), "acc-dup");
     let added = config.headroom_accounts_dir().join("uuid-1");
     login_scoped(&added, "acc-dup");
-    assert_eq!(discover_accounts(&config).len(), 1);
+    assert_eq!(discover_accounts(&config).len(), 2);
     let found = headroom_account_at(&config, &added).unwrap().unwrap();
     assert_eq!(
         summary(&[found]),

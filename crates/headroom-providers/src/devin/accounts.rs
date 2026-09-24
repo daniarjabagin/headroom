@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -14,12 +13,7 @@ struct Candidate {
 }
 
 pub(super) fn discover_accounts(config: &DevinConfig) -> Vec<AccountRef> {
-    let mut seen = BTreeSet::new();
-    candidates(config)
-        .into_iter()
-        .filter_map(inspect)
-        .filter(|account| seen.insert(account.id.clone()))
-        .collect()
+    candidates(config).into_iter().filter_map(inspect).collect()
 }
 
 pub(super) fn headroom_account_at(home: &Path) -> Result<Option<AccountRef>, ProviderError> {

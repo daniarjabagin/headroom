@@ -44,7 +44,7 @@ fn every_gh_account_and_every_headroom_login_is_an_account() {
 }
 
 #[test]
-fn a_user_known_to_both_is_listed_once_and_logins_ignore_case() {
+fn a_user_known_to_both_is_listed_cli_first_and_logins_ignore_case() {
     let root = tempfile::tempdir().unwrap();
     let config = CopilotConfig::for_home(root.path());
     write_hosts(&config.gh_config_dir, &single("octocat"));
@@ -53,7 +53,8 @@ fn a_user_known_to_both_is_listed_once_and_logins_ignore_case() {
         &single("OctoCat"),
     );
     let accounts = discover_accounts(&config);
-    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].id, accounts[1].id);
     assert_eq!(accounts[0].owner, CredentialOwner::Cli);
     assert_eq!(stable_key("OctoCat"), "github.com/octocat");
 }

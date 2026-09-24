@@ -17,14 +17,14 @@ use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use headroom_core::account::AccountRef;
+use headroom_core::account::{AccountRef, CredentialOwner};
 use headroom_core::descriptor::{ApiKeyPrompt, ProviderDescriptor};
 use headroom_core::provider::Provider;
 
 use crate::cli::ProgressFormat;
 use crate::paths::{Globals, accounts_root};
 use crate::providers::{self, LocalRegistry};
-use announce::announce;
+use announce::{announce, shown_owner};
 use api_key::KeyTarget;
 use cancel::{CANCELLED, Cancel};
 use discovery::discover_local;
@@ -217,8 +217,8 @@ async fn register(
 ) -> Result<Added> {
     let registered = async {
         let account = signed_in_account(provider, home).await?;
-        warn_if_duplicate(target, &account).await?;
         let labelled = announce(globals, &account, label).await?;
+        warn_if_duplicate(globals, target, &account).await?;
         Ok((account.id.0, labelled))
     };
     tokio::select! {
@@ -268,17 +268,73 @@ async fn signed_in_account(provider: &dyn Provider, home: &Path) -> Result<Accou
     })
 }
 
-async fn warn_if_duplicate(target: &Target, account: &AccountRef) -> Result<()> {
-    let existing = discover_local(&target.registry.all())
-        .await
-        .into_iter()
-        .find(|known| known.id == account.id && known.home != account.home);
-    if let Some(existing) = existing {
-        let path = existing.home.display();
-        writeln!(
-            io::stderr(),
-            "This account is already tracked from {path}; Headroom keeps using that one."
-        )?;
+async fn warn_if_duplicate(globals: &Globals, target: &Target, account: &AccountRef) -> Result<()> {
+    let known = discover_local(&target.registry.all()).await;
+    let shown = shown_owner(globals, &account.id.0).await?;
+    if let Some(note) = duplicate_note(account, &known, shown) {
+        writeln!(io::stderr(), "{note}")?;
     }
     Ok(())
+}
+
+fn duplicate_note(
+    account: &AccountRef,
+    known: &[AccountRef],
+    shown: Option<CredentialOwner>,
+) -> Option<String> {
+    let existing = known
+        .iter()
+        .find(|known| known.id == account.id && known.home != account.home)?;
+    let path = existing.home.display();
+    match shown {
+        Some(CredentialOwner::Headroom) => None,
+        Some(CredentialOwner::Cli) => Some(format!(
+            "This account is already tracked from {path}; Headroom keeps using that one."
+        )),
+        None => Some(format!(
+            "This account is also signed in at {path}; Headroom uses that one unless it was \
+             removed from Headroom."
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use headroom_core::account::{AccountId, ProviderId};
+
+    use super::*;
+
+    fn at(home: &str, owner: CredentialOwner) -> AccountRef {
+        AccountRef {
+            id: AccountId("grok:0123456789ab".into()),
+            provider: ProviderId::parse("grok").unwrap(),
+            home: PathBuf::from(home),
+            owner,
+        }
+    }
+
+    #[test]
+    fn duplicates_are_reported_only_when_the_cli_home_may_still_win() {
+        let added = at("/data/grok/1", CredentialOwner::Headroom);
+        let cli = at("/home/ada/.grok", CredentialOwner::Cli);
+        let known = [cli, added.clone()];
+        assert_eq!(
+            duplicate_note(&added, &known, Some(CredentialOwner::Headroom)),
+            None
+        );
+        let kept = duplicate_note(&added, &known, Some(CredentialOwner::Cli)).unwrap();
+        assert!(kept.contains("/home/ada/.grok; Headroom keeps using that one"));
+        let unknown = duplicate_note(&added, &known, None).unwrap();
+        assert!(unknown.contains("unless it was removed from Headroom"));
+        assert_eq!(
+            duplicate_note(
+                &added,
+                std::slice::from_ref(&added),
+                Some(CredentialOwner::Cli)
+            ),
+            None
+        );
+    }
 }

@@ -24,13 +24,13 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
-| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected. Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
+| `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
-| `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). Adds the id to the `dismissed_accounts` setting, then rescans; the account leaves `accounts[]`, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
-| `RestoreAccounts` | `(s provider) → ()` | Clear the dismissals of one provider (`"grok"`), or of every provider with `""`, then rescan so the accounts come back. An unknown provider id fails with `InvalidArgs`. Emits `StateChanged`. |
+| `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). The daemon records the account's current CLI home (provider, account id, home path) as dismissed, then rescans; that record leaves `accounts[]` at once, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Only that CLI record is dismissed: the same person signed in through a Headroom-owned home still shows (see [Rescan semantics](#rescan-semantics)). Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
+| `RestoreAccounts` | `(s provider) → ()` | Clear the dismissed CLI homes of one provider (`"grok"`), or of every provider with `""`, then rescan so the accounts come back. An unknown provider id fails with `InvalidArgs`. Emits `StateChanged`. |
 
 Refresh semantics:
 
@@ -59,8 +59,13 @@ Rescan semantics:
 - Accounts found by a rescan (new ones and ones that come back) refresh immediately; accounts that
   disappeared stop being refreshed and leave `accounts[]`.
 - `headroom accounts add` and `headroom accounts remove` call `Rescan`, so the change shows up at once.
-- Dismissed accounts (`dismissed_accounts`) are still discovered and stored, but they are left out of
-  `accounts[]` and are not refreshed until `RestoreAccounts` clears the dismissal. Usage homes are
+- One account id can be signed in at several homes (the CLI's own home and a Headroom-owned home for
+  the same person). Discovery lists every home; the daemon first drops dismissed CLI homes, then keeps
+  one record per id, preferring the provider's order (usually the CLI home). So after the CLI home of
+  an account is dismissed, signing the same person in through Headroom (`headroom accounts add`)
+  shows the account again with `"owner": "headroom"`. `RestoreAccounts` brings the CLI home back,
+  and it wins again where the provider prefers it.
+- Dismissed CLI homes are kept in the daemon's database, not in the settings. Usage homes are
   independent of accounts: local usage and spend of a dismissed account's home are still read.
 
 ### Errors
@@ -569,7 +574,11 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
 | `display.translucent` | bool | `false` | Shells render the popup with a translucent (blurred where supported) background instead of an opaque one. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
-| `dismissed_accounts` | array | `[]` | Ids of CLI-owned accounts the user removed, e.g. `["grok:1a2b3c4d5e6f"]`. Normally changed through `DismissAccount` and `RestoreAccounts`. Ids must be non-empty; the list is stored sorted without duplicates. Dismissed accounts are left out of `accounts[]`, the headline, notifications and refreshes. |
+
+Dismissed accounts are not a setting: `DismissAccount` and `RestoreAccounts` manage them in the
+daemon's database. A `dismissed_accounts` key sent by older clients to `SetSettings` or
+`UpdateSettings` is ignored, and a list stored by an older daemon is migrated once: each id that
+names a CLI-owned account becomes that account's dismissed CLI home; other ids are dropped.
 
 ```json
 {
@@ -589,8 +598,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
     "show_forecast": true,
     "translucent": false,
     "hidden_windows": {}
-  },
-  "dismissed_accounts": []
+  }
 }
 ```
 
@@ -701,8 +709,10 @@ a CLI home, so for a CLI-owned account (`"owner": "cli"`) `remove` calls `Dismis
 Headroom stops showing the account and the provider's CLI stays signed in. This needs a running
 daemon; without one `remove` fails with a message saying so. Both cases end with the same `done`
 event. A dismissed account can then be added again through Headroom's own sign-in
-(`accounts add`, a Headroom-owned home); `headroom accounts restore [<PROVIDER-ID>]` calls
-`RestoreAccounts` to show dismissed CLI accounts again.
+(`accounts add`, a Headroom-owned home): it shows with `"owner": "headroom"` while its CLI home stays
+dismissed. When the daemon shows one id from two homes, `remove` acts on the record the daemon
+shows. `headroom accounts restore [<PROVIDER-ID>]` calls `RestoreAccounts` to show dismissed CLI
+accounts again.
 
 | event | fields | meaning |
 | --- | --- | --- |

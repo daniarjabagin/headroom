@@ -2,6 +2,7 @@ pub mod accounts;
 pub mod alerts;
 mod codec;
 pub mod cursors;
+pub mod dismissed;
 pub mod events;
 pub mod lapses;
 mod migrations;

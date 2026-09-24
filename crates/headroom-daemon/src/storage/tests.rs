@@ -46,6 +46,7 @@ fn fresh_database_is_migrated_to_latest() {
         table_names(&storage),
         [
             "accounts",
+            "dismissed_homes",
             "limits_snapshots",
             "log_cursors",
             "notification_state",

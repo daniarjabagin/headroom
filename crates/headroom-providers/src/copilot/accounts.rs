@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,14 +16,12 @@ fn account_id(login: &str) -> AccountId {
 }
 
 pub(super) fn discover_accounts(config: &CopilotConfig) -> Vec<AccountRef> {
-    let mut seen = BTreeSet::new();
     let cli = std::iter::once((config.gh_config_dir.clone(), CredentialOwner::Cli));
     let owned = child_dirs(&config.headroom_accounts_dir())
         .into_iter()
         .map(|dir| (dir, CredentialOwner::Headroom));
     cli.chain(owned)
         .flat_map(|(dir, owner)| accounts_in(&dir, owner))
-        .filter(|account| seen.insert(account.id.clone()))
         .collect()
 }
 

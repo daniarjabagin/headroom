@@ -54,16 +54,16 @@ fn cli_app_and_headroom_sign_ins_are_all_found() {
 }
 
 #[test]
-fn the_same_key_in_the_cli_and_the_app_is_one_account() {
+fn the_same_key_in_the_cli_and_the_app_is_listed_cli_first() {
     let root = tempfile::tempdir().unwrap();
     let config = DevinConfig::for_home(root.path());
     write_credentials(&config.cli_dir(), "shared-key");
     write_app(&config, "shared-key");
     let accounts = discover_accounts(&config);
-    assert_eq!(
-        summary(&accounts),
-        [(config.cli_dir(), CredentialOwner::Cli)]
-    );
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].id, accounts[1].id);
+    assert_eq!(accounts[0].home, config.cli_dir());
+    assert_eq!(accounts[0].owner, CredentialOwner::Cli);
 }
 
 #[test]

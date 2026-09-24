@@ -7,7 +7,7 @@ use headroom_core::descriptor::ProviderDescriptor;
 use headroom_providers::registry;
 use headroom_providers::secrets::SecretStore;
 
-use super::announce::rescan_if_running;
+use super::announce::{rescan_if_running, shown_owner};
 use super::discovery::discover_local;
 use super::dismiss::Dismissal;
 use super::home::headroom_home;
@@ -68,7 +68,8 @@ async fn remove_account(
 ) -> Result<Removal> {
     let registry = LocalRegistry::for_cli(globals)?;
     let accounts = discover_local(&registry.all()).await;
-    let Some(account) = accounts.iter().find(|account| account.id.0 == id) else {
+    let shown = shown_owner(globals, id).await?;
+    let Some(account) = pick_record(&accounts, id, shown) else {
         bail!("no signed-in account {id} found");
     };
     match account.owner {
@@ -107,6 +108,18 @@ async fn delete_account(
         id: account.id.0.clone(),
         home,
     })
+}
+
+fn pick_record<'a>(
+    accounts: &'a [AccountRef],
+    id: &str,
+    shown: Option<CredentialOwner>,
+) -> Option<&'a AccountRef> {
+    let mut records = accounts.iter().filter(|account| account.id.0 == id);
+    let first = records.clone().next();
+    records
+        .find(|account| Some(account.owner) == shown)
+        .or(first)
 }
 
 fn dismiss_confirmation(account: &AccountRef) -> Confirmation {
@@ -178,6 +191,38 @@ mod tests {
         );
         let delete = delete_confirmation(&account.id, Path::new("/x/home"));
         assert_eq!(delete.refusal, "refusing to delete /x/home without --yes");
+    }
+
+    #[test]
+    fn removal_targets_the_home_the_daemon_shows() {
+        let record = |home: &str, owner| AccountRef {
+            id: AccountId("grok:0123456789ab".into()),
+            provider: ProviderId::parse("grok").unwrap(),
+            home: PathBuf::from(home),
+            owner,
+        };
+        let cli = record("/home/ada/.grok", CredentialOwner::Cli);
+        let own = record("/data/grok/1", CredentialOwner::Headroom);
+        let both = [cli.clone(), own.clone()];
+        let id = "grok:0123456789ab";
+        assert_eq!(
+            pick_record(&both, id, Some(CredentialOwner::Headroom)),
+            Some(&own)
+        );
+        assert_eq!(
+            pick_record(&both, id, Some(CredentialOwner::Cli)),
+            Some(&cli)
+        );
+        assert_eq!(pick_record(&both, id, None), Some(&cli));
+        assert_eq!(
+            pick_record(
+                std::slice::from_ref(&cli),
+                id,
+                Some(CredentialOwner::Headroom)
+            ),
+            Some(&cli)
+        );
+        assert_eq!(pick_record(&both, "grok:other", None), None);
     }
 
     #[tokio::test]

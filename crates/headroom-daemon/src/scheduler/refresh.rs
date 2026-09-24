@@ -13,6 +13,9 @@ use crate::storage::{accounts, lapses, snapshots};
 pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuration {
     begin_refresh(core, account);
     let fetched = fetch(core, account).await;
+    if !is_current(core, account) {
+        return abandon_refresh(core, account);
+    }
     let now = core.clock.now();
     let delay = match fetched {
         Ok(snapshot) => {
@@ -30,6 +33,20 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
     review_alerts(core, account, now).await;
     finish_refresh(core, account, now.checked_add(delay).ok());
     delay
+}
+
+fn is_current(core: &Core, account: &AccountRef) -> bool {
+    core.model()
+        .active_accounts()
+        .any(|record| &record.reference == account)
+}
+
+fn abandon_refresh(core: &Core, account: &AccountRef) -> SignedDuration {
+    let mut model = core.model();
+    if model.account(&account.id).is_none() {
+        model.runtime_mut(&account.id).refreshing = false;
+    }
+    model.settings.refresh_interval()
 }
 
 async fn fetch(core: &Core, account: &AccountRef) -> Result<LimitsSnapshot, RefreshFailure> {

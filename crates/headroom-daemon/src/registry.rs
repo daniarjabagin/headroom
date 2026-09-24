@@ -74,6 +74,7 @@ async fn discover(core: &Core, provider: &dyn Provider) {
             return;
         }
     };
+    let found = core.model().dismissed.resolve(found);
     let now = core.clock.now();
     let result = core
         .storage
@@ -125,3 +126,7 @@ async fn prune_usage(core: &Core) {
 #[cfg(test)]
 #[path = "registry_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "registry_dismissal_tests.rs"]
+mod dismissal_tests;

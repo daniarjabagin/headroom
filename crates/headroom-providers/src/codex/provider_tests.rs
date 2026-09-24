@@ -30,6 +30,7 @@ async fn discovers_cli_and_headroom_homes() {
         [
             (setup.cli_home(), CredentialOwner::Cli),
             (setup.headroom_home("b"), CredentialOwner::Headroom),
+            (setup.headroom_home("c"), CredentialOwner::Headroom),
         ]
     );
     assert_eq!(accounts[0], setup.account());

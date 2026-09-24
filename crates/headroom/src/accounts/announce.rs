@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use anyhow::Result;
-use headroom_core::account::AccountRef;
+use headroom_core::account::{AccountRef, CredentialOwner};
 
 use crate::client::{self, DaemonProxy, call_error};
 use crate::paths::Globals;
@@ -47,6 +47,15 @@ pub async fn announce(
 async fn daemon_knows(proxy: &DaemonProxy<'_>, id: &str) -> Result<bool> {
     let (_, state) = client::fetch_state(proxy).await?;
     Ok(state.accounts.iter().any(|account| account.id == id))
+}
+
+pub async fn shown_owner(globals: &Globals, id: &str) -> Result<Option<CredentialOwner>> {
+    let Ok(proxy) = client::require_daemon(&globals.bus).await else {
+        return Ok(None);
+    };
+    let (_, state) = client::fetch_state(&proxy).await?;
+    let shown = state.accounts.into_iter().find(|account| account.id == id);
+    Ok(shown.map(|account| account.owner))
 }
 
 pub async fn rescan_if_running(globals: &Globals) -> Result<()> {
