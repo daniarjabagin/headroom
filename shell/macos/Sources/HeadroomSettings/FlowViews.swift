@@ -59,13 +59,13 @@
                 VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
                     Text(strings.text(SignInText.accountAdded)).multilineTextAlignment(.center)
-                    Button(strings.text(SignInText.done), action: onClose).keyboardShortcut(.defaultAction)
+                    Button(strings.text(SignInText.done)) { onClose() }.keyboardShortcut(.defaultAction)
                 }
             case .failed(let failure):
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundStyle(.orange)
                     Text(failure.text(strings)).multilineTextAlignment(.center).textSelection(.enabled)
-                    Button(strings.text(SignInText.tryAgain), action: onRetry).keyboardShortcut(.defaultAction)
+                    Button(strings.text(SignInText.tryAgain)) { onRetry() }.keyboardShortcut(.defaultAction)
                 }
             case .form, .running:
                 EmptyView()
@@ -103,7 +103,7 @@
                     context: context, provider: provider, title: provider.displayName,
                     description: reason.isEmpty ? strings.text(AddAccountText.autoDetectFallback) : reason)
                 Text(strings.text(AddAccountText.detectAgainNote)).font(.callout).multilineTextAlignment(.center)
-                Button(strings.text(AddAccountText.detectAgain), action: detect)
+                Button(strings.text(AddAccountText.detectAgain)) { detect() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(status == .looking)
                 statusText(strings).font(.caption).foregroundStyle(.secondary)
