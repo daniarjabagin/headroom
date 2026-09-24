@@ -1,6 +1,6 @@
 import { modelBreakdown } from '../src/breakdown.js';
 import { mergeOrder, moveItem } from '../src/order.js';
-import { parseProgressLine } from '../src/prefs/progress.js';
+import { parseProgressLine } from '../src/progress.js';
 import { check } from './check.js';
 
 function model(name, totalTokens, costMicros, partial = false) {
@@ -45,6 +45,22 @@ export function testProgress() {
     check('progress done', parseProgressLine('{"event":"done","account_id":"codex:1"}'), {
         event: 'done',
         accountId: 'codex:1',
+        version: null,
+        relogin: false,
+    });
+    check('progress update done', parseProgressLine('{"event":"done","version":"0.5.0","relogin":true}'), {
+        event: 'done',
+        accountId: null,
+        version: '0.5.0',
+        relogin: true,
+    });
+    check('progress step', parseProgressLine('{"event":"step","text":"Downloading"}'), {
+        event: 'step',
+        text: 'Downloading',
+    });
+    check('progress empty step', parseProgressLine('{"event":"step","text":""}'), {
+        event: 'output',
+        line: '{"event":"step","text":""}',
     });
     check('progress error', parseProgressLine('{"event":"error","message":"no"}'), { event: 'error', message: 'no' });
     check('progress output', parseProgressLine('{"event":"output","line":"hi"}'), { event: 'output', line: 'hi' });

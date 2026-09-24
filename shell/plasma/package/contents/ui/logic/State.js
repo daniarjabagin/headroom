@@ -2,6 +2,7 @@
 
 .import "I18n.js" as I18n
 .import "Settings.js" as Settings
+.import "Update.js" as Update
 
 const SCHEMA_VERSION = 1;
 const HOUR_MS = 60 * 60 * 1000;
@@ -278,7 +279,8 @@ function parseState(json) {
         headline: parseHeadline(raw.headline),
         display: Settings.parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
-        spend: parseSpend(raw.spend, usage)
+        spend: parseSpend(raw.spend, usage),
+        update: Update.parseUpdate(raw.update)
     };
 }
 

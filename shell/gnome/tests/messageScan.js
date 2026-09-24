@@ -62,7 +62,8 @@ export function scanMessages(extensionDir) {
 }
 
 export function literalErrorFiles(extensionDir) {
-    return sourceFiles(extensionDir.get_child('src').get_child('prefs'))
+    const src = extensionDir.get_child('src');
+    return [...sourceFiles(src.get_child('prefs')), src.get_child('cli.js')]
         .filter(file => LITERAL_ERROR.test(read(file)))
         .map(file => file.get_basename());
 }

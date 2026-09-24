@@ -1,4 +1,5 @@
 import { parseDisplay } from './settings.js';
+import { parseUpdate } from './update.js';
 
 const SCHEMA_VERSION = 1;
 
@@ -252,6 +253,7 @@ export function parseState(json) {
         display: parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         spend: parseSpend(raw.spend, usage),
+        update: parseUpdate(raw.update),
     };
 }
 

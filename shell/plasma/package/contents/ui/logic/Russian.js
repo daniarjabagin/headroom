@@ -202,5 +202,21 @@ const MESSAGES = {
     "Unexpected provider list from the Headroom service": "Служба Headroom прислала список сервисов в неожиданном формате",
     "Headroom service speaks provider list version {version}, expected {expected}": "Служба Headroom использует версию списка сервисов {version}, ожидалась {expected}",
     "Unexpected provider id {provider}": "Недопустимый идентификатор сервиса {provider}",
-    "Unexpected account id {account}": "Недопустимый идентификатор аккаунта {account}"
+    "Unexpected account id {account}": "Недопустимый идентификатор аккаунта {account}",
+    "Copied": "Скопировано",
+    "Copy": "Копировать",
+    "Data refresh": "Обновление данных",
+    "Check for updates": "Проверять обновления",
+    "Once a day, asks GitHub for the latest release. Nothing else is sent.": "Раз в день спрашивает у GitHub последнюю версию. Больше ничего не отправляется.",
+    "What's new": "Что нового",
+    "Update": "Обновить",
+    "How to update": "Как обновить",
+    "Release notes": "Примечания к выпуску",
+    "Headroom {version} is available": "Доступна версия Headroom {version}",
+    "Couldn't find the headroom command": "Не удалось найти команду headroom",
+    "The update stopped before it finished": "Обновление прервалось и не завершилось",
+    "Updating Headroom…": "Обновляем Headroom…",
+    "Updated — log out and back in to finish": "Обновлено — выйдите из сеанса и войдите снова",
+    "Updated to {version}": "Обновлено до {version}",
+    "Updated": "Обновлено"
 };

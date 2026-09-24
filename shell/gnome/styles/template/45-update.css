@@ -1,0 +1,85 @@
+.headroom-update {
+    padding: 10px 14px;
+    spacing: 8px;
+    border-top: 1px solid var(--separator);
+    background-color: var(--update-bg);
+    background-color: st-transparentize(-st-accent-color, var(--update-tint));
+}
+
+.headroom-update-main {
+    spacing: 10px;
+}
+
+.headroom-update-icon {
+    icon-size: 16px;
+    color: var(--accent);
+    color: -st-accent-color;
+}
+
+.headroom-update-texts {
+    spacing: 1px;
+}
+
+.headroom-update-title {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-update-line {
+    spacing: 4px;
+}
+
+.headroom-update-detail {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-update-detail.failed {
+    color: var(--error-fg);
+}
+
+.headroom-update-badge {
+    icon-size: 10px;
+    margin-top: 2px;
+    color: var(--text-secondary);
+}
+
+.headroom-update-badge.done {
+    color: var(--positive);
+}
+
+.headroom-update-badge.failed {
+    color: var(--error-fg);
+}
+
+.headroom-update-link {
+    border-radius: 4px;
+}
+
+.headroom-update-link-text {
+    font-size: 7.5pt;
+    color: var(--accent);
+    color: -st-accent-color;
+}
+
+.headroom-update-link:hover .headroom-update-link-text {
+    color: var(--text);
+}
+
+.headroom-small-button.checked {
+    background-color: var(--chip);
+}
+
+.headroom-update-command {
+    padding-left: 26px;
+    spacing: 6px;
+}
+
+.headroom-update-command-text {
+    padding: 4px 6px;
+    border-radius: 5px;
+    background-color: var(--chip);
+    color: var(--text);
+    font-size: 7.5pt;
+}

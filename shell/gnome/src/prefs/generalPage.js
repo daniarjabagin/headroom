@@ -4,6 +4,7 @@ import { _, fill, n_ } from '../i18n.js';
 import { accountTitle, showsName } from '../providers.js';
 import { displayPatch, headlinePatch, refreshIntervalPatch } from '../settings.js';
 import { comboRow, group, segmentedRow, switchRow } from './rows.js';
+import { UpdateRows } from './updateRows.js';
 
 const AUTO = 'auto';
 const PIN_SEPARATOR = '\n';
@@ -57,9 +58,10 @@ function headlineFor(value) {
 }
 
 export class GeneralPage {
-    constructor(client) {
+    constructor(client, runner) {
         this._client = client;
         this._limitKey = null;
+        this._updates = new UpdateRows(client, runner);
         this.page = new Adw.PreferencesPage({ title: _('General'), icon_name: 'preferences-system-symbolic' });
         this._rows = this._buildRows();
         this.page.add(
@@ -73,7 +75,8 @@ export class GeneralPage {
                 this._rows.sections.map(entry => entry.row)
             )
         );
-        this.page.add(group(_('Updates'), [this._rows.refresh.row]));
+        this.page.add(group(_('Data refresh'), [this._rows.refresh.row]));
+        this.page.add(group(_('Updates'), [this._updates.check.row, this._updates.release]));
     }
 
     update(settings, state) {
@@ -88,6 +91,11 @@ export class GeneralPage {
         this._rows.refresh.setOptions(refreshOptions(settings.refreshIntervalSecs));
         this._rows.refresh.set(settings.refreshIntervalSecs);
         this._updateLimit(settings.headline, state);
+        this._updates.update(settings, state.update);
+    }
+
+    syncUpdateRun() {
+        this._updates.sync();
     }
 
     _updateLimit(headline, state) {

@@ -24,10 +24,11 @@ Item {
     required property var systemTheme
     required property bool reducedMotion
     required property string versionText
+    required property UpdateActions updater
     readonly property bool ready: view.kind === "ready"
     readonly property bool empty: ready && State.visibleAccounts(view.state).length === 0 && !(display.showSpend && view.state.spend !== null)
     readonly property var popupColors: Tokens.popupPalette(systemTheme, display.theme, display.translucent)
-    readonly property real contentHeight: refreshButton.implicitHeight + refreshButton.Layout.bottomMargin + content.implicitHeight + footer.implicitHeight
+    readonly property real contentHeight: refreshButton.implicitHeight + refreshButton.Layout.bottomMargin + content.implicitHeight + (updateRow.visible ? updateRow.implicitHeight : 0) + footer.implicitHeight
     property bool themed: false
     property real reveal: 1
 
@@ -161,6 +162,16 @@ Item {
                     onRefreshRequested: full.refreshRequested("")
                 }
             }
+        }
+
+        UpdateRow {
+            id: updateRow
+
+            objectName: "updateRow"
+            Layout.fillWidth: true
+            updater: full.updater
+            lang: full.lang
+            animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
         }
 
         Footer {

@@ -16,6 +16,7 @@ import { SpendSection } from './spendCard.js';
 import { loadingSections } from './skeleton.js';
 import { emptyView, errorView, serviceView } from './statusViews.js';
 import { Tooltips } from './tooltip.js';
+import { UpdateRow } from './updateRow.js';
 
 const SCROLLBAR_LINGER_MS = 800;
 const ENTRANCE_WINDOW_MS = 400;
@@ -98,6 +99,7 @@ export class PopupView {
         this._scroll.child = this._content;
         this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
         this._footer = new Footer(this._ctx, versionText);
+        this._updateRow = new UpdateRow(this._ctx);
         const dragLayer = new St.Widget({
             style_class: 'headroom-drag-layer',
             layout_manager: new Clutter.FixedLayout(),
@@ -111,6 +113,7 @@ export class PopupView {
             onSettled: () => this._renderPending(),
         });
         main.add_child(this._scroll);
+        main.add_child(this._updateRow.actor);
         main.add_child(this._footer.actor);
         this.actor.add_child(main);
         this.actor.add_child(dragLayer);
@@ -128,6 +131,7 @@ export class PopupView {
         this._view = view;
         if (view.kind === 'ready') this._ctx.display = view.state.display;
         this._footer.update(view);
+        this._updateRow.update(view.kind === 'ready' ? view.state.update : null);
         const generation = this._generation;
         if (view.kind === 'ready') this._renderState(view.state);
         else this._replaceContent(this._statusView(view));
@@ -135,8 +139,13 @@ export class PopupView {
         if (generation !== this._generation && Date.now() < this._entranceUntil) this._playEntrance();
     }
 
+    setUpdateRun(run) {
+        this._updateRow.setRun(run);
+    }
+
     relabel() {
         this._footer.relabel();
+        this._updateRow.relabel();
         this._refreshButton.relabel();
         this._replaceContent([]);
         this.render(this._view);

@@ -1,5 +1,5 @@
 import GLib from 'gi://GLib';
-import { ProgressProcess } from '../src/prefs/cli.js';
+import { ProgressProcess } from '../src/cli.js';
 import { check } from './check.js';
 
 const FAKE_HEADROOM = `#!/bin/sh
@@ -89,6 +89,21 @@ async function testStubbornCancel(dir) {
     check('stubborn killed after grace', await until(() => !isAlive(pid), 4000), true);
 }
 
+async function testDetach(dir) {
+    const events = [];
+    const exits = [];
+    const process = start('detached', events, exits);
+    await until(() => events.includes('started'), 2000);
+    const pid = readMarker(dir, 'detached.pid');
+    events.length = 0;
+    process.detach();
+    await delay(200);
+    check('detach keeps child running', isAlive(pid), true);
+    check('detach silences handlers', [events, exits], [[], []]);
+    process.cancel();
+    check('detached child can still be stopped', await until(() => !isAlive(pid), 4000), true);
+}
+
 async function testFailingExit() {
     const events = [];
     const exits = [];
@@ -116,7 +131,7 @@ function removeDir(dir) {
         'headroom',
         'apikey.key',
         'apikey.args',
-        ...['graceful', 'stubborn', 'failing', 'apikey'].flatMap(mode => [`${mode}.pid`, `${mode}.signal`]),
+        ...['graceful', 'stubborn', 'failing', 'apikey', 'detached'].flatMap(mode => [`${mode}.pid`, `${mode}.signal`]),
     ];
     for (const name of names) GLib.unlink(GLib.build_filenamev([dir, name]));
     GLib.rmdir(dir);
@@ -127,6 +142,7 @@ export async function testProgressProcess() {
     try {
         await testGracefulCancel(dir);
         await testStubbornCancel(dir);
+        await testDetach(dir);
         await testFailingExit();
         await testKeyOnStdin(dir);
     } finally {

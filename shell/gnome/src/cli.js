@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import { _, fill } from '../i18n.js';
+import { _, fill } from './i18n.js';
 import { parseProgressLine } from './progress.js';
 
 const SIGTERM = 15;
@@ -52,6 +52,11 @@ export class ProgressProcess {
         if (this._finished || this._inputClosed) return;
         this._inputClosed = true;
         if (this._writing === 0) this._stdin.close(null);
+    }
+
+    detach() {
+        this._handlers = { onEvent: () => {}, onExit: () => {} };
+        this.closeInput();
     }
 
     cancel() {
