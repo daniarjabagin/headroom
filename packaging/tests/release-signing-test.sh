@@ -236,11 +236,11 @@ test_signed_install() {
 
 test_rejected_signatures() {
     forge_signature
-    run_installer "$sandbox/path-curl" && flunk "a forged signature must fail" || true
+    if run_installer "$sandbox/path-curl"; then flunk "a forged signature must fail"; fi
     check "a signature by another key stops the install" not_installed
     check "the forgery is reported" output_has "not signed by the Headroom release key"
     rm -f "$sandbox/release/SHA256SUMS.sig"
-    run_installer "$sandbox/path-curl" && flunk "a missing signature must fail" || true
+    if run_installer "$sandbox/path-curl"; then flunk "a missing signature must fail"; fi
     check "a missing signature stops the install" not_installed
     check "the missing signature is reported" output_has "has no SHA256SUMS.sig"
 }
@@ -251,14 +251,14 @@ test_without_openssl() {
     check "without openssl the checksum alone is trusted" installed
     check "without openssl a warning is printed" output_has "signature of SHA256SUMS is not checked"
     printf '%064d  %s\n' 0 "$(bundle).tar.gz" >"$sandbox/release/SHA256SUMS"
-    run_installer "$sandbox/path-bare" && flunk "a checksum mismatch must fail" || true
+    if run_installer "$sandbox/path-bare"; then flunk "a checksum mismatch must fail"; fi
     check "a checksum mismatch still stops the install" not_installed
     make_release
 }
 
 test_bad_tag() {
     sign_release "$sandbox/release.pem"
-    run_installer "$sandbox/path-curl" HEADROOM_VERSION='v1;rm -rf x' && flunk "a bad tag must fail" || true
+    if run_installer "$sandbox/path-curl" HEADROOM_VERSION='v1;rm -rf x'; then flunk "a bad tag must fail"; fi
     check "a tag with shell characters is refused" output_has "not a release tag"
 }
 
