@@ -1,0 +1,21 @@
+{
+  "id": "codex:work",
+  "provider": "codex",
+  "provider_name": "Codex",
+  "label": "Work",
+  "email": "ada@example.com",
+  "plan": null,
+  "hidden": false,
+  "owner": "cli",
+  "status": "no_subscription",
+  "error": {
+    "kind": "no_subscription",
+    "message": "No active ChatGPT subscription (Free plan)."
+  },
+  "updated_at": null,
+  "source": null,
+  "windows": [],
+  "balances": [],
+  "notices": [],
+  "usage_home": "~/.codex"
+}

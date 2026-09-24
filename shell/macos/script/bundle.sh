@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+package_dir="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$package_dir/../.." && pwd)"
+dist_dir="$package_dir/dist"
+app="$dist_dir/Headroom.app"
+bundle_id="io.github.headroom"
+identity="${CODESIGN_IDENTITY:--}"
+install=false
+open_after=false
+universal=false
+
+usage() {
+    cat <<'EOF'
+Usage: script/bundle.sh [--install] [--open] [--universal]
+
+Builds the headroom daemon (cargo) and the menu-bar app (SwiftPM) in release mode and
+assembles dist/Headroom.app.
+
+  --install     copy the app to /Applications (quits a running Headroom first)
+  --open        launch the app when done
+  --universal   build arm64 + x86_64 instead of the native architecture only
+
+Environment:
+  CODESIGN_IDENTITY   signing identity, default "-" (ad-hoc). Use an "Apple Development: …"
+                      identity so Keychain "Always Allow" grants survive rebuilds.
+EOF
+}
+
+parse_arguments() {
+    while (($# > 0)); do
+        case "$1" in
+            --install) install=true ;;
+            --open) open_after=true ;;
+            --universal) universal=true ;;
+            -h | --help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo "unknown option: $1" >&2
+                usage >&2
+                exit 2
+                ;;
+        esac
+        shift
+    done
+}
+
+workspace_version() {
+    awk '
+        /^\[workspace\.package\]/ { in_section = 1; next }
+        /^\[/ { in_section = 0 }
+        in_section && /^version[[:space:]]*=/ {
+            gsub(/.*=[[:space:]]*"|".*/, "")
+            print
+            exit
+        }
+    ' "$repo_root/Cargo.toml"
+}
+
+cargo_target_dir() {
+    (cd "$repo_root" && cargo metadata --format-version 1 --no-deps) |
+        sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p'
+}
+
+build_helper() {
+    local target_dir
+    target_dir="$(cargo_target_dir)"
+    if [[ "$universal" == true ]]; then
+        (cd "$repo_root" && cargo build --release -p headroom --target aarch64-apple-darwin)
+        (cd "$repo_root" && cargo build --release -p headroom --target x86_64-apple-darwin)
+        lipo -create -output "$dist_dir/headroom" \
+            "$target_dir/aarch64-apple-darwin/release/headroom" \
+            "$target_dir/x86_64-apple-darwin/release/headroom"
+    else
+        (cd "$repo_root" && cargo build --release -p headroom)
+        cp "$target_dir/release/headroom" "$dist_dir/headroom"
+    fi
+}
+
+swift_arguments() {
+    local arguments=(-c release --package-path "$package_dir" --product Headroom)
+    if [[ "$universal" == true ]]; then
+        arguments+=(--arch arm64 --arch x86_64)
+    fi
+    printf '%s\n' "${arguments[@]}"
+}
+
+build_app_binary() {
+    local arguments=()
+    while IFS= read -r argument; do arguments+=("$argument"); done < <(swift_arguments)
+    swift build "${arguments[@]}"
+    local bin_path
+    bin_path="$(swift build "${arguments[@]}" --show-bin-path)"
+    cp "$bin_path/Headroom" "$dist_dir/Headroom"
+}
+
+write_info_plist() {
+    local version="$1" icon_entry=""
+    if [[ -f "$app/Contents/Resources/AppIcon.icns" ]]; then
+        icon_entry="<key>CFBundleIconFile</key><string>AppIcon</string>"
+    fi
+    cat >"$app/Contents/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key><array><string>en</string><string>ru</string></array>
+    <key>CFBundleDisplayName</key><string>Headroom</string>
+    <key>CFBundleExecutable</key><string>Headroom</string>
+    <key>CFBundleIdentifier</key><string>$bundle_id</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>Headroom</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$version</string>
+    <key>CFBundleVersion</key><string>$version</string>
+    $icon_entry
+    <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSUIElement</key><true/>
+    <key>NSHumanReadableCopyright</key><string>© 2026 Daniar Jabagin</string>
+</dict>
+</plist>
+EOF
+    plutil -lint "$app/Contents/Info.plist" >/dev/null
+}
+
+icon_svg() {
+    local glyph
+    glyph="$(sed -e 's/<svg[^>]*>//' -e 's#</svg>##' -e 's/#bebebe/#ffffff/g' \
+        "$repo_root/shell/gnome/icons/headroom-symbolic.svg")"
+    cat <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 16 16">
+<rect x="0.8" y="0.8" width="14.4" height="14.4" rx="3.2" fill="#1E1E1E"/>
+<g transform="translate(3 3.2) scale(0.625)">$glyph</g>
+</svg>
+EOF
+}
+
+build_icon() {
+    command -v qlmanage >/dev/null && command -v sips >/dev/null && command -v iconutil >/dev/null || return 1
+    local work
+    work="$(mktemp -d)"
+    icon_svg >"$work/icon.svg"
+    qlmanage -t -s 1024 -o "$work" "$work/icon.svg" >/dev/null 2>&1 || return 1
+    [[ -f "$work/icon.svg.png" ]] || return 1
+    mkdir -p "$work/AppIcon.iconset"
+    local size
+    for size in 16 32 128 256 512; do
+        sips -z "$size" "$size" "$work/icon.svg.png" \
+            --out "$work/AppIcon.iconset/icon_${size}x${size}.png" >/dev/null || return 1
+        sips -z $((size * 2)) $((size * 2)) "$work/icon.svg.png" \
+            --out "$work/AppIcon.iconset/icon_${size}x${size}@2x.png" >/dev/null || return 1
+    done
+    iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$work/AppIcon.iconset" || return 1
+    rm -rf "$work"
+}
+
+assemble() {
+    local version="$1"
+    rm -rf "$app"
+    mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
+    mv "$dist_dir/Headroom" "$app/Contents/MacOS/Headroom"
+    mv "$dist_dir/headroom" "$app/Contents/Helpers/headroom"
+    build_icon || echo "note: app icon skipped (qlmanage, sips or iconutil unavailable or failed)"
+    write_info_plist "$version"
+}
+
+sign() {
+    codesign --force --timestamp=none --sign "$identity" --identifier "$bundle_id.helper" \
+        "$app/Contents/Helpers/headroom"
+    codesign --force --timestamp=none --sign "$identity" --identifier "$bundle_id" "$app"
+    codesign --verify --strict --verbose=1 "$app"
+}
+
+install_app() {
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+    sleep 1
+    rm -rf /Applications/Headroom.app
+    ditto "$app" /Applications/Headroom.app
+    app="/Applications/Headroom.app"
+    echo "installed $app"
+}
+
+main() {
+    parse_arguments "$@"
+    local version
+    version="$(workspace_version)"
+    [[ -n "$version" ]] || { echo "cannot read the workspace version from Cargo.toml" >&2; exit 1; }
+    mkdir -p "$dist_dir"
+    build_helper
+    build_app_binary
+    assemble "$version"
+    sign
+    echo "built $app ($version, signed with '$identity')"
+    if [[ "$install" == true ]]; then install_app; fi
+    if [[ "$open_after" == true ]]; then open "$app"; fi
+}
+
+main "$@"
