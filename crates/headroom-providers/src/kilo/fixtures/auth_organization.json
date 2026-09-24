@@ -1,0 +1,9 @@
+{
+  "kilo": {
+    "type": "oauth",
+    "access": "kilo-fake-org-token",
+    "refresh": "kilo-fake-org-token",
+    "expires": 1821600000000,
+    "accountId": "org-0000-fake"
+  }
+}

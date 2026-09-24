@@ -1,0 +1,10 @@
+{
+  "data": {
+    "user": {
+      "__typename": "UserFacingError",
+      "error": {
+        "message": "User not found"
+      }
+    }
+  }
+}

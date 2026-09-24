@@ -13,6 +13,13 @@ All notable changes to Headroom are documented here. The format is based on
   place), explains that Claude Code and Codex CLI accounts are found automatically and others are
   added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
   Homebrew cask's caveats now say to start the app with `open -a Headroom`.
+- **Kilo Code, Warp and Poe providers.** Kilo Code shows the credit balance in exact USD (personal,
+  or the organization chosen at sign-in) and warns when credits are used up; accounts come from
+  `kilo auth login` (found automatically or signed in through `headroom accounts add kilo` into
+  Headroom's own directory) or a pasted Kilo API key. Warp shows monthly credits used of the limit
+  with the reset time, or "Unlimited", plus bonus credits; Poe shows the point balance. Both take a
+  pasted API key. Test fixtures follow the documented and open-source response shapes; no real
+  response has been captured yet.
 - **Combine accounts of the same provider.** The new `display.combine_accounts` setting (off by
   default) makes the daemon publish a `combined` list in the state: for every provider with two or
   more signed-in, visible accounts it sums each window across the accounts (capacity 100 % per
