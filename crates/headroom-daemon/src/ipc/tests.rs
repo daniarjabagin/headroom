@@ -1,5 +1,6 @@
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::io::AsyncWriteExt;
@@ -172,6 +173,47 @@ async fn oversize_lines_close_the_connection() {
     assert_eq!(client.next().await, None);
     let fresh = server.client().await.call(2, "GetState", json!([])).await;
     assert!(fresh["result"].is_object());
+}
+
+#[tokio::test]
+async fn an_oversize_line_lets_pending_commands_finish() {
+    let server = Server::start().await;
+    let mut client = server.client().await;
+    let patch = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "UpdateSettings",
+        "params": [r#"{"refresh_interval_secs":120}"#]
+    });
+    let mut bytes = format!("{patch}\n").into_bytes();
+    bytes.extend(vec![b' '; MAX_LINE + 1]);
+    let (locked, is_locked) = std::sync::mpsc::channel();
+    let (release, released) = std::sync::mpsc::channel::<()>();
+    let storage = server.harness.storage.clone();
+    let holder = std::thread::spawn(move || {
+        storage.blocking(|_| {
+            locked.send(()).ok();
+            released.recv().ok();
+            Ok(())
+        })
+    });
+    is_locked.recv().unwrap();
+    client.writer().write_all(&bytes).await.ok();
+    let drain = async { while client.next().await.is_some() {} };
+    tokio::time::timeout(Duration::from_millis(300), drain)
+        .await
+        .ok();
+    release.send(()).unwrap();
+    holder.join().unwrap().unwrap();
+    while client.next().await.is_some() {}
+    let in_memory = server.harness.core.model().settings.refresh_interval_secs;
+    assert_eq!(in_memory, 120);
+    let stored = server
+        .harness
+        .storage
+        .blocking(|conn| crate::storage::settings::load(conn))
+        .unwrap();
+    assert_eq!(stored.refresh_interval_secs, 120);
 }
 
 #[tokio::test]
