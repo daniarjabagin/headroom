@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=Headroom
+GenericName=AI Usage Limits
+GenericName[ru]=Лимиты ИИ-инструментов
+Comment=How much of your AI coding limits is left
+Comment[ru]=Сколько осталось от лимитов ИИ-инструментов для программирования
+Exec=@EXEC@ --toggle
+Icon=headroom
+Terminal=false
+Categories=Utility;
+Keywords=Codex;Claude;AI;limits;usage;quota;
+StartupNotify=false
+Actions=Settings;
+
+[Desktop Action Settings]
+Name=Settings
+Name[ru]=Настройки
+Exec=@EXEC@ --settings

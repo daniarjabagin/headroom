@@ -7,6 +7,7 @@ fn receipt(method: ReceiptMethod, prefix: &str) -> Receipt {
         method,
         options: vec!["--no-plasma".into()],
         prefix: PathBuf::from(prefix),
+        tray: None,
     }
 }
 
@@ -108,4 +109,21 @@ fn an_unreadable_receipt_means_an_unknown_install() {
     );
     let none = detect_at(&exe, None, &dir.path().join("marker"));
     assert_eq!(none.install, Install::Unknown);
+}
+
+#[test]
+fn the_tray_variant_is_read_from_the_receipt() {
+    let read = |tray: serde_json::Value| {
+        let json = serde_json::json!({ "method": "script", "prefix": "/p", "tray": tray });
+        serde_json::from_value::<Receipt>(json).unwrap().tray
+    };
+    assert_eq!(read("linux-gnu".into()), Some(TrayVariant::Portable));
+    assert_eq!(
+        read("linux-gnu-layershell".into()),
+        Some(TrayVariant::LayerShell)
+    );
+    assert_eq!(read("linux-gnu-future".into()), Some(TrayVariant::Portable));
+    assert_eq!(read(serde_json::Value::Null), None);
+    let without: Receipt = serde_json::from_str(r#"{"method":"script","prefix":"/p"}"#).unwrap();
+    assert_eq!(without.tray, None);
 }

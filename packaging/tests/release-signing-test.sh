@@ -6,6 +6,7 @@ tag="v9.9.9"
 sandbox="$(mktemp -d)"
 trap 'rm -rf "$sandbox"' EXIT
 failures=0
+installer_args=(--no-gnome)
 
 pass() {
     printf 'ok   %s\n' "$*"
@@ -48,14 +49,26 @@ bundle() {
     echo "headroom-9.9.9-$(arch)-linux-musl"
 }
 
+tray_bundle() {
+    echo "headroom-tray-9.9.9-$(arch)-$1"
+}
+
 make_release() {
-    local release="$sandbox/release" bundle
+    local release="$sandbox/release" bundle variant tray
     bundle="$(bundle)"
     mkdir -p "$release" "$sandbox/src/$bundle"
     cat >"$sandbox/src/$bundle/install.sh" <<'EOF'
 printf '%s\n' "$@" >"$INSTALL_ARGS"
+here="$(dirname "$0")"
+if [ -f "$here/tray/variant" ]; then cat "$here/tray/variant" >"$TRAY_SEEN"; fi
 EOF
     tar -C "$sandbox/src" -czf "$release/$bundle.tar.gz" "$bundle"
+    for variant in linux-gnu linux-gnu-layershell; do
+        tray="$(tray_bundle "$variant")"
+        mkdir -p "$sandbox/src/$tray"
+        echo "$variant" >"$sandbox/src/$tray/variant"
+        tar -C "$sandbox/src" -czf "$release/$tray.tar.gz" "$tray"
+    done
     (cd "$release" && sha256sum -- *.tar.gz >SHA256SUMS)
 }
 
@@ -119,11 +132,17 @@ case "$url" in
     *) exit 8 ;;
 esac
 EOF
-    chmod +x "$sandbox/stubs/curl" "$sandbox/stubs/wget"
+    cat >"$sandbox/stubs/ldconfig" <<'EOF'
+#!/bin/sh
+for library in $FAKE_LIBRARIES; do
+    printf '\t%s (libc6,x86-64) => /usr/lib/%s\n' "$library" "$library"
+done
+EOF
+    chmod +x "$sandbox/stubs/curl" "$sandbox/stubs/wget" "$sandbox/stubs/ldconfig"
 }
 
 prepare_paths() {
-    local base=(sh bash uname mktemp rm grep head sed tr tail tar gzip sha256sum cat cp mkdir awk)
+    local base=(sh bash uname mktemp rm grep head sed tr tail tar gzip sha256sum cat cp mkdir awk mv dirname)
     mkdir -p "$sandbox/stubs"
     write_stubs
     tool_dir "$sandbox/path-curl" "${base[@]}" openssl
@@ -132,15 +151,27 @@ prepare_paths() {
     ln -sf "$sandbox/stubs/curl" "$sandbox/path-curl/curl"
     ln -sf "$sandbox/stubs/curl" "$sandbox/path-bare/curl"
     ln -sf "$sandbox/stubs/wget" "$sandbox/path-wget/wget"
+    for dir in path-curl path-bare path-wget; do
+        ln -sf "$sandbox/stubs/ldconfig" "$sandbox/$dir/ldconfig"
+    done
 }
 
 run_installer() {
     local path="$1"
     shift
-    rm -f "$sandbox/args" "$sandbox/log"
+    rm -f "$sandbox/args" "$sandbox/log" "$sandbox/tray-seen"
     env -i HOME="$sandbox" PATH="$path" STUB_LOG="$sandbox/log" FAKE_TAG="$tag" \
-        FAKE_RELEASE="$sandbox/release" INSTALL_ARGS="$sandbox/args" "$@" \
-        sh "$sandbox/get-headroom.sh" --no-gnome >"$sandbox/out" 2>&1
+        FAKE_RELEASE="$sandbox/release" INSTALL_ARGS="$sandbox/args" TRAY_SEEN="$sandbox/tray-seen" "$@" \
+        sh "$sandbox/get-headroom.sh" "${installer_args[@]}" >"$sandbox/out" 2>&1
+}
+
+installed_with_tray() {
+    [ "$(cat "$sandbox/args" 2>/dev/null)" = "$(printf '%s\n%s' --no-gnome --tray)" ] \
+        && [ "$(cat "$sandbox/tray-seen" 2>/dev/null)" = "$1" ]
+}
+
+installed_without_tray() {
+    installed && [ ! -e "$sandbox/tray-seen" ]
 }
 
 installed() {
@@ -231,6 +262,59 @@ test_bad_tag() {
     check "a tag with shell characters is refused" output_has "not a release tag"
 }
 
+gtk_libraries="libgtk-4.so.1 libadwaita-1.so.0"
+
+run_on_desktop() {
+    local desktop="$1" libraries="$2"
+    shift 2
+    run_installer "$sandbox/path-curl" DISPLAY=:0 XDG_CURRENT_DESKTOP="$desktop" \
+        FAKE_LIBRARIES="$libraries" "$@" || true
+}
+
+test_tray_selection() {
+    sign_release "$sandbox/release.pem"
+    run_on_desktop XFCE "$gtk_libraries"
+    check "Xfce gets the plain tray" installed_with_tray linux-gnu
+    check "the tray tarball's checksum is verified" output_has "Downloading $(tray_bundle linux-gnu).tar.gz"
+    run_on_desktop sway "$gtk_libraries libgtk4-layer-shell.so.0"
+    check "a desktop with gtk4-layer-shell gets the layer-shell tray" installed_with_tray linux-gnu-layershell
+    run_on_desktop Budgie:GNOME "$gtk_libraries"
+    check "Budgie gets the tray although it names GNOME" installed_with_tray linux-gnu
+    run_on_desktop ubuntu:GNOME "$gtk_libraries"
+    check "Ubuntu's GNOME Shell gets no tray" installed_without_tray
+    run_on_desktop KDE "$gtk_libraries"
+    check "Plasma gets no tray" installed_without_tray
+    run_on_desktop XFCE ""
+    check "without GTK 4 the tray is skipped" installed_without_tray
+    check "the skipped tray is explained" output_has "Skipping the Headroom tray"
+    run_installer "$sandbox/path-curl" XDG_CURRENT_DESKTOP=XFCE FAKE_LIBRARIES="$gtk_libraries" || true
+    check "without a graphical session there is no tray" installed_without_tray
+    mkdir -p "$sandbox/.local/bin"
+    install -m 0755 /dev/null "$sandbox/.local/bin/headroom-tray"
+    run_installer "$sandbox/path-curl" FAKE_LIBRARIES="$gtk_libraries" || true
+    check "an installed tray is kept up to date even outside a session" installed_with_tray linux-gnu
+    rm -rf "$sandbox/.local"
+    installer_args=(--no-gnome --no-tray)
+    run_on_desktop XFCE "$gtk_libraries"
+    check "--no-tray keeps the tray out" installed_without_tray
+    installer_args=(--tray --no-gnome)
+    run_on_desktop ubuntu:GNOME "$gtk_libraries"
+    check "--tray installs the tray on any desktop" installed_with_tray linux-gnu
+    installer_args=(--no-gnome)
+}
+
+test_tampered_tray() {
+    local tray
+    tray="$(tray_bundle linux-gnu).tar.gz"
+    cp "$sandbox/release/$tray" "$sandbox/tray-original"
+    printf 'tampered' >>"$sandbox/release/$tray"
+    sign_release "$sandbox/release.pem"
+    run_on_desktop XFCE "$gtk_libraries"
+    check "a tampered tray tarball stops the install" not_installed
+    check "the tray checksum mismatch is reported" output_has "checksum mismatch for $tray"
+    mv "$sandbox/tray-original" "$sandbox/release/$tray"
+}
+
 make_keys
 make_release
 installer_with_test_key
@@ -241,6 +325,8 @@ test_signed_install
 test_rejected_signatures
 test_without_openssl
 test_bad_tag
+test_tray_selection
+test_tampered_tray
 if [ "$failures" -gt 0 ]; then
     printf '%d check(s) failed\n' "$failures" >&2
     exit 1

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: ./install.sh [--no-service] [--no-gnome] [--no-plasma]
+Usage: ./install.sh [--no-service] [--no-gnome] [--no-plasma] [--tray | --no-tray]
 
 Installs this Headroom release for the current user:
   ~/.local/bin/headroom
@@ -13,21 +13,29 @@ Installs this Headroom release for the current user:
   ~/.local/share/headroom/install.json      (options for `headroom update`)
   the GNOME Shell extension, when GNOME Shell is installed
   the Plasma widget, when KDE Plasma is installed
+  the Headroom tray with --tray (for desktops other than GNOME Shell and Plasma):
+    ~/.local/bin/headroom-tray, its autostart entry and its menu entry
 
   --no-service  install the binary only; skip systemd and D-Bus activation
   --no-gnome    skip the GNOME Shell extension
   --no-plasma   skip the Plasma widget
+  --tray        install the Headroom tray from the tray/ directory of this bundle
+                (get-headroom.sh downloads it and adds this option by itself)
+  --no-tray     do not install the tray (the default)
 EOF
 }
 
 install_service=1
 install_gnome=1
 install_plasma=1
+install_tray=0
 for arg in "$@"; do
     case "$arg" in
         --no-service) install_service=0 ;;
         --no-gnome) install_gnome=0 ;;
         --no-plasma) install_plasma=0 ;;
+        --tray) install_tray=1 ;;
+        --no-tray) install_tray=0 ;;
         -h | --help) usage; exit 0 ;;
         *) usage >&2; exit 2 ;;
     esac
@@ -46,6 +54,8 @@ receipt="$data_home/headroom/install.json"
 extension_uuid="headroom@daniarjabagin.github.io"
 plasmoid_id="io.github.daniarjabagin.headroom"
 plasmoid_dir="$data_home/plasma/plasmoids/$plasmoid_id"
+tray_dir="$here/tray"
+tray_variant=""
 
 step() {
     printf '==> %s\n' "$*"
@@ -104,6 +114,46 @@ dbus_quoted() {
     printf "'%s'" "${1//\'/"$quote"}"
 }
 
+read_tray_variant() {
+    if [ ! -x "$tray_dir/headroom-tray" ] || [ ! -f "$tray_dir/install-tray.sh" ]; then
+        printf 'install.sh: --tray needs the Headroom tray in %s; get-headroom.sh --tray downloads it\n' \
+            "$tray_dir" >&2
+        exit 1
+    fi
+    tray_variant="$(<"$tray_dir/variant")"
+    case "$tray_variant" in
+        linux-gnu | linux-gnu-layershell) ;;
+        *)
+            printf 'install.sh: unknown tray variant in %s/variant\n' "$tray_dir" >&2
+            exit 1
+            ;;
+    esac
+}
+
+tray_field() {
+    [ -n "$tray_variant" ] && printf ',"tray":%s' "$(json_string "$tray_variant")"
+    return 0
+}
+
+desktop_has_own_shell() {
+    local desktops="${XDG_CURRENT_DESKTOP:-}" token tokens
+    case "${desktops%%:*}" in
+        GNOME | ubuntu | pop | Zorin | GNOME-Classic) return 0 ;;
+    esac
+    IFS=: read -ra tokens <<<"$desktops"
+    for token in "${tokens[@]}"; do
+        [ "$token" = KDE ] && return 0
+    done
+    return 1
+}
+
+suggest_tray() {
+    if [ -z "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ] || desktop_has_own_shell; then
+        return
+    fi
+    printf '\nThis desktop has no Headroom panel widget; get the Headroom tray with: get-headroom.sh --tray\n'
+}
+
 write_receipt() {
     local version_line list="" option
     version_line="$("$bin_dir/headroom" --version)"
@@ -114,8 +164,9 @@ write_receipt() {
     (
         umask 077
         mkdir -p "$(dirname "$receipt")"
-        printf '{"method":"script","version":%s,"options":[%s],"prefix":%s}\n' \
-            "$(json_string "${version_line##* }")" "$list" "$(json_string "$prefix")" >"$receipt.new"
+        printf '{"method":"script","version":%s,"options":[%s],"prefix":%s%s}\n' \
+            "$(json_string "${version_line##* }")" "$list" "$(json_string "$prefix")" "$(tray_field)" \
+            >"$receipt.new"
     )
     mv -f "$receipt.new" "$receipt"
 }
@@ -177,6 +228,9 @@ install_plasmoid() {
     printf '\nPlasma widget installed. Add "Headroom" to your panel from the widget explorer.\n'
 }
 
+if [ "$install_tray" -eq 1 ]; then
+    read_tray_variant
+fi
 remove_legacy_install
 install_binary
 install_icons
@@ -190,6 +244,11 @@ if [ "$install_gnome" -eq 1 ] && command -v gnome-shell >/dev/null 2>&1; then
 fi
 if [ "$install_plasma" -eq 1 ] && command -v plasmashell >/dev/null 2>&1; then
     install_plasmoid
+fi
+if [ "$install_tray" -eq 1 ]; then
+    bash "$tray_dir/install-tray.sh"
+else
+    suggest_tray
 fi
 
 case ":$PATH:" in

@@ -116,8 +116,8 @@ async fn update<W: Write, E: Write>(
             message: format!("Headroom {current} is up to date."),
         });
     };
-    let options = match (&updater.detected.install, &updater.detected.receipt) {
-        (Install::Script, Some(receipt)) => &receipt.options,
+    let receipt = match (&updater.detected.install, &updater.detected.receipt) {
+        (Install::Script, Some(receipt)) => receipt,
         (install, _) => bail!("{}", cannot_update_itself(*install, &release)),
     };
     if !approve(&format!(
@@ -131,9 +131,14 @@ async fn update<W: Write, E: Write>(
         version: &release.version,
         arch: updater.arch,
         release_key: updater.release_key,
+        tray: receipt.tray,
     };
-    apply::install(updater.feed, &bundle, options, reporter).await?;
-    Ok(finished(&release.version, options, updater.on_path))
+    apply::install(updater.feed, &bundle, &receipt.options, reporter).await?;
+    Ok(finished(
+        &release.version,
+        &receipt.options,
+        updater.on_path,
+    ))
 }
 
 fn cannot_update_itself(install: Install, release: &Release) -> String {

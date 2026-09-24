@@ -70,6 +70,11 @@ impl Fixture {
         let digest =
             listed_digest.map_or_else(|| hex::encode(Sha256::digest(&archive)), str::to_owned);
         let sums = format!("{digest}  {BUNDLE}.tar.gz\n");
+        self.serve_sums(&sums, signed).await;
+        self.serve_archive(BUNDLE, archive).await;
+    }
+
+    async fn serve_sums(&self, sums: &str, signed: Signed) {
         let signature = match signed {
             Signed::ByReleaseKey => Some(self.signer.sign(sums.as_bytes())),
             Signed::ByAnotherKey => Some(TestSigner::new(4).sign(sums.as_bytes())),
@@ -82,13 +87,20 @@ impl Fixture {
                 .await;
         }
         Mock::given(path("/SHA256SUMS"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(sums))
+            .respond_with(ResponseTemplate::new(200).set_body_string(sums.to_owned()))
             .mount(&self.server)
             .await;
-        Mock::given(path(format!("/{BUNDLE}.tar.gz")))
+    }
+
+    async fn serve_archive(&self, name: &str, archive: Vec<u8>) {
+        Mock::given(path(format!("/{name}.tar.gz")))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(archive))
             .mount(&self.server)
             .await;
+    }
+
+    fn tray_seen_file(&self) -> PathBuf {
+        self.dir.path().join("tray-seen")
     }
 
     fn bundle_archive(&self) -> Vec<u8> {
@@ -96,22 +108,26 @@ impl Fixture {
         let bundle = source.join(BUNDLE);
         std::fs::create_dir_all(&bundle).unwrap();
         let script = format!(
-            "#!/usr/bin/env bash\nset -eu\necho '==> Installing the binary'\necho 'plain output'\nhead -c {STDERR_BYTES} /dev/zero | tr '\\0' x >&2\nprintf '%s\\n' \"$@\" > '{}'\n",
-            self.args_file().display()
+            "#!/usr/bin/env bash\nset -eu\necho '==> Installing the binary'\necho 'plain output'\nhead -c {STDERR_BYTES} /dev/zero | tr '\\0' x >&2\nprintf '%s\\n' \"$@\" > '{}'\nif [ -f \"$(dirname \"$0\")/tray/variant\" ]; then cp \"$(dirname \"$0\")/tray/variant\" '{}'; fi\n",
+            self.args_file().display(),
+            self.tray_seen_file().display()
         );
         std::fs::write(bundle.join("install.sh"), script).unwrap();
-        let archive = self.dir.path().join("bundle.tar.gz");
-        let status = Command::new("tar")
-            .arg("-czf")
-            .arg(&archive)
-            .arg("-C")
-            .arg(&source)
-            .arg(BUNDLE)
-            .status()
-            .unwrap();
-        assert!(status.success());
-        std::fs::read(archive).unwrap()
+        tar(&source, BUNDLE, &self.dir.path().join("bundle.tar.gz"))
     }
+}
+
+fn tar(source: &Path, name: &str, archive: &Path) -> Vec<u8> {
+    let status = Command::new("tar")
+        .arg("-czf")
+        .arg(archive)
+        .arg("-C")
+        .arg(source)
+        .arg(name)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    std::fs::read(archive).unwrap()
 }
 
 fn release_json(base: &str, tag: &str, names: &[&str]) -> serde_json::Value {
@@ -135,6 +151,7 @@ fn script_install(options: &[&str]) -> Detected {
             method: ReceiptMethod::Script,
             options: options.iter().map(|option| (*option).to_owned()).collect(),
             prefix: PathBuf::from("/home/ada/.local"),
+            tray: None,
         }),
     }
 }
@@ -376,3 +393,6 @@ fn the_reload_note_names_the_shells_that_were_installed() {
         (false, "Updated to 0.5.0.")
     );
 }
+
+#[path = "tray_tests.rs"]
+mod tray;

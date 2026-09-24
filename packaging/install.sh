@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: packaging/install.sh [--no-service] [--no-gnome]
+Usage: packaging/install.sh [--no-service] [--no-gnome] [--tray]
 
 Builds Headroom and installs it for the current user:
   ~/.local/bin/headroom
@@ -12,18 +12,23 @@ Builds Headroom and installs it for the current user:
   ~/.local/share/dbus-1/services/io.github.daniarjabagin.Headroom.service
   ~/.local/share/headroom/install.json      (marks a source build: `headroom update` leaves it alone)
   the GNOME Shell extension, when GNOME Shell is installed
+  the Headroom tray with --tray: ~/.local/bin/headroom-tray, its autostart and menu entries
 
   --no-service  install the binary only; skip systemd and D-Bus activation
   --no-gnome    skip the GNOME Shell extension
+  --tray        also build and install the Headroom tray (GTK 4 and libadwaita development files
+                needed; built with gtk4-layer-shell when pkg-config finds gtk4-layer-shell-0)
 EOF
 }
 
 install_service=1
 install_gnome=1
+install_tray=0
 for arg in "$@"; do
     case "$arg" in
         --no-service) install_service=0 ;;
         --no-gnome) install_gnome=0 ;;
+        --tray) install_tray=1 ;;
         -h | --help) usage; exit 0 ;;
         *) usage >&2; exit 2 ;;
     esac
@@ -67,6 +72,15 @@ remove_legacy_install() {
 build_binary() {
     step "Building headroom (release)"
     cargo build --release --manifest-path "$root/Cargo.toml" -p headroom
+}
+
+build_tray() {
+    local features=()
+    if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists gtk4-layer-shell-0; then
+        features=(--features layer-shell)
+    fi
+    step "Building headroom-tray (release${features[*]:+, with gtk4-layer-shell})"
+    cargo build --release --manifest-path "$root/Cargo.toml" -p headroom-tray "${features[@]}"
 }
 
 install_binary() {
@@ -161,6 +175,9 @@ EOF
 
 remove_legacy_install
 build_binary
+if [ "$install_tray" -eq 1 ]; then
+    build_tray
+fi
 install_binary
 install_icons
 write_receipt
@@ -170,6 +187,9 @@ if [ "$install_service" -eq 1 ]; then
 fi
 if [ "$install_gnome" -eq 1 ] && command -v gnome-shell >/dev/null 2>&1; then
     install_extension
+fi
+if [ "$install_tray" -eq 1 ]; then
+    bash "$root/packaging/tray/install-tray.sh" --binary "$target_dir/release/headroom-tray"
 fi
 
 case ":$PATH:" in

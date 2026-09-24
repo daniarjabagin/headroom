@@ -863,7 +863,13 @@ Without `--check`, `headroom update` fetches the latest release and, when it is 
   `headroom-<version>-<arch>-linux-musl.tar.gz`, checks its SHA-256,
   unpacks it into a temporary directory and runs its `install.sh` with the options recorded in the
   install receipt. That replaces the binary, icons, unit, D-Bus file, GNOME extension and Plasma
-  widget and restarts `headroom.service`. On Wayland GNOME Shell loads the new extension only after
+  widget and restarts `headroom.service`. When the receipt records a Headroom tray
+  (`"tray": "linux-gnu"` or `"linux-gnu-layershell"`, written by `install.sh --tray`), it also
+  downloads `headroom-tray-<version>-<arch>-<variant>.tar.gz`, checks it against the same signed
+  `SHA256SUMS`, unpacks it into the bundle's `tray/` directory and the recorded `--tray` option
+  reinstalls `~/.local/bin/headroom-tray` and restarts a running tray. A release without that tray
+  tarball fails the update before anything is downloaded; an unknown variant name is read as
+  `linux-gnu`. On Wayland GNOME Shell loads the new extension only after
   logging out and back in; Plasma reloads widgets when `plasmashell` restarts.
 - For `package` and `unknown` installs it prints what to do instead (the same text as `command`) and
   exits non-zero.

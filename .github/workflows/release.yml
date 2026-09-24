@@ -137,6 +137,136 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  tray:
+    name: Build tray (${{ matrix.arch }}, ${{ matrix.variant }})
+    needs: [verify, version]
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            image: ubuntu:24.04
+            variant: linux-gnu
+            layer_shell: false
+            packages: libgtk-4-dev libadwaita-1-dev
+            nfpm_arch: amd64
+            packagers: deb
+            max_glibc: "2.39"
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            image: ubuntu:24.04
+            variant: linux-gnu
+            layer_shell: false
+            packages: libgtk-4-dev libadwaita-1-dev
+            nfpm_arch: arm64
+            packagers: deb
+            max_glibc: "2.39"
+          - arch: x86_64
+            runner: ubuntu-24.04
+            image: debian:trixie
+            variant: linux-gnu-layershell
+            layer_shell: true
+            packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev
+            nfpm_arch: amd64
+            packagers: rpm archlinux
+            max_glibc: "2.40"
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            image: debian:trixie
+            variant: linux-gnu-layershell
+            layer_shell: true
+            packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev
+            nfpm_arch: arm64
+            packagers: rpm archlinux
+            max_glibc: "2.40"
+    env:
+      ARCH: ${{ matrix.arch }}
+      VARIANT: ${{ matrix.variant }}
+      CARGO_HOME: /usr/local/cargo
+      RUSTUP_HOME: /usr/local/rustup
+    steps:
+      - name: Install build dependencies
+        run: >-
+          for attempt in 1 2 3; do
+          apt-get -o Acquire::Retries=5 update &&
+          DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
+          build-essential pkg-config git curl ca-certificates binutils desktop-file-utils ${{ matrix.packages }} && break;
+          [ "$attempt" = 3 ] && exit 1; sleep 30; done
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Install rustup and the pinned toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --no-modify-path --profile minimal --default-toolchain none
+          printf '%s\n' /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          "$CARGO_HOME/bin/rustup" toolchain install --profile minimal
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: tray-${{ matrix.arch }}-${{ matrix.variant }}
+
+      - name: Build the tray without gtk4-layer-shell
+        if: ${{ !matrix.layer_shell }}
+        run: cargo build --release --locked -p headroom-tray
+
+      - name: Build the tray with gtk4-layer-shell
+        if: ${{ matrix.layer_shell }}
+        run: cargo build --release --locked -p headroom-tray --features layer-shell
+
+      - name: Strip and check the glibc floor
+        env:
+          MAX_GLIBC: ${{ matrix.max_glibc }}
+        run: |
+          strip target/release/headroom-tray
+          .github/scripts/check-glibc.sh target/release/headroom-tray "$MAX_GLIBC"
+
+      - name: Check the gtk4-layer-shell link order
+        if: ${{ matrix.layer_shell }}
+        run: .github/scripts/check-layer-shell-link.sh target/release/headroom-tray
+
+      - name: Stage the tray and its tarball
+        run: |
+          packaging/release/stage-tray.sh \
+            --version "${TAG#v}" \
+            --arch "$ARCH" \
+            --variant "$VARIANT" \
+            --binary target/release/headroom-tray \
+            --out dist
+          desktop-file-validate dist/tray-stage/*.desktop
+
+      - name: Install nFPM
+        run: .github/scripts/install-nfpm.sh "$RUNNER_TEMP/bin"
+
+      - name: Build the tray packages
+        env:
+          NFPM_ARCH: ${{ matrix.nfpm_arch }}
+          HOMEPAGE: ${{ github.server_url }}/${{ github.repository }}
+          PACKAGERS: ${{ matrix.packagers }}
+        run: |
+          export VERSION="${TAG#v}"
+          read -ra packagers <<< "$PACKAGERS"
+          for packager in "${packagers[@]}"; do
+            "$RUNNER_TEMP/bin/nfpm" package --config packaging/nfpm-tray.yaml --packager "$packager" --target dist/
+          done
+          rm -rf dist/tray-stage
+          ls -l dist
+
+      - name: Upload the tray files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-tray-${{ matrix.arch }}-${{ matrix.variant }}
+          path: dist/*
+          if-no-files-found: error
+
   macos:
     name: Build (macOS universal DMG)
     needs: [verify, version]
@@ -284,7 +414,7 @@ jobs:
 
   release:
     name: Publish the GitHub release
-    needs: [build, macos, macos-sign]
+    needs: [build, tray, macos, macos-sign]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -300,7 +430,7 @@ jobs:
       - name: Fetch the annotated tag
         run: git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
 
-      - name: Download the binaries, packages and the macOS DMG
+      - name: Download the binaries, packages, tray builds and the macOS DMG
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: release-*

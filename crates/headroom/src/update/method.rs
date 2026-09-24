@@ -14,6 +14,35 @@ pub struct Receipt {
     #[serde(default)]
     pub options: Vec<String>,
     pub prefix: PathBuf,
+    #[serde(default)]
+    pub tray: Option<TrayVariant>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(from = "String")]
+pub enum TrayVariant {
+    Portable,
+    LayerShell,
+}
+
+impl TrayVariant {
+    #[must_use]
+    pub fn suffix(self) -> &'static str {
+        match self {
+            TrayVariant::Portable => "linux-gnu",
+            TrayVariant::LayerShell => "linux-gnu-layershell",
+        }
+    }
+}
+
+impl From<String> for TrayVariant {
+    fn from(name: String) -> TrayVariant {
+        if name == TrayVariant::LayerShell.suffix() {
+            TrayVariant::LayerShell
+        } else {
+            TrayVariant::Portable
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
