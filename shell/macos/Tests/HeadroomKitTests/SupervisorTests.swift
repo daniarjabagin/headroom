@@ -27,7 +27,7 @@ final class DaemonSupervisorTests: XCTestCase {
         socketPath: "/tmp/h.sock", environment: ["PATH": "/usr/bin"], logFile: nil)
 
     func testLaunchSpecPassesSocket() {
-        XCTAssertEqual(spec.arguments, ["daemon", "--socket", "/tmp/h.sock"])
+        XCTAssertEqual(spec.arguments, ["daemon", "--socket", "/tmp/h.sock", "--no-update-check"])
     }
 
     func testRestartsCrashedDaemonWithGrowingDelay() async {

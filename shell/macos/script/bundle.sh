@@ -9,6 +9,7 @@ staged_helper="$dist_dir/headroom-daemon"
 app="$dist_dir/Headroom.app"
 bundle_id="io.github.headroom"
 identity="${CODESIGN_IDENTITY:--}"
+sparkle_feed_url="https://github.com/daniarjabagin/headroom/releases/latest/download/appcast.xml"
 install=false
 open_after=false
 universal=false
@@ -21,7 +22,8 @@ usage() {
 Usage: script/bundle.sh [--install] [--open] [--universal] [--no-cargo] [--dmg]
 
 Builds the headroom daemon (cargo) and the menu-bar app (SwiftPM: HeadroomKit, HeadroomUI,
-HeadroomSettings, Headroom) in release mode and assembles dist/Headroom.app.
+HeadroomSettings, Headroom) in release mode and assembles dist/Headroom.app with Sparkle.framework
+and the update feed keys (public EdDSA key from script/sparkle-public-key.txt).
 
   --install     copy the app to /Applications (quits a running Headroom first)
   --open        launch the app when done
@@ -137,8 +139,45 @@ copy_resource_bundles() {
     fi
 }
 
+bundle_build_number() {
+    local version="$1" major minor patch
+    if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-.*)?$ ]]; then
+        echo "version $version is not semver" >&2
+        return 1
+    fi
+    major="${BASH_REMATCH[1]}" minor="${BASH_REMATCH[2]}" patch="${BASH_REMATCH[3]}"
+    if ((10#$minor > 99 || 10#$patch > 99)); then
+        echo "version $version: minor and patch must be below 100 for CFBundleVersion" >&2
+        return 1
+    fi
+    echo $((10#$major * 10000 + 10#$minor * 100 + 10#$patch))
+}
+
+sparkle_public_key() {
+    local key
+    key="$(tr -d '[:space:]' <"$script_dir/sparkle-public-key.txt")"
+    if [[ ! "$key" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
+        echo "script/sparkle-public-key.txt does not hold a base64 Ed25519 public key" >&2
+        return 1
+    fi
+    echo "$key"
+}
+
+sparkle_plist_entries() {
+    local key
+    key="$(sparkle_public_key)"
+    cat <<EOF
+    <key>SUFeedURL</key><string>$sparkle_feed_url</string>
+    <key>SUPublicEDKey</key><string>$key</string>
+    <key>SUEnableAutomaticChecks</key><true/>
+    <key>SUScheduledCheckInterval</key><integer>86400</integer>
+EOF
+}
+
 write_info_plist() {
-    local version="$1"
+    local version="$1" build sparkle_entries
+    build="$(bundle_build_number "$version")"
+    sparkle_entries="$(sparkle_plist_entries)"
     cat >"$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -153,8 +192,9 @@ write_info_plist() {
     <key>CFBundleName</key><string>Headroom</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$version</string>
-    <key>CFBundleVersion</key><string>$version</string>
+    <key>CFBundleVersion</key><string>$build</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
+$sparkle_entries
     <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
@@ -176,13 +216,48 @@ assemble() {
     mv "$dist_dir/Headroom" "$app/Contents/MacOS/Headroom"
     mv "$staged_helper" "$app/Contents/Helpers/headroom"
     copy_resource_bundles
+    embed_sparkle
     build_icon
     write_info_plist "$version"
+}
+
+sparkle_framework_source() {
+    local found
+    found="$(find "$swift_bin_path" -maxdepth 2 -type d -name Sparkle.framework -print -quit)"
+    if [[ -z "$found" ]]; then
+        echo "Sparkle.framework not found in $swift_bin_path" >&2
+        return 1
+    fi
+    echo "$found"
+}
+
+add_frameworks_rpath() {
+    local binary="$app/Contents/MacOS/Headroom" rpath="@executable_path/../Frameworks"
+    if otool -l "$binary" | grep -F "path $rpath (" >/dev/null; then return 0; fi
+    install_name_tool -add_rpath "$rpath" "$binary"
+}
+
+embed_sparkle() {
+    local source framework="$app/Contents/Frameworks/Sparkle.framework"
+    source="$(sparkle_framework_source)"
+    mkdir -p "$app/Contents/Frameworks"
+    ditto "$source" "$framework"
+    rm -rf "$framework/XPCServices" "$framework/Versions/B/XPCServices"
+    add_frameworks_rpath
+    echo "frameworks: Sparkle.framework (without XPC services, the app is not sandboxed)"
+}
+
+sign_sparkle() {
+    local framework="$app/Contents/Frameworks/Sparkle.framework"
+    codesign --force --timestamp=none --sign "$identity" "$framework/Versions/B/Autoupdate"
+    codesign --force --timestamp=none --sign "$identity" "$framework/Versions/B/Updater.app"
+    codesign --force --timestamp=none --sign "$identity" "$framework"
 }
 
 sign() {
     codesign --force --timestamp=none --sign "$identity" --identifier "$bundle_id.helper" \
         "$app/Contents/Helpers/headroom"
+    sign_sparkle
     codesign --force --timestamp=none --sign "$identity" --identifier "$bundle_id" "$app"
     codesign --verify --strict --verbose=1 "$app"
 }

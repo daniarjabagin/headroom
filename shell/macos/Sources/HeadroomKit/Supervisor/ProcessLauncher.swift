@@ -17,8 +17,8 @@ public struct LaunchSpec: Sendable, Hashable {
         helper: URL, socketPath: String, environment: [String: String], logFile: URL?
     ) -> LaunchSpec {
         LaunchSpec(
-            executable: helper, arguments: ["daemon", "--socket", socketPath], environment: environment,
-            logFile: logFile)
+            executable: helper, arguments: ["daemon", "--socket", socketPath, "--no-update-check"],
+            environment: environment, logFile: logFile)
     }
 }
 
