@@ -32,6 +32,8 @@ pub enum Command {
     Waybar,
     #[command(about = "List the providers this build supports")]
     Providers(ProvidersArgs),
+    #[command(about = "Check for a new Headroom release and install it")]
+    Update(UpdateArgs),
 }
 
 #[derive(Debug, Args)]
@@ -47,6 +49,30 @@ pub struct DaemonArgs {
         reason = "clap's shape for a flag whose value is optional"
     )]
     pub socket: Option<Option<PathBuf>>,
+    #[arg(
+        long,
+        help = "Never ask GitHub for new Headroom releases (for bundles that update themselves)"
+    )]
+    pub no_update_check: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct UpdateArgs {
+    #[arg(
+        long,
+        conflicts_with_all = ["yes", "progress"],
+        help = "Only compare this version with the latest release"
+    )]
+    pub check: bool,
+    #[arg(long, help = "Do not ask for confirmation")]
+    pub yes: bool,
+    #[arg(
+        long,
+        value_enum,
+        value_name = "FORMAT",
+        help = "Report progress as JSON lines on stdout"
+    )]
+    pub progress: Option<ProgressFormat>,
 }
 
 #[derive(Debug, Args)]
@@ -179,6 +205,30 @@ mod tests {
             daemon_args(&["--socket", "/tmp/h.sock"]).socket,
             Some(Some(PathBuf::from("/tmp/h.sock")))
         );
+    }
+
+    fn update_args(args: &[&str]) -> Result<UpdateArgs, clap::Error> {
+        let parsed = Cli::try_parse_from([&["headroom", "update"], args].concat())?;
+        match parsed.command {
+            Command::Update(update) => Ok(update),
+            other => panic!("parsed {other:?}"),
+        }
+    }
+
+    #[test]
+    fn update_check_excludes_installing() {
+        let install = update_args(&["--yes", "--progress", "json"]).unwrap();
+        assert!(install.yes && !install.check);
+        assert_eq!(install.progress, Some(ProgressFormat::Json));
+        assert!(update_args(&["--check"]).unwrap().check);
+        assert!(update_args(&["--check", "--yes"]).is_err());
+        assert!(update_args(&["--check", "--progress", "json"]).is_err());
+    }
+
+    #[test]
+    fn update_checks_can_be_turned_off_for_the_daemon() {
+        assert!(!daemon_args(&[]).no_update_check);
+        assert!(daemon_args(&["--no-update-check"]).no_update_check);
     }
 
     #[test]

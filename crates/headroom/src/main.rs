@@ -8,6 +8,7 @@ mod pricing;
 mod providers;
 mod render;
 mod state;
+mod update;
 mod waybar;
 
 use std::io::{self, IsTerminal, Write};
@@ -68,6 +69,7 @@ async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
         Command::Waybar => waybar::run(globals).await?,
         Command::Providers(args) => providers::list(&args)?,
+        Command::Update(args) => update::run(&args).await?,
     }
     Ok(ExitCode::SUCCESS)
 }

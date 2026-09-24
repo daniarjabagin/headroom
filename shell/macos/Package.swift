@@ -10,6 +10,9 @@ let package = Package(
         .library(name: "HeadroomSettings", targets: ["HeadroomSettings"]),
         .executable(name: "Headroom", targets: ["Headroom"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
+    ],
     targets: [
         .target(name: "HeadroomKit"),
         .target(
@@ -18,7 +21,13 @@ let package = Package(
             resources: [.copy("Resources/ProviderIcons")]
         ),
         .target(name: "HeadroomSettings", dependencies: ["HeadroomKit"]),
-        .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI", "HeadroomSettings"]),
+        .executableTarget(
+            name: "Headroom",
+            dependencies: [
+                "HeadroomKit", "HeadroomUI", "HeadroomSettings",
+                .product(name: "Sparkle", package: "Sparkle", condition: .when(platforms: [.macOS])),
+            ]
+        ),
         .testTarget(
             name: "HeadroomKitTests",
             dependencies: ["HeadroomKit"],

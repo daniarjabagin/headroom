@@ -8,6 +8,7 @@ pub mod lapses;
 mod migrations;
 pub mod settings;
 pub mod snapshots;
+pub mod updates;
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};

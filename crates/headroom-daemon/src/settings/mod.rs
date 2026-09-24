@@ -21,6 +21,13 @@ pub struct Settings {
     pub headline: HeadlineMode,
     pub reduced_motion: bool,
     pub display: DisplaySettings,
+    pub updates: UpdateSettings,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct UpdateSettings {
+    pub check: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,6 +58,7 @@ impl Default for Settings {
             headline: HeadlineMode::Auto {},
             reduced_motion: false,
             display: DisplaySettings::default(),
+            updates: UpdateSettings::default(),
         }
     }
 }
@@ -58,6 +66,12 @@ impl Default for Settings {
 impl Default for HeadlineMode {
     fn default() -> HeadlineMode {
         HeadlineMode::Auto {}
+    }
+}
+
+impl Default for UpdateSettings {
+    fn default() -> UpdateSettings {
+        UpdateSettings { check: true }
     }
 }
 

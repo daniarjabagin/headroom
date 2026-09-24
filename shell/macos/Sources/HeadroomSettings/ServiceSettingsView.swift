@@ -12,6 +12,9 @@
                 Section(strings.text(ServiceText.serviceStatus)) { status }
                 Section(strings.text(ServiceText.logs)) { logs }
                 Section(strings.text(ServiceText.startup)) { startup }
+                if let updates = context.updates {
+                    Section(strings.text(UpdateText.updates)) { AppUpdatesSection(updates: updates, context: context) }
+                }
             }
             .formStyle(.grouped)
         }

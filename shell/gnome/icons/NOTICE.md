@@ -7,3 +7,8 @@ and trademarks; Headroom is not affiliated with or endorsed by any of the provid
 
 Lookup by provider id: `<id>.svg` (full color) first, then `<id>-symbolic.svg` (follows the text
 color), else `provider-symbolic.svg`, the generic icon drawn for Headroom.
+
+`headroom-symbolic.svg` is the monochrome Headroom mark from the Asteru Studio brandbook
+(© Asteru Studio / Daniar Jabagin, all rights reserved; not covered by the MIT license, see
+`assets/brand/README.md`). It is a single `#bebebe` path, so the panel recolors it like any symbolic
+icon.

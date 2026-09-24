@@ -50,6 +50,34 @@ contents:
     dst: /usr/share/plasma/plasmoids/io.github.headroom.plasmoid/
     type: tree
 
+  - src: packaging/icons/headroom.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/headroom.svg
+    file_info:
+      mode: 0644
+
+  - src: assets/brand/headroom-symbolic.svg
+    dst: /usr/share/icons/hicolor/symbolic/apps/headroom-symbolic.svg
+    file_info:
+      mode: 0644
+
+  - src: packaging/release/package-marker/deb
+    dst: /usr/share/headroom/installed-by-package
+    packager: deb
+    file_info:
+      mode: 0644
+
+  - src: packaging/release/package-marker/rpm
+    dst: /usr/share/headroom/installed-by-package
+    packager: rpm
+    file_info:
+      mode: 0644
+
+  - src: packaging/release/package-marker/archlinux
+    dst: /usr/share/headroom/installed-by-package
+    packager: archlinux
+    file_info:
+      mode: 0644
+
   - src: README.md
     dst: /usr/share/doc/headroom/README.md
     file_info:

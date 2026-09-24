@@ -149,6 +149,7 @@ Top level:
 | `next_refresh_at` | timestamp \| null | Earliest scheduled refresh among visible accounts. Accounts that are refreshing have no schedule until they finish; `null` when nothing is scheduled. |
 | `last_success_at` | timestamp \| null | `fetched_at` of the newest live snapshot of a visible account (cached snapshots from an earlier daemon run count; data read from local logs does not). `null` when there is none. |
 | `offline` | bool | `true` when every listed account (hidden ones included) failed its most recent refresh with a `network` error. Any success, any other error or an account not tried yet makes it `false`. `false` without accounts. |
+| `update` | Update \| null | A newer Headroom release, see [Update](#update). `null` when no newer release is known, when `updates.check` is off, when the daemon runs with `--no-update-check`, and in cached payloads read without a daemon. Daemons older than this field omit it. |
 | `display` | Display | A copy of `settings.display` (see [Settings](#settings)), so shells get their display options with every `StateChanged`. |
 | `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a visible window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
@@ -158,6 +159,38 @@ Top level:
 All timestamps are RFC 3339 strings in UTC (`2026-09-23T10:00:00Z`, fractional seconds when present).
 Percentages are JSON numbers (floating point, unrounded). Token counts and money are integers; money
 is always micro-USD (`12500000` = $12.50).
+
+### Update
+
+Present only when the latest stable release on GitHub is newer than the running daemon (semantic
+version precedence; drafts and prereleases are ignored).
+
+| field | type | description |
+| --- | --- | --- |
+| `version` | string | The newer release, e.g. `"0.5.0"`. |
+| `url` | string | Its GitHub release page, e.g. `"https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0"`. |
+| `published_at` | timestamp | When the release was published. |
+| `install` | string | How this daemon's binary was installed: `self`, `package` or `unknown` (below). |
+| `command` | string | One copyable line or a short sentence telling the user how to update. Shells show it as is. |
+
+| `install` | detected when | `command` |
+| --- | --- | --- |
+| `self` | the binary is `<prefix>/bin/headroom` of an install receipt with `"method": "script"` (written by the release tarball's `install.sh`, which `get-headroom.sh` runs) | `headroom update` |
+| `package` | the binary lives under `/usr`; the packager comes from `/usr/share/headroom/installed-by-package` (`deb`, `rpm` or `archlinux`, shipped by the release packages) | deb: `Download the new .deb package from <url>`; rpm: `Download the new .rpm package from <url>`; Arch: `Download the new Arch package from <url> and install it with sudo pacman -U`; no or another marker: `Update headroom with your system package manager` |
+| `unknown` | anything else: a source build (`packaging/install.sh` writes a receipt with `"method": "source"`), `cargo run`, macOS | the release `url` |
+
+The release packages are plain files attached to the GitHub release; there is no apt, dnf or pacman
+repository, which is why package commands point at the release page.
+
+```json
+"update": {
+  "version": "0.5.0",
+  "url": "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0",
+  "published_at": "2026-10-01T09:20:02Z",
+  "install": "self",
+  "command": "headroom update"
+}
+```
 
 ### Headline
 
@@ -388,6 +421,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
   "next_refresh_at": "2026-09-23T10:03:00Z",
   "last_success_at": "2026-09-23T09:58:00Z",
   "offline": false,
+  "update": null,
   "display": {
     "theme": "system",
     "language": "system",
@@ -578,6 +612,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.show_trend` | bool | `true` | Show the 30-day trend. |
 | `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
 | `display.translucent` | bool | `false` | Shells render the popup with a translucent (blurred where supported) background instead of an opaque one. |
+| `updates.check` | bool | `true` | Check GitHub once a day for a newer Headroom release and report it as the state's `update` (see [Update checks](#update-checks)). `false` stops the requests and hides `update` at once. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
 
 Dismissed accounts are not a setting: `DismissAccount` and `RestoreAccounts` manage them in the
@@ -603,7 +638,8 @@ names a CLI-owned account becomes that account's dismissed CLI home; other ids a
     "show_forecast": true,
     "translucent": false,
     "hidden_windows": {}
-  }
+  },
+  "updates": { "check": true }
 }
 ```
 
@@ -639,6 +675,79 @@ UpdateSettings('{"display":{"translucent":true,"hidden_windows":{"claude:9f8e":n
 The former top-level `show_usage` is gone. Settings stored by an older daemon are migrated on load
 (`show_usage` becomes `display.show_spend` unless that is set), but `SetSettings` with `show_usage` is
 invalid.
+
+## Update checks
+
+The daemon asks GitHub whether a newer Headroom release exists and reports it as `update` in the
+state payload. Privacy: this is one `GET https://api.github.com/repos/daniarjabagin/headroom/releases/latest`
+a day, sent with `User-Agent: headroom/<version>`, `Accept: application/vnd.github+json` and the
+previous response's `ETag` as `If-None-Match`. Nothing else is sent: no identifiers, accounts, usage
+or settings. GitHub sees the request's IP address like any web request.
+
+- The first check runs 2 minutes after start-up, or 24 h (± 10 %) after the last successful check if
+  that is later; the last check (time, `ETag`, latest release) is stored in the daemon's database, so
+  restarts do not check again. After a check the next one follows 24 h (± 10 %) later.
+- `304 Not Modified` keeps the stored release. `403` and `429` are treated as GitHub's rate limit:
+  the next attempt waits for `Retry-After` or `X-RateLimit-Reset`, at least 1 h and at most 24 h.
+  Network errors, other statuses and unusable answers are logged at `debug` only and retried after
+  1 h (± 10 %); they never show in the UI.
+- `updates.check: false` stops the requests and hides `update`; turning it on again checks at once
+  if a check is due. `headroom daemon --no-update-check` never checks (the macOS app starts its daemon
+  this way because it updates itself with Sparkle).
+- A change of `update` emits `StateChanged`.
+
+## Updating Headroom
+
+```
+headroom update --check
+headroom update [--yes] [--progress json]
+```
+
+`--check` fetches the latest release directly (no daemon needed) and prints the running and the
+latest version with the command that updates this install.
+
+Without `--check`, `headroom update` fetches the latest release and, when it is newer:
+
+- For a `self` install it asks for confirmation (`--yes` skips it; without a terminal or with
+  `--progress json` it fails unless `--yes` is given), downloads `SHA256SUMS` and
+  `headroom-<version>-<arch>-linux-musl.tar.gz` from the release, checks the tarball's SHA-256,
+  unpacks it into a temporary directory and runs its `install.sh` with the options recorded in the
+  install receipt. That replaces the binary, icons, unit, D-Bus file, GNOME extension and Plasma
+  widget and restarts `headroom.service`. On Wayland GNOME Shell loads the new extension only after
+  logging out and back in; Plasma reloads widgets when `plasmashell` restarts.
+- For `package` and `unknown` installs it prints what to do instead (the same text as `command`) and
+  exits non-zero.
+
+An install that is already current ends with `done` and the running version. With
+`--progress json` stdout carries one JSON object per line (the lines of `install.sh` that start with
+`==> ` become `step` events, its other output goes to stderr); the exit code is `0` only when the last
+event is `done`.
+
+| event | fields | meaning |
+| --- | --- | --- |
+| `step` | `text` | Human-readable progress, e.g. `"Downloading Headroom 0.5.0…"`. |
+| `done` | `version`, `relogin` | Success. `version` is the installed release (the running one when it was already current). `relogin` is `true` when a GNOME Shell extension or Plasma widget was updated, so the user should log out and back in. |
+| `error` | `message` | Failure (checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
+
+```
+{"event":"step","text":"Checking for a new release…"}
+{"event":"step","text":"Downloading Headroom 0.5.0…"}
+{"event":"step","text":"Verifying the checksum…"}
+{"event":"step","text":"Unpacking…"}
+{"event":"step","text":"Installing /home/ada/.local/bin/headroom"}
+{"event":"done","version":"0.5.0","relogin":true}
+```
+
+Install receipt: the release tarball's `install.sh` writes `$XDG_DATA_HOME/headroom/install.json`
+(default `~/.local/share/headroom/install.json`) and `uninstall.sh` removes it:
+
+```json
+{"method":"script","version":"0.4.0","options":["--no-plasma"],"prefix":"/home/ada/.local"}
+```
+
+`options` are the flags the user passed (`--no-service`, `--no-gnome`, `--no-plasma`), `prefix` is
+the absolute install prefix (the binary is `<prefix>/bin/headroom`). `packaging/install.sh` (a source
+build) writes the same file with `"method":"source"`, which `headroom update` does not replace.
 
 ## Notifications
 

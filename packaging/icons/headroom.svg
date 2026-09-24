@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Headroom</title>
+  <rect x="32" y="32" width="448" height="448" rx="80" fill="#151617"/>
+  <g transform="translate(63.5 63.5) scale(3.85)">
+    <g transform="translate(3.5 1.5)">
+      <path fill="#f0f0ed" d="M12 29L29 24V83L12 88Z"/>
+      <path fill="#f0f0ed" d="M38 13L55 8V84L38 89Z"/>
+      <path fill="#f0f0ed" d="M64 62L81 57V74L64 79Z"/>
+      <path fill="#a9b5ff" d="M64 28L81 23V44L64 49Z"/>
+    </g>
+  </g>
+</svg>

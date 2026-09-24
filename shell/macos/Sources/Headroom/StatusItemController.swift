@@ -84,20 +84,18 @@
         private func draw(_ content: MenuBarContent, scale: CGFloat) -> NSImage? {
             switch content {
             case .glyph:
-                return glyph()
+                return template(MenuBarMark(), scale: scale)
             case .reading(let text, let fraction):
-                let renderer = ImageRenderer(content: MenuBarLabel(text: text, fraction: fraction))
-                renderer.scale = scale
-                let image = renderer.nsImage
-                image?.isTemplate = true
-                return image
+                return template(MenuBarLabel(text: text, fraction: fraction), scale: scale)
             }
         }
 
-        private func glyph() -> NSImage? {
-            let image = NSImage(
-                systemSymbolName: "gauge.with.dots.needle.50percent", accessibilityDescription: "Headroom")
+        private func template(_ content: some View, scale: CGFloat) -> NSImage? {
+            let renderer = ImageRenderer(content: content)
+            renderer.scale = scale
+            let image = renderer.nsImage
             image?.isTemplate = true
+            image?.accessibilityDescription = "Headroom"
             return image
         }
     }

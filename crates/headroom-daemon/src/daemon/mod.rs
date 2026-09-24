@@ -17,7 +17,8 @@ use crate::notify::Notifier;
 use crate::random::ThreadRandom;
 use crate::service::Service;
 use crate::storage::Storage;
-use crate::{registry, rescan};
+use crate::update::UpdateConfig;
+use crate::{registry, rescan, update};
 
 pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let socket = config.socket.as_deref().map(ipc::bind).transpose()?;
@@ -29,7 +30,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let notifier = bus.notifier();
     #[cfg(not(target_os = "linux"))]
     let notifier: Arc<dyn Notifier> = hub.clone();
-    let (parts, shutdown) = core_parts(config, storage, notifier);
+    let (parts, updates, shutdown) = core_parts(config, storage, notifier);
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();
     let service = Service::new(core.clone(), rescans);
@@ -43,6 +44,9 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     });
     let sink: Arc<dyn EventSink> = Arc::new(sinks);
     tasks.spawn(registry::supervise(core.clone(), rescan_requests));
+    if let Some(updates) = updates {
+        tasks.spawn(update::run(core.clone(), updates));
+    }
     #[cfg(target_os = "linux")]
     tasks.spawn(bus.forward_actions(sink.clone()));
     tasks.spawn(events::publish_changes(core, sink));
@@ -66,7 +70,7 @@ fn core_parts(
     config: DaemonConfig,
     storage: Storage,
     notifier: Arc<dyn Notifier>,
-) -> (CoreParts, Shutdown) {
+) -> (CoreParts, Option<UpdateConfig>, Shutdown) {
     let parts = CoreParts {
         storage,
         providers: config.providers,
@@ -79,7 +83,7 @@ fn core_parts(
         notifier,
         system_locale: config.system_locale,
     };
-    (parts, config.shutdown)
+    (parts, config.updates, config.shutdown)
 }
 
 async fn stop(shutdown: Shutdown, mut tasks: JoinSet<()>, socket_file: Option<SocketFile>) {

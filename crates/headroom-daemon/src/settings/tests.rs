@@ -23,7 +23,8 @@ fn defaults_match_the_spec() {
             "show_forecast": true,
             "translucent": false,
             "hidden_windows": {}
-        }
+        },
+        "updates": { "check": true }
     });
     assert_eq!(serde_json::to_value(Settings::default()).unwrap(), expected);
     assert_eq!(Settings::parse("{}").unwrap(), Settings::default());
@@ -105,6 +106,7 @@ fn unknown_fields_are_rejected_at_every_level() {
         r#"{"colour":"red"}"#,
         r#"{"notifications":{"loud":true}}"#,
         r#"{"display":{"compact":true}}"#,
+        r#"{"updates":{"install":true}}"#,
         r#"{"headline":{"mode":"auto","account_id":"codex:a"}}"#,
         r#"{"headline":{"mode":"pinned","account_id":"a","window":"w","x":1}}"#,
     ] {
@@ -150,6 +152,17 @@ fn stored_display_without_translucent_loads_the_default() {
     assert!(!stored.display.translucent);
     let enabled = Settings::from_stored(r#"{"display":{"translucent":true}}"#).unwrap();
     assert!(enabled.display.translucent);
+}
+
+#[test]
+fn update_checks_default_on_for_settings_stored_before_them() {
+    let stored = Settings::from_stored(r#"{"reduced_motion":true}"#).unwrap();
+    assert!(stored.updates.check);
+    let off = Settings::default()
+        .patched(r#"{"updates":{"check":false}}"#)
+        .unwrap();
+    assert!(!off.updates.check);
+    assert!(off.patched(r#"{"updates":null}"#).unwrap().updates.check);
 }
 
 #[test]

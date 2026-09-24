@@ -14,6 +14,7 @@ use crate::settings::Settings;
 use crate::storage::accounts::{self, AccountRecord};
 use crate::storage::lapses::{self, Lapse};
 use crate::storage::{dismissed, settings, snapshots};
+use crate::update::AvailableUpdate;
 
 #[derive(Debug, Clone, Default)]
 pub struct Model {
@@ -24,6 +25,7 @@ pub struct Model {
     pub runtime: HashMap<AccountId, AccountRuntime>,
     pub usage_homes: BTreeSet<UsageHome>,
     pub usage: BTreeMap<UsageHome, UsageSummary>,
+    pub update: Option<AvailableUpdate>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +118,7 @@ impl Model {
             runtime: lapsed_runtime(lapses::load_all(conn)?),
             usage_homes: BTreeSet::new(),
             usage: BTreeMap::new(),
+            update: None,
         })
     }
 

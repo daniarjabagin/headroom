@@ -1,4 +1,5 @@
-use headroom_daemon::state::payload::AccountError;
+use headroom_daemon::state::payload::{AccountError, UpdateView};
+use headroom_daemon::update::InstallKind;
 
 use super::*;
 use crate::render::fixtures::full_state;
@@ -24,6 +25,22 @@ Spend  estimated from local logs
 #[test]
 fn renders_accounts_windows_and_spend() {
     assert_eq!(render_status(&full_state(), Palette::plain()), FULL_PLAIN);
+}
+
+#[test]
+fn a_newer_release_is_mentioned_last() {
+    let mut state = full_state();
+    state.update = Some(UpdateView {
+        version: "0.5.0".into(),
+        url: "https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0".into(),
+        published_at: "2026-10-01T09:20:02Z".parse().unwrap(),
+        install: InstallKind::SelfInstalled,
+        command: "headroom update".into(),
+    });
+    let out = render_status(&state, Palette::plain());
+    assert!(out.ends_with(
+        "1 hidden account · headroom accounts show <ID>\n\nHeadroom 0.5.0 is available · headroom update\n"
+    ));
 }
 
 #[test]
