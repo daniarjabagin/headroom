@@ -6,6 +6,7 @@ import { testCombined, testCombinedSnapshot } from './combinedTests.js';
 import { testDonut } from './donutTests.js';
 import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
+import { testMoney } from './moneyTests.js';
 import { testNotices } from './noticeTests.js';
 import { testProgressProcess } from './processTests.js';
 import { testSerialQueue } from './queueTests.js';
@@ -86,6 +87,8 @@ function testSampleAccounts() {
         label: 'Credits',
         kind: 'usd',
         usdMicros: 12_500_000,
+        currency: null,
+        micros: null,
         value: null,
         unit: null,
     });
@@ -180,6 +183,7 @@ function testEdgeStates() {
 
 testFormat();
 testNumbers();
+testMoney();
 testLocale();
 testExactReset();
 testForecast();

@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Breakdown.js" as Breakdown
 import "../package/contents/ui/logic/Format.js" as Format
+import "../package/contents/ui/logic/Money.js" as Money
 import "../package/contents/ui/logic/Quota.js" as Quota
 import "../package/contents/ui/logic/Sector.js" as Sector
 import "../package/contents/ui/logic/Spend.js" as Spend
@@ -204,6 +205,48 @@ TestCase {
         }), "1,200 requests");
     }
 
+    function test_money_balances() {
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: "CNY",
+            micros: 12500000
+        }), "¥12.50");
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: "CNY",
+            micros: -3000000
+        }), "-¥3.00");
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: "USD",
+            micros: 1234567890
+        }), "$1,234.57");
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: "EUR",
+            micros: 990000
+        }), "€0.99");
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: "GBP",
+            micros: -1234567890
+        }), "-1,234.57 GBP");
+        compare(Format.balanceValue("en", {
+            kind: "money",
+            currency: null,
+            micros: 1
+        }), "No data");
+    }
+
+    function test_money_rounds_half_away_from_zero() {
+        compare(Money.money("CNY", 5000), "¥0.01");
+        compare(Money.money("CNY", -5000), "-¥0.01");
+        compare(Money.money("CNY", 4999), "¥0.00");
+        compare(Money.money("CNY", -4999), "¥0.00");
+        compare(Money.money("CNY", 0), "¥0.00");
+        compare(Format.exactUsd(-500000), "-$0.50");
+    }
+
     function test_quota_rows() {
         const display = {
             valueMode: "left",
@@ -276,7 +319,7 @@ TestCase {
         fuzzyCompare(slices[1].start, 234, 1e-9);
         fuzzyCompare(slices[1].sweep, 36, 1e-9);
         compare(slices[1].color, "#D97757");
-        compare(Spend.slices(spendOf([900, 100]), 10, true)[0].color, "#19C37D");
+        compare(Spend.slices(spendOf([900, 100]), 10, true)[0].color, "#10A37F");
         assertContiguous(slices);
         compare(Spend.revealed(slices[0], 0), 0);
         fuzzyCompare(Spend.revealed(slices[0], 1), 324, 1e-9);

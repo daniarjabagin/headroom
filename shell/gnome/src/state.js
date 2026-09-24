@@ -6,7 +6,8 @@ const SCHEMA_VERSION = 1;
 const TONES = new Set(['good', 'warning', 'critical', 'neutral']);
 const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out', 'no_subscription']);
 const SEVERITIES = new Set(['untracked', 'healthy', 'close', 'running_out', 'spent']);
-const BALANCE_KINDS = new Set(['usd', 'count']);
+const BALANCE_KINDS = new Set(['usd', 'money', 'count']);
+const CURRENCY_CODE = /^[A-Z]{3}$/;
 const OWNERS = new Set(['cli', 'headroom']);
 
 export class StateError extends Error {}
@@ -70,6 +71,10 @@ function parseWindow(raw) {
     };
 }
 
+function currencyCode(value) {
+    return typeof value === 'string' && CURRENCY_CODE.test(value) ? value : null;
+}
+
 function parseBalance(raw) {
     const kind = oneOf(BALANCE_KINDS, raw.kind, null);
     return {
@@ -77,6 +82,8 @@ function parseBalance(raw) {
         label: text(raw.label) ?? '',
         kind,
         usdMicros: kind === 'usd' ? number(raw.usd_micros) : null,
+        currency: kind === 'money' ? currencyCode(raw.currency) : null,
+        micros: kind === 'money' ? number(raw.micros) : null,
         value: kind === 'count' ? number(raw.value) : null,
         unit: kind === 'count' ? text(raw.unit) : null,
     };

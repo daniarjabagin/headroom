@@ -40,6 +40,12 @@ PROVIDERS = [
     registry_entry("cursor", "Cursor", [auto_detect("Headroom reads the sign-in of the Cursor app on this computer.")]),
     registry_entry("antigravity", "Antigravity", [auto_detect("Headroom reads the sign-in of the Antigravity app.")]),
     registry_entry("ollama", "Ollama", [api_key("https://ollama.com/settings/keys")]),
+    registry_entry("kilo", "Kilo Code", [cli_login("kilo"), api_key("https://app.kilo.ai/profile"),
+                                         auto_detect("Found when you sign in with `kilo auth login`")]),
+    registry_entry("warp", "Warp", [api_key("https://docs.warp.dev/reference/cli/api-keys", "Starts with wk-")]),
+    registry_entry("poe", "Poe", [api_key("https://poe.com/api/keys")]),
+    registry_entry("deepseek", "DeepSeek", [api_key("https://platform.deepseek.com/api_keys")]),
+    registry_entry("moonshot", "Moonshot API", [api_key("https://platform.kimi.ai/console/api-keys")]),
 ]
 PROVIDER_NAMES = {entry["id"]: entry["display_name"] for entry in PROVIDERS}
 

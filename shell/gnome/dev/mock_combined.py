@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from mock_providers import providers_state
 from mock_state import (DAY, HOUR, MINUTE, SCENARIOS as BASE_SCENARIOS, TRACKED, account, assemble, pace,
                         showcase_accounts, showcase_usage, window)
 
@@ -138,7 +139,7 @@ def combined_state(now):
     return with_combined(state)
 
 
-SCENARIOS = {**BASE_SCENARIOS, "combined": combined_state}
+SCENARIOS = {**BASE_SCENARIOS, "combined": combined_state, "providers": providers_state}
 
 
 def build(scenario, now=None):
