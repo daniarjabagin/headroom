@@ -3,12 +3,17 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
+use crate::paths::{Os, app_config_dir, xdg_config_home};
+
 pub const DEFAULT_API_BASE: &str = "https://api2.cursor.sh";
 pub const DEFAULT_WEB_BASE: &str = "https://cursor.com";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CursorConfig {
+    /// Where the Cursor agent CLI keeps `cursor/auth.json`.
     pub xdg_config_home: PathBuf,
+    /// Where the Cursor app keeps its settings: `$XDG_CONFIG_HOME` or Application Support.
+    pub app_config_dir: PathBuf,
     /// Connect RPC host (`api2.cursor.sh`).
     pub api_base: String,
     /// Dashboard host whose `/api/*` endpoints take the session cookie.
@@ -19,7 +24,8 @@ impl CursorConfig {
     #[must_use]
     pub fn for_home(home: &Path) -> CursorConfig {
         CursorConfig {
-            xdg_config_home: home.join(".config"),
+            xdg_config_home: xdg_config_home(home, |_| None),
+            app_config_dir: app_config_dir(Os::current(), home, |_| None),
             api_base: DEFAULT_API_BASE.to_owned(),
             web_base: DEFAULT_WEB_BASE.to_owned(),
         }
@@ -35,19 +41,15 @@ impl CursorConfig {
 
     #[must_use]
     pub fn from_vars(home: &Path, var: impl Fn(&str) -> Option<OsString>) -> CursorConfig {
-        let defaults = CursorConfig::for_home(home);
-        let xdg_config_home = var("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute())
-            .unwrap_or(defaults.xdg_config_home);
         CursorConfig {
-            xdg_config_home,
-            ..defaults
+            xdg_config_home: xdg_config_home(home, &var),
+            app_config_dir: app_config_dir(Os::current(), home, &var),
+            ..CursorConfig::for_home(home)
         }
     }
 
     pub(super) fn ide_dir(&self) -> PathBuf {
-        self.xdg_config_home.join("Cursor")
+        self.app_config_dir.join("Cursor")
     }
 
     pub(super) fn state_db(&self) -> PathBuf {

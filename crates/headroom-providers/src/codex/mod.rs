@@ -2,6 +2,7 @@ mod auth;
 mod client;
 mod env;
 mod jwt;
+mod keyring;
 mod labels;
 mod local_usage;
 mod mapper;
@@ -29,10 +30,11 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::LimitsSnapshot;
 use jiff::Timestamp;
 
-use auth::{Credentials, load_credentials};
+use auth::Credentials;
 use client::UsageClient;
 
 use crate::http;
+use crate::keychain::Security;
 
 pub use client::DEFAULT_API_BASE;
 pub use env::CodexEnvironment;
@@ -104,6 +106,22 @@ impl CodexProvider {
         (self.config.clock)()
     }
 
+    async fn current_credentials(
+        &self,
+        account: &AccountRef,
+    ) -> Result<Credentials, ProviderError> {
+        let keychain = self.config.environment.keychain.as_ref();
+        let credentials = keyring::load(keychain, &account.home).await?;
+        if credentials.identity.account_id(&ID) == account.id {
+            Ok(credentials)
+        } else {
+            Err(ProviderError::LocalData(format!(
+                "the Codex account signed in at {} has changed",
+                account.home.display()
+            )))
+        }
+    }
+
     async fn fetch_live(
         &self,
         credentials: &Credentials,
@@ -123,11 +141,12 @@ impl Provider for CodexProvider {
     }
 
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError> {
-        discover_accounts(self.config.environment.homes()?)
+        let environment = &self.config.environment;
+        discover_accounts(environment.keychain.as_ref(), environment.homes()?).await
     }
 
     async fn account_at(&self, home: &Path) -> Result<Option<AccountRef>, ProviderError> {
-        match load_credentials(home) {
+        match keyring::load(self.config.environment.keychain.as_ref(), home).await {
             Ok(credentials) => Ok(Some(account_ref(
                 home.to_path_buf(),
                 CredentialOwner::Headroom,
@@ -143,7 +162,7 @@ impl Provider for CodexProvider {
     }
 
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
-        let credentials = current_credentials(account)?;
+        let credentials = self.current_credentials(account).await?;
         let now = self.now();
         match self.fetch_live(&credentials, now).await {
             Err(error) => {
@@ -162,25 +181,14 @@ impl Provider for CodexProvider {
     }
 }
 
-fn current_credentials(account: &AccountRef) -> Result<Credentials, ProviderError> {
-    let credentials = load_credentials(&account.home)?;
-    if credentials.identity.account_id(&ID) == account.id {
-        Ok(credentials)
-    } else {
-        Err(ProviderError::LocalData(format!(
-            "the Codex account signed in at {} has changed",
-            account.home.display()
-        )))
-    }
-}
-
-fn discover_accounts(
+async fn discover_accounts(
+    keychain: Option<&Security>,
     homes: Vec<(PathBuf, CredentialOwner)>,
 ) -> Result<Vec<AccountRef>, ProviderError> {
     let mut accounts: Vec<AccountRef> = Vec::new();
     let mut cli_error = None;
     for (home, owner) in homes {
-        match load_credentials(&home) {
+        match keyring::load(keychain, &home).await {
             Ok(credentials) => accounts.push(account_ref(home, owner, &credentials)),
             Err(error) if owner == CredentialOwner::Cli => cli_error = Some(error),
             Err(error) => tracing::warn!(home = %home.display(), %error, "skipping codex home"),

@@ -151,8 +151,7 @@ mod tests {
     }
 
     fn running_as_root() -> bool {
-        fs::read_to_string("/proc/self/status")
-            .is_ok_and(|status| status.lines().any(|line| line.starts_with("Uid:\t0\t")))
+        rustix::process::geteuid().is_root()
     }
 
     #[test]

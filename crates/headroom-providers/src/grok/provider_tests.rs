@@ -30,7 +30,9 @@ impl Setup {
     fn new(server: &MockServer) -> Setup {
         let root = tempfile::tempdir().unwrap();
         let config = GrokConfig {
-            xdg_data_home: root.path().join("data"),
+            headroom: crate::paths::HeadroomDirs {
+                data: root.path().join("data/headroom"),
+            },
             api_base: format!("{}/v1", server.uri()),
             issuer: server.uri(),
             ..GrokConfig::for_home(root.path().join("home"))

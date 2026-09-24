@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
-pub const GLOBAL_API_BASE: &str = "https://www.minimax.io";
+use crate::paths::HeadroomDirs;
 
-const ACCOUNTS_DIR: &str = "headroom/accounts/minimax";
+pub const GLOBAL_API_BASE: &str = "https://www.minimax.io";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MiniMaxConfig {
-    /// Headroom-owned homes, `$XDG_DATA_HOME/headroom/accounts/minimax`.
+    /// Headroom-owned homes, `<Headroom data dir>/accounts/minimax`.
     pub accounts_dir: PathBuf,
     pub api_base: String,
 }
@@ -18,7 +18,7 @@ impl MiniMaxConfig {
     #[must_use]
     pub fn for_home(home: &Path) -> MiniMaxConfig {
         MiniMaxConfig {
-            accounts_dir: home.join(".local/share").join(ACCOUNTS_DIR),
+            accounts_dir: accounts_dir(&HeadroomDirs::for_home(home)),
             api_base: GLOBAL_API_BASE.to_owned(),
         }
     }
@@ -33,15 +33,15 @@ impl MiniMaxConfig {
 
     #[must_use]
     pub fn from_vars(home: &Path, var: impl Fn(&str) -> Option<OsString>) -> MiniMaxConfig {
-        let defaults = MiniMaxConfig::for_home(home);
-        let data_home = var("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .filter(|path| path.is_absolute());
         MiniMaxConfig {
-            accounts_dir: data_home.map_or(defaults.accounts_dir, |data| data.join(ACCOUNTS_DIR)),
-            ..defaults
+            accounts_dir: accounts_dir(&HeadroomDirs::from_vars(home, var)),
+            ..MiniMaxConfig::for_home(home)
         }
     }
+}
+
+fn accounts_dir(dirs: &HeadroomDirs) -> PathBuf {
+    dirs.accounts(super::ID.as_str())
 }
 
 #[cfg(test)]

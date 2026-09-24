@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 use headroom_core::provider::ProviderError;
 
+use crate::paths::HeadroomDirs;
+
 pub const DEFAULT_API_BASE: &str = "https://api.kimi.com/coding/v1";
 pub const DEFAULT_OAUTH_HOST: &str = "https://auth.kimi.com";
 
@@ -14,7 +16,7 @@ const OAUTH_HOST_VARS: [&str; 2] = ["KIMI_CODE_OAUTH_HOST", "KIMI_OAUTH_HOST"];
 pub struct KimiConfig {
     /// The `kimi` CLI's own share directory (`$KIMI_SHARE_DIR` or `~/.kimi`).
     pub share_dir: PathBuf,
-    /// Headroom-owned homes, `$XDG_DATA_HOME/headroom/accounts/kimi`.
+    /// Headroom-owned homes, `<Headroom data dir>/accounts/kimi`.
     pub accounts_dir: PathBuf,
     pub api_base: String,
     pub oauth_host: String,
@@ -25,7 +27,7 @@ impl KimiConfig {
     pub fn for_home(home: &Path) -> KimiConfig {
         KimiConfig {
             share_dir: home.join(".kimi"),
-            accounts_dir: home.join(".local/share/headroom/accounts/kimi"),
+            accounts_dir: HeadroomDirs::for_home(home).accounts(super::ID.as_str()),
             api_base: DEFAULT_API_BASE.to_owned(),
             oauth_host: DEFAULT_OAUTH_HOST.to_owned(),
         }
@@ -49,9 +51,7 @@ impl KimiConfig {
         let defaults = KimiConfig::for_home(home);
         KimiConfig {
             share_dir: absolute(SHARE_DIR_VAR).unwrap_or(defaults.share_dir),
-            accounts_dir: absolute("XDG_DATA_HOME").map_or(defaults.accounts_dir, |data| {
-                data.join("headroom/accounts/kimi")
-            }),
+            accounts_dir: HeadroomDirs::from_vars(home, &var).accounts(super::ID.as_str()),
             api_base: text(API_BASE_VAR).unwrap_or(defaults.api_base),
             oauth_host: OAUTH_HOST_VARS
                 .into_iter()

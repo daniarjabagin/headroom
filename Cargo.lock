@@ -868,6 +868,7 @@ dependencies = [
  "dirs",
  "headroom-core",
  "hex",
+ "icu_normalizer",
  "jiff",
  "reqwest",
  "rusqlite",

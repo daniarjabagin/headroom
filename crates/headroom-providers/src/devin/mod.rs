@@ -5,7 +5,6 @@ mod config;
 mod mapper;
 mod raw;
 mod state_db;
-mod toml;
 
 use std::path::{Path, PathBuf};
 
