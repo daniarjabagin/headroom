@@ -6,7 +6,7 @@ The logos in this directory come from [Simple Icons](https://simpleicons.org) (C
 Simple Icons slug and kept unmodified.
 
 The logos are trademarks of their owners (OpenAI, Anthropic, Anomaly/OpenCode, OpenRouter, Z.ai,
-Moonshot AI, MiniMax, Cline, GitHub, Anysphere, Google, Ollama). Headroom uses them only to identify
+Moonshot AI, MiniMax, DeepSeek, Cline, GitHub, Anysphere, Google, Ollama). Headroom uses them only to identify
 the service whose usage is shown, and is not affiliated with or endorsed by any of them.
 
 | provider id | file | color in Headroom |
@@ -18,6 +18,8 @@ the service whose usage is shown, and is not affiliated with or endorsed by any 
 | `zai` | `zdotai.svg` | monochrome |
 | `kimi` | `kimi.svg` | monochrome |
 | `minimax` | `minimax.svg` | monochrome |
+| `deepseek` | `deepseek.svg` | monochrome |
+| `moonshot` | `moonshotai.svg` | monochrome |
 | `cline` | `cline.svg` | monochrome |
 | `copilot` | `githubcopilot.svg` | monochrome |
 | `cursor` | `cursor.svg` | monochrome |

@@ -101,6 +101,8 @@ default.</sub>
 | **Z.ai** | Session, weekly and monthly limits, web searches | Paste an API key |
 | **Kimi Code** | Session, weekly and per-model limits | Paste a Kimi Code API key, or sign in with `kimi` |
 | **MiniMax** | Session and weekly Token Plan limits | Paste a Token Plan key |
+| **DeepSeek** | API balance in each currency the account holds (¥ or $) | Paste an API key |
+| **Moonshot API** | Kimi Open Platform balance, vouchers and cash, in $ (platform.kimi.ai) or ¥ (mainland) | Paste an API key |
 | **Grok** | Weekly credit usage, extra-usage cap, tokens and exact logged cost | Sign in with `grok`, or detected from `~/.grok` |
 | **Cline** | Personal and organization credits | Sign in with `cline`, or detected from `~/.cline` |
 | **Devin** | Daily and weekly limits, extra-usage balance | Sign in with `devin`, or detected from the Devin CLI or app |

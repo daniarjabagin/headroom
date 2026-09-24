@@ -13,6 +13,17 @@ All notable changes to Headroom are documented here. The format is based on
   place), explains that Claude Code and Codex CLI accounts are found automatically and others are
   added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
   Homebrew cask's caveats now say to start the app with `open -a Headroom`.
+- **DeepSeek provider.** Paste an API key to see the account balance in each currency it holds
+  (yuan and dollars shown separately, never added up), with a warning when DeepSeek reports the
+  balance cannot pay for API calls.
+- **Moonshot API provider** for the Kimi Open Platform (pay-as-you-go, separate from Kimi Code).
+  Paste a key from platform.kimi.ai (USD) or the mainland platform (CNY); Headroom finds which one
+  it belongs to and shows the balance, vouchers and cash, with a red notice when the balance is used
+  up or the account is in debt.
+- **Balances in other currencies.** Balances now carry their currency: the state payload has a new
+  balance kind `money` (`currency` ISO 4217 code, `micros` in millionths of that currency) and
+  `headroom status` prints `¥12.50`, `€3.00` or `12.50 GBP`. Amounts are read from the exact
+  decimal text, never through floating point. Existing `usd` balances are unchanged.
 
 ### Security
 

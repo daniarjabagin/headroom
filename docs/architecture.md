@@ -24,10 +24,16 @@ Storage: `rusqlite` with `bundled`. File watching: `notify`.
 ```rust
 pub struct Tokens(pub u64);
 pub struct MicroUsd(pub i64);
+pub struct CurrencyCode(String);
+pub struct Money { pub currency: CurrencyCode, pub micros: i64 }
 pub struct Percent(f64);
 ```
 
 - `Tokens` and `MicroUsd` implement `Add`, `AddAssign`, `Sum`, saturating where overflow is possible.
+- `Money` is an amount in millionths of one unit of an ISO 4217 currency (`CurrencyCode::parse`
+  accepts three ASCII letters and upper-cases them). It has no arithmetic on purpose: amounts in
+  different currencies are never summed or converted. US-dollar figures use `MicroUsd`; spend totals
+  are USD only.
 - `Percent::new(f64) -> Percent` rejects NaN and negatives by clamping to `0.0`; values above 100 are
   allowed (boosted plans). `Percent::remaining()` is `max(0, 100 - used)`.
 - Timestamps are `jiff::Timestamp`, durations `jiff::SignedDuration`.
@@ -163,7 +169,7 @@ pub struct QuotaWindow {
 pub enum WindowId { Session, Weekly, Model(String), Other(String) }
 
 pub struct Balance { pub id: String, pub label: String, pub amount: BalanceAmount }
-pub enum BalanceAmount { Usd(MicroUsd), Count { value: u64, unit: String } }
+pub enum BalanceAmount { Usd(MicroUsd), Money(Money), Count { value: u64, unit: String } }
 
 pub struct LimitsSnapshot {
     pub identity: AccountIdentity,
@@ -336,6 +342,35 @@ pub enum ProviderError {
   model): 1 tick = 1e-10 USD, so micro-USD = ticks / 10 000 in integer math, rounding half up
   (remainder ≥ 5 000 adds one); negative or fractional ticks give `None` and the price book is used.
 
+## Pay-as-you-go balances (DeepSeek, Moonshot)
+
+Both are API-key providers with no windows: they show the account balance as `BalanceAmount::Money`
+in the currency the account is billed in. Requests go through `headroom-providers::bearer::get_json`
+(`Authorization: Bearer`, `Accept: application/json`, 15 s timeout; 401/403 → `SignInExpired`, 429 →
+`RateLimited` with `Retry-After`, 5xx → `Network`, anything else → `InvalidResponse`). Amounts are
+read by `decimal::ExactMicros` from the exact JSON text (a decimal string or a JSON number, through
+`serde_json::value::RawValue`, never `f64`) into millionths, rounding the seventh decimal half away
+from zero; exponents, `+`, `NaN` and values beyond `i64` are errors. Identity is
+`key_accounts::sha256_stable_key`. Fixtures are synthetic, built from the documented shapes.
+
+- **DeepSeek** (`deepseek`): `GET https://api.deepseek.com/user/balance`
+  ([doc](https://api-docs.deepseek.com/api/get-user-balance)). Each `balance_infos[]` entry becomes
+  one balance `balance_<currency>` labelled "Balance" from `total_balance` (a decimal string; the
+  currency is `CNY` or `USD`); a currency listed twice or an invalid code is `InvalidResponse`.
+  `is_available == false` adds a notice: Critical "Balance is used up…" when every balance is ≤ 0,
+  else Warning "Balance is not enough for API calls".
+- **Moonshot API** (`moonshot`, the Kimi Open Platform, separate from Kimi Code): `GET
+  {host}/v1/users/me/balance` ([international](https://platform.kimi.ai/docs/api/balance) in USD on
+  `api.moonshot.ai`, [mainland](https://platform.kimi.com/docs/api/balance) in CNY on
+  `api.moonshot.cn`). Keys of the two platforms are independent and the registry has no
+  per-provider options, so the region is found by asking: international first, and on 401/403 the
+  mainland host (other failures never switch hosts). The region that answered is remembered per
+  account in memory and asked first on the next refresh. The answer must be `code == 0`,
+  `status == true` with `data`; `available_balance`, `voucher_balance` and `cash_balance` (JSON
+  numbers) become the balances `available` "Balance", `voucher` "Vouchers" and `cash` "Cash".
+  `available_balance ≤ 0` adds a Critical "Balance is used up…" notice and `cash_balance < 0` a
+  Critical "…in debt" notice.
+
 ## Provider registry
 
 Descriptors live in `headroom-core::descriptor` (types only), the registry in
@@ -410,6 +445,8 @@ Registered providers, in registry order:
 | `zai` | Z.ai | API key | no |
 | `kimi` | Kimi Code | API key, or `kimi` login | no |
 | `minimax` | MiniMax | Token Plan key | no |
+| `deepseek` | DeepSeek | API key | no |
+| `moonshot` | Moonshot API | API key (international or mainland, detected) | no |
 | `grok` | Grok | `grok` login, or detected | yes |
 | `cline` | Cline | `cline` login (PTY), or detected | no |
 | `devin` | Devin | `devin` login, or detected | no |
@@ -496,7 +533,7 @@ writes `account.json` (the `AccountIdentity`, `0600`) into the home
 (`headroom-providers::key_accounts`). Providers list these homes with `key_accounts::discover` and
 read the key with `key_accounts::stored_key` over their injected `SecretReader`. A key's identity
 is a hash, never the key: `key_accounts::sha256_stable_key` (`key-sha256:<hex>`, OpenCode,
-OpenRouter, Z.ai) or `fingerprint_stable_key` (`key:<16 hex>`, Kimi, MiniMax); changing a provider's
+OpenRouter, Z.ai, DeepSeek, Moonshot) or `fingerprint_stable_key` (`key:<16 hex>`, Kimi, MiniMax); changing a provider's
 scheme would change its account ids. Adding a key whose account already exists replaces
 the stored key in the existing home. `headroom accounts remove` deletes the home and, for providers
 that take API keys, the stored key.
