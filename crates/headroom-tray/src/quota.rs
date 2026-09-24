@@ -48,7 +48,8 @@ pub fn quota_view(
     }
 }
 
-fn tick_position(window: &Window, display: &Display) -> Option<f64> {
+#[must_use]
+pub fn tick_position(window: &Window, display: &Display) -> Option<f64> {
     let even = window.pace.even_pace_percent?;
     let alarming = matches!(window.tone, Tone::Warning | Tone::Critical);
     if !display.show_forecast && !alarming {

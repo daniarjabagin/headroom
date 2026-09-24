@@ -6,6 +6,19 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Even-pace tick in the tray meters.** It was drawn as a faint dot; it is now a clear 2 px tick
+  the full 9 px height of the meter, above the fill, in light and dark, as in GNOME. Combined
+  (segmented) meters now show each account's tick too.
+- **Provider logos in the tray** for Warp, Poe, DeepSeek and Moonshot; Kilo Code keeps the generic
+  provider icon as in GNOME and Plasma. Their spend colors come from the shared design tokens.
+- **Balance labels in the tray** are shown as the provider names them (Kilo Code's "Credit balance"
+  appeared as "Credits"), and Russian uses the same translations as GNOME, including the notices of
+  Kilo Code, Warp, DeepSeek and Moonshot.
+- **The tray no longer rejects a state without a headline account**, and the GNOME development mock
+  sends the combined headline with the first account's id like the daemon.
+
 ## [0.5.0] - 2026-09-24
 
 A tray for every other Linux desktop, five new providers, combined accounts, balances in any

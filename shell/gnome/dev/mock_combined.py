@@ -105,7 +105,8 @@ def combined_headline(headline, groups):
         found = next((w for w in entry["windows"] if w["id"] == headline["window"]), None)
         if headline["account_id"] in entry["account_ids"] and found:
             share = found["capacity_percent"] / 100
-            return {**headline, "account_id": None, "account_label": None, "combined": True,
+            first = found["segments"][0]["account_id"] if found["segments"] else ""
+            return {**headline, "account_id": first, "account_label": None, "combined": True,
                     "account_count": len(found["segments"]), "remaining_percent": found["remaining_percent"] / share,
                     "used_percent": found["used_percent"] / share, "tone": found["tone"]}
     return headline

@@ -9,10 +9,22 @@ pub fn set_color(cr: &cairo::Context, color: Rgba) {
 }
 
 pub fn capsule(cr: &cairo::Context, x: f64, y: f64, width: f64, height: f64) {
-    let radius = (height / 2.0).min(width / 2.0);
+    rounded_rect(cr, x, y, width, height, width.min(height) / 2.0);
+}
+
+pub fn rounded_rect(cr: &cairo::Context, x: f64, y: f64, width: f64, height: f64, radius: f64) {
+    let radius = radius.min(width / 2.0).min(height / 2.0);
     cr.new_sub_path();
-    cr.arc(x + width - radius, y + radius, radius, -PI / 2.0, PI / 2.0);
-    cr.arc(x + radius, y + radius, radius, PI / 2.0, 3.0 * PI / 2.0);
+    cr.arc(x + width - radius, y + radius, radius, -PI / 2.0, 0.0);
+    cr.arc(
+        x + width - radius,
+        y + height - radius,
+        radius,
+        0.0,
+        PI / 2.0,
+    );
+    cr.arc(x + radius, y + height - radius, radius, PI / 2.0, PI);
+    cr.arc(x + radius, y + radius, radius, PI, 3.0 * PI / 2.0);
     cr.close_path();
 }
 

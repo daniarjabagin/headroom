@@ -39,6 +39,7 @@ fn row(display: &Display) -> CombinedRow {
     combined_row(
         &locale,
         &group().windows[0],
+        &[],
         display,
         at("2026-09-23T10:00:00Z"),
     )
@@ -93,8 +94,46 @@ fn running_out_gets_a_flame_note() {
     let result = combined_row(
         &locale,
         &combined.windows[0],
+        &[],
         &quiet,
         at("2026-09-23T10:00:00Z"),
     );
     assert!(result.note.unwrap().flame);
+}
+
+fn member(id: &str, even_pace: Option<f64>) -> Account {
+    serde_json::from_value(json!({
+        "id": id, "provider": "codex", "provider_name": "Codex", "label": null,
+        "email": null, "plan": null, "hidden": false, "status": "fresh", "error": null,
+        "updated_at": null, "balances": [], "notices": [], "usage_home": "~/.codex",
+        "windows": [{"id": "session", "label": "Session", "used_percent": 55.0,
+            "remaining_percent": 45.0, "resets_at": null, "tone": "good", "hidden": false,
+            "pace": {"severity": "healthy", "even_pace_percent": even_pace,
+                     "projected_percent": null, "spare_percent": null, "runs_out_at": null}}]
+    }))
+    .unwrap()
+}
+
+#[test]
+fn segments_carry_the_even_pace_tick_of_their_account() {
+    let locale = Locale::new(Lang::En, TimeZone::UTC);
+    let members = [
+        member("codex:work", Some(40.0)),
+        member("codex:personal", None),
+    ];
+    let window = &group().windows[0];
+    let now = at("2026-09-23T10:00:00Z");
+    let left = combined_row(&locale, window, &members, &Display::default(), now);
+    assert!((left.segments[0].tick.unwrap() - 0.6).abs() < 1e-9);
+    assert_eq!(left.segments[1].tick, None);
+    let used = Display {
+        value_mode: ValueMode::Used,
+        ..Display::default()
+    };
+    let used_row = combined_row(&locale, window, &members, &used, now);
+    assert!((used_row.segments[0].tick.unwrap() - 0.4).abs() < 1e-9);
+    assert_eq!(
+        combined_row(&locale, window, &[], &used, now).segments[0].tick,
+        None
+    );
 }

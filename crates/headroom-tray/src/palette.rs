@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::payload::Tone;
 
 const TOKENS_JSON: &str = include_str!("../../../shell/gnome/styles/tokens.json");
-const KNOWN_SERIES: [&str; 14] = [
+const KNOWN_SERIES: [&str; 19] = [
     "codex",
     "claude",
     "opencode",
@@ -20,6 +20,11 @@ const KNOWN_SERIES: [&str; 14] = [
     "cursor",
     "antigravity",
     "ollama",
+    "kilo",
+    "warp",
+    "poe",
+    "deepseek",
+    "moonshot",
 ];
 const FALLBACK_SERIES: u32 = 4;
 
@@ -218,6 +223,20 @@ mod tests {
             dark.tone(Tone::Good).unwrap(),
             dark.color("accent").unwrap()
         );
+    }
+
+    #[test]
+    fn every_provider_series_token_is_known() {
+        let file: TokenFile = serde_json::from_str(TOKENS_JSON).unwrap();
+        for tokens in [&file.light, &file.dark] {
+            let named = tokens
+                .keys()
+                .filter_map(|key| key.strip_prefix("series-"))
+                .filter(|key| !key.starts_with("other-"));
+            for provider in named {
+                assert!(KNOWN_SERIES.contains(&provider), "{provider}");
+            }
+        }
     }
 
     #[test]

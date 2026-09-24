@@ -38,6 +38,16 @@ fn parses_the_combined_snapshot() {
 }
 
 #[test]
+fn headline_tolerates_a_missing_account_id() {
+    let mut state: serde_json::Value = serde_json::from_str(COMBINED).unwrap();
+    state["headline"]["account_id"] = serde_json::Value::Null;
+    let parsed = parse_state(&state.to_string()).unwrap();
+    assert_eq!(parsed.headline.unwrap().account_id, None);
+    let real = parse_state(COMBINED).unwrap().headline.unwrap();
+    assert_eq!(real.account_id.as_deref(), Some("claude:main"));
+}
+
+#[test]
 fn parses_the_daemon_snapshots() {
     let full = parse_state(FULL).unwrap();
     assert!(!full.accounts.is_empty());

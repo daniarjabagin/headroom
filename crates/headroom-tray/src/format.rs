@@ -2,6 +2,7 @@ use jiff::Timestamp;
 
 use crate::dates::{Locale, clock_time, exact_moment};
 use crate::i18n::{Lang, fill};
+use crate::labels::label_text;
 use crate::payload::{Display, ResetFormat, Severity, ValueMode, Window};
 
 const SECOND: i64 = 1000;
@@ -52,7 +53,7 @@ pub fn window_label(lang: Lang, id: &str, label: &str) -> String {
         "session" => lang.tr("Session").to_owned(),
         "weekly" => lang.tr("Weekly").to_owned(),
         _ if label.is_empty() => id.to_owned(),
-        _ => label.to_owned(),
+        _ => label_text(lang, label),
     }
 }
 
