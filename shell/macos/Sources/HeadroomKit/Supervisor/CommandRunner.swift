@@ -14,6 +14,10 @@ public protocol CommandRunning: Sendable {
     func run(
         _ executable: URL, arguments: [String], environment: [String: String]?, timeout: Duration
     ) async throws(CommandError) -> CommandOutput
+
+    func output(
+        of executable: URL, arguments: [String], until terminator: String, timeout: Duration
+    ) async throws(CommandError) -> String
 }
 
 public struct CommandRunner: CommandRunning {
@@ -22,6 +26,35 @@ public struct CommandRunner: CommandRunning {
     public func run(
         _ executable: URL, arguments: [String], environment: [String: String]?, timeout: Duration
     ) async throws(CommandError) -> CommandOutput {
+        let launched = try Launched(executable, arguments: arguments, environment: environment)
+        return try await launched.finish(within: timeout) { stop in
+            async let data = OutputDrain.collect(launched.reader, stop: stop, terminator: nil)
+            let status = await launched.process.waitForExit()
+            stop.processExited()
+            return CommandOutput(status: status, stdout: String(decoding: await data, as: UTF8.self))
+        }
+    }
+
+    public func output(
+        of executable: URL, arguments: [String], until terminator: String, timeout: Duration
+    ) async throws(CommandError) -> String {
+        let launched = try Launched(executable, arguments: arguments, environment: nil)
+        return try await launched.finish(within: timeout) { stop in
+            Task.detached {
+                _ = await launched.process.waitForExit()
+                stop.processExited()
+            }
+            let data = await OutputDrain.collect(launched.reader, stop: stop, terminator: Data(terminator.utf8))
+            return String(decoding: data, as: UTF8.self)
+        }
+    }
+}
+
+private struct Launched: Sendable {
+    let process: FoundationProcess
+    let reader: FileHandle
+
+    init(_ executable: URL, arguments: [String], environment: [String: String]?) throws(CommandError) {
         let process = Process()
         process.executableURL = executable
         process.arguments = arguments
@@ -30,35 +63,34 @@ public struct CommandRunner: CommandRunning {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
-        let running = FoundationProcess(process: process)
+        self.process = FoundationProcess(process: process)
+        reader = pipe.fileHandleForReading
         do {
             try process.runWithDefaultSignalMask()
         } catch {
             throw .launchFailed(String(describing: error))
         }
-        return try await collect(running, reader: pipe.fileHandleForReading, timeout: timeout)
     }
 
-    private func collect(
-        _ running: FoundationProcess, reader: FileHandle, timeout: Duration
-    ) async throws(CommandError) -> CommandOutput {
-        let result: CommandOutput? = await withCheckedContinuation { continuation in
-            let once = ResumeOnce(continuation)
-            Task.detached { once.resume(await Self.drain(running, reader: reader)) }
-            Task.detached {
-                try? await Task.sleep(for: timeout)
-                running.kill()
+    func finish<Value: Sendable>(
+        within timeout: Duration, _ body: @escaping @Sendable (DrainStop) async -> Value
+    ) async throws(CommandError) -> Value {
+        let stop = DrainStop()
+        let result: Value? = await withCheckedContinuation { continuation in
+            let once = ResumeOnce<Value?>(continuation)
+            let timer = Task.detached { [process] in
+                guard (try? await Task.sleep(for: timeout)) != nil else { return }
+                stop.abandon()
+                process.kill()
                 once.resume(nil)
+            }
+            Task.detached {
+                once.resume(await body(stop))
+                timer.cancel()
             }
         }
         guard let result else { throw .timedOut }
         return result
-    }
-
-    private static func drain(_ running: FoundationProcess, reader: FileHandle) async -> CommandOutput {
-        let data = await PipeReader.readToEnd(reader)
-        let status = await running.waitForExit()
-        return CommandOutput(status: status, stdout: String(decoding: data, as: UTF8.self))
     }
 }
 
