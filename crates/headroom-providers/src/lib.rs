@@ -21,5 +21,7 @@ pub mod paths;
 mod plan_error;
 pub mod registry;
 pub mod secrets;
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support;
 mod toml;
 pub mod zai;

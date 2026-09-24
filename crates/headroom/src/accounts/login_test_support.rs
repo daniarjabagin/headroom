@@ -1,5 +1,4 @@
-use std::fs::{self, Permissions};
-use std::os::unix::fs::PermissionsExt;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -9,6 +8,7 @@ use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::LimitsSnapshot;
+use headroom_providers::test_support::install_script;
 
 use super::{Launcher, LoginSpec};
 
@@ -33,8 +33,7 @@ impl FakeBin {
 
     pub(super) fn install(&self, name: &str, body: &str) {
         let path = self.dir.path().join(name);
-        fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
+        install_script(&path, &format!("#!/bin/sh\n{body}\n")).unwrap();
     }
 
     pub(super) fn launcher(&self) -> Launcher {

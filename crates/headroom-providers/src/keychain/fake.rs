@@ -1,9 +1,9 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::Security;
+use crate::test_support::install_script;
 
 const SCRIPT: &str = r#"#!/bin/sh
 dir="$(dirname "$0")"
@@ -62,9 +62,7 @@ impl FakeKeychain {
     pub(crate) fn new(root: &Path) -> FakeKeychain {
         let dir = root.join("fake-security");
         fs::create_dir_all(&dir).unwrap();
-        let program = dir.join("security");
-        fs::write(&program, SCRIPT).unwrap();
-        fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
+        install_script(&dir.join("security"), SCRIPT).unwrap();
         FakeKeychain { dir }
     }
 

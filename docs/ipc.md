@@ -8,6 +8,12 @@ serves the socket in addition, which is how the socket transport is tested on Li
 Every payload (state, settings, providers) is the same JSON document the D-Bus API returns. Only the
 framing differs.
 
+The state payload carries `app_version`, the release of the daemon that serves the socket. A client
+that bundles its own daemon (the macOS app) compares it with its own release to notice that it is
+connected to a foreign daemon, for example one started from another install or left running across an
+upgrade. The field is missing from daemons that predate it; `version` alone decides whether the
+payload can be read.
+
 ## Socket
 
 | item | value |

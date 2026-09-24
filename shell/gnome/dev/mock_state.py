@@ -384,6 +384,7 @@ def choose_headline(accounts, *targets):
 def assemble(now, accounts, usage, preferred, **extra):
     state = {
         "version": 1,
+        "app_version": "0.3.0",
         "generated_at": iso(now),
         "next_refresh_at": iso(now + 3 * MINUTE + timedelta(seconds=10)),
         "last_success_at": iso(now - 2 * MINUTE),
