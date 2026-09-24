@@ -6,6 +6,11 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-24
+
+A tray for every other Linux desktop, five new providers, combined accounts, balances in any
+currency, a welcome window on macOS and a full security review.
+
 ### Added
 
 - **Headroom tray for every other Linux desktop.** `headroom-tray` puts the usage ring in the system
@@ -287,6 +292,7 @@ First version.
 - Settings changes from several windows no longer overwrite each other.
 - Cancelling an account sign-in cleans up after itself.
 
-[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/daniarjabagin/headroom/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/daniarjabagin/headroom/releases/tag/v0.4.0
