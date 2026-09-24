@@ -69,7 +69,7 @@ pub(super) fn map_limits(
         },
         windows: weekly.into_iter().collect(),
         balances: Vec::new(),
-        notices: legacy.into_iter().chain([extra_usage(config)]).collect(),
+        notices: legacy.into_iter().chain(extra_usage(config)).collect(),
         fetched_at: now,
         source: LimitsSource::Live,
     })
@@ -103,22 +103,43 @@ fn period_bounds(period: &RawPeriod) -> Result<(Timestamp, Timestamp), ProviderE
     }
 }
 
-fn extra_usage(config: &RawCreditsConfig) -> Notice {
+fn extra_usage(config: &RawCreditsConfig) -> Option<Notice> {
     let cap = config
         .on_demand_cap
         .as_ref()
         .and_then(|value| value.val.as_ref())
-        .filter(|cap| cap.as_f64().is_some_and(|value| value > 0.0));
-    match cap {
-        Some(cap) => notice(Tone::Good, &format!("Extra usage on, cap {}", display(cap))),
-        None => notice(Tone::Neutral, "Extra usage off"),
+        .filter(|cap| cap.as_f64().is_some_and(|value| value > 0.0))?;
+    Some(notice(
+        Tone::Neutral,
+        &format!("Extra usage on, cap {}", cents_as_usd(cap)),
+    ))
+}
+
+fn cents_as_usd(cents: &Number) -> String {
+    let text = cents.to_string();
+    let (whole, fraction) = text.split_once('.').unwrap_or((&text, ""));
+    let digits_only = |part: &str| part.bytes().all(|byte| byte.is_ascii_digit());
+    match whole.parse::<u64>() {
+        Ok(whole) if digits_only(fraction) => format!(
+            "${}.{:02}{}",
+            grouped(whole / 100),
+            whole % 100,
+            fraction.trim_end_matches('0')
+        ),
+        _ => format!("{text} cents"),
     }
 }
 
-fn display(number: &Number) -> String {
-    number
-        .as_u64()
-        .map_or_else(|| number.to_string(), |whole| whole.to_string())
+fn grouped(value: u64) -> String {
+    let digits = value.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
 }
 
 fn notice(tone: Tone, text: &str) -> Notice {
