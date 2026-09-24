@@ -15,6 +15,7 @@
 
         private let client: DaemonClient
         private let alerts: AlertPoster?
+        private let updater: SparkleUpdates?
         private let log = Logger(subsystem: "io.github.headroom", category: "app")
         private var supervisor: DaemonSupervisor?
         private var pumps: [Task<Void, Never>] = []
@@ -30,11 +31,14 @@
                 commands: commands)
             store = SettingsStore(client: client, queue: commands)
             alerts = Bundle.main.bundleIdentifier == nil ? nil : AlertPoster()
+            updater = SparkleUpdates.makeIfConfigured()
             helperEnvironment = DaemonEnvironment.helper(
                 daemon: environment.processEnvironment, socketPath: environment.socketPath)
         }
 
         var notificationAuthorizer: NotificationAuthorizer? { alerts?.authorizer }
+
+        var updates: UpdatesModel? { updater?.model }
 
         var helperLauncher: HelperLauncher {
             HelperLauncher(executable: environment.helper, environment: helperEnvironment)

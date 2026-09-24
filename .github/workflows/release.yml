@@ -141,11 +141,15 @@ jobs:
     name: Build (macOS universal DMG)
     needs: [verify, version]
     runs-on: macos-15
+    env:
+      SPARKLE_VERSION: 2.10.0
+      SPARKLE_SHA256: c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
     steps:
-      - name: Check out
+      - name: Check out with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Install the pinned toolchain and both Apple targets
@@ -173,14 +177,66 @@ jobs:
           for binary in MacOS/Headroom Helpers/headroom; do
             lipo "shell/macos/dist/Headroom.app/Contents/$binary" -verify_arch arm64 x86_64
           done
+          lipo shell/macos/dist/Headroom.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle \
+            -verify_arch arm64 x86_64
 
-      - name: Upload the DMG
+      - name: Decide whether to publish a Sparkle appcast
+        id: appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          if [[ "$TAG" == *-* ]]; then
+            echo "::notice title=No appcast::$TAG is a pre-release; installed apps are not offered it"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [[ -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "::warning title=No appcast::SPARKLE_ED_PRIVATE_KEY is not set, so this release has no appcast.xml and installed apps will not be offered it"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download Sparkle's sign_update
+        if: steps.appcast.outputs.publish == 'true'
+        run: |
+          archive="$RUNNER_TEMP/Sparkle-$SPARKLE_VERSION.tar.xz"
+          curl -fsSL --retry 3 -o "$archive" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  $archive" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$archive" -C "$RUNNER_TEMP/sparkle" ./bin/sign_update
+          "$RUNNER_TEMP/sparkle/bin/sign_update" --help > /dev/null
+
+      - name: Write the release notes for the update dialog
+        if: steps.appcast.outputs.publish == 'true'
+        run: |
+          if ! packaging/release/release-notes.sh "$TAG" > "$RUNNER_TEMP/release-notes.md"; then
+            echo "::warning title=Appcast notes::release notes could not be generated; the update dialog links to the release page only"
+            rm -f "$RUNNER_TEMP/release-notes.md"
+          fi
+
+      - name: Sign the DMG and write appcast.xml
+        if: steps.appcast.outputs.publish == 'true'
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          shell/macos/script/write-appcast.sh \
+            --app shell/macos/dist/Headroom.app \
+            --dmg "shell/macos/dist/Headroom-${TAG#v}-universal.dmg" \
+            --tag "$TAG" \
+            --sign-update "$RUNNER_TEMP/sparkle/bin/sign_update" \
+            --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --notes "$RUNNER_TEMP/release-notes.md" \
+            --out shell/macos/dist/appcast.xml
+          cat shell/macos/dist/appcast.xml
+
+      - name: Upload the DMG and the appcast
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-macos
           path: |
             shell/macos/dist/*.dmg
             shell/macos/dist/*.dmg.sha256
+            shell/macos/dist/appcast.xml
           if-no-files-found: error
 
   release:

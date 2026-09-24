@@ -11,6 +11,7 @@
         public let logFile: URL
         public let appVersion: String?
         public let notifications: NotificationAuthorizer?
+        public let updates: UpdatesModel?
         public let loginItem = LoginItem()
 
         let navigation = SettingsNavigation()
@@ -19,7 +20,8 @@
 
         public init(
             model: AppModel, store: SettingsStore, logFile: URL, appVersion: String?,
-            notifications: NotificationAuthorizer?, launcher: @escaping @MainActor () -> any HelperLaunching,
+            notifications: NotificationAuthorizer?, updates: UpdatesModel? = nil,
+            launcher: @escaping @MainActor () -> any HelperLaunching,
             providerImage: @escaping @MainActor (String) -> Image? = { _ in nil }
         ) {
             self.model = model
@@ -27,6 +29,7 @@
             self.logFile = logFile
             self.appVersion = appVersion
             self.notifications = notifications
+            self.updates = updates
             self.launcher = launcher
             self.providerImage = providerImage
         }

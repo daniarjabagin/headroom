@@ -22,6 +22,7 @@
             model.settingsPresenter = { settingsWindow.show($0) }
             menus.onRefresh = { model.refreshNow() }
             menus.onSettings = { model.openSettings() }
+            menus.updates = controller.updates
             let panel = PanelController(model: model, actions: popupActions(for: controller))
             let statusItem = StatusItemController(model: model, menus: menus)
             statusItem.onToggle = { [weak self] button in self?.togglePanel(relativeTo: button) }
@@ -48,7 +49,8 @@
             return SettingsContext(
                 model: controller.model, store: controller.store, logFile: controller.environment.logFile,
                 appVersion: controller.environment.bundledVersion, notifications: controller.notificationAuthorizer,
-                launcher: { controller.helperLauncher }, providerImage: { logos.image(for: $0) })
+                updates: controller.updates, launcher: { controller.helperLauncher },
+                providerImage: { logos.image(for: $0) })
         }
 
         private func popupActions(for controller: AppController) -> PopupActions {

@@ -3,9 +3,10 @@
     import HeadroomKit
 
     @MainActor
-    final class AppMenus: NSObject {
+    final class AppMenus: NSObject, NSMenuItemValidation {
         var onRefresh: (@MainActor () -> Void)?
         var onSettings: (@MainActor () -> Void)?
+        var updates: UpdatesModel?
 
         func statusMenu(_ strings: UIStrings) -> NSMenu {
             let menu = NSMenu()
@@ -25,10 +26,22 @@
             [
                 targeted(strings.text(SettingsText.refreshNow), #selector(refreshChosen), key: "r"),
                 targeted(strings.text(SettingsText.settingsMenu), #selector(settingsChosen), key: ","),
+            ] + updateItems(strings) + [
                 .separator(),
                 NSMenuItem(
                     title: strings.text(.quit), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
             ]
+        }
+
+        private func updateItems(_ strings: UIStrings) -> [NSMenuItem] {
+            guard updates != nil else { return [] }
+            return [targeted(strings.text(UpdateText.checkForUpdatesMenu), #selector(checkForUpdatesChosen), key: "")]
+        }
+
+        func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+            guard menuItem.action == #selector(checkForUpdatesChosen) else { return true }
+            updates?.refresh()
+            return updates?.status.canCheck ?? false
         }
 
         private func editItems(_ strings: UIStrings) -> [NSMenuItem] {
@@ -78,6 +91,10 @@
 
         @objc private func settingsChosen() {
             onSettings?()
+        }
+
+        @objc private func checkForUpdatesChosen() {
+            updates?.checkNow()
         }
     }
 #endif
