@@ -48,7 +48,7 @@ public enum AccountOwner: String, LenientStringEnum {
 }
 
 public enum BalanceKind: String, LenientStringEnum {
-    case usd, count, unknown
+    case usd, money, count, unknown
     public static let fallback = BalanceKind.unknown
 }
 

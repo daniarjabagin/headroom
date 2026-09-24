@@ -158,11 +158,13 @@ public struct Balance: Decodable, Sendable, Hashable, Identifiable {
     public let label: String
     public let kind: BalanceKind
     public let usdMicros: Int64?
+    public let currency: String?
+    public let micros: Int64?
     public let value: Int64?
     public let unit: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, label, kind, value, unit
+        case id, label, kind, currency, micros, value, unit
         case usdMicros = "usd_micros"
     }
 }

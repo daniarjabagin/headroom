@@ -84,6 +84,20 @@ final class FormatterTests: XCTestCase {
         }
     }
 
+    func testMoneyInOtherCurrencies() {
+        let cases: [(String, Int64, String)] = [
+            ("CNY", 12_500_000, "¥12.50"), ("CNY", -3_000_000, "-¥3.00"), ("EUR", 1_234_567_890, "€1,234.57"),
+            ("USD", 5_000, "$0.01"), ("CNY", 4_999, "¥0.00"), ("CNY", -5_000, "-¥0.01"),
+            ("CNY", -4_999, "¥0.00"), ("GBP", 12_500_000, "12.50 GBP"), ("XYZ", -5_000, "-0.01 XYZ"),
+            ("JPY", 250_000_000_000, "250,000.00 JPY"), ("CNY", Int64.max, "¥9,223,372,036,854.78"),
+            ("CNY", Int64.min, "-¥9,223,372,036,854.78"),
+        ]
+        for (currency, micros, expected) in cases {
+            XCTAssertEqual(english.money(currency: currency, micros: micros), expected, "\(currency) \(micros)")
+            XCTAssertEqual(russian.money(currency: currency, micros: micros), expected, "\(currency) \(micros)")
+        }
+    }
+
     func testTokens() {
         XCTAssertEqual(english.exactTokens(35_812_904), "35,812,904")
         XCTAssertEqual(russian.exactTokens(35_812_904), "35\u{00A0}812\u{00A0}904")

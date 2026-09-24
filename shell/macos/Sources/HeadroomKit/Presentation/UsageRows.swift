@@ -98,6 +98,10 @@ public enum UsageRows {
         switch balance.kind {
         case .usd:
             if let micros = balance.usdMicros { return formatter.usd(micros: micros) }
+        case .money:
+            if let currency = balance.currency, let micros = balance.micros {
+                return formatter.money(currency: currency, micros: micros)
+            }
         case .count:
             if let value = balance.value {
                 let sign = value < 0 ? "-" : ""

@@ -52,6 +52,26 @@ final class PresentationUsageTests: XCTestCase {
         XCTAssertEqual(rows.map(\.value), ["$2.50", "No data", "-3", "No data"])
     }
 
+    func testMoneyBalancesKeepTheirCurrency() throws {
+        let balances = try Fixture.decode([Balance].self, "balances")
+        let rows = UsageRows.balanceRows(balances, formatter: Build.english)
+        XCTAssertEqual(
+            rows.map(\.title),
+            ["Credits", "Balance", "Granted", "Balance (USD)", "Balance (GBP)", "Pending", "Requests", "Points"])
+        XCTAssertEqual(
+            rows.map(\.value),
+            ["$12.50", "¥12.50", "-¥3.00", "$1,234.57", "12.50 GBP", "No data", "1,500 requests", "No data"])
+    }
+
+    func testAccountCardRendersMoneyBalanceRows() throws {
+        let balances = String(decoding: try Fixture.data("balances"), as: UTF8.self)
+        let state = try Build.state(accounts: [Build.accountJSON(id: "a", balances: balances)])
+        let section = try XCTUnwrap(AccountSectionModel.sections(state, formatter: Build.english).first)
+        guard case .limits(let limits) = section.body else { return XCTFail("expected limits") }
+        XCTAssertEqual(limits.extras.first { $0.id == "balance:balance_cny" }?.value, "¥12.50")
+        XCTAssertEqual(limits.extras.first { $0.id == "balance:granted_cny" }?.value, "-¥3.00")
+    }
+
     func testDayTitleRejectsMalformedDates() {
         XCTAssertEqual(Build.english.dayTitle("2026-02-30"), "2026-02-30")
         XCTAssertEqual(Build.english.dayTitle("soon"), "soon")
