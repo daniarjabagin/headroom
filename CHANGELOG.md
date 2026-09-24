@@ -18,6 +18,15 @@ All notable changes to Headroom are documented here. The format is based on
 - The spend donut is shown even when only one provider has spend.
 - Hover highlights are smoother and follow the pointer, in both light and dark themes.
 - Account discovery logs are quieter.
+- Informational provider notes (for example Grok's extra-usage cap) are a quiet line instead of a
+  warning banner, and provider notes are translated to Russian in GNOME.
+- Grok no longer shows "Extra usage off"; an extra-usage cap is shown in dollars.
+
+### Fixed
+
+- With the translucent background on GNOME, hovering no longer leaves dark or light squares behind
+  buttons and rows.
+- Translucent hover in Plasma is a light tint instead of an almost opaque patch.
 
 ## [0.3.0] - 2026-09-23
 
