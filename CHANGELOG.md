@@ -8,6 +8,14 @@ All notable changes to Headroom are documented here. The format is based on
 
 ### Added
 
+- **Headroom tray for every other Linux desktop.** `headroom-tray` puts the usage ring in the system
+  tray of Xfce, Cinnamon, MATE, Budgie, LXQt, Hyprland, Sway, niri and any other StatusNotifierItem
+  host (XEmbed-only trays through `snixembed`) and opens the same popup as GNOME and Plasma, with a
+  settings window for display options, accounts and notifications. The one-line installer adds it
+  on those desktops (`--tray` / `--no-tray` to choose), with an autostart and a menu entry, and
+  `headroom update` keeps it current. Releases ship tray tarballs and `headroom-tray` deb, rpm and
+  Arch packages; the deb runs on Ubuntu 24.04 / Mint 22 and newer, the rpm, Arch package and
+  `-layershell` tarball use gtk4-layer-shell to place the popup on wlroots compositors.
 - **Welcome window on the first launch on macOS.** It shows where Headroom lives in the menu bar and
   what it shows, offers **Open at login** (on by default, applied when you continue; errors appear in
   place), explains that Claude Code and Codex CLI accounts are found automatically and others are
