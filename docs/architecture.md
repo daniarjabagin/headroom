@@ -10,7 +10,7 @@ visual design in `docs/design/`.
 | `headroom-core` | lib, no I/O | units, domain model, log cursors, `Provider` trait, pacing, severity, usage aggregation | `serde`, `serde_json`, `jiff`, `thiserror`, `async-trait`, `sha2`, `hex` |
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
 | `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers (shared client, `Retry-After` parsing), provider `registry`, `secrets` store, `key_accounts` (records, key-hash identities, stored-key reader), one module per provider | core, `zbus`, `rusqlite` |
-| `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, D-Bus service, notifications, state assembly | core |
+| `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, transports (D-Bus service on Linux, Unix socket everywhere), notifications, state assembly | core, `zbus` (Linux only) |
 | `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `tui`, `waybar` | all |
 
 The daemon crate never names a provider: the binary builds the providers from
@@ -536,7 +536,7 @@ that take API keys, the stored key.
   homes never double counts.
   Without a running daemon, `headroom status` reads cached usage for every stored usage home whose
   directory still exists.
-- **Storage** (`$XDG_STATE_HOME/headroom/headroom.db`, WAL): `accounts`, `limits_snapshots` (last good per
+- **Storage** (`$XDG_STATE_HOME/headroom/headroom.db` on Linux, `~/Library/Application Support/Headroom/headroom.db` on macOS, WAL): `accounts`, `limits_snapshots` (last good per
   account), `usage_events`, `log_cursors`, `notification_state`, `subscription_lapses`,
   `dismissed_homes` (dismissed CLI records), `settings`. Migrations are numbered
   SQL files applied in order.
@@ -551,6 +551,42 @@ that take API keys, the stored key.
   Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
   `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`. Titles name the
   provider by its registry display name.
+
+## Transports
+
+All commands and events go through one transport-neutral core; D-Bus and the socket are thin
+adapters over it.
+
+- `service::Service` wraps `Core` plus the rescan channel. Commands with more than one step
+  (`DismissAccount`, `RestoreAccounts` rescan afterwards) live there, so both transports behave the
+  same. `CommandError::is_invalid_argument` decides between D-Bus `InvalidArgs` / `Failed` and
+  JSON-RPC `-32602` / `-32000`.
+- `events::EventSink` (`state_changed`, `open_requested`, own `EventError`) receives events;
+  `events::publish_changes` debounces state changes into it. `EventSinks` fans out to every active
+  transport: `dbus::signals::BusSignals` emits the D-Bus signals, `ipc::Hub` writes notifications to
+  socket subscribers.
+- Alerts go through `notify::Notifier`: `DesktopNotifier` (`org.freedesktop.Notifications`) on Linux,
+  `ipc::Hub` on other platforms, which sends an `Alert` notification to every subscriber and fails
+  with `NotifyError::NoSubscribers` when there is none, so the milestone is rolled back and retried.
+- `ipc` serves line-delimited JSON-RPC 2.0 on a Unix socket ([ipc.md](ipc.md)): `protocol` parses
+  and encodes lines (pure), `dispatch` maps methods to `Service` calls, `connection` runs one reader
+  and one writer task per client with concurrent requests, `listener` handles the socket file
+  (0700 parent created when missing, stale-socket removal after a failed connect, 0600 socket,
+  removal on shutdown only while the file is still ours).
+
+| platform | daemon transports | alerts | CLI client |
+| --- | --- | --- | --- |
+| Linux | D-Bus; socket with `headroom daemon --socket [PATH]` | freedesktop notifications | D-Bus, or the socket when `HEADROOM_SOCKET` is set |
+| macOS | socket, always | `Alert` to socket subscribers (the app posts them) | socket |
+
+Default socket path: `$XDG_RUNTIME_DIR/headroom/daemon.sock` on Linux,
+`~/Library/Application Support/Headroom/daemon.sock` on macOS, and `$TMPDIR/headroom-<uid>.sock`
+when the path is longer than 103 bytes. `zbus`, the D-Bus service and the freedesktop notifier
+compile only for `target_os = "linux"`.
+
+Paths on macOS: Headroom's own files live in `~/Library/Application Support/Headroom` (database,
+socket, Headroom-owned account homes, secrets fallback); the price cache in
+`~/Library/Caches/headroom/pricing`.
 
 ## D-Bus API
 
