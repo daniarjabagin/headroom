@@ -147,7 +147,12 @@ final class PresentationCombinedTests: XCTestCase {
             MenuBarContent.make(state: state, formatter: Build.russian),
             .reading(text: "Codex ×2 · Неделя", fraction: 0.45))
         XCTAssertEqual(
-            MenuBarContent.make(state: try combined(), formatter: Build.english), .reading(text: "90%", fraction: 0.45))
+            MenuBarContent.make(state: try combined(), formatter: Build.english), .reading(text: "45%", fraction: 0.45))
+        let used = try Fixture.text("state_combined")
+            .replacingOccurrences(of: #""value_mode": "left""#, with: #""value_mode": "used""#)
+        XCTAssertEqual(
+            MenuBarContent.make(state: try Fixture.decode(DaemonState.self, json: used), formatter: Build.english),
+            .reading(text: "55%", fraction: 0.55))
         XCTAssertEqual(MenuBarContent.subject(try XCTUnwrap(state.headline)), "Codex ×2")
         XCTAssertEqual(MenuBarContent.subject(try XCTUnwrap(try Build.full().headline)), "ada@claude.example")
     }

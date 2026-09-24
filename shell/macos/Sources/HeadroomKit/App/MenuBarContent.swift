@@ -10,8 +10,7 @@ public enum MenuBarContent: Sendable, Hashable {
             case .percent: formatter.panelPercent(percent)
             case .window: windowText(headline, formatter: formatter)
             }
-        let capacity = capacity(of: headline, in: state.combined)
-        return .reading(text: text, fraction: min(1, max(0, percent / capacity)))
+        return .reading(text: text, fraction: min(1, max(0, percent / 100)))
     }
 
     public static func subject(_ headline: Headline) -> String {
@@ -22,13 +21,5 @@ public enum MenuBarContent: Sendable, Hashable {
     static func windowText(_ headline: Headline, formatter: DisplayFormatter) -> String {
         let window = formatter.windowLabel(id: headline.window, label: headline.windowLabel)
         return headline.combined ? "\(subject(headline)) · \(window)" : window
-    }
-
-    static func capacity(of headline: Headline, in groups: [CombinedGroup]) -> Double {
-        guard headline.combined else { return 100 }
-        let group = groups.first { $0.provider == headline.provider }
-        let capacity = group?.windows.first { $0.id == headline.window }?.capacityPercent
-        guard let capacity, capacity.isFinite, capacity > 0 else { return 100 }
-        return capacity
     }
 }

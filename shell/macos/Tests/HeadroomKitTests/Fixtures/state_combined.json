@@ -27,8 +27,8 @@
     "account_label": null,
     "window": "weekly",
     "window_label": "Weekly",
-    "used_percent": 110.0,
-    "remaining_percent": 90.0,
+    "used_percent": 55.0,
+    "remaining_percent": 45.0,
     "tone": "warning",
     "combined": true,
     "account_count": 2
