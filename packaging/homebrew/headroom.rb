@@ -36,6 +36,10 @@ cask "headroom" do
   ]
 
   caveats <<~EOS
+    Homebrew does not launch apps. Start Headroom once with:
+      open -a Headroom
+    On first run it offers to open at login, so it stays in the menu bar after a restart.
+
     Headroom is ad-hoc signed and not notarized by Apple yet, so this cask removes the
     com.apple.quarantine attribute from Headroom.app after installing it. Without that,
     Gatekeeper would block the first launch.

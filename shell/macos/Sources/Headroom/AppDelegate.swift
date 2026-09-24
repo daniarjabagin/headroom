@@ -11,6 +11,7 @@
         private var statusItem: StatusItemController?
         private var panel: PanelController?
         private var settingsWindow: SettingsWindowController?
+        private var welcome: WelcomeWindowController?
         private let menus = AppMenus()
         private let logos = ProviderLogos()
         private var menuLanguage: UILanguage?
@@ -18,7 +19,8 @@
         func applicationDidFinishLaunching(_ notification: Notification) {
             let controller = AppController(environment: .current())
             let model = controller.model
-            let settingsWindow = SettingsWindowController(context: settingsContext(for: controller))
+            let context = settingsContext(for: controller)
+            let settingsWindow = SettingsWindowController(context: context)
             model.settingsPresenter = { settingsWindow.show($0) }
             menus.onRefresh = { model.refreshNow() }
             menus.onSettings = { model.openSettings() }
@@ -32,6 +34,7 @@
             self.statusItem = statusItem
             self.settingsWindow = settingsWindow
             followLanguageInMainMenu()
+            showWelcomeIfNeeded(controller: controller, loginItem: context.loginItem)
             Task { await controller.start() }
         }
 
@@ -80,6 +83,25 @@
             guard strings.language != menuLanguage else { return }
             menuLanguage = strings.language
             NSApp.mainMenu = menus.mainMenu(strings)
+        }
+
+        private func showWelcomeIfNeeded(controller: AppController, loginItem: LoginItem) {
+            let reducedMotion = controller.store.settings?.reducedMotion ?? false
+            guard
+                let welcome = WelcomeWindowController.makeIfNeeded(
+                    model: controller.model, loginItem: loginItem, reducedMotion: reducedMotion)
+            else { return }
+            self.welcome = welcome
+            welcome.show { [weak self] exit in self?.leaveWelcome(exit) }
+        }
+
+        private func leaveWelcome(_ exit: WelcomeExit) {
+            welcome = nil
+            switch exit {
+            case .openHeadroom: Task { @MainActor [weak self] in self?.openPanel() }
+            case .settings: controller?.model.openSettings()
+            case .dismissed: return
+            }
         }
 
         private func togglePanel(relativeTo button: NSStatusBarButton) {
