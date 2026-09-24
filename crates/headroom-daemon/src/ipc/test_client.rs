@@ -16,6 +16,21 @@ use crate::service::Service;
 use crate::testing::{CODEX, FakeProvider, Harness, account, harness, session, snapshot};
 
 const PATIENCE: Duration = Duration::from_secs(5);
+const SHORT_TEMP_ROOT: &str = "/tmp";
+const LONGEST_TEMP_ROOT: usize = 48;
+
+pub fn socket_dir() -> TempDir {
+    let temp = std::env::temp_dir();
+    let root = if temp.as_os_str().len() <= LONGEST_TEMP_ROOT {
+        temp
+    } else {
+        PathBuf::from(SHORT_TEMP_ROOT)
+    };
+    tempfile::Builder::new()
+        .prefix("hr")
+        .tempdir_in(root)
+        .unwrap()
+}
 
 pub struct Server {
     pub dir: TempDir,
@@ -36,7 +51,7 @@ impl Server {
         let provider = FakeProvider::new(CODEX, vec![account(CODEX, "a")], limits);
         let providers: Vec<Arc<dyn Provider>> = vec![Arc::new(provider)];
         let harness = harness(providers).await;
-        let dir = tempfile::tempdir().unwrap();
+        let dir = socket_dir();
         let path = dir.path().join("run").join("daemon.sock");
         let (listener, file) = bind(&path).unwrap();
         let (rescans, requests) = rescan::channel();

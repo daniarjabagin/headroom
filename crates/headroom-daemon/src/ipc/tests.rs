@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use tokio::io::AsyncWriteExt;
 
 use super::protocol::MAX_LINE;
-use super::test_client::{Client, Server};
+use super::test_client::{Client, Server, socket_dir};
 use super::{Hub, Topic, bind};
 use crate::error::SocketError;
 use crate::events::{EventSink, publish_changes};
@@ -270,7 +270,7 @@ async fn a_second_daemon_is_refused_while_the_first_listens() {
 
 #[tokio::test]
 async fn two_daemons_starting_together_cannot_both_listen() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = socket_dir();
     let path = dir.path().join("daemon.sock");
     let (first_listener, first) = bind(&path).unwrap();
     std::fs::remove_file(&path).unwrap();
@@ -284,7 +284,7 @@ async fn two_daemons_starting_together_cannot_both_listen() {
 
 #[tokio::test]
 async fn stale_sockets_are_replaced_and_other_files_kept() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = socket_dir();
     let path = dir.path().join("daemon.sock");
     drop(std::os::unix::net::UnixListener::bind(&path).unwrap());
     assert!(path.exists());

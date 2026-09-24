@@ -16,10 +16,7 @@ fn ide_login_is_read_from_the_state_database() {
     assert_eq!(credentials.subject, "auth0|user_ide");
     assert_eq!(credentials.membership.as_deref(), Some("pro"));
     assert_eq!(credentials.email.as_deref(), Some("someone@example.com"));
-    assert_eq!(
-        credentials.home(&config),
-        home.path().join(".config/Cursor")
-    );
+    assert_eq!(credentials.home(&config), config.ide_dir());
     assert!(credentials.usable_token(fixed_now()).is_ok());
 }
 

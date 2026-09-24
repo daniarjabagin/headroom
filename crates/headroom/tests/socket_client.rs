@@ -102,6 +102,13 @@ fn daemon_answer(request: &Value) -> Vec<Reply> {
     vec![Reply::Now(line)]
 }
 
+fn short_sandbox() -> TempDir {
+    tempfile::Builder::new()
+        .prefix("hr")
+        .tempdir_in("/tmp")
+        .unwrap()
+}
+
 fn command(sandbox: &TempDir, socket: &Path, args: &[&str]) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_headroom"));
     command
@@ -130,7 +137,7 @@ fn text(bytes: &[u8]) -> String {
 
 #[test]
 fn status_json_prints_the_state_exactly_as_served() {
-    let sandbox = tempfile::tempdir().unwrap();
+    let sandbox = short_sandbox();
     let daemon = FakeDaemon::start(sandbox.path(), Arc::new(daemon_answer));
     let output = headroom(&sandbox, &daemon.path, &["status", "--json"]);
     assert!(output.status.success(), "{}", text(&output.stderr));
@@ -140,7 +147,7 @@ fn status_json_prints_the_state_exactly_as_served() {
 
 #[test]
 fn commands_send_their_arguments_in_order() {
-    let sandbox = tempfile::tempdir().unwrap();
+    let sandbox = short_sandbox();
     let daemon = FakeDaemon::start(sandbox.path(), Arc::new(daemon_answer));
     let refreshed = headroom(&sandbox, &daemon.path, &["refresh", "codex:a"]);
     assert_eq!(text(&refreshed.stdout), "Refresh requested for codex:a\n");
@@ -166,7 +173,7 @@ fn commands_send_their_arguments_in_order() {
 
 #[test]
 fn daemon_errors_are_shown_as_their_message() {
-    let sandbox = tempfile::tempdir().unwrap();
+    let sandbox = short_sandbox();
     let daemon = FakeDaemon::start(sandbox.path(), Arc::new(daemon_answer));
     let output = headroom(&sandbox, &daemon.path, &["refresh", "codex:zz"]);
     assert!(!output.status.success());
@@ -178,7 +185,7 @@ fn daemon_errors_are_shown_as_their_message() {
 
 #[test]
 fn a_missing_socket_means_the_daemon_is_not_running() {
-    let sandbox = tempfile::tempdir().unwrap();
+    let sandbox = short_sandbox();
     let socket = sandbox.path().join("absent.sock");
     let output = headroom(&sandbox, &socket, &["refresh"]);
     assert!(!output.status.success());
@@ -216,7 +223,7 @@ fn read_lines(child: &mut Child, count: usize) -> Vec<Value> {
 
 #[test]
 fn waybar_subscribes_and_follows_state_changes() {
-    let sandbox = tempfile::tempdir().unwrap();
+    let sandbox = short_sandbox();
     let daemon = FakeDaemon::start(sandbox.path(), Arc::new(waybar_answer));
     let mut child = command(&sandbox, &daemon.path, &["waybar"])
         .spawn()

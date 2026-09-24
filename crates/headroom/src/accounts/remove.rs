@@ -171,6 +171,9 @@ fn confirm(ask: &Confirmation) -> Result<bool> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use headroom_providers::keychain::Security;
     use headroom_providers::secrets::SecretBus;
 
     use super::*;
@@ -230,8 +233,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join("home");
         std::fs::create_dir(&home).unwrap();
-        let bus = format!("unix:path={}", dir.path().join("no-bus").display());
-        let secrets = SecretStore::new(SecretBus::Address(bus), dir.path().join("secrets"));
+        let keychain = Security::new(dir.path().join("no-security"), Duration::from_secs(1));
+        let secrets = SecretStore::with_keychain(keychain, dir.path().join("secrets"));
         let id = AccountId("keyed:0123456789ab".into());
         assert!(forget(Some(&secrets), &id, &home).await.is_err());
         assert!(home.exists());

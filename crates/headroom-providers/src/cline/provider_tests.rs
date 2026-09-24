@@ -37,8 +37,8 @@ fn cli_file(home: &TempDir) -> PathBuf {
 }
 
 fn owned_home(home: &TempDir, name: &str) -> PathBuf {
-    home.path()
-        .join(".local/share/headroom/accounts/cline")
+    ClineConfig::for_home(home.path().to_path_buf())
+        .headroom_accounts_dir()
         .join(name)
 }
 

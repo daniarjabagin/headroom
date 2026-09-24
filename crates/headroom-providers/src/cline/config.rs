@@ -81,6 +81,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> ClineConfig {
         let vars: HashMap<String, OsString> = vars
@@ -100,7 +101,10 @@ mod tests {
         );
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/cline")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/cline",
+                "/home/u/Library/Application Support/Headroom/accounts/cline",
+            )
         );
         assert_eq!(config.api_base, DEFAULT_API_BASE);
     }

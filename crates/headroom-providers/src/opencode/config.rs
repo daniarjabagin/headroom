@@ -50,6 +50,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> OpenCodeConfig {
         let vars: HashMap<String, OsString> = vars
@@ -69,7 +70,10 @@ mod tests {
         );
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/home/u/.local/share/headroom/accounts/opencode")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/opencode",
+                "/home/u/Library/Application Support/Headroom/accounts/opencode",
+            )
         );
         assert_eq!(config.api_base, DEFAULT_API_BASE);
     }
@@ -80,13 +84,19 @@ mod tests {
         assert_eq!(config.data_dir, PathBuf::from("/data/opencode"));
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/data/headroom/accounts/opencode")
+            per_os(
+                "/data/headroom/accounts/opencode",
+                "/home/u/Library/Application Support/Headroom/accounts/opencode",
+            )
         );
         let config = config_with(&[("XDG_DATA_HOME", "/data"), ("OPENCODE_DATA_DIR", "/oc")]);
         assert_eq!(config.data_dir, PathBuf::from("/oc"));
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/data/headroom/accounts/opencode")
+            per_os(
+                "/data/headroom/accounts/opencode",
+                "/home/u/Library/Application Support/Headroom/accounts/opencode",
+            )
         );
     }
 

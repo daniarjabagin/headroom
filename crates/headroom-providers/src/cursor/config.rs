@@ -68,13 +68,17 @@ impl CursorConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::paths::per_os;
 
     #[test]
     fn paths_follow_home_by_default() {
         let config = CursorConfig::from_vars(Path::new("/home/u"), |_| None);
         assert_eq!(
             config.state_db(),
-            PathBuf::from("/home/u/.config/Cursor/User/globalStorage/state.vscdb")
+            per_os(
+                "/home/u/.config/Cursor/User/globalStorage/state.vscdb",
+                "/home/u/Library/Application Support/Cursor/User/globalStorage/state.vscdb",
+            )
         );
         assert_eq!(
             config.agent_auth_file(),
@@ -89,7 +93,10 @@ mod tests {
         let config = CursorConfig::from_vars(Path::new("/home/u"), |name| {
             (name == "XDG_CONFIG_HOME").then(|| OsString::from("/cfg"))
         });
-        assert_eq!(config.ide_dir(), PathBuf::from("/cfg/Cursor"));
+        assert_eq!(
+            config.ide_dir(),
+            per_os("/cfg/Cursor", "/home/u/Library/Application Support/Cursor")
+        );
         assert_eq!(config.agent_dir(), PathBuf::from("/cfg/cursor"));
     }
 

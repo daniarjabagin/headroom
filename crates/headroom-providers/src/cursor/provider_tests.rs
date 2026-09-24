@@ -87,7 +87,7 @@ async fn discovery_finds_the_one_ide_login() {
     assert_eq!(account.id, AccountId::from_stable_key(&ID, SUBJECT));
     assert_eq!(account.provider, ID);
     assert_eq!(account.owner, CredentialOwner::Cli);
-    assert_eq!(account.home, home.path().join(".config/Cursor"));
+    assert_eq!(account.home, config_in(home.path()).ide_dir());
     assert!(provider.usage_homes().await.unwrap().is_empty());
 }
 

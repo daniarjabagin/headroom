@@ -201,10 +201,8 @@ fn config_dir_override_reads_identity_inside_it() {
 
 #[test]
 fn headroom_owned_dirs_are_discovered() {
-    let (home, config) = setup();
-    let owned = home
-        .path()
-        .join(".local/share/headroom/accounts/claude/0f7e");
+    let (_home, config) = setup();
+    let owned = config.headroom_accounts_dir().join("0f7e");
     login_scoped(&owned, "acc-owned");
     assert_eq!(
         summary(&discover_accounts(&config)),
