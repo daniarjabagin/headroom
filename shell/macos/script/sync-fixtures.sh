@@ -8,6 +8,7 @@ fixtures="$script_dir/../Tests/HeadroomKitTests/Fixtures"
 sources=(
     "crates/headroom-daemon/src/state/snapshots/state_full.json"
     "crates/headroom-daemon/src/state/snapshots/state_empty.json"
+    "crates/headroom-daemon/src/state/snapshots/state_combined.json"
     "crates/headroom-daemon/src/state/snapshots/account_no_subscription.json"
     "crates/headroom/src/render/fixtures/providers.json"
 )

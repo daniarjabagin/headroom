@@ -17,6 +17,18 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(state.accounts.map(\.id), ["codex:work", "claude:main", "codex:hidden"])
     }
 
+    func testMoneyBalancesDecodeCurrencyAndMicros() throws {
+        let balances = try Fixture.decode([Balance].self, "balances")
+        XCTAssertEqual(balances.map(\.kind), [.usd, .money, .money, .money, .money, .money, .count, .unknown])
+        XCTAssertEqual(balances[1].currency, "CNY")
+        XCTAssertEqual(balances[1].micros, 12_500_000)
+        XCTAssertNil(balances[1].usdMicros)
+        XCTAssertEqual(balances[2].micros, -3_000_000)
+        XCTAssertEqual(balances[5].currency, "EUR")
+        XCTAssertNil(balances[5].micros)
+        XCTAssertNil(balances[0].currency)
+    }
+
     func testAccountsWindowsPaceAndNotices() throws {
         let state = try Fixture.decode(DaemonState.self, "state_full")
         let codex = state.accounts[0]

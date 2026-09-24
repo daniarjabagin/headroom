@@ -84,4 +84,14 @@ final class PresentationSpendTests: XCTestCase {
         XCTAssertNil(ProviderStyle.iconResource(for: "../etc"))
         XCTAssertNil(ProviderStyle.iconResource(for: ""))
     }
+
+    func testEveryKnownProviderHasItsOwnSeriesColor() throws {
+        let ids = try Fixture.decode(ProvidersPayload.self, "providers").providers.map(\.id)
+        XCTAssertEqual(ids.count, 19)
+        let colors = ids.map(ProviderStyle.seriesColor(for:))
+        XCTAssertEqual(Set(colors.map(\.light)).count, ids.count)
+        XCTAssertEqual(Set(colors.map(\.dark)).count, ids.count)
+        XCTAssertEqual(ProviderStyle.seriesColor(for: "kilo"), SeriesColor(light: 0xB59A00, dark: 0xF8F675))
+        XCTAssertEqual(ProviderStyle.seriesColor(for: "moonshot"), SeriesColor(light: 0x475A78, dark: 0xA5B4CC))
+    }
 }

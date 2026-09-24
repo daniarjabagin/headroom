@@ -1,0 +1,10 @@
+[
+  { "id": "credits", "label": "Credits", "kind": "usd", "usd_micros": 12500000 },
+  { "id": "balance_cny", "label": "Balance", "kind": "money", "currency": "CNY", "micros": 12500000 },
+  { "id": "granted_cny", "label": "Granted", "kind": "money", "currency": "CNY", "micros": -3000000 },
+  { "id": "balance_usd", "label": "Balance (USD)", "kind": "money", "currency": "USD", "micros": 1234567890 },
+  { "id": "balance_gbp", "label": "Balance (GBP)", "kind": "money", "currency": "GBP", "micros": 12500000 },
+  { "id": "pending_eur", "label": "Pending", "kind": "money", "currency": "EUR" },
+  { "id": "requests", "label": "Requests", "kind": "count", "value": 1500, "unit": "requests" },
+  { "id": "points", "label": "Points", "kind": "points", "value": 7 }
+]

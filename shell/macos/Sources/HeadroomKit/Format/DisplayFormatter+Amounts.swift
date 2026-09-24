@@ -4,6 +4,7 @@ extension DisplayFormatter {
     private static let microsPerCent: Int64 = 10_000
     private static let abbreviateMoneyFromCents: Int64 = 100_000
     private static let compactWordsFrom: UInt64 = 1000
+    private static let currencySymbols = ["USD": "$", "CNY": "¥", "EUR": "€"]
     private static let units: [(size: Double, suffix: String, russian: String)] = [
         (1e9, "B", "\u{00A0}млрд"),
         (1e6, "M", "\u{00A0}млн"),
@@ -11,11 +12,17 @@ extension DisplayFormatter {
     ]
 
     public func exactUSD(micros: Int64) -> String {
+        money(currency: "USD", micros: micros)
+    }
+
+    public func money(currency: String, micros: Int64) -> String {
         let cents = Self.cents(of: micros)
         let magnitude = cents.magnitude
         let rest = magnitude % 100
         let sign = cents < 0 ? "-" : ""
-        return "\(sign)$\(Self.grouped(magnitude / 100, separator: ",")).\(rest < 10 ? "0" : "")\(rest)"
+        let digits = "\(Self.grouped(magnitude / 100, separator: ",")).\(rest < 10 ? "0" : "")\(rest)"
+        guard let symbol = Self.currencySymbols[currency] else { return "\(sign)\(digits) \(currency)" }
+        return "\(sign)\(symbol)\(digits)"
     }
 
     public func usd(micros: Int64) -> String {
