@@ -53,7 +53,7 @@ Refresh semantics:
   60 s usage poll.
 - Each provider call has a 30 s timeout.
 
-Rescan semantics:
+### Rescan semantics
 
 - Discovery runs every 10 minutes and on `Rescan`. A rescan also re-syncs the usage homes and resets
   the 10-minute timer.

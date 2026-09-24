@@ -1,8 +1,9 @@
 # Screenshots
 
-The images in this folder are used by the top-level [README](../../README.md). Every Linux shot is
-rendered from mock data (`shell/gnome/dev/mock-daemon.py --scenario showcase`), never from a real
-account.
+The images in this folder are used by the top-level [README](../../README.md). None of them shows a
+real account: the Linux shots are rendered from mock data
+(`shell/gnome/dev/mock-daemon.py --scenario showcase`), the macOS shots use accounts with neutral
+labels.
 
 | file | what | how it was made |
 | --- | --- | --- |
@@ -10,29 +11,22 @@ account.
 | `popup-light.png` | GNOME popup, light | same, with `color-scheme` set to `prefer-light` |
 | `gnome-settings.png` | GNOME preferences window, General tab | same session, `gnome-extensions prefs` |
 | `plasma.png` | Plasma widget popup, dark | `make -C shell/plasma preview STATE=…` with the showcase state, cropped to the popup |
-| `macos-dark.png` | macOS menu-bar popup, dark | **still to take on a Mac**, see below |
-| `macos-light.png` | macOS menu-bar popup, light | **still to take on a Mac**, see below |
-| `macos-settings.png` | macOS preferences window | **still to take on a Mac**, see below (optional, not linked yet) |
+| `mac-popup-dark.png` | macOS menu-bar popup, dark | the installed app, `⌘⇧4` then `Space` on the popup |
+| `mac-popup-light.png` | macOS menu-bar popup, light | same, in System Settings → Appearance → Light |
+| `mac-settings.png` | macOS preferences window, General tab (Russian UI) | same window shot of Settings… (`⌘,`) |
 
-## macOS shots to take
+## Retaking a shot
 
-These cannot be rendered on Linux, so the owner takes them on a Mac with the installed app.
+- **GNOME**: `HEADLESS=1 COLOR_SCHEME=prefer-dark SCENARIO=showcase make -C shell/gnome devkit`
+  runs a nested GNOME Shell with the mock daemon (drop `HEADLESS=1` for a window).
+- **Plasma**: dump the showcase state and render the popup offscreen:
 
-1. **Use accounts without personal data.** Nothing in the popup may show a personal email or a
-   company name. Rename accounts in Settings → Accounts (for example "work" and "personal"), or
-   use accounts whose labels are already neutral. Check the Keychain prompts are gone before the
-   shot.
-2. **Show a full popup.** Two to four providers, a spend donut with several slices (open the
-   popup on a day with some usage), and ideally one limit with a warning pace.
-3. **`macos-dark.png`**: System Settings → Appearance → Dark. Click the Headroom item in the menu
-   bar, press `⌘⇧4`, then `Space`, and click the popup. This captures the window with its shadow on a
-   transparent background.
-4. **`macos-light.png`**: the same in Appearance → Light.
-5. **`macos-settings.png`** (optional): open Settings… (`⌘,`) on the General tab and take the same
-   `⌘⇧4`, `Space` window shot.
-6. Screenshots land on the Desktop as `Screenshot … .png`. Rename them to the names above, copy
-   them into `docs/screenshots/`, and keep them small: Retina shots are fine as they are; if a file
-   is over about 1 MB, run it through `oxipng -o 4` or ImageOptim.
-
-The README shows `macos-dark.png` and `macos-light.png` in the screenshot row through a `<picture>`
-element, so both files are needed; until they exist that cell shows a broken image.
+  ```sh
+  python3 shell/gnome/dev/mock-daemon.py --dump --scenario showcase > /tmp/showcase.json
+  make -C shell/plasma preview STATE=/tmp/showcase.json
+  ```
+- **macOS**: rename accounts in Settings → Accounts to neutral labels (for example "work" and
+  "personal") so no email or company name is visible, open the popup and press `⌘⇧4`, then `Space`,
+  and click the window. This captures it with its shadow on a transparent background.
+- Keep the file names above and the files small: run anything over about 1 MB through
+  `oxipng -o 4`.
