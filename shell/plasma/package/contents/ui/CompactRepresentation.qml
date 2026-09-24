@@ -71,6 +71,17 @@ MouseArea {
         }
 
         PlasmaComponents3.Label {
+            objectName: "compactCountLabel"
+            visible: compact.windowMode && compact.headline.combined === true && typeof compact.headline.accountCount === "number"
+            Layout.alignment: Qt.AlignCenter
+            opacity: 0.7
+            textFormat: Text.PlainText
+            text: visible ? Format.panelCount(compact.headline.accountCount) : ""
+            font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
+            font.weight: Font.DemiBold
+        }
+
+        PlasmaComponents3.Label {
             objectName: "compactWindowLabel"
             visible: compact.windowMode
             Layout.alignment: Qt.AlignCenter

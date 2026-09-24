@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import { dashboardCards } from '../combined.js';
 import { enter, settle, STAGGER_MS } from '../motion.js';
 import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
@@ -8,6 +9,7 @@ import { parseDisplay } from '../settings.js';
 import { isRefreshing } from '../state.js';
 import { column, row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
+import { CombinedSection } from './combinedSection.js';
 import { Footer } from './footer.js';
 import { RefreshButton } from './refreshButton.js';
 import { RefreshControl } from './refreshControl.js';
@@ -34,7 +36,22 @@ function applyOrder(state, order) {
 }
 
 function layoutKey(display) {
-    return JSON.stringify([display.showSpend, display.showAccountSpend, display.showTrend]);
+    return JSON.stringify([display.showSpend, display.showAccountSpend, display.showTrend, display.combineAccounts]);
+}
+
+function cardSubject(card) {
+    return card.kind === 'account' ? card.account : card;
+}
+
+function sectionFor(ctx, card, accounts) {
+    if (card.kind === 'combined') return new CombinedSection(ctx, card);
+    return new AccountSection(ctx, card.account, showsName(card.account, accounts));
+}
+
+function canUpdateSection(section, card, accounts) {
+    if (section.id !== card.id) return false;
+    if (card.kind === 'combined') return section instanceof CombinedSection && section.canUpdate(card);
+    return section instanceof AccountSection && section.canUpdate(card.account, showsName(card.account, accounts));
 }
 
 function shownSpend(state) {
@@ -246,30 +263,27 @@ export class PopupView {
         }
         const offlineChanged = this._ctx.offline !== state.offline;
         this._ctx.offline = state.offline;
-        if (!offlineChanged && this._canUpdateInPlace(state, accounts)) {
+        const cards = dashboardCards(state, accounts);
+        if (!offlineChanged && this._canUpdateInPlace(state, cards, accounts)) {
             this._spendSection?.update(state.spend);
-            accounts.forEach((account, index) => this._sections[index].update(account));
+            cards.forEach((card, index) => this._sections[index].update(cardSubject(card)));
             return;
         }
-        this._rebuild(state, accounts);
+        this._rebuild(state, cards, accounts);
     }
 
-    _canUpdateInPlace(state, accounts) {
+    _canUpdateInPlace(state, cards, accounts) {
         if (this._layoutKey !== layoutKey(state.display)) return false;
         if (Boolean(this._spendSection) !== Boolean(shownSpend(state))) return false;
-        if (this._sections.length !== accounts.length || this._sections.length === 0) return false;
-        return accounts.every(
-            (account, index) =>
-                this._sections[index].id === account.id &&
-                this._sections[index].canUpdate(account, showsName(account, accounts))
-        );
+        if (this._sections.length !== cards.length || this._sections.length === 0) return false;
+        return cards.every((card, index) => canUpdateSection(this._sections[index], card, accounts));
     }
 
-    _rebuild(state, accounts) {
+    _rebuild(state, cards, accounts) {
         const spendState = shownSpend(state);
         const refresh = this._detachedRefresh();
         const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period, refresh) : null;
-        const sections = accounts.map(account => new AccountSection(this._ctx, account, showsName(account, accounts)));
+        const sections = cards.map(card => sectionFor(this._ctx, card, accounts));
         const leading = spend ? spend.actor : topBar(refresh);
         this._replaceContent([leading, ...sections.map(section => section.actor)]);
         this._spendSection = spend;
@@ -302,7 +316,7 @@ export class PopupView {
         this._content.set_child_at_index(moved.actor, to + LEADING_ACTORS);
         const order = mergeOrder(
             this._view.state.accounts.map(account => account.id),
-            this._sections.map(section => section.id)
+            this._sections.flatMap(section => section.accountIds)
         );
         for (const view of [this._view, this._pendingView]) if (view?.state) applyOrder(view.state, order);
         this._ctx.actions.setOrder(order);

@@ -85,6 +85,17 @@ ConfigScaffold {
                 onSelected: value => page.setDisplay("resetFormat", value)
             }
         }
+
+        SettingsRow {
+            title: page.tr("Combine accounts of the same provider")
+            subtitle: page.tr("Show one card per provider and add up the limits of its accounts")
+
+            QQC2.Switch {
+                objectName: "combineAccounts"
+                checked: page.display.combineAccounts
+                onToggled: page.setDisplay("combineAccounts", checked)
+            }
+        }
     }
 
     SettingsGroup {

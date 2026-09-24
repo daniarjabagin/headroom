@@ -6,7 +6,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import { DaemonClient } from './dbus.js';
-import { panelPercent, shortWindowLabel } from './format.js';
+import { panelCount, panelPercent, shortWindowLabel } from './format.js';
 import { Glass } from './glass.js';
 import { _, currentLanguage, resolveLanguage, setLanguage } from './i18n.js';
 import { Motion } from './motion.js';
@@ -88,11 +88,20 @@ export const Indicator = GObject.registerClass(
                 style_class: 'headroom-panel-provider',
                 y_align: Clutter.ActorAlign.CENTER,
             });
+            this._countLabel = label('', 'headroom-panel-window headroom-panel-count');
+            this._countLabel.opacity = WINDOW_LABEL_OPACITY;
             this._windowLabel = label('', 'headroom-panel-window');
             this._windowLabel.opacity = WINDOW_LABEL_OPACITY;
             this._percent = label('', 'headroom-panel-label');
-            for (const actor of [this._mark, this._ring, this._providerSlot, this._windowLabel, this._percent])
-                this._panelBox.add_child(actor);
+            const actors = [
+                this._mark,
+                this._ring,
+                this._providerSlot,
+                this._countLabel,
+                this._windowLabel,
+                this._percent,
+            ];
+            for (const actor of actors) this._panelBox.add_child(actor);
             this.add_child(this._panelBox);
         }
 
@@ -183,6 +192,7 @@ export const Indicator = GObject.registerClass(
             this._ring.visible = headline !== null && !windowMode;
             this._providerSlot.visible = windowMode;
             this._windowLabel.visible = windowMode;
+            this._countLabel.visible = windowMode && headline.combined && headline.accountCount !== null;
             this._panelBox.opacity = headline && isStale(state) ? STALE_OPACITY : 255;
             if (headline === null) return;
             const value = panelValue(headline, state.display);
@@ -201,6 +211,7 @@ export const Indicator = GObject.registerClass(
                 this._panelProvider = provider;
             }
             this._windowLabel.text = shortWindowLabel(headline.windowId, headline.windowLabel);
+            this._countLabel.text = headline.accountCount === null ? '' : panelCount(headline.accountCount);
         }
 
         _onMenuToggled(open) {

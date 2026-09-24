@@ -45,6 +45,8 @@ function headlineTitle(lang, state) {
     const account = State.headlineAccount(state);
     const window = State.headlineWindow(state);
     const windowLabel = window === null ? headline.windowLabel ?? headline.windowId ?? "" : Format.windowLabel(lang, window);
+    if (account === null && headline.combined && headline.accountCount !== null)
+        return `${headline.providerName} ${Format.panelCount(headline.accountCount)} · ${windowLabel}`;
     if (account === null)
         return headline.accountLabel ? `${headline.accountLabel} · ${windowLabel}` : "Headroom";
     const visible = State.visibleAccounts(state);

@@ -22,6 +22,7 @@ const DISPLAY_KEYS = {
     showTrend: "show_trend",
     showForecast: "show_forecast",
     translucent: "translucent",
+    combineAccounts: "combine_accounts",
     hiddenWindows: "hidden_windows"
 };
 
@@ -82,6 +83,7 @@ function parseDisplay(raw) {
         showTrend: flag(display.show_trend, true),
         showForecast: flag(display.show_forecast, true),
         translucent: flag(display.translucent, false),
+        combineAccounts: flag(display.combine_accounts, false),
         hiddenWindows: parseHiddenWindows(display.hidden_windows)
     };
 }
