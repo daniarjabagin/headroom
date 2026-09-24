@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" fill-rule="nonzero">
+  <title>Headroom / H01 Reserve / symbol / ice-light-transparent</title>
+  <g transform="translate(96 96) scale(3.2)">
+    <g transform="translate(3.5 1.5)">
+      <path data-part="left" fill="#f0f0ed" d="M12 29L29 24V83L12 88Z"/>
+      <path data-part="middle" fill="#f0f0ed" d="M38 13L55 8V84L38 89Z"/>
+      <path data-part="right-lower" fill="#f0f0ed" d="M64 62L81 57V74L64 79Z"/>
+      <path data-part="right-upper" fill="#a9b5ff" d="M64 28L81 23V44L64 49Z"/>
+    </g>
+  </g>
+</svg>

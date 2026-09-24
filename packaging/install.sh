@@ -7,6 +7,7 @@ Usage: packaging/install.sh [--no-service] [--no-gnome]
 
 Builds Headroom and installs it for the current user:
   ~/.local/bin/headroom
+  ~/.local/share/icons/hicolor/{scalable,symbolic}/apps/headroom*.svg
   ~/.config/systemd/user/headroom.service   (enabled and started)
   ~/.local/share/dbus-1/services/io.github.headroom.Daemon.service
   the GNOME Shell extension, when GNOME Shell is installed
@@ -33,6 +34,7 @@ data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 unit_dir="$config_home/systemd/user"
 dbus_dir="$data_home/dbus-1/services"
+icon_dir="$data_home/icons/hicolor"
 target_dir="${CARGO_TARGET_DIR:-$root/target}"
 extension_uuid="headroom@headroom.github.io"
 
@@ -50,6 +52,12 @@ install_binary() {
     mkdir -p "$bin_dir"
     install -m 0755 "$target_dir/release/headroom" "$bin_dir/.headroom.new"
     mv -f "$bin_dir/.headroom.new" "$bin_dir/headroom"
+}
+
+install_icons() {
+    step "Installing the app icons into $icon_dir"
+    install -D -m 0644 "$root/packaging/icons/headroom.svg" "$icon_dir/scalable/apps/headroom.svg"
+    install -D -m 0644 "$root/assets/brand/headroom-symbolic.svg" "$icon_dir/symbolic/apps/headroom-symbolic.svg"
 }
 
 install_units() {
@@ -81,6 +89,7 @@ EOF
 
 build_binary
 install_binary
+install_icons
 if [ "$install_service" -eq 1 ]; then
     install_units
     start_service

@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" fill-rule="nonzero">
+  <title>Headroom app icon</title>
+  <rect width="512" height="512" fill="#f0f0ed"/>
+  <g transform="translate(36 36) scale(4.4)">
+    <g transform="translate(3.5 1.5)">
+      <path data-part="left" fill="#151617" d="M12 29L29 24V83L12 88Z"/>
+      <path data-part="middle" fill="#151617" d="M38 13L55 8V84L38 89Z"/>
+      <path data-part="right-lower" fill="#151617" d="M64 62L81 57V74L64 79Z"/>
+      <path data-part="right-upper" fill="#a9b5ff" d="M64 28L81 23V44L64 49Z"/>
+    </g>
+  </g>
+</svg>
