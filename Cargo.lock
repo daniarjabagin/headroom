@@ -783,7 +783,7 @@ dependencies = [
 
 [[package]]
 name = "headroom"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -809,7 +809,7 @@ dependencies = [
 
 [[package]]
 name = "headroom-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -823,7 +823,7 @@ dependencies = [
 
 [[package]]
 name = "headroom-daemon"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "dirs",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "headroom-pricing"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "headroom-core",
  "jiff",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "headroom-providers"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
