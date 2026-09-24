@@ -91,6 +91,14 @@ pub fn xdg_config_home(home: &Path, var: impl Fn(&str) -> Option<OsString>) -> P
     absolute_var(&var, "XDG_CONFIG_HOME").unwrap_or_else(|| home.join(LINUX_CONFIG_HOME))
 }
 
+#[cfg(test)]
+pub(crate) fn per_os(linux: &str, macos: &str) -> PathBuf {
+    PathBuf::from(match Os::current() {
+        Os::Linux => linux,
+        Os::MacOs => macos,
+    })
+}
+
 fn absolute_var(var: &impl Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
     var(name)
         .map(PathBuf::from)

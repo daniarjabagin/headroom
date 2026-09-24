@@ -91,6 +91,7 @@ fn wait_until<T>(mut probe: impl FnMut() -> Option<T>) -> T {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn running(pid: i32) -> bool {
     fs::read_to_string(format!("/proc/{pid}/stat"))
         .ok()
@@ -99,6 +100,11 @@ fn running(pid: i32) -> bool {
                 .map(|(_, rest)| !rest.starts_with('Z'))
         })
         .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn running(pid: i32) -> bool {
+    Pid::from_raw(pid).is_some_and(|pid| rustix::process::test_kill_process(pid).is_ok())
 }
 
 fn read_until_started(lines: &mut Lines<BufReader<ChildStdout>>) -> PathBuf {

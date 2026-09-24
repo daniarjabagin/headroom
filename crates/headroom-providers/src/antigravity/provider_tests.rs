@@ -98,6 +98,7 @@ async fn nothing_installed_and_nothing_running_is_not_detected() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[tokio::test]
 async fn an_antigravity_dir_is_one_cli_account() {
     let setup = Setup::new().await;
@@ -118,7 +119,7 @@ async fn the_running_language_server_supplies_pools_and_plan() {
         .await;
     setup.ls_answers("GetUserStatus", 200, USER_STATUS).await;
     let provider = setup.provider();
-    let account = provider.discover().await.unwrap().remove(0);
+    let account = provider.account();
     let snapshot = provider.fetch_limits(&account).await.unwrap();
     let ids: Vec<_> = snapshot.windows.iter().map(|w| w.id.clone()).collect();
     assert_eq!(
@@ -136,13 +137,34 @@ async fn the_running_language_server_supplies_pools_and_plan() {
     assert!(snapshot.notices.is_empty());
 }
 
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn a_running_language_server_is_one_cli_account() {
+    let setup = Setup::new().await;
+    setup.run_app();
+    let accounts = setup.provider().discover().await.unwrap();
+    assert_eq!(accounts, [setup.provider().account()]);
+}
+
+#[cfg(not(target_os = "linux"))]
+#[tokio::test]
+async fn nothing_is_detected_off_linux() {
+    let setup = Setup::new().await;
+    fs::create_dir_all(setup.root.path().join("home/.gemini/antigravity-cli")).unwrap();
+    setup.run_app();
+    assert_eq!(
+        setup.provider().discover().await,
+        Err(ProviderError::NotSignedIn)
+    );
+}
+
 #[tokio::test]
 async fn a_server_without_the_summary_rpc_degrades_to_a_notice() {
     let setup = Setup::new().await;
     setup.run_app();
     setup.ls_answers("RetrieveUserQuotaSummary", 404, "").await;
     let provider = setup.provider();
-    let account = provider.discover().await.unwrap().remove(0);
+    let account = provider.account();
     let snapshot = provider.fetch_limits(&account).await.unwrap();
     assert!(snapshot.windows.is_empty());
     assert_eq!(snapshot.notices, [warning(NOT_FOUND_TEXT)]);

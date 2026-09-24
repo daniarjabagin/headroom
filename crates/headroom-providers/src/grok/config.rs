@@ -123,6 +123,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> GrokConfig {
         let vars: HashMap<String, OsString> = vars
@@ -139,7 +140,10 @@ mod tests {
         assert_eq!(config.api_base, DEFAULT_API_BASE);
         assert_eq!(
             config.headroom.accounts("grok"),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/grok")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/grok",
+                "/home/u/Library/Application Support/Headroom/accounts/grok",
+            )
         );
     }
 
@@ -157,7 +161,10 @@ mod tests {
         assert_eq!(config.api_base, "https://proxy.example.com/v1");
         assert_eq!(
             config.headroom.accounts("grok"),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/grok")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/grok",
+                "/home/u/Library/Application Support/Headroom/accounts/grok",
+            )
         );
         assert_eq!(
             config_with(&[("GROK_HOME", "/srv/grok")]).cli_dir(),

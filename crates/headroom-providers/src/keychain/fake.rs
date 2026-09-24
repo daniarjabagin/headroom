@@ -11,7 +11,7 @@ printf '%s\n' "$*" >> "$dir/argv.log"
 if [ -f "$dir/hang" ]; then exec sleep 30; fi
 if [ -f "$dir/exit_code" ]; then exit "$(cat "$dir/exit_code")"; fi
 hex_decode() {
-    awk '{ h = "0123456789abcdef"; s = tolower($0);
+    LC_ALL=C awk '{ h = "0123456789abcdef"; s = tolower($0);
            for (i = 1; i < length(s); i += 2)
                printf "%c", (index(h, substr(s, i, 1)) - 1) * 16 + index(h, substr(s, i + 1, 1)) - 1 }'
 }

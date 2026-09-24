@@ -110,7 +110,14 @@ mod tests {
         assert_eq!(read_some(&mut master), "hello\r\n");
         drop(slave);
         let mut rest = [0_u8; 16];
-        assert!(master.read(&mut rest).is_err());
+        assert!(hung_up(master.read(&mut rest)));
+    }
+
+    fn hung_up(read: std::io::Result<usize>) -> bool {
+        match read {
+            Ok(read) => read == 0,
+            Err(error) => error.raw_os_error() == Some(rustix::io::Errno::IO.raw_os_error()),
+        }
     }
 
     #[test]

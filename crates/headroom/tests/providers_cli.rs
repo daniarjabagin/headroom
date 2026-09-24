@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use headroom_providers::paths::HeadroomDirs;
 use tempfile::TempDir;
 
 fn headroom(sandbox: &TempDir, args: &[&str], stdin: &str) -> Output {
@@ -94,5 +95,9 @@ fn keys_are_refused_for_providers_that_sign_in_with_a_cli() {
         lines[0]["message"],
         "Codex accounts cannot be added with an API key"
     );
-    assert!(!sandbox.path().join("data/headroom/accounts").exists());
+    let data = sandbox.path().join("data");
+    let dirs = HeadroomDirs::from_vars(&sandbox.path().join("home"), |name| {
+        (name == "XDG_DATA_HOME").then(|| data.clone().into_os_string())
+    });
+    assert!(!dirs.accounts_root().exists());
 }

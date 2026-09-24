@@ -84,8 +84,8 @@ fn override_linked_to_the_default_dir_is_listed_once() {
 
 #[test]
 fn headroom_owned_dirs_with_projects_are_usage_homes() {
-    let (home, config) = setup();
-    let root = home.path().join(".local/share/headroom/accounts/claude");
+    let (_home, config) = setup();
+    let root = config.headroom_accounts_dir();
     let used = with_projects(&root.join("a"));
     fs::create_dir_all(root.join("b")).unwrap();
     assert_eq!(usage_homes(&config), [used]);

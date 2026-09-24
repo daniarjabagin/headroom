@@ -214,6 +214,7 @@ fn a_failing_sink_stops_the_login() {
     assert!(homes(root.path(), "codex").is_empty());
 }
 
+#[cfg(target_os = "linux")]
 fn running(pid: &str) -> bool {
     fs::read_to_string(format!("/proc/{}/stat", pid.trim()))
         .ok()
@@ -222,6 +223,15 @@ fn running(pid: &str) -> bool {
                 .map(|(_, rest)| !rest.starts_with('Z'))
         })
         .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn running(pid: &str) -> bool {
+    pid.trim()
+        .parse()
+        .ok()
+        .and_then(rustix::process::Pid::from_raw)
+        .is_some_and(|pid| rustix::process::test_kill_process(pid).is_ok())
 }
 
 fn wait_for_file(path: &Path) -> String {

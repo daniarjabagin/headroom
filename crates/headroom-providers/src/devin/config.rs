@@ -69,6 +69,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> DevinConfig {
         let vars: HashMap<String, OsString> = vars
@@ -87,11 +88,17 @@ mod tests {
         );
         assert_eq!(
             config.app_state_dir(),
-            PathBuf::from("/home/u/.config/Devin/User/globalStorage")
+            per_os(
+                "/home/u/.config/Devin/User/globalStorage",
+                "/home/u/Library/Application Support/Devin/User/globalStorage",
+            )
         );
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/devin")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/devin",
+                "/home/u/Library/Application Support/Headroom/accounts/devin",
+            )
         );
         assert_eq!(config.api_base, DEFAULT_API_BASE);
     }
@@ -100,6 +107,9 @@ mod tests {
     fn absolute_xdg_dirs_override_and_relative_ones_are_ignored() {
         let config = config_with(&[("XDG_DATA_HOME", "/data"), ("XDG_CONFIG_HOME", "cfg")]);
         assert_eq!(config.cli_dir(), PathBuf::from("/data/devin"));
-        assert_eq!(config.app_config_dir, PathBuf::from("/home/u/.config"));
+        assert_eq!(
+            config.app_config_dir,
+            per_os("/home/u/.config", "/home/u/Library/Application Support")
+        );
     }
 }

@@ -66,6 +66,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> CopilotConfig {
         let vars: HashMap<String, OsString> = vars
@@ -81,7 +82,10 @@ mod tests {
         assert_eq!(config.gh_config_dir, PathBuf::from("/home/u/.config/gh"));
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/copilot")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/copilot",
+                "/home/u/Library/Application Support/Headroom/accounts/copilot",
+            )
         );
         assert_eq!(config.gh_program, PathBuf::from("gh"));
         assert_eq!(config.api_base, DEFAULT_API_BASE);
@@ -93,7 +97,10 @@ mod tests {
         assert_eq!(xdg.gh_config_dir, PathBuf::from("/cfg/gh"));
         assert_eq!(
             xdg.headroom_accounts_dir(),
-            PathBuf::from("/data/headroom/accounts/copilot")
+            per_os(
+                "/data/headroom/accounts/copilot",
+                "/home/u/Library/Application Support/Headroom/accounts/copilot",
+            )
         );
         let direct = config_with(&[("GH_CONFIG_DIR", "/gh"), ("XDG_CONFIG_HOME", "/cfg")]);
         assert_eq!(direct.gh_config_dir, PathBuf::from("/gh"));

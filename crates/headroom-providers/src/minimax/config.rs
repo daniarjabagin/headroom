@@ -47,6 +47,7 @@ fn accounts_dir(dirs: &HeadroomDirs) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::paths::per_os;
 
     #[test]
     fn accounts_live_under_the_data_home() {
@@ -55,7 +56,10 @@ mod tests {
         assert_eq!(config, MiniMaxConfig::for_home(home));
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/home/u/.local/share/headroom/accounts/minimax")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/minimax",
+                "/home/u/Library/Application Support/Headroom/accounts/minimax",
+            )
         );
         assert_eq!(config.api_base, GLOBAL_API_BASE);
         let moved = MiniMaxConfig::from_vars(home, |name| {
@@ -63,7 +67,10 @@ mod tests {
         });
         assert_eq!(
             moved.accounts_dir,
-            PathBuf::from("/data/headroom/accounts/minimax")
+            per_os(
+                "/data/headroom/accounts/minimax",
+                "/home/u/Library/Application Support/Headroom/accounts/minimax",
+            )
         );
         let relative = MiniMaxConfig::from_vars(home, |_| Some(OsString::from("rel")));
         assert_eq!(relative, config);

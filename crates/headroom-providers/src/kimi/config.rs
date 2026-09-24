@@ -66,6 +66,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> KimiConfig {
         let vars: HashMap<String, OsString> = vars
@@ -82,7 +83,10 @@ mod tests {
         assert_eq!(config.share_dir, PathBuf::from("/home/u/.kimi"));
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/home/u/.local/share/headroom/accounts/kimi")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/kimi",
+                "/home/u/Library/Application Support/Headroom/accounts/kimi",
+            )
         );
         assert_eq!(config.api_base, DEFAULT_API_BASE);
         assert_eq!(config.oauth_host, DEFAULT_OAUTH_HOST);
@@ -99,7 +103,10 @@ mod tests {
         assert_eq!(config.share_dir, PathBuf::from("/work/kimi"));
         assert_eq!(
             config.accounts_dir,
-            PathBuf::from("/data/headroom/accounts/kimi")
+            per_os(
+                "/data/headroom/accounts/kimi",
+                "/home/u/Library/Application Support/Headroom/accounts/kimi",
+            )
         );
         assert_eq!(config.api_base, "https://kimi.example/coding/v1");
         assert_eq!(config.oauth_host, "https://auth.example");

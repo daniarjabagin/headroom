@@ -31,7 +31,7 @@ impl ClaudeConfig {
             headroom: HeadroomDirs::for_home(&home),
             api_base: DEFAULT_API_BASE.to_owned(),
             user: None,
-            keychain: default_keychain(),
+            keychain: None,
             home,
         }
     }
@@ -57,6 +57,7 @@ impl ClaudeConfig {
             xdg_config_home: xdg_config_home(&home, &var),
             headroom: HeadroomDirs::from_vars(&home, &var),
             user,
+            keychain: default_keychain(),
             ..ClaudeConfig::for_home(home)
         }
     }
@@ -85,6 +86,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::paths::per_os;
 
     fn config_with(vars: &[(&str, &str)]) -> ClaudeConfig {
         let vars: HashMap<String, OsString> = vars
@@ -101,10 +103,25 @@ mod tests {
         assert_eq!(config.xdg_config_home, PathBuf::from("/home/u/.config"));
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/claude")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/claude",
+                "/home/u/Library/Application Support/Headroom/accounts/claude",
+            )
         );
         assert_eq!(config.api_base, DEFAULT_API_BASE);
         assert_eq!(config.user, None);
+    }
+
+    #[test]
+    fn only_the_environment_config_reads_the_macos_keychain() {
+        assert_eq!(
+            ClaudeConfig::for_home(PathBuf::from("/home/u")).keychain,
+            None
+        );
+        assert_eq!(
+            config_with(&[]).keychain.is_some(),
+            Os::current() == Os::MacOs
+        );
     }
 
     #[test]
@@ -124,7 +141,10 @@ mod tests {
         assert_eq!(config.xdg_config_home, PathBuf::from("/cfg"));
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/data/headroom/accounts/claude")
+            per_os(
+                "/data/headroom/accounts/claude",
+                "/home/u/Library/Application Support/Headroom/accounts/claude",
+            )
         );
     }
 
@@ -134,7 +154,10 @@ mod tests {
         assert_eq!(config.cli_dir(), PathBuf::from("/home/u/.claude"));
         assert_eq!(
             config.headroom_accounts_dir(),
-            PathBuf::from("/home/u/.local/share/headroom/accounts/claude")
+            per_os(
+                "/home/u/.local/share/headroom/accounts/claude",
+                "/home/u/Library/Application Support/Headroom/accounts/claude",
+            )
         );
     }
 }
