@@ -140,6 +140,6 @@ export class AccountsPage {
     }
 
     _toast(title) {
-        this._window.add_toast(new Adw.Toast({ title, timeout: 4 }));
+        this._window.add_toast(new Adw.Toast({ title, timeout: 4, use_markup: false }));
     }
 }

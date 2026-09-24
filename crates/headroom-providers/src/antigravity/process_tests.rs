@@ -15,7 +15,7 @@ fn the_app_language_server_is_matched_by_its_ide_name() {
         found,
         Candidate {
             rank: Rank::NamedApp,
-            csrf: "abc-123".into(),
+            csrf: SecretString::new("abc-123".into()),
             extension_port: Some(41_001),
         }
     );
@@ -28,7 +28,8 @@ fn inline_flags_and_app_paths_are_understood() {
     ))
     .unwrap();
     assert_eq!(found.rank, Rank::AppPath);
-    assert_eq!(found.csrf, "xyz");
+    assert_eq!(found.csrf.expose(), "xyz");
+    assert!(!format!("{found:?}").contains("xyz"));
     assert_eq!(found.extension_port, None);
 }
 
@@ -56,7 +57,7 @@ fn an_app_server_without_a_csrf_token_is_skipped() {
 fn the_cli_needs_no_csrf_token_and_ranks_last() {
     let found = candidate(&args("/home/someone/.local/bin/agy")).unwrap();
     assert_eq!(found.rank, Rank::Cli);
-    assert_eq!(found.csrf, "");
+    assert_eq!(found.csrf.expose(), "");
     assert!(Rank::NamedApp < Rank::AppPath && Rank::AppPath < Rank::Cli);
 }
 
@@ -85,6 +86,10 @@ fn only_listening_sockets_of_the_process_count() {
    3: garbage\n";
     let inodes = BTreeSet::from([12_345, 12_346]);
     assert_eq!(listening_ports(table, &inodes), BTreeSet::from([0xCBD8]));
+    assert_eq!(
+        bound_ports(table, &inodes),
+        BTreeSet::from([0xCBD8, 0xCBD9])
+    );
 }
 
 #[test]

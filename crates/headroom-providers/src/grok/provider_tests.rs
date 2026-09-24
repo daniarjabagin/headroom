@@ -1,4 +1,5 @@
 use std::fs;
+use std::time::Duration;
 
 use headroom_core::account::{AccountId, AccountIdentity};
 use headroom_core::quota::WindowId;
@@ -81,6 +82,16 @@ async fn mount_limits(server: &MockServer, token: &str, calls: u64) {
     }
 }
 
+async fn eventually<T>(mut probe: impl FnMut() -> Option<T>) -> T {
+    for _ in 0..300 {
+        if let Some(found) = probe() {
+            return found;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("the refreshed sign-in was never saved");
+}
+
 async fn account(provider: &GrokProvider, home: &Path) -> AccountRef {
     let accounts = provider.discover().await.unwrap();
     accounts.into_iter().find(|a| a.home == home).unwrap()
@@ -142,6 +153,64 @@ async fn an_expired_headroom_token_is_refreshed_and_saved() {
     let saved = auth::load_credentials(&home).unwrap();
     assert_eq!(saved.access_token, "new-access");
     assert_eq!(saved.refresh_token.as_deref(), Some("new-refresh"));
+}
+
+#[tokio::test]
+async fn a_refresh_is_saved_even_when_the_fetch_is_abandoned() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth2/token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"access_token":"new-access","refresh_token":"new-refresh"}"#)
+                .set_delay(Duration::from_millis(200)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let setup = Setup::new(&server);
+    let home = setup.headroom_home("one");
+    sign_in(&home, &server.uri());
+    let provider = setup.provider(late_now);
+    let account = account(&provider, &home).await;
+    let abandoned =
+        tokio::time::timeout(Duration::from_millis(50), provider.fetch_limits(&account)).await;
+    assert!(abandoned.is_err());
+    let saved = eventually(|| {
+        auth::load_credentials(&home)
+            .ok()
+            .filter(|saved| saved.access_token == "new-access")
+    })
+    .await;
+    assert_eq!(saved.refresh_token.as_deref(), Some("new-refresh"));
+}
+
+#[tokio::test]
+async fn a_just_refreshed_token_that_is_rejected_is_not_refreshed_again() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth2/token"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_string(r#"{"access_token":"new-access"}"#),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/v1/billing"))
+        .respond_with(ResponseTemplate::new(401))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let setup = Setup::new(&server);
+    let home = setup.headroom_home("one");
+    sign_in(&home, &server.uri());
+    let provider = setup.provider(late_now);
+    let account = account(&provider, &home).await;
+    assert_eq!(
+        provider.fetch_limits(&account).await,
+        Err(ProviderError::SignInExpired)
+    );
 }
 
 #[tokio::test]

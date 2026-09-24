@@ -28,7 +28,7 @@ export class PrefsController {
             onUnavailable: () => this._showStopped(),
             onState: () => this._refresh(),
             onSettings: () => this._refresh(),
-            onError: message => window.add_toast(new Adw.Toast({ title: message, timeout: 5 })),
+            onError: message => window.add_toast(new Adw.Toast({ title: message, timeout: 5, use_markup: false })),
         });
         this._updater = new UpdateRunner(() => this._general.syncUpdateRun());
         setLanguage(resolveLanguage('system', GLib.get_language_names()));

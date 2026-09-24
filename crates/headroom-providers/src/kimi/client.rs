@@ -13,7 +13,7 @@ use crate::http;
 const USAGES_PATH: &str = "/usages";
 const TOKEN_PATH: &str = "/api/oauth/token";
 const CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
-const TIMEOUT: Duration = Duration::from_secs(15);
+const TIMEOUT: Duration = Duration::from_secs(12);
 const FORM_TYPE: &str = "application/x-www-form-urlencoded";
 pub(super) const NO_PLAN: &str = "this Kimi account has no Kimi Code plan";
 

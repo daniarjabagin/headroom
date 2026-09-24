@@ -8,6 +8,7 @@ pub const SOFT_REFRESH_AFTER: SignedDuration = SignedDuration::from_secs(60);
 pub const BACKOFF_BASE: SignedDuration = SignedDuration::from_secs(60);
 pub const BACKOFF_CAP: SignedDuration = SignedDuration::from_mins(30);
 pub const RATE_LIMIT_DEFAULT: SignedDuration = SignedDuration::from_mins(5);
+pub const RATE_LIMIT_CAP: SignedDuration = SignedDuration::from_hours(1);
 pub const NO_SUBSCRIPTION_RECHECK: SignedDuration = SignedDuration::from_hours(1);
 const JITTER: f64 = 0.1;
 const MAX_DOUBLINGS: u32 = 16;
@@ -34,6 +35,7 @@ pub fn rate_limit_delay(retry_after: Option<SignedDuration>) -> SignedDuration {
     retry_after
         .filter(SignedDuration::is_positive)
         .unwrap_or(RATE_LIMIT_DEFAULT)
+        .min(RATE_LIMIT_CAP)
 }
 
 #[must_use]

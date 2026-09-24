@@ -115,13 +115,15 @@ maintainer's machine (directory `0700`, file `0600`). Its format is Sparkle's ex
 the base64 of the 32-byte Ed25519 seed, the same as `generate_keys -x` writes.
 
 When the repository is published, add that line as the GitHub Actions secret
-**`SPARKLE_ED_PRIVATE_KEY`** (Settings → Secrets and variables → Actions). The macOS release job
-then downloads Sparkle's `sign_update` (pinned 2.10.0, SHA-256 checked), signs the DMG with the key
-on stdin, verifies the signature against the committed public key
-(`script/verify-ed-signature.swift`) and writes `appcast.xml` with `script/write-appcast.sh`; the
-release job attaches it next to the DMG. Without the secret the job only warns and the release has
-no appcast, so installed apps are not offered it. Back the private key up: if it is lost, installed
-apps can only be updated by hand.
+**`SPARKLE_ED_PRIVATE_KEY`** (Settings → Secrets and variables → Actions). The release workflow
+builds the DMG in the `macos` job, which has no secrets, and hands it to the `macos-sign` job, which
+runs no build tools: it checks the DMG's SHA-256, mounts it read-only to read the version, downloads
+Sparkle's `sign_update` (pinned 2.10.0, SHA-256 checked), signs the DMG with the key on stdin,
+verifies the signature against the committed public key (`script/verify-ed-signature.swift`) and
+writes `appcast.xml` with `script/write-appcast.sh`; the release job attaches it next to the DMG.
+Without the secret a stable release fails; pre-releases never get an appcast, so installed apps are
+not offered them. Back the private key up: if it is lost, installed apps can only be updated by
+hand.
 
 ## 1. One-time setup
 
@@ -309,7 +311,8 @@ animation is skipped under Reduce motion.
   arrives (or when you switch on a milestone in Settings → Notifications); limit alerts ("Under 10%
   left", "Limit reset") come from the daemon and are posted by the app. Clicking one opens the popup.
 - **Environment.** Apps started from Finder do not see your shell's `PATH` or `CODEX_HOME`. Headroom
-  runs your login shell once (`$SHELL -i -l -c env`, 5 s timeout) and passes `PATH`, `CODEX_HOME`,
+  runs your login shell once (`$SHELL -i -l -c` printing `env -0` between two markers, 5 s timeout;
+background jobs started by `.zshrc` do not delay it) and passes `PATH`, `CODEX_HOME`,
   `CLAUDE_CONFIG_DIR`, `GROK_HOME`, `CLINE_DIR`, `GH_CONFIG_DIR`, `XDG_*`, `LANG` and `LC_*` to the
   daemon. When `LANG` is missing it is derived from the macOS preferred language, which the daemon
   uses for notification texts while `display.language` is `system`.
