@@ -130,8 +130,8 @@ async fn handle(
     let Request { id, method, params } = request;
     match dispatch::parse_call(&method, params) {
         Err(error) => reply(&context.outbox, id.as_ref(), Err(error)).await,
-        Ok(Call::Subscribe) => {
-            subscription.get_or_insert_with(|| context.hub.subscribe(context.outbox.clone()));
+        Ok(Call::Subscribe(topics)) => {
+            *subscription = Some(context.hub.subscribe(context.outbox.clone(), topics));
             reply(&context.outbox, id.as_ref(), Ok(RawValue::NULL.to_owned())).await
         }
         Ok(Call::Command(command)) => {

@@ -566,7 +566,7 @@ adapters over it.
   transport: `dbus::signals::BusSignals` emits the D-Bus signals, `ipc::Hub` writes notifications to
   socket subscribers.
 - Alerts go through `notify::Notifier`: `DesktopNotifier` (`org.freedesktop.Notifications`) on Linux,
-  `ipc::Hub` on other platforms, which sends an `Alert` notification to every subscriber and fails
+  `ipc::Hub` on other platforms, which sends an `Alert` notification to every `alerts` subscriber and fails
   with `NotifyError::NoSubscribers` when there is none, so the milestone is rolled back and retried.
 - `ipc` serves line-delimited JSON-RPC 2.0 on a Unix socket ([ipc.md](ipc.md)): `protocol` parses
   and encodes lines (pure), `dispatch` maps methods to `Service` calls, `connection` runs one reader

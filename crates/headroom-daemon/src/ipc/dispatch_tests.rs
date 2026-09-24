@@ -12,7 +12,7 @@ fn call(method: &str, params: Value) -> Result<Call, RpcError> {
 fn command(method: &str, params: Value) -> Command {
     match call(method, params).unwrap() {
         Call::Command(command) => command,
-        Call::Subscribe => panic!("{method} parsed as Subscribe"),
+        Call::Subscribe(_) => panic!("{method} parsed as Subscribe"),
     }
 }
 
@@ -72,7 +72,28 @@ fn every_method_takes_its_d_bus_arguments_in_order() {
     for (method, params, expected) in cases {
         assert_eq!(command(method, params), expected, "{method}");
     }
-    assert_eq!(call("Subscribe", json!([])).unwrap(), Call::Subscribe);
+}
+
+#[test]
+fn subscribe_takes_an_optional_topic_list() {
+    let only_state = Topics::from_list(&[Topic::State]);
+    let cases = [
+        (json!([]), Topics::ALL),
+        (json!([[]]), Topics::ALL),
+        (json!([["state", "alerts", "open"]]), Topics::ALL),
+        (json!([["state"]]), only_state),
+        (json!([["state", "state"]]), only_state),
+    ];
+    for (params, expected) in cases {
+        let parsed = call("Subscribe", params.clone()).unwrap();
+        assert_eq!(parsed, Call::Subscribe(expected), "{params}");
+    }
+    assert!(only_state.contains(Topic::State));
+    assert!(!only_state.contains(Topic::Alerts));
+    assert!(!only_state.contains(Topic::Open));
+    let unknown = call("Subscribe", json!([["state", "gossip"]])).unwrap_err();
+    assert_eq!(unknown.code, ErrorCode::InvalidParams);
+    assert_eq!(unknown.message, "unknown topic \"gossip\"");
 }
 
 #[test]
@@ -83,6 +104,8 @@ fn wrong_arguments_are_invalid_params() {
         ("Refresh", json!(["a", "b"])),
         ("GetState", json!([null])),
         ("Subscribe", json!([true])),
+        ("Subscribe", json!([[1]])),
+        ("Subscribe", json!([["state"], ["alerts"]])),
         ("SetAccountHidden", json!(["codex:a", "yes"])),
         ("SetAccountOrder", json!(["codex:a"])),
         ("SetAccountOrder", json!([["codex:a", 2]])),

@@ -1,13 +1,14 @@
 use serde_json::Value;
 use serde_json::value::{RawValue, to_raw_value};
 
+use super::hub::{Topic, Topics};
 use super::protocol::{ErrorCode, RpcError};
 use crate::error::CommandError;
 use crate::service::Service;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Call {
-    Subscribe,
+    Subscribe(Topics),
     Command(Command),
 }
 
@@ -31,7 +32,7 @@ pub enum Command {
 pub fn parse_call(method: &str, params: Vec<Value>) -> Result<Call, RpcError> {
     let mut args = Args::new(params);
     let call = match method {
-        "Subscribe" => Call::Subscribe,
+        "Subscribe" => Call::Subscribe(args.topics()?),
         other => Call::Command(parse_command(other, &mut args)?),
     };
     args.finish()?;
@@ -107,6 +108,20 @@ impl Args {
                 _ => Err(self.wrong_type("an array of strings")),
             })
             .collect()
+    }
+
+    fn topics(&mut self) -> Result<Topics, RpcError> {
+        if self.values.len() == 0 {
+            return Ok(Topics::ALL);
+        }
+        let topics = self
+            .strings()?
+            .iter()
+            .map(|name| {
+                Topic::parse(name).ok_or_else(|| invalid(format!("unknown topic {name:?}")))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Topics::from_list(&topics))
     }
 
     fn wrong_type(&self, kind: &str) -> RpcError {

@@ -7,7 +7,7 @@ use tokio::io::AsyncWriteExt;
 
 use super::protocol::MAX_LINE;
 use super::test_client::{Client, Server};
-use super::{Hub, bind};
+use super::{Hub, Topic, bind};
 use crate::error::SocketError;
 use crate::events::{EventSink, publish_changes};
 use crate::notify::{Notification, Notifier, NotifyError, Urgency};
@@ -163,7 +163,32 @@ async fn alerts_fail_without_subscribers() {
     let mut watcher = server.client().await;
     watcher.call(1, "Subscribe", json!([])).await;
     server.hub.notify(&alert()).await.unwrap();
-    assert_eq!(Hub::default().broadcast("x"), 0);
+    assert_eq!(Hub::default().broadcast(Topic::Alerts, "x"), 0);
+}
+
+#[tokio::test]
+async fn only_alert_subscribers_count_as_alert_delivery() {
+    let server = Server::start().await;
+    let mut waybar = server.client().await;
+    let accepted = waybar.call(1, "Subscribe", json!([["state"]])).await;
+    assert_eq!(accepted["result"], Value::Null);
+    let undelivered = server.hub.notify(&alert()).await;
+    assert!(matches!(undelivered, Err(NotifyError::NoSubscribers)));
+    server.hub.open_requested().await.unwrap();
+    server.hub.state_changed(r#"{"version":1}"#).await.unwrap();
+    let first = waybar.next().await.unwrap();
+    assert_eq!(
+        first["method"], "StateChanged",
+        "a state subscriber got {first}"
+    );
+    let mut app = server.client().await;
+    app.call(1, "Subscribe", json!([["alerts"]])).await;
+    server.hub.notify(&alert()).await.unwrap();
+    assert_eq!(app.notification("Alert").await["id"], alert().id);
+    waybar.call(2, "Subscribe", json!([])).await;
+    drop(app);
+    server.hub.notify(&alert()).await.unwrap();
+    assert_eq!(waybar.notification("Alert").await["id"], alert().id);
 }
 
 #[tokio::test]
