@@ -29,7 +29,7 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
-| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
+| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters; control characters (C0, DEL, C1) are rejected. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
 | `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). The daemon records the account's current CLI home (provider, account id, home path) as dismissed, then rescans; that record leaves `accounts[]` at once, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Only that CLI record is dismissed: the same person signed in through a Headroom-owned home still shows (see [Rescan semantics](#rescan-semantics)). Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
@@ -75,7 +75,7 @@ Refresh semantics:
 
 | D-Bus error | when |
 | --- | --- |
-| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
+| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters or containing control characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
 | `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
@@ -153,6 +153,7 @@ Top level:
 | `display` | Display | A copy of `settings.display` (see [Settings](#settings)), so shells get their display options with every `StateChanged`. |
 | `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a visible window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
+| `combined` | Combined[] | Accounts of the same provider shown as one card, see [Combined accounts](#combined-accounts). Always present; empty when `display.combine_accounts` is off. Daemons older than this field omit it, so treat a missing field as `[]`. |
 | `usage` | Usage[] | Local token usage, one entry per usage home the daemon reads (see [Usage](#usage)), whether or not an account belongs to it. |
 | `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
 
@@ -199,12 +200,19 @@ repository, which is why package commands point at the release page.
 | `account_id` | string | Account the window belongs to. |
 | `provider` | string | Provider id of that account (see [Providers](#providers)). |
 | `provider_name` | string | Display name of that provider from the registry. |
-| `account_label` | string | The account's user label, else its email, else `provider_name`. |
+| `account_label` | string \| null | The account's user label, else its email, else `provider_name`. `null` for a combined headline. |
 | `window` | string | Window id, see [Window ids](#window-ids). |
 | `window_label` | string | Same as the window's `label`. |
 | `used_percent` | number | Same as the window's `used_percent`. |
 | `remaining_percent` | number | Same as the window's `remaining_percent`. |
 | `tone` | Tone | Same as the window's `tone`. |
+| `combined` | bool | `true` when the headline is a combined window (see [Combined accounts](#combined-accounts)). Missing from older daemons: treat as `false`. |
+| `account_count` | integer | Accounts behind the value: `1` for an account window, the number of `segments` for a combined window. Missing from older daemons: treat as `1`. |
+
+For a combined headline `account_id` is the first segment's account, `account_label` is `null`, and
+`used_percent` / `remaining_percent` are shares of the combined capacity on a 0–100 scale
+(`remaining_percent / capacity_percent × 100` of the combined window), so a panel shows them exactly
+like an account window.
 
 Selection: hidden accounts, accounts with status `no_subscription` and hidden windows
 (`display.hidden_windows`) are never chosen. With
@@ -212,6 +220,129 @@ Selection: hidden accounts, accounts with status `no_subscription` and hidden wi
 hidden and has that window, and the window is not hidden. Otherwise (`"auto"`, or the pin is not
 available) the most critical visible window wins: highest `tone`, then lowest `remaining_percent`,
 then account order.
+
+With `display.combine_accounts` on, the accounts listed in a `combined` group are not candidates on
+their own: the group's combined windows take their place (at the position of the group's first
+account) and compete by the same rule, using the 0–100 share. A pin that names an account inside a
+group resolves to that group's combined window with the pinned window id; if the group has no such
+window, auto selection applies. With the setting off, selection is exactly as above.
+
+### Combined accounts
+
+With `display.combine_accounts` on, the daemon adds one entry to `combined` for each provider that has
+**two or more** accounts which are all of: not hidden, not dismissed, not `signed_out`, not
+`no_subscription`, and have at least one window that is not hidden. An `error` or `stale` account that
+still carries windows from its last snapshot is included; an account without windows is not. Accounts
+that are left out keep their own card. Grouped accounts stay in `accounts[]` unchanged: a shell that
+honours the setting renders one card per group instead of the accounts listed in `account_ids`, and
+renders every other account as usual. Groups follow the order of their first account in `accounts[]`.
+
+| field | type | description |
+| --- | --- | --- |
+| `provider` | string | Provider id shared by the accounts. |
+| `provider_name` | string | Display name of that provider. |
+| `account_ids` | string[] | Grouped account ids in account order. |
+| `accounts` | object[] | `{account_id, label, plan}` per grouped account; `label` is the user label, else the email, else `provider_name`; `plan` may be `null`. |
+| `windows` | CombinedWindow[] | One entry per window id found in the group. |
+
+Windows are matched by `id`. A window that is hidden for an account (`display.hidden_windows`) does
+not count for that account. A window id that only some accounts have still forms a combined window,
+with a capacity of just those accounts. Windows are ordered as in the first account, followed by ids
+that only later accounts have, in the order they are met.
+
+CombinedWindow:
+
+| field | type | description |
+| --- | --- | --- |
+| `id` | string | Window id. |
+| `label` | string | Label of the window in the first account that has it. |
+| `capacity_percent` | integer | `100 ×` the number of segments. |
+| `used_percent` | number | Sum of the segments' `used_percent`, on the `0 … capacity_percent` scale. |
+| `remaining_percent` | number | Sum of the segments' `remaining_percent`, on the same scale. |
+| `resets_at` | timestamp \| null | Earliest `resets_at` among the segments. |
+| `tone` | Tone | Combined tone, below. |
+| `pace` | Pace | Combined pace, below. Its percents are on the `0 … capacity_percent` scale. |
+| `segments` | Segment[] | One per account that has the window, in account order. |
+
+Segment: `account_id`, `label` (as in `accounts`), and the account window's own `remaining_percent`,
+`used_percent`, `resets_at` and `tone`, copied unchanged.
+
+To draw a meter, divide by `capacity_percent` (e.g. `remaining_percent / capacity_percent × 100` for a
+0–100 value and `even_pace_percent / capacity_percent` for the tick position).
+
+Combined pace, with `C = capacity_percent` and per segment `u` = `used_percent` and
+`p` = `pace.projected_percent`, or `u` when the segment has no projection (`untracked` or `spent`):
+
+- `used = Σ u`, `projected = Σ p`, `even_pace_percent = Σ even_pace_percent` (`null` if any segment
+  has none).
+- `spent` when `Σ remaining_percent` rounds to 0. Otherwise `untracked` when no segment has a
+  projection. Otherwise, with `P = projected / C × 100` and `U = used / C × 100`: `healthy` when
+  `P ≤ 90`; `untracked` when `U < 5`; `close` when `P ≤ 100`; `running_out` above that.
+- `projected_percent = projected` for `healthy`, `close` and `running_out`, else `null`.
+  `spare_percent = max(0, C − projected)` for `healthy` and `close`, else `null`. `runs_out_at` is
+  always `null`: the accounts do not run out together.
+- Tone: `spent` → `critical`; `running_out` → `critical` when `U ≥ 90`, else `warning`; `close` →
+  `warning`; `healthy` → `good`; `untracked` → by level: `critical` when `U ≥ 90`, `warning` when
+  `U ≥ 80`, else `good`.
+- A window only one account has keeps that account's `pace` and `tone` unchanged.
+
+Notifications stay per account; combining never changes what is notified.
+
+```json
+"combined": [
+  {
+    "provider": "codex",
+    "provider_name": "Codex",
+    "account_ids": ["codex:work", "codex:personal"],
+    "accounts": [
+      { "account_id": "codex:work", "label": "Work", "plan": "Pro" },
+      { "account_id": "codex:personal", "label": "Personal", "plan": "Plus" }
+    ],
+    "windows": [
+      {
+        "id": "session",
+        "label": "Session",
+        "capacity_percent": 200,
+        "remaining_percent": 125.0,
+        "used_percent": 75.0,
+        "resets_at": "2026-09-23T12:00:00Z",
+        "tone": "good",
+        "pace": {
+          "severity": "healthy",
+          "even_pace_percent": 110.0,
+          "projected_percent": 131.66666666666669,
+          "spare_percent": 68.33333333333331,
+          "runs_out_at": null
+        },
+        "segments": [
+          { "account_id": "codex:work", "label": "Work", "remaining_percent": 45.0, "used_percent": 55.0,
+            "resets_at": "2026-09-23T12:00:00Z", "tone": "warning" },
+          { "account_id": "codex:personal", "label": "Personal", "remaining_percent": 80.0, "used_percent": 20.0,
+            "resets_at": "2026-09-23T12:30:00Z", "tone": "good" }
+        ]
+      },
+      {
+        "id": "weekly",
+        "label": "Weekly",
+        "capacity_percent": 100,
+        "remaining_percent": 40.0,
+        "used_percent": 60.0,
+        "resets_at": "2026-09-25T10:00:00Z",
+        "tone": "good",
+        "pace": { "severity": "healthy", "even_pace_percent": 71.42857142857143, "projected_percent": 84.0,
+                  "spare_percent": 16.0, "runs_out_at": null },
+        "segments": [
+          { "account_id": "codex:personal", "label": "Personal", "remaining_percent": 40.0, "used_percent": 60.0,
+            "resets_at": "2026-09-25T10:00:00Z", "tone": "good" }
+        ]
+      }
+    ]
+  }
+]
+```
+
+Here `codex:work` hides its weekly window, so the combined weekly window has one segment. The full
+payload is the snapshot test `crates/headroom-daemon/src/state/snapshots/state_combined.json`.
 
 ### Account
 
@@ -433,6 +564,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
     "show_trend": true,
     "show_forecast": true,
     "translucent": false,
+    "combine_accounts": false,
     "hidden_windows": { "codex:work": ["weekly"] }
   },
   "headline": {
@@ -444,7 +576,9 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
     "window_label": "Session",
     "used_percent": 92.0,
     "remaining_percent": 8.0,
-    "tone": "critical"
+    "tone": "critical",
+    "combined": false,
+    "account_count": 1
   },
   "accounts": [
     {
@@ -531,6 +665,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
       "usage_home": "~/.claude"
     }
   ],
+  "combined": [],
   "usage": [
     {
       "provider": "codex",
@@ -612,6 +747,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.show_trend` | bool | `true` | Show the 30-day trend. |
 | `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
 | `display.translucent` | bool | `false` | Shells render the popup with a translucent (blurred where supported) background instead of an opaque one. |
+| `display.combine_accounts` | bool | `false` | Show accounts of the same provider as one card with summed windows. The daemon fills the state's `combined` list and picks the headline from combined windows (see [Combined accounts](#combined-accounts)); off leaves `combined` empty. |
 | `updates.check` | bool | `true` | Check GitHub once a day for a newer Headroom release and report it as the state's `update` (see [Update checks](#update-checks)). `false` stops the requests and hides `update` at once. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
 
@@ -637,6 +773,7 @@ names a CLI-owned account becomes that account's dismissed CLI home; other ids a
     "show_trend": true,
     "show_forecast": true,
     "translucent": false,
+    "combine_accounts": false,
     "hidden_windows": {}
   },
   "updates": { "check": true }
@@ -710,7 +847,9 @@ Without `--check`, `headroom update` fetches the latest release and, when it is 
 
 - For a `self` install it asks for confirmation (`--yes` skips it; without a terminal or with
   `--progress json` it fails unless `--yes` is given), downloads `SHA256SUMS` and
-  `headroom-<version>-<arch>-linux-musl.tar.gz` from the release, checks the tarball's SHA-256,
+  `SHA256SUMS.sig` from the release and checks the Ed25519 signature against the release key built
+  into the binary (a missing or invalid signature fails the update), then downloads
+  `headroom-<version>-<arch>-linux-musl.tar.gz`, checks its SHA-256,
   unpacks it into a temporary directory and runs its `install.sh` with the options recorded in the
   install receipt. That replaces the binary, icons, unit, D-Bus file, GNOME extension and Plasma
   widget and restarts `headroom.service`. On Wayland GNOME Shell loads the new extension only after
@@ -728,11 +867,12 @@ remaining output is dropped and the installation still runs to the end.
 | --- | --- | --- |
 | `step` | `text` | Human-readable progress, e.g. `"Downloading Headroom 0.5.0…"`. |
 | `done` | `version`, `relogin` | Success. `version` is the installed release (the running one when it was already current). `relogin` is `true` when a GNOME Shell extension or Plasma widget was updated, so the user should log out and back in. |
-| `error` | `message` | Failure (checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
+| `error` | `message` | Failure (missing or invalid signature, checksum mismatch, download error, a package install, declined without `--yes`, …); the process exits non-zero. |
 
 ```
 {"event":"step","text":"Checking for a new release…"}
 {"event":"step","text":"Downloading Headroom 0.5.0…"}
+{"event":"step","text":"Verifying the signature…"}
 {"event":"step","text":"Verifying the checksum…"}
 {"event":"step","text":"Unpacking…"}
 {"event":"step","text":"Installing /home/ada/.local/bin/headroom"}

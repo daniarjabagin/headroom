@@ -135,6 +135,19 @@ fn empty_model_and_bad_timestamps_are_skipped() {
 }
 
 #[test]
+fn records_beyond_the_storable_range_are_skipped() {
+    let usage = json!({ "input_tokens": 1, "output_tokens": 1 });
+    let far_future = assistant(&usage, "m").replace("2026-09-20", "2300-01-01");
+    assert!(parse_line(&far_future).is_empty());
+    let huge = json!({ "input_tokens": u64::MAX, "output_tokens": 1 });
+    assert!(parse_line(&assistant(&huge, "m")).is_empty());
+    let overflowing = json!({ "input_tokens": i64::MAX, "output_tokens": 1 });
+    assert!(parse_line(&assistant(&overflowing, "m")).is_empty());
+    let largest = json!({ "input_tokens": i64::MAX, "output_tokens": 0 });
+    assert_eq!(parse_line(&assistant(&largest, "m")).len(), 1);
+}
+
+#[test]
 fn garbage_lines_are_skipped() {
     assert!(parse_line("{\"type\":\"assistant\"").is_empty());
     assert!(parse_line("[]").is_empty());

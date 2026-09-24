@@ -9,9 +9,14 @@ use tokio::process::{ChildStderr, ChildStdout, Command};
 
 use super::feed::GithubFeed;
 use super::report::Reporter;
+use super::signature::{PublicKey, verify_signature};
 use super::verify::verify;
 
 const SUMS: &str = "SHA256SUMS";
+const SIGNATURE: &str = "SHA256SUMS.sig";
+const SUMS_LIMIT: usize = 64 * 1024;
+const SIGNATURE_LIMIT: usize = 1024;
+const ARCHIVE_LIMIT: usize = 64 * 1024 * 1024;
 const INSTALLER: &str = "install.sh";
 const CHUNK_BYTES: usize = 4_096;
 
@@ -19,6 +24,7 @@ pub struct Bundle<'a> {
     pub release: &'a GithubRelease,
     pub version: &'a Version,
     pub arch: &'a str,
+    pub release_key: &'a PublicKey,
 }
 
 impl Bundle<'_> {
@@ -43,10 +49,14 @@ pub async fn install<W: Write, E: Write>(
     let name = bundle.name();
     let archive_name = format!("{name}.tar.gz");
     let sums_url = bundle.asset_url(SUMS)?;
+    let signature_url = bundle.asset_url(SIGNATURE)?;
     let archive_url = bundle.asset_url(&archive_name)?;
     reporter.step(&format!("Downloading Headroom {}…", bundle.version))?;
-    let sums = feed.download(sums_url).await?;
-    let archive = feed.download(archive_url).await?;
+    let sums = feed.download(sums_url, SUMS_LIMIT).await?;
+    let signature = feed.download(signature_url, SIGNATURE_LIMIT).await?;
+    reporter.step("Verifying the signature…")?;
+    verify_signature(bundle.release_key, &sums, &signature)?;
+    let archive = feed.download(archive_url, ARCHIVE_LIMIT).await?;
     reporter.step("Verifying the checksum…")?;
     let sums = String::from_utf8(sums).context("SHA256SUMS is not text")?;
     verify(&sums, &archive_name, &archive)?;

@@ -6,7 +6,7 @@ use serde_json::value::RawValue;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::mpsc;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 use tokio::task::JoinSet;
 
 use super::dispatch::{self, Call, Command};
@@ -15,6 +15,7 @@ use super::protocol::{self, MAX_LINE, Request, RpcError};
 use crate::service::Service;
 
 const OUTBOX_CAPACITY: usize = 64;
+const MAX_IN_FLIGHT: usize = 16;
 const ACCEPT_BACKOFF: Duration = Duration::from_millis(100);
 
 #[derive(Clone)]
@@ -22,6 +23,7 @@ struct Context {
     service: Service,
     hub: Arc<Hub>,
     outbox: Outbox,
+    slots: Arc<Semaphore>,
 }
 
 enum Line {
@@ -57,6 +59,7 @@ async fn serve(stream: UnixStream, service: Service, hub: Arc<Hub>) {
         service,
         hub,
         outbox,
+        slots: Arc::new(Semaphore::new(MAX_IN_FLIGHT)),
     };
     if read_requests(read, context).await == Ended::TooLong {
         writer.abort();
@@ -135,15 +138,24 @@ async fn handle(
             reply(&context.outbox, id.as_ref(), Ok(RawValue::NULL.to_owned())).await
         }
         Ok(Call::Command(command)) => {
-            pending.spawn(run_command(context.clone(), id, command));
+            let Ok(slot) = Arc::clone(&context.slots).acquire_owned().await else {
+                return false;
+            };
+            pending.spawn(run_command(context.clone(), id, command, slot));
             true
         }
     }
 }
 
-async fn run_command(context: Context, id: Option<Value>, command: Command) {
+async fn run_command(
+    context: Context,
+    id: Option<Value>,
+    command: Command,
+    slot: OwnedSemaphorePermit,
+) {
     let result = dispatch::execute(&context.service, command).await;
     reply(&context.outbox, id.as_ref(), result).await;
+    drop(slot);
 }
 
 async fn reply(

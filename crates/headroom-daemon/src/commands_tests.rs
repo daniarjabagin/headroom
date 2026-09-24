@@ -300,3 +300,20 @@ fn labels_are_trimmed_cleared_and_bounded() {
         Err(CommandError::LabelTooLong(64))
     ));
 }
+
+#[test]
+fn labels_with_control_characters_are_rejected() {
+    for label in ["Work\x1b[2J", "a\nb", "osc\u{9d}0;x", "tab\there"] {
+        assert!(
+            matches!(
+                normalize_label(label),
+                Err(CommandError::LabelControlCharacters)
+            ),
+            "{label:?}"
+        );
+    }
+    assert_eq!(
+        normalize_label(" Work \n").unwrap().as_deref(),
+        Some("Work")
+    );
+}

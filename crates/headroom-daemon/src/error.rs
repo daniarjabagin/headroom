@@ -9,6 +9,11 @@ pub enum StorageError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error("could not restrict the permissions of {path}: {source}")]
+    Restrict {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error("stored JSON is invalid: {0}")]
     Json(#[from] serde_json::Error),
     #[error("stored timestamp is invalid: {0}")]
@@ -53,6 +58,8 @@ pub enum CommandError {
     NotDismissable(String),
     #[error("label is longer than {0} characters")]
     LabelTooLong(usize),
+    #[error("label contains control characters")]
+    LabelControlCharacters,
     #[error(transparent)]
     Settings(#[from] SettingsError),
     #[error(transparent)]
@@ -72,6 +79,7 @@ impl CommandError {
             | CommandError::UnknownProvider(_)
             | CommandError::NotDismissable(_)
             | CommandError::LabelTooLong(_)
+            | CommandError::LabelControlCharacters
             | CommandError::Settings(_) => true,
             CommandError::Storage(_) | CommandError::Encode(_) | CommandError::Stopping => false,
         }

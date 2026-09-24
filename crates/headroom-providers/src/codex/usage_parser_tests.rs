@@ -268,6 +268,34 @@ fn cache_writes_map_to_five_minute_cache() {
     assert_eq!(events[0].tokens.input, Tokens(90));
 }
 
+fn huge_usage() -> serde_json::Value {
+    json!({ "input_tokens": u64::MAX, "output_tokens": 1 })
+}
+
+#[test]
+fn records_beyond_the_storable_range_are_skipped() {
+    let content = [
+        turn_context("2026-09-22T09:00:00Z", "gpt-5.5"),
+        usage_record("2300-01-01T00:00:00Z", "resp_future", &usage(10, 0, 1, 0)),
+        usage_record("2026-09-22T10:00:00Z", "resp_huge", &huge_usage()),
+        usage_record("2026-09-22T10:01:00Z", "resp_ok", &usage(10, 0, 1, 0)),
+    ]
+    .join("\n");
+    let keys: Vec<String> = parse(&content).into_iter().map(|e| e.key.0).collect();
+    assert_eq!(keys, ["resp_ok"]);
+}
+
+#[test]
+fn legacy_token_counts_beyond_the_storable_range_are_skipped() {
+    let huge = huge_usage();
+    let content = [
+        turn_context("2026-09-22T09:00:00Z", "gpt-5.5"),
+        token_count("2026-09-22T10:00:00Z", &huge, &huge),
+    ]
+    .join("\n");
+    assert!(parse(&content).is_empty());
+}
+
 #[test]
 fn record_without_response_id_gets_fallback_key() {
     let events = parse(&usage_record(

@@ -17,6 +17,7 @@
     "show_trend": true,
     "show_forecast": true,
     "translucent": false,
+    "combine_accounts": false,
     "hidden_windows": {
       "codex:work": [
         "weekly"
@@ -32,7 +33,9 @@
     "window_label": "Session",
     "used_percent": 92.0,
     "remaining_percent": 8.0,
-    "tone": "critical"
+    "tone": "critical",
+    "combined": false,
+    "account_count": 1
   },
   "accounts": [
     {
@@ -158,6 +161,7 @@
       "usage_home": "/srv/codex"
     }
   ],
+  "combined": [],
   "usage": [
     {
       "provider": "codex",

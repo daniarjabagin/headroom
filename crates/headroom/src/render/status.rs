@@ -8,6 +8,7 @@ use super::bar;
 use super::format::{
     account_title, grouped, pace_note, percent_left, reset_text, shown_windows, usd,
 };
+use super::printable::printable;
 use super::spend::spend_lines;
 use super::style::Palette;
 use super::table::pad;
@@ -37,7 +38,8 @@ pub fn render_status(state: &StatePayload, palette: Palette) -> String {
     if let Some(update) = &state.update {
         blocks.push(vec![format!(
             "Headroom {} is available · {}",
-            update.version, update.command
+            printable(&update.version),
+            printable(&update.command)
         )]);
     }
     let mut out = blocks
@@ -61,13 +63,17 @@ struct Layout {
 impl Layout {
     fn of(accounts: &[&AccountView]) -> Layout {
         let labels = accounts.iter().flat_map(|a| {
-            let windows = shown_windows(a).map(|w| w.label.chars().count());
-            windows.chain(a.balances.iter().map(|b| b.label.chars().count()))
+            let windows = shown_windows(a).map(|w| width(&w.label));
+            windows.chain(a.balances.iter().map(|b| width(&b.label)))
         });
         Layout {
             label: labels.max().unwrap_or(0),
         }
     }
+}
+
+fn width(label: &str) -> usize {
+    printable(label).chars().count()
 }
 
 fn account_block(
