@@ -6,6 +6,7 @@ members = [
     "crates/headroom-providers",
     "crates/headroom-daemon",
     "crates/headroom",
+    "crates/headroom-tray",
 ]
 
 [workspace.package]
