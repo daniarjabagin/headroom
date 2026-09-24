@@ -45,7 +45,7 @@ public struct FoundationProcessLauncher: ProcessLauncher {
         process.standardOutput = output
         process.standardError = output
         let running = FoundationProcess(process: process)
-        try process.run()
+        try process.runWithDefaultSignalMask()
         return running
     }
 }

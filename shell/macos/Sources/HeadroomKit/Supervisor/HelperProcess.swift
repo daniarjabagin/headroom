@@ -39,13 +39,12 @@ public struct HelperLauncher: HelperLaunching {
         process.standardOutput = output
         process.standardError = output
         let running = RunningHelper(process: process, input: input.fileHandleForWriting)
-        running.read(from: output.fileHandleForReading)
         do {
-            try process.run()
+            try process.runWithDefaultSignalMask()
         } catch {
-            output.fileHandleForReading.readabilityHandler = nil
             throw .launchFailed(String(describing: error))
         }
+        running.read(from: output.fileHandleForReading)
         return running
     }
 }
@@ -67,15 +66,7 @@ final class RunningHelper: HelperProcessHandle, @unchecked Sendable {
     }
 
     func read(from reader: FileHandle) {
-        reader.readabilityHandler = { handle in
-            let chunk = handle.availableData
-            if chunk.isEmpty {
-                handle.readabilityHandler = nil
-                self.finish()
-            } else {
-                self.consume(chunk)
-            }
-        }
+        PipeReader.pump(reader, chunk: { self.consume($0) }, end: { self.finish() })
     }
 
     func write(_ line: String) {
