@@ -9,8 +9,6 @@ use tempfile::TempDir;
 fn headroom(sandbox: &TempDir, args: &[&str], stdin: &str) -> Output {
     let bus = format!("unix:path={}", sandbox.path().join("no-bus").display());
     let mut child = Command::new(env!("CARGO_BIN_EXE_headroom"))
-        .arg("--bus-address")
-        .arg(&bus)
         .args(args)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
