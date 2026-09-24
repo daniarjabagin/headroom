@@ -104,34 +104,6 @@
       "local_usage": false
     },
     {
-      "id": "deepseek",
-      "display_name": "DeepSeek",
-      "add_account": [
-        {
-          "kind": "api_key",
-          "label": "DeepSeek API key",
-          "console_url": "https://platform.deepseek.com/api_keys",
-          "hint": "Any key of the account; the balance is shown in each currency it holds"
-        }
-      ],
-      "multi_account": true,
-      "local_usage": false
-    },
-    {
-      "id": "moonshot",
-      "display_name": "Moonshot API",
-      "add_account": [
-        {
-          "kind": "api_key",
-          "label": "Moonshot API key",
-          "console_url": "https://platform.kimi.ai/console/api-keys",
-          "hint": "A pay-as-you-go key from platform.kimi.ai (USD) or platform.kimi.com (CNY); Kimi Code keys belong to Kimi Code"
-        }
-      ],
-      "multi_account": true,
-      "local_usage": false
-    },
-    {
       "id": "grok",
       "display_name": "Grok",
       "add_account": [
@@ -229,6 +201,84 @@
         }
       ],
       "multi_account": false,
+      "local_usage": false
+    },
+    {
+      "id": "kilo",
+      "display_name": "Kilo Code",
+      "add_account": [
+        {
+          "kind": "cli_login",
+          "program": "kilo"
+        },
+        {
+          "kind": "api_key",
+          "label": "Kilo API key",
+          "console_url": "https://app.kilo.ai/profile",
+          "hint": "Copy the API key from your Kilo profile; it shows your personal credit balance"
+        },
+        {
+          "kind": "auto_detect",
+          "reason": "Found when you sign in with `kilo auth login`"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "warp",
+      "display_name": "Warp",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Warp API key",
+          "console_url": "https://docs.warp.dev/reference/cli/api-keys",
+          "hint": "Starts with wk-; create one in the Warp app settings or with `oz api-key create`"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "poe",
+      "display_name": "Poe",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Poe API key",
+          "console_url": "https://poe.com/api/keys",
+          "hint": "Shows the point balance of the account that owns the key"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "deepseek",
+      "display_name": "DeepSeek",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "DeepSeek API key",
+          "console_url": "https://platform.deepseek.com/api_keys",
+          "hint": "Any key of the account; the balance is shown in each currency it holds"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "moonshot",
+      "display_name": "Moonshot API",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Moonshot API key",
+          "console_url": "https://platform.kimi.ai/console/api-keys",
+          "hint": "A pay-as-you-go key from platform.kimi.ai (USD) or platform.kimi.com (CNY); Kimi Code keys belong to Kimi Code"
+        }
+      ],
+      "multi_account": true,
       "local_usage": false
     }
   ]

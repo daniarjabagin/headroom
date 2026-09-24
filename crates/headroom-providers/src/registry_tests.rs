@@ -39,12 +39,15 @@ fn every_descriptor_is_valid_and_ids_are_unique() {
             "deepseek",
             "devin",
             "grok",
+            "kilo",
             "kimi",
             "minimax",
             "moonshot",
             "ollama",
             "opencode",
             "openrouter",
+            "poe",
+            "warp",
             "zai"
         ]
     );
@@ -77,15 +80,18 @@ fn built_providers_follow_the_registry_order() {
             "zai",
             "kimi",
             "minimax",
-            "deepseek",
-            "moonshot",
             "grok",
             "cline",
             "devin",
             "copilot",
             "cursor",
             "antigravity",
-            "ollama"
+            "ollama",
+            "kilo",
+            "warp",
+            "poe",
+            "deepseek",
+            "moonshot"
         ]
     );
     for provider in &providers {

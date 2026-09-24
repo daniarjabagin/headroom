@@ -101,8 +101,6 @@ default.</sub>
 | **Z.ai** | Session, weekly and monthly limits, web searches | Paste an API key |
 | **Kimi Code** | Session, weekly and per-model limits | Paste a Kimi Code API key, or sign in with `kimi` |
 | **MiniMax** | Session and weekly Token Plan limits | Paste a Token Plan key |
-| **DeepSeek** | API balance in each currency the account holds (¥ or $) | Paste an API key |
-| **Moonshot API** | Kimi Open Platform balance, vouchers and cash, in $ (platform.kimi.ai) or ¥ (mainland) | Paste an API key |
 | **Grok** | Weekly credit usage, extra-usage cap, tokens and exact logged cost | Sign in with `grok`, or detected from `~/.grok` |
 | **Cline** | Personal and organization credits | Sign in with `cline`, or detected from `~/.cline` |
 | **Devin** | Daily and weekly limits, extra-usage balance | Sign in with `devin`, or detected from the Devin CLI or app |
@@ -110,6 +108,11 @@ default.</sub>
 | **Cursor** | Total, Auto, API and request usage, on-demand spend | Detected from the Cursor app or `agent login` (one account) |
 | **Antigravity** | Session and weekly limits, Claude model limits | Detected from the running app or `agy` (one account). **Linux only** for now |
 | **Ollama Cloud** | Session, weekly and monthly limits, extra usage | Detected from `~/.ollama/id_ed25519` when linked to ollama.com (one account) |
+| **Kilo Code** | Credit balance in USD (personal or organization), used-up warning | Sign in with `kilo`, paste a Kilo API key, or detected from `kilo auth login` |
+| **Warp** | Monthly credits and reset time, bonus credits | Paste a Warp API key (`wk-…`) |
+| **Poe** | Point balance | Paste a Poe API key |
+| **DeepSeek** | API balance in each currency the account holds (¥ or $) | Paste an API key |
+| **Moonshot API** | Kimi Open Platform balance, vouchers and cash, in $ (platform.kimi.ai) or ¥ (mainland) | Paste an API key |
 
 On macOS, Claude Code and Codex sign-ins are read from the Keychain (read-only, after an "Always
 Allow" prompt), Copilot asks `gh`, which keeps its tokens there too, and API keys you add go into
