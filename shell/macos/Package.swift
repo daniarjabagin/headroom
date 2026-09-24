@@ -12,7 +12,11 @@ let package = Package(
     ],
     targets: [
         .target(name: "HeadroomKit"),
-        .target(name: "HeadroomUI", dependencies: ["HeadroomKit"]),
+        .target(
+            name: "HeadroomUI",
+            dependencies: ["HeadroomKit"],
+            resources: [.copy("Resources/ProviderIcons")]
+        ),
         .target(name: "HeadroomSettings", dependencies: ["HeadroomKit"]),
         .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI", "HeadroomSettings"]),
         .testTarget(

@@ -2,8 +2,26 @@
     import AppKit
     import SwiftUI
 
+    struct GlassSurfaceKey: EnvironmentKey {
+        static let defaultValue = false
+    }
+
+    extension EnvironmentValues {
+        var headroomGlass: Bool {
+            get { self[GlassSurfaceKey.self] }
+            set { self[GlassSurfaceKey.self] = newValue }
+        }
+    }
+
     struct PopupSurface: ViewModifier {
         let translucent: Bool
+
+        static func usesGlass(translucent: Bool) -> Bool {
+            #if compiler(>=6.2)
+                if #available(macOS 26, *) { return true }
+            #endif
+            return translucent
+        }
 
         private var shape: RoundedRectangle {
             RoundedRectangle(cornerRadius: PopupMetrics.cornerRadius, style: .continuous)
@@ -28,52 +46,32 @@
                 content.background(.regularMaterial, in: shape)
             } else {
                 content
-                    .background(Color(nsColor: .textBackgroundColor), in: shape)
+                    .background(Palette.tray, in: shape)
                     .overlay(shape.strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
             }
         }
     }
 
     struct CardSurface: ViewModifier {
-        private var shape: RoundedRectangle {
-            RoundedRectangle(cornerRadius: PopupMetrics.cardRadius, style: .continuous)
-        }
+        var radius: CGFloat = PopupMetrics.cardRadius
+        @Environment(\.headroomGlass) private var glass
 
-        @ViewBuilder
         func body(content: Content) -> some View {
-            content.background(Color.primary.opacity(0.03), in: shape)
+            content.background(
+                Color.primary.opacity(glass ? 0.05 : 0.03),
+                in: RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
     }
 
-    struct ActionButtonStyle: ViewModifier {
-        @ViewBuilder
+    struct FooterSurface: ViewModifier {
+        @Environment(\.headroomGlass) private var glass
+
         func body(content: Content) -> some View {
-            #if compiler(>=6.2)
-                if #available(macOS 26, *) {
-                    content.buttonStyle(.glass)
-                } else {
-                    content.buttonStyle(.bordered)
+            content
+                .background(glass ? Color.clear : Color.primary.opacity(0.035))
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Palette.separator).frame(height: 1)
                 }
-            #else
-                content.buttonStyle(.bordered)
-            #endif
-        }
-    }
-
-    struct ActionGroup<Content: View>: View {
-        @ViewBuilder let content: () -> Content
-
-        @ViewBuilder
-        var body: some View {
-            #if compiler(>=6.2)
-                if #available(macOS 26, *) {
-                    GlassEffectContainer { HStack(spacing: 8, content: content) }
-                } else {
-                    HStack(spacing: 8, content: content)
-                }
-            #else
-                HStack(spacing: 8, content: content)
-            #endif
         }
     }
 
@@ -82,12 +80,12 @@
             modifier(PopupSurface(translucent: translucent))
         }
 
-        func cardSurface() -> some View {
-            modifier(CardSurface())
+        func cardSurface(radius: CGFloat = PopupMetrics.cardRadius) -> some View {
+            modifier(CardSurface(radius: radius))
         }
 
-        func actionButtonStyle() -> some View {
-            modifier(ActionButtonStyle())
+        func footerSurface() -> some View {
+            modifier(FooterSurface())
         }
     }
 #endif
