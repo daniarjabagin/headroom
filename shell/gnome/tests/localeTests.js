@@ -3,6 +3,7 @@ import GLib from 'gi://GLib';
 import { dayTitle } from '../src/dates.js';
 import * as format from '../src/format.js';
 import { contextKey, pluralIndex, resolveLanguage, setLanguage } from '../src/i18n.js';
+import { labelText } from '../src/labels.js';
 import { RU } from '../src/locale/ru.js';
 import * as numbers from '../src/numbers.js';
 import { check } from './check.js';
@@ -45,6 +46,33 @@ function testRussianReadings(now) {
     check('ru spare', format.spareText(4.2), '~4% запаса');
     check('ru next update', format.nextUpdateText(new Date('2026-09-23T10:03:10Z'), now), 'Обновление через 3 мин');
     check('ru session', format.windowLabel('session', 'Session'), 'Сессия');
+}
+
+function testRussianLabels() {
+    const labels = [
+        'Balance',
+        'Vouchers',
+        'Cash',
+        'Credit balance',
+        'Organization credits',
+        'Point balance',
+        'Bonus credits',
+        'Credits',
+    ];
+    check('ru balance labels', labels.map(labelText), [
+        'Баланс',
+        'Ваучеры',
+        'Денежный баланс',
+        'Кредиты',
+        'Кредиты организации',
+        'Баланс баллов',
+        'Бонусные кредиты',
+        'Кредиты',
+    ]);
+    check('ru window label by text', format.windowLabel('monthly', 'Monthly credits'), 'Кредиты на месяц');
+    check('ru unknown label kept', labelText('Spent today'), 'Spent today');
+    check('ru prototype label kept', labelText('constructor'), 'constructor');
+    check('ru missing label falls back to id', format.windowLabel('monthly', null), 'monthly');
 }
 
 function testRussianForecast(now) {
@@ -119,10 +147,12 @@ export function testLocale() {
     try {
         testRussianReadings(now);
         testRussianForecast(now);
+        testRussianLabels();
         testRussianDates();
         testRussianNumbers();
     } finally {
         setLanguage('en');
     }
+    check('en balance label', labelText('Organization credits'), 'Organization credits');
     check('en day title', dayTitle('2026-09-23'), 'Wed, Sep 23');
 }

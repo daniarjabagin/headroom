@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { dayTitle } from '../dates.js';
 import { _ } from '../i18n.js';
+import { labelText } from '../labels.js';
 import { compactTokensText, exactSpendLine, exactTokens, money, spendLine, usd } from '../numbers.js';
 import { column, label, row } from '../widgets.js';
 import { modelTooltip } from './modelTooltip.js';
@@ -10,11 +11,6 @@ const TREND_DAYS = 30;
 const TREND_HEIGHT = 18;
 const TREND_STUB = 2;
 const TREND_MIN_SHARE = 0.18;
-
-const BALANCE_LABELS = {
-    credits: () => _('Credits'),
-    extra_usage: () => _('Extra usage'),
-};
 
 function lastDays(daily) {
     const days = daily.slice(-TREND_DAYS);
@@ -80,7 +76,7 @@ function totalsTooltip(title, totals) {
 }
 
 function balanceTitle(balance) {
-    return BALANCE_LABELS[balance.id]?.() ?? balance.label;
+    return labelText(balance.label);
 }
 
 function balanceValue(balance) {

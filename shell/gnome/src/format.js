@@ -1,5 +1,6 @@
 import { exactMoment } from './dates.js';
 import { _, fill } from './i18n.js';
+import { labelText } from './labels.js';
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -61,11 +62,11 @@ export function panelCount(count) {
 }
 
 export function windowLabel(windowId, label) {
-    return WINDOW_LABELS[windowId]?.() ?? label ?? windowId ?? '';
+    return WINDOW_LABELS[windowId]?.() ?? labelText(label) ?? windowId ?? '';
 }
 
 export function shortWindowLabel(windowId, label) {
-    return SHORT_WINDOW_LABELS[windowId]?.() ?? label ?? windowId ?? '';
+    return SHORT_WINDOW_LABELS[windowId]?.() ?? labelText(label) ?? windowId ?? '';
 }
 
 function twoDigits(value) {

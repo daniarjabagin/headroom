@@ -1,5 +1,6 @@
 .pragma library
 
+.import "DaemonText.js" as DaemonText
 .import "I18n.js" as I18n
 .import "Money.js" as Money
 
@@ -79,12 +80,12 @@ function shortWindowLabel(lang, windowId, windowLabel) {
     const short = SHORT_WINDOW_LABELS[windowId];
     if (short)
         return I18n.tr(lang, short);
-    return windowLabel ?? windowId ?? "";
+    return DaemonText.label(lang, windowLabel) ?? windowId ?? "";
 }
 
 function windowLabel(lang, window) {
     const known = WINDOW_LABELS[window.id];
-    return known ? I18n.tr(lang, known) : window.label;
+    return known ? I18n.tr(lang, known) : DaemonText.label(lang, window.label);
 }
 
 function twoDigits(value) {

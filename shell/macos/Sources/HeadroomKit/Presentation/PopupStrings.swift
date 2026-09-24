@@ -1,7 +1,7 @@
 public enum PopupText: Sendable, CaseIterable {
     case totalSpend, today, yesterday, thirtyDays, last30Days, noUsageInPeriod
     case spendEstimate, spendUnpricedModels, usageTrend, noUsage, someModelsUnpriced, unpriced, partlyUnpriced
-    case credits, extraUsage, outdated, refreshFailed, retry, retrying, signIn, signedOutDetail
+    case outdated, refreshFailed, retry, retrying, signIn, signedOutDetail
     case noSubscriptionDetail, overPace, limitSoon, runsOutAnyMinute
     case serviceDownTitle, serviceDownDetail, stateUnreadable, tryAgain, noToolsFound, checkAgain, settings
 
@@ -20,8 +20,6 @@ public enum PopupText: Sendable, CaseIterable {
         case .someModelsUnpriced: " · some models unpriced"
         case .unpriced: "unpriced"
         case .partlyUnpriced: "Partly unpriced, cost leaves it out"
-        case .credits: "Credits"
-        case .extraUsage: "Extra usage"
         case .outdated: "Outdated"
         case .refreshFailed: "Refresh failed"
         case .retry: "Retry"
@@ -59,8 +57,6 @@ public enum PopupText: Sendable, CaseIterable {
         case .someModelsUnpriced: " · часть моделей без цены"
         case .unpriced: "без цены"
         case .partlyUnpriced: "Частично без цены, в стоимость не входит"
-        case .credits: "Кредиты"
-        case .extraUsage: "Доп. использование"
         case .outdated: "Устарело"
         case .refreshFailed: "Не удалось обновить"
         case .retry: "Повторить"

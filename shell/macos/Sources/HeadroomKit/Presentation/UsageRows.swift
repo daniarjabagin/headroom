@@ -87,11 +87,7 @@ public enum UsageRows {
     }
 
     private static func balanceTitle(_ balance: Balance, _ strings: UIStrings) -> String {
-        switch balance.id {
-        case "credits": strings.text(.credits)
-        case "extra_usage": strings.text(.extraUsage)
-        default: balance.label
-        }
+        LabelTranslation.translate(balance.label, language: strings.language)
     }
 
     private static func balanceValue(_ balance: Balance, _ formatter: DisplayFormatter) -> String {

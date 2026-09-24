@@ -43,13 +43,27 @@ final class PresentationUsageTests: XCTestCase {
             [Balance].self,
             json: """
                 [{"id":"credits","label":"Credits","kind":"usd","usd_micros":2500000},
-                {"id":"extra_usage","label":"Extra","kind":"usd"},
+                {"id":"extra_usage","label":"Extra usage","kind":"usd"},
                 {"id":"msgs","label":"Messages","kind":"count","value":-3},
                 {"id":"odd","label":"Odd","kind":"points"}]
                 """)
         let rows = UsageRows.balanceRows(balances, formatter: Build.english)
         XCTAssertEqual(rows.map(\.title), ["Credits", "Extra usage", "Messages", "Odd"])
         XCTAssertEqual(rows.map(\.value), ["$2.50", "No data", "-3", "No data"])
+    }
+
+    func testBalanceTitlesAreTranslatedByLabel() throws {
+        let balances = try Fixture.decode(
+            [Balance].self,
+            json: """
+                [{"id":"credits","label":"Organization credits","kind":"usd","usd_micros":2500000},
+                {"id":"extra_usage","label":"Extra usage","kind":"usd"},
+                {"id":"cash","label":"Cash","kind":"money","currency":"CNY","micros":0},
+                {"id":"msgs","label":"Messages","kind":"count","value":3}]
+                """)
+        let rows = UsageRows.balanceRows(balances, formatter: Build.russian)
+        XCTAssertEqual(
+            rows.map(\.title), ["Кредиты организации", "Доп. использование", "Денежный баланс", "Messages"])
     }
 
     func testMoneyBalancesKeepTheirCurrency() throws {
