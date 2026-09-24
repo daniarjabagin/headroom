@@ -65,7 +65,8 @@ default.</sub>
 ## Highlights
 
 - **Every limit, one glance.** Session, weekly, per-model and monthly windows, credit balances and
-  reset countdowns for 14 providers, with several accounts each.
+  reset countdowns for 19 providers, with several accounts each. Turn on **combined accounts** to
+  see one card per provider with a segmented bar: *145% left of 200%*.
 - **Pace forecast.** Every meter carries an even-pace tick. Headroom projects your burn rate and
   tells you *"At this pace: runs out in 2d 1h"* long before you hit the wall. Color follows pace,
   not just level.
@@ -75,7 +76,7 @@ default.</sub>
 - **Honest spend.** Cost is computed in integer micro-dollars from bundled LiteLLM and models.dev
   price lists that refresh in the background and re-cost history when prices change. Models without
   a price are flagged as *partial*, never guessed. Where a tool logs its own cost (Grok), that exact
-  figure is used.
+  figure is used. Pay-as-you-go balances keep their own currency (¥, €, $), never converted.
 - **Notifications that matter.** *Under 10 % left*, *projected to run out in …*, *limit reset*.
   Sent once per window, remembered across restarts, through your desktop's notifications or macOS
   Notification Center.
@@ -433,13 +434,13 @@ too; this is what differs.
 | Platforms | Linux + macOS 14+ | macOS 15+ | Windows, macOS, Linux |
 | Built with | Rust daemon + native shells (GJS, QML, SwiftUI) | Swift, SwiftUI | Tauri 2, Rust, Svelte |
 | Lives in | GNOME top panel, Plasma panel, system tray of other Linux desktops, Waybar, macOS menu bar | macOS menu bar | System tray, app window |
-| Providers | 14 | 11 | 12 |
+| Providers | 19 | 11 | 12 |
 | License | MIT | MIT | MIT |
 
 ## Roadmap
 
 - [x] GNOME Shell extension and KDE Plasma widget
-- [x] 14 providers, several accounts each
+- [x] 19 providers, several accounts each, combined accounts
 - [x] Native macOS menu-bar app on the same Rust core
 - [x] Update notices on Linux, Sparkle updates on macOS
 - [ ] Signed and notarized macOS build
