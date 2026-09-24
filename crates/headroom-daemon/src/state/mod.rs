@@ -1,5 +1,7 @@
 mod account;
 mod activity;
+mod combined;
+mod combined_pace;
 mod headline;
 mod models;
 pub mod payload;
@@ -7,6 +9,9 @@ mod spend;
 pub mod status;
 mod update;
 mod usage;
+
+#[cfg(test)]
+mod test_views;
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -39,6 +44,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .into_iter()
         .map(|(home, summary)| usage::usage_view(home, summary, ctx))
         .collect();
+    let combined = combined::combined(&accounts, model.settings.display.combine_accounts);
     let spend = spend::spend(&full_usage);
     let usage = full_usage.into_iter().map(usage::with_top_models).collect();
     StatePayload {
@@ -50,8 +56,9 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         offline: activity::offline(model),
         update: update::update_view(model),
         display: model.settings.display.clone(),
-        headline: headline::headline(&accounts, &model.settings.headline),
+        headline: headline::headline(&accounts, &combined, &model.settings.headline),
         accounts,
+        combined,
         spend,
         usage,
     }
@@ -62,3 +69,6 @@ mod tests;
 
 #[cfg(test)]
 mod lapse_tests;
+
+#[cfg(test)]
+mod combined_state_tests;
