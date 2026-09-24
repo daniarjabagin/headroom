@@ -87,8 +87,10 @@ default.</sub>
   the macOS app updates itself with Sparkle.
 - **Light and dark, English and Russian.** Both themes are first-class and follow the system;
   motion respects reduced-motion settings.
-- **Tiny footprint.** One ≈11 MB binary. On Linux the daemon idles at ≈19 MB RSS on two worker
-  threads and watches logs with inotify instead of polling.
+- **Tiny footprint.** One static ≈12 MB binary (5.5 MB as a package). On Linux the daemon idles at
+  ≈15 MB RSS on two worker threads (short peaks around 35 MB while it re-reads logs or price lists)
+  and watches logs with inotify instead of polling. The optional tray is a 3.9 MB GTK app; the
+  macOS DMG is 13.6 MB.
 - **Private by design.** No telemetry, no accounts, no server of its own. See [Privacy](#privacy).
 
 ## Providers
