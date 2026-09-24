@@ -106,12 +106,34 @@ fn signed(negative: bool, text: String) -> String {
     if negative { format!("-{text}") } else { text }
 }
 
+fn currency_symbol(currency: &str) -> Option<&'static str> {
+    match currency {
+        "USD" => Some("$"),
+        "CNY" => Some("¥"),
+        "EUR" => Some("€"),
+        _ => None,
+    }
+}
+
 #[must_use]
-pub fn exact_usd(micros: i64) -> String {
+pub fn money(currency: &str, micros: i64) -> String {
     let cents = cents_of(micros);
     let magnitude = cents.unsigned_abs();
-    let dollars = group_digits(magnitude / 100, ',');
-    signed(cents < 0, format!("${dollars}.{:02}", magnitude % 100))
+    let digits = format!(
+        "{}.{:02}",
+        group_digits(magnitude / 100, ','),
+        magnitude % 100
+    );
+    let text = match currency_symbol(currency) {
+        Some(symbol) => format!("{symbol}{digits}"),
+        None => format!("{digits} {currency}"),
+    };
+    signed(cents < 0, text)
+}
+
+#[must_use]
+pub fn exact_usd(micros: i64) -> String {
+    money("USD", micros)
 }
 
 #[must_use]
@@ -196,7 +218,7 @@ mod tests {
     }
 
     #[test]
-    fn money() {
+    fn usd_amounts() {
         let cases = [
             (0, "$0.00", "$0.00", "$0.00"),
             (4_080_000, "$4.08", "$4.08", "$4.08"),
@@ -211,6 +233,16 @@ mod tests {
             assert_eq!(ring_usd(micros), ring, "{micros}");
         }
         assert_eq!(exact_usd(-1_500_000), "-$1.50");
+    }
+
+    #[test]
+    fn other_currencies_use_their_symbol_or_code() {
+        assert_eq!(money("CNY", 12_500_000), "¥12.50");
+        assert_eq!(money("EUR", 1_234_567_890), "€1,234.57");
+        assert_eq!(money("USD", 5_000), "$0.01");
+        assert_eq!(money("CNY", -3_000_000), "-¥3.00");
+        assert_eq!(money("GBP", 12_500_000), "12.50 GBP");
+        assert_eq!(money("XYZ", -5_000), "-0.01 XYZ");
     }
 
     #[test]

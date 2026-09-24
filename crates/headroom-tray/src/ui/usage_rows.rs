@@ -2,7 +2,7 @@ use gtk::prelude::*;
 
 use crate::dates::day_title;
 use crate::i18n::Lang;
-use crate::numbers::{compact_tokens_text, exact_spend_line, exact_tokens, spend_line, usd};
+use crate::numbers::{compact_tokens_text, exact_spend_line, exact_tokens, money, spend_line, usd};
 use crate::payload::{Account, Balance, BalanceAmount, Daily, Usage};
 use crate::spend::{Period, TREND_HEIGHT, bar_height, breakdown_text, trend_days};
 use crate::ui::context::Ctx;
@@ -157,13 +157,15 @@ fn balance_title(lang: Lang, balance: &Balance) -> String {
     }
 }
 
-fn balance_value(lang: Lang, balance: &Balance) -> String {
-    match &balance.amount {
+fn balance_value(lang: Lang, balance: &Balance) -> Option<String> {
+    Some(match &balance.amount {
         BalanceAmount::Usd { usd_micros } => usd(*usd_micros),
+        BalanceAmount::Money { currency, micros } => money(currency, *micros),
         BalanceAmount::Count { value, unit } => format!("{} {unit}", exact_tokens(lang, *value))
             .trim()
             .to_owned(),
-    }
+        BalanceAmount::Unknown => return None,
+    })
 }
 
 pub fn extra_rows(ctx: &Ctx, account: &Account, usage: Option<&Usage>) -> Option<gtk::Box> {
@@ -172,12 +174,9 @@ pub fn extra_rows(ctx: &Ctx, account: &Account, usage: Option<&Usage>) -> Option
     if let Some(usage) = usage.filter(|_| ctx.display.show_account_spend) {
         rows.extend(spend_rows(ctx, account, usage));
     }
-    rows.extend(account.balances.iter().map(|balance| {
-        value_row(
-            &balance_title(lang, balance),
-            &balance_value(lang, balance),
-            None,
-        )
+    rows.extend(account.balances.iter().filter_map(|balance| {
+        let value = balance_value(lang, balance)?;
+        Some(value_row(&balance_title(lang, balance), &value, None))
     }));
     if rows.is_empty() {
         return None;

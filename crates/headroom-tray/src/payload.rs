@@ -256,8 +256,19 @@ pub struct Balance {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BalanceAmount {
-    Usd { usd_micros: i64 },
-    Count { value: u64, unit: String },
+    Usd {
+        usd_micros: i64,
+    },
+    Money {
+        currency: String,
+        micros: i64,
+    },
+    Count {
+        value: u64,
+        unit: String,
+    },
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

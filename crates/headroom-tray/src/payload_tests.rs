@@ -7,6 +7,24 @@ const COMBINED: &str =
     include_str!("../../headroom-daemon/src/state/snapshots/state_combined.json");
 
 #[test]
+fn balances_accept_money_and_skip_unknown_kinds() {
+    let money: Balance = serde_json::from_str(
+        r#"{"id":"balance_cny","label":"Balance","kind":"money","currency":"CNY","micros":12500000}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        money.amount,
+        BalanceAmount::Money {
+            currency: "CNY".into(),
+            micros: 12_500_000
+        }
+    );
+    let future: Balance =
+        serde_json::from_str(r#"{"id":"x","label":"X","kind":"points","points":3}"#).unwrap();
+    assert_eq!(future.amount, BalanceAmount::Unknown);
+}
+
+#[test]
 fn parses_the_combined_snapshot() {
     let state = parse_state(COMBINED).unwrap();
     let group = &state.combined[0];
