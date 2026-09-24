@@ -324,7 +324,12 @@
         }
       ],
       "balances": [],
-      "notices": [],
+      "notices": [
+        {
+          "tone": "good",
+          "text": "Extra usage on, cap 50"
+        }
+      ],
       "usage_home": "~/.local/share/headroom/accounts/grok/6d5c4b3a2f1e"
     }
   ],

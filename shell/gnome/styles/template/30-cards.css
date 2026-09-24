@@ -56,6 +56,22 @@
     padding-top: 6px;
 }
 
+.headroom-notice-line {
+    margin: 6px 14px 0;
+    spacing: 6px;
+}
+
+.headroom-notice-line-icon {
+    icon-size: 12px;
+    margin-top: 1px;
+    color: var(--text-secondary);
+}
+
+.headroom-notice-line-text {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
 .headroom-small-button {
     padding: 3px 7px;
     border-radius: 5px;

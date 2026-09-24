@@ -300,6 +300,7 @@ def grok_weekly(now):
         [window("weekly", "Weekly", 42.0, 3 * DAY + 4 * HOUR, 7 * DAY, "good", pace("healthy", 55.0, 76.0), now)],
         now,
         owner="headroom",
+        notices=[{"tone": "good", "text": "Extra usage on, cap 50"}],
     )
 
 

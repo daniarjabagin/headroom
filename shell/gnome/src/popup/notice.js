@@ -66,3 +66,12 @@ export function noticeRow({ kind, title, detail = null, note = null, actions = [
     if (actions.length > 1) texts.add_child(actionRow(actions));
     return actor;
 }
+
+export function noticeLine(text) {
+    const actor = row({ style_class: 'headroom-notice-line', x_expand: true });
+    const icon = themeIcon('dialog-information-symbolic', 'headroom-notice-line-icon');
+    icon.y_align = Clutter.ActorAlign.START;
+    actor.add_child(icon);
+    actor.add_child(wrappingLabel(text, 'headroom-notice-line-text'));
+    return actor;
+}

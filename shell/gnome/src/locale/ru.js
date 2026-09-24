@@ -242,4 +242,21 @@ export const RU = {
     'Unexpected provider list from the Headroom service': 'Служба Headroom передала неожиданный список сервисов',
     'Headroom service lists providers in version {actual}, expected {expected}':
         'Служба Headroom передаёт список сервисов в версии {actual}, ожидалась {expected}',
+    'Weekly limit shared with Codex Cloud': 'Недельный лимит общий с Codex Cloud',
+    'Offline — showing limits from local logs.': 'Нет сети — лимиты по локальным журналам.',
+    'Sign-in expired — open Codex to sign in again. Showing limits from local logs.':
+        'Вход истёк — откройте Codex, чтобы войти снова. Лимиты по локальным журналам.',
+    'Credit balance needs a management key': 'Для баланса кредитов нужен ключ управления',
+    'Credit balance is unavailable right now': 'Баланс кредитов сейчас недоступен',
+    'No Cline credits left.': 'Кредиты Cline закончились.',
+    'Legacy Grok billing has no weekly pool.': 'В старом тарифе Grok нет недельного лимита.',
+    'Ollama reports no Cloud limits for this account yet.': 'Ollama пока не сообщает лимиты Cloud для этого аккаунта.',
+    'Could not read the Ollama plan; the usage above is up to date.':
+        'Не удалось прочитать тариф Ollama; использование выше актуально.',
+    'Antigravity reports no quota pools for this account.': 'Antigravity не сообщает лимиты для этого аккаунта.',
+    'The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.':
+        'Связка ключей со входом в Antigravity заблокирована. Разблокируйте её или запустите Antigravity.',
+    'Extra usage on, cap {amount}': 'Доп. использование включено, предел {amount}',
+    '{plan} renews on {date} (UTC).': '{plan} продлевается {date} (UTC).',
+    '{plan} ends on {date} (UTC).': '{plan} заканчивается {date} (UTC).',
 };

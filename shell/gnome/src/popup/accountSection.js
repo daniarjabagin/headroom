@@ -3,7 +3,8 @@ import { _, fill } from '../i18n.js';
 import { column } from '../widgets.js';
 import { AccountHeader, failedOffline } from './accountHeader.js';
 import { Expander } from './expander.js';
-import { noticeRow, RetryButton } from './notice.js';
+import { noticeKind, noticeText } from '../notices.js';
+import { noticeLine, noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
 import { skeletonRows } from './skeleton.js';
 import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
@@ -55,10 +56,14 @@ function blockingNotice(ctx, account, retry) {
     return isSignedOut(account) ? signedOutNotice(ctx, account, retry) : noSubscriptionNotice(account, retry);
 }
 
+function daemonNotice(notice) {
+    const kind = noticeKind(notice.tone);
+    const title = noticeText(notice.text);
+    return kind === 'info' ? noticeLine(title) : noticeRow({ kind, title });
+}
+
 function noticeRows(ctx, account) {
-    const rows = account.notices.map(notice =>
-        noticeRow({ kind: notice.tone === 'critical' ? 'error' : 'warning', title: notice.text })
-    );
+    const rows = account.notices.map(daemonNotice);
     if (showsErrorNotice(ctx, account)) rows.unshift(errorNotice(ctx, account));
     return rows;
 }
