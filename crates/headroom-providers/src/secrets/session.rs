@@ -90,7 +90,7 @@ pub(super) async fn read_foreign(bus: &SecretBus, attributes: &[(&str, &str)]) -
 
 async fn connect(bus: &SecretBus) -> Option<Connection> {
     let builder = match bus {
-        SecretBus::Session => Builder::session(),
+        SecretBus::Platform | SecretBus::Session => Builder::session(),
         SecretBus::Address(address) => Builder::address(address.as_str()),
         SecretBus::Disabled => return None,
     };

@@ -75,30 +75,31 @@ async fn read_requests(read: OwnedReadHalf, context: Context) -> Ended {
     let mut line = Vec::new();
     let mut pending = JoinSet::new();
     let mut subscription = None;
+    let mut ended = Ended::Closed;
     loop {
         while pending.try_join_next().is_some() {}
         match read_line(&mut reader, &mut line).await {
             Line::Request => {}
             Line::Blank => continue,
-            Line::TooLong => return Ended::TooLong,
+            Line::TooLong => {
+                ended = Ended::TooLong;
+                break;
+            }
             Line::End => break,
         }
         let delivered = match protocol::parse_request(&line) {
             Ok(request) => handle(request, &context, &mut pending, &mut subscription).await,
             Err(rejection) => {
-                send(
-                    &context.outbox,
-                    protocol::error_line(&rejection.id, &rejection.error),
-                )
-                .await
+                reply(&context.outbox, rejection.id.as_ref(), Err(rejection.error)).await
             }
         };
         if !delivered {
             break;
         }
     }
+    drop(reader);
     while pending.join_next().await.is_some() {}
-    Ended::Closed
+    ended
 }
 
 async fn read_line(reader: &mut BufReader<OwnedReadHalf>, line: &mut Vec<u8>) -> Line {
@@ -129,8 +130,8 @@ async fn handle(
     let Request { id, method, params } = request;
     match dispatch::parse_call(&method, params) {
         Err(error) => reply(&context.outbox, id.as_ref(), Err(error)).await,
-        Ok(Call::Subscribe) => {
-            subscription.get_or_insert_with(|| context.hub.subscribe(context.outbox.clone()));
+        Ok(Call::Subscribe(topics)) => {
+            *subscription = Some(context.hub.subscribe(context.outbox.clone(), topics));
             reply(&context.outbox, id.as_ref(), Ok(RawValue::NULL.to_owned())).await
         }
         Ok(Call::Command(command)) => {

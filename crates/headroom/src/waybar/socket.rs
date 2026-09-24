@@ -38,7 +38,7 @@ async fn follow(daemon: &SocketDaemon, printer: &mut Printer) -> Result<()> {
 }
 
 async fn subscribed_state(daemon: &SocketDaemon) -> Option<StatePayload> {
-    daemon.command("Subscribe", json!([])).await.ok()?;
+    daemon.command("Subscribe", json!([["state"]])).await.ok()?;
     let json = daemon.call("GetState", json!([])).await.ok()?;
     parse_state(json.get()).ok()
 }

@@ -14,14 +14,21 @@ framing differs.
 | --- | --- |
 | default path (macOS) | `~/Library/Application Support/Headroom/daemon.sock` |
 | default path (Linux, `--socket` without a path) | `$XDG_RUNTIME_DIR/headroom/daemon.sock` |
-| fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>.sock` |
+| fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>/daemon.sock` |
 | override | `headroom daemon --socket <path>`, clients: `HEADROOM_SOCKET=<path>` |
 | permissions | socket `0600`, parent directory created `0700` when missing (an existing directory is left as it is) |
+| lock | `daemon.lock` next to the socket (the socket path with the extension `lock`), `0600`, held with an exclusive `flock` for the daemon's lifetime |
 | framing | UTF-8 JSON-RPC 2.0, one JSON object per line terminated by `\n` |
 
-The daemon removes a stale socket file on start. If another daemon is listening on the path, the new
-one exits with "another Headroom daemon is already listening on <path>". The socket is removed on
-shutdown.
+The fallback directory `$TMPDIR/headroom-<uid>` is created `0700` when missing. The daemon and the
+CLI both refuse to use it unless it is a real directory (not a symlink) owned by the current uid with
+mode `0700` exactly, with an error such as "refusing to use /tmp/headroom-1000: its mode is 0755, not
+0700", because another user could have created it first.
+
+On start the daemon takes the lock without waiting, then removes a stale socket file. If the lock is
+held or another daemon is listening on the path, the new one exits with "another Headroom daemon is
+already listening on <path>"; two daemons started at once therefore never both clear and bind the
+socket. The socket is removed on shutdown; the lock file stays and is simply unlocked.
 
 ## Requests
 
@@ -32,7 +39,8 @@ shutdown.
 - `params` is a positional array with the D-Bus arguments in order (strings, booleans, string
   arrays). Methods without arguments take `[]` or omit `params`.
 - `id` is a number, a string or `null`. A request without `id` is a JSON-RPC notification: it is
-  executed and gets no response, not even an error. Blank lines are ignored.
+  executed and gets no response, not even an error (invalid params included). Only a line that is not
+  valid JSON or not a request object is answered with an `"id": null` error. Blank lines are ignored.
 - A client may send several requests without waiting; responses carry the request `id` and may arrive
   in any order, interleaved with notifications.
 
@@ -51,7 +59,13 @@ shutdown.
 | `SetAccountHidden` | `[account_id, hidden_bool]` | `null` |
 | `DismissAccount` | `[account_id]` | `null` |
 | `RestoreAccounts` | `[provider]` | `null` |
-| `Subscribe` | `[]` | `null`; from now on this connection receives notifications |
+| `Subscribe` | `[]` or `[[topic, …]]` | `null`; from now on this connection receives the notifications of those topics |
+
+`Subscribe` topics are `state` (`StateChanged`), `alerts` (`Alert`) and `open` (`OpenRequested`).
+No params, `[]` or an empty topic list subscribe to all three; an unknown topic is `-32602`. Calling
+`Subscribe` again replaces the connection's topics. A client that does not show alerts (such as
+`headroom waybar`, which sends `[["state"]]`) must leave out `alerts`, so it never counts as an
+alert delivery.
 
 Semantics, validation and side effects of every method are exactly those in
 [dbus-api.md](dbus-api.md#methods). `SetSettings` and `UpdateSettings` take the settings JSON as a
@@ -78,7 +92,7 @@ connection without a response.
 
 ## Notifications
 
-Sent only to connections that called `Subscribe`. They have no `id`.
+Sent only to connections that called `Subscribe` with the notification's topic. They have no `id`.
 
 ```json
 {"jsonrpc":"2.0","method":"StateChanged","params":{"state":{…}}}
@@ -90,7 +104,7 @@ Sent only to connections that called `Subscribe`. They have no `id`.
 | --- | --- |
 | `StateChanged` | same as the D-Bus signal: full state payload, debounced by 250 ms |
 | `OpenRequested` | a client asked the daemon to open the popup (reserved; the macOS app handles its own notification clicks) |
-| `Alert` | on macOS, instead of `org.freedesktop.Notifications`: the app posts it with `UNUserNotificationCenter`. `urgency` is `low`, `normal` or `critical`. Texts follow `display.language` exactly as in [Notifications](dbus-api.md#notifications). A delivery counts as successful when at least one subscribed connection received it; otherwise it is rolled back and retried at the next refresh, like a failed desktop notification on Linux. |
+| `Alert` | on macOS, instead of `org.freedesktop.Notifications`: the app posts it with `UNUserNotificationCenter`. `urgency` is `low`, `normal` or `critical`. Texts follow `display.language` exactly as in [Notifications](dbus-api.md#notifications). A delivery counts as successful when at least one connection subscribed to `alerts` received it; otherwise it is rolled back and retried at the next refresh, like a failed desktop notification on Linux. |
 
 A subscriber should call `GetState` after `Subscribe` and then follow `StateChanged`. A subscriber
 that stops reading loses notifications once 64 are queued for it.

@@ -18,7 +18,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 notify.workspace = true
-rustix.workspace = true
+rustix = { workspace = true, features = ["fs"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus.workspace = true

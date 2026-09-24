@@ -1,12 +1,13 @@
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::io::AsyncWriteExt;
 
 use super::protocol::MAX_LINE;
 use super::test_client::{Client, Server};
-use super::{Hub, bind};
+use super::{Hub, Topic, bind};
 use crate::error::SocketError;
 use crate::events::{EventSink, publish_changes};
 use crate::notify::{Notification, Notifier, NotifyError, Urgency};
@@ -89,6 +90,12 @@ async fn requests_without_id_get_no_response() {
     client
         .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":[""]}"#)
         .await;
+    client
+        .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":[5]}"#)
+        .await;
+    client
+        .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":{"a":1}}"#)
+        .await;
     client.send("").await;
     client.request(9, "GetState", json!([])).await;
     assert_eq!(client.next().await.unwrap()["id"], 9);
@@ -156,7 +163,32 @@ async fn alerts_fail_without_subscribers() {
     let mut watcher = server.client().await;
     watcher.call(1, "Subscribe", json!([])).await;
     server.hub.notify(&alert()).await.unwrap();
-    assert_eq!(Hub::default().broadcast("x"), 0);
+    assert_eq!(Hub::default().broadcast(Topic::Alerts, "x"), 0);
+}
+
+#[tokio::test]
+async fn only_alert_subscribers_count_as_alert_delivery() {
+    let server = Server::start().await;
+    let mut waybar = server.client().await;
+    let accepted = waybar.call(1, "Subscribe", json!([["state"]])).await;
+    assert_eq!(accepted["result"], Value::Null);
+    let undelivered = server.hub.notify(&alert()).await;
+    assert!(matches!(undelivered, Err(NotifyError::NoSubscribers)));
+    server.hub.open_requested().await.unwrap();
+    server.hub.state_changed(r#"{"version":1}"#).await.unwrap();
+    let first = waybar.next().await.unwrap();
+    assert_eq!(
+        first["method"], "StateChanged",
+        "a state subscriber got {first}"
+    );
+    let mut app = server.client().await;
+    app.call(1, "Subscribe", json!([["alerts"]])).await;
+    server.hub.notify(&alert()).await.unwrap();
+    assert_eq!(app.notification("Alert").await["id"], alert().id);
+    waybar.call(2, "Subscribe", json!([])).await;
+    drop(app);
+    server.hub.notify(&alert()).await.unwrap();
+    assert_eq!(waybar.notification("Alert").await["id"], alert().id);
 }
 
 #[tokio::test]
@@ -175,12 +207,54 @@ async fn oversize_lines_close_the_connection() {
 }
 
 #[tokio::test]
+async fn an_oversize_line_lets_pending_commands_finish() {
+    let server = Server::start().await;
+    let mut client = server.client().await;
+    let patch = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "UpdateSettings",
+        "params": [r#"{"refresh_interval_secs":120}"#]
+    });
+    let mut bytes = format!("{patch}\n").into_bytes();
+    bytes.extend(vec![b' '; MAX_LINE + 1]);
+    let (locked, is_locked) = std::sync::mpsc::channel();
+    let (release, released) = std::sync::mpsc::channel::<()>();
+    let storage = server.harness.storage.clone();
+    let holder = std::thread::spawn(move || {
+        storage.blocking(|_| {
+            locked.send(()).ok();
+            released.recv().ok();
+            Ok(())
+        })
+    });
+    is_locked.recv().unwrap();
+    client.writer().write_all(&bytes).await.ok();
+    let drain = async { while client.next().await.is_some() {} };
+    tokio::time::timeout(Duration::from_millis(300), drain)
+        .await
+        .ok();
+    release.send(()).unwrap();
+    holder.join().unwrap().unwrap();
+    while client.next().await.is_some() {}
+    let in_memory = server.harness.core.model().settings.refresh_interval_secs;
+    assert_eq!(in_memory, 120);
+    let stored = server
+        .harness
+        .storage
+        .blocking(|conn| crate::storage::settings::load(conn))
+        .unwrap();
+    assert_eq!(stored.refresh_interval_secs, 120);
+}
+
+#[tokio::test]
 async fn the_socket_is_private_and_removed_on_shutdown() {
     let mut server = Server::start().await;
     let mode =
         |path: &std::path::Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(&server.path), 0o600);
     assert_eq!(mode(server.path.parent().unwrap()), 0o700);
+    assert_eq!(mode(&server.path.with_file_name("daemon.lock")), 0o600);
     drop(server.file.take());
     assert!(!server.path.exists());
 }
@@ -192,6 +266,20 @@ async fn a_second_daemon_is_refused_while_the_first_listens() {
     assert!(matches!(refused, Err(SocketError::AlreadyListening(ref p)) if *p == server.path));
     let mut client = server.client().await;
     assert!(client.call(1, "GetState", json!([])).await["result"].is_object());
+}
+
+#[tokio::test]
+async fn two_daemons_starting_together_cannot_both_listen() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("daemon.sock");
+    let (first_listener, first) = bind(&path).unwrap();
+    std::fs::remove_file(&path).unwrap();
+    let second = bind(&path);
+    assert!(matches!(second, Err(SocketError::AlreadyListening(ref p)) if *p == path));
+    drop(first_listener);
+    drop(first);
+    let (_listener, _file) = bind(&path).unwrap();
+    assert!(path.exists());
 }
 
 #[tokio::test]
@@ -216,7 +304,7 @@ async fn a_replaced_socket_file_is_not_removed_by_the_old_owner() {
     let mut client = Client::connect(&server.path).await;
     client.call(1, "GetState", json!([])).await;
     std::fs::remove_file(&server.path).unwrap();
-    let (_listener, _file) = bind(&server.path).unwrap();
+    let _replacement = std::os::unix::net::UnixListener::bind(&server.path).unwrap();
     let mut server = server;
     drop(server.file.take());
     assert!(server.path.exists());

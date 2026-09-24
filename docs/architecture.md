@@ -566,13 +566,14 @@ adapters over it.
   transport: `dbus::signals::BusSignals` emits the D-Bus signals, `ipc::Hub` writes notifications to
   socket subscribers.
 - Alerts go through `notify::Notifier`: `DesktopNotifier` (`org.freedesktop.Notifications`) on Linux,
-  `ipc::Hub` on other platforms, which sends an `Alert` notification to every subscriber and fails
+  `ipc::Hub` on other platforms, which sends an `Alert` notification to every `alerts` subscriber and fails
   with `NotifyError::NoSubscribers` when there is none, so the milestone is rolled back and retried.
 - `ipc` serves line-delimited JSON-RPC 2.0 on a Unix socket ([ipc.md](ipc.md)): `protocol` parses
   and encodes lines (pure), `dispatch` maps methods to `Service` calls, `connection` runs one reader
   and one writer task per client with concurrent requests, `listener` handles the socket file
-  (0700 parent created when missing, stale-socket removal after a failed connect, 0600 socket,
-  removal on shutdown only while the file is still ours).
+  (0700 parent created when missing, an exclusive `flock` on a sibling `daemon.lock` held for the
+  daemon's lifetime, stale-socket removal after a failed connect, 0600 socket, removal on shutdown
+  only while the file is still ours).
 
 | platform | daemon transports | alerts | CLI client |
 | --- | --- | --- | --- |
@@ -580,8 +581,9 @@ adapters over it.
 | macOS | socket, always | `Alert` to socket subscribers (the app posts them) | socket |
 
 Default socket path: `$XDG_RUNTIME_DIR/headroom/daemon.sock` on Linux,
-`~/Library/Application Support/Headroom/daemon.sock` on macOS, and `$TMPDIR/headroom-<uid>.sock`
-when the path is longer than 103 bytes. `zbus`, the D-Bus service and the freedesktop notifier
+`~/Library/Application Support/Headroom/daemon.sock` on macOS, and `$TMPDIR/headroom-<uid>/daemon.sock`
+when the path is longer than 103 bytes; that directory must be owned by the user with mode 0700 or the
+daemon and CLI refuse it. `zbus`, the D-Bus service and the freedesktop notifier
 compile only for `target_os = "linux"`.
 
 Paths on macOS: Headroom's own files live in `~/Library/Application Support/Headroom` (database,

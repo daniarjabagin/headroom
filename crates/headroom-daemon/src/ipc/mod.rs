@@ -6,7 +6,7 @@ pub mod path;
 pub mod protocol;
 
 pub use connection::accept;
-pub use hub::Hub;
+pub use hub::{Hub, Topic, Topics};
 pub use listener::{SocketFile, bind};
 pub use path::{SOCKET_ENV, default_socket_path};
 

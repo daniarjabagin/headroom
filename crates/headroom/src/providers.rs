@@ -87,7 +87,7 @@ fn secret_bus(globals: &Globals) -> SecretBus {
 
 #[cfg(not(target_os = "linux"))]
 fn secret_bus(_globals: &Globals) -> SecretBus {
-    SecretBus::Disabled
+    SecretBus::Platform
 }
 
 #[cfg(test)]
