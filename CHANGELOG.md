@@ -6,6 +6,12 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+### Project
+
+- **Community files:** issue forms for bugs, feature requests and new providers, a pull request
+  checklist, a security policy with private vulnerability reporting, a code of conduct and a small
+  set of labels, including `good first issue`.
+
 ## [0.4.1] - 2026-09-24
 
 ### Added

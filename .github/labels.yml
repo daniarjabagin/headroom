@@ -1,0 +1,33 @@
+- name: bug
+  color: "E5484D"
+  description: Something is broken or shows a wrong number
+- name: enhancement
+  color: "A9B5FF"
+  description: A new feature or an improvement
+- name: provider
+  color: "7C8BF2"
+  description: A new provider or a change to an existing one
+- name: gnome
+  color: "4A86CF"
+  description: GNOME Shell extension
+- name: plasma
+  color: "1D99F3"
+  description: KDE Plasma widget
+- name: macos
+  color: "F0F0ED"
+  description: macOS menu-bar app
+- name: tray
+  color: "C5CCFF"
+  description: Waybar and other trays or panels
+- name: docs
+  color: "151617"
+  description: Documentation
+- name: good first issue
+  color: "3FB27F"
+  description: A small, well-described task for a first contribution
+- name: help wanted
+  color: "F5A623"
+  description: The maintainer would welcome a pull request
+- name: question
+  color: "8B8D98"
+  description: Needs more information or a discussion first

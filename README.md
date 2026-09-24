@@ -403,6 +403,11 @@ the engineering rules (no floats for money or tokens, typed errors, small functi
 tests) and how to run and test every part, from the daemon to the GNOME extension, the Plasma widget
 and the macOS app.
 
+**Community:** ask questions in [Discussions](https://github.com/daniarjabagin/headroom/discussions),
+report bugs or request providers with the [issue forms](https://github.com/daniarjabagin/headroom/issues/new/choose),
+report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 The source code is licensed under the [MIT license](LICENSE) © 2026 Daniar Jabagin.

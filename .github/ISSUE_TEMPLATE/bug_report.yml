@@ -1,0 +1,89 @@
+name: Bug report
+description: Something shows the wrong number, looks broken or does not work.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The more precise the report, the faster it gets fixed.
+
+        **Never paste tokens, API keys, cookies or credential files.** Remove emails and account names from any output you share.
+        Security problems go to the [security policy](https://github.com/daniarjabagin/headroom/security/policy), not here.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Where do you see the problem?
+      options:
+        - GNOME Shell extension
+        - KDE Plasma widget
+        - macOS app
+        - Waybar
+        - Other tray or panel
+        - CLI only
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Headroom version
+      description: The output of `headroom --version`.
+      placeholder: headroom 0.4.1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: System
+      description: Distribution and desktop version, or the macOS version.
+      placeholder: Fedora 44, GNOME 50, Wayland
+    validations:
+      required: true
+  - type: input
+    id: providers
+    attributes:
+      label: Provider(s)
+      description: Which providers are affected? `headroom providers` lists them.
+      placeholder: Codex, Claude
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: If a number is wrong, what do the provider's own page or CLI show?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `headroom status --json`
+      description: |
+        Only the providers that matter. **Replace emails and account names with placeholders before pasting.**
+        The output never contains tokens; if you see anything that looks like one, leave it out and mention it.
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Daemon log
+      description: |
+        Linux: `journalctl --user -u headroom -n 100`. macOS: the end of `~/Library/Logs/Headroom/daemon.log`.
+        Check it for emails and account names first.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag images here. Crop out anything personal.

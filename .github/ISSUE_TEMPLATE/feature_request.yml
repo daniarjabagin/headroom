@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an improvement to Headroom.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Headroom stays small on purpose, so the problem behind a request matters more than the exact solution.
+        Missing a provider? Use the **New provider** form instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How should it work? Sketches and screenshots are welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: surfaces
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - GNOME Shell extension
+        - KDE Plasma widget
+        - macOS app
+        - Waybar
+        - CLI
+        - Daemon or providers
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this myself.
