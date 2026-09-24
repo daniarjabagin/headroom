@@ -13,6 +13,12 @@ All notable changes to Headroom are documented here. The format is based on
   place), explains that Claude Code and Codex CLI accounts are found automatically and others are
   added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
   Homebrew cask's caveats now say to start the app with `open -a Headroom`.
+- **Combine accounts of the same provider.** The new `display.combine_accounts` setting (off by
+  default) makes the daemon publish a `combined` list in the state: for every provider with two or
+  more signed-in, visible accounts it sums each window across the accounts (capacity 100 % per
+  account, earliest reset, per-account segments) and computes one pace and tone for the total. The
+  headline then shows the combined window, and a pin on any grouped account resolves to it. Accounts
+  stay in `accounts` unchanged and notifications remain per account.
 
 ### Security
 

@@ -22,6 +22,8 @@ pub struct StatePayload {
     pub display: DisplaySettings,
     pub headline: Option<Headline>,
     pub accounts: Vec<AccountView>,
+    #[serde(default)]
+    pub combined: Vec<CombinedView>,
     pub usage: Vec<UsageView>,
     pub spend: SpendView,
 }
@@ -40,12 +42,20 @@ pub struct Headline {
     pub account_id: String,
     pub provider: ProviderId,
     pub provider_name: String,
-    pub account_label: String,
+    pub account_label: Option<String>,
     pub window: String,
     pub window_label: String,
     pub used_percent: f64,
     pub remaining_percent: f64,
     pub tone: Tone,
+    #[serde(default)]
+    pub combined: bool,
+    #[serde(default = "single_account")]
+    pub account_count: usize,
+}
+
+fn single_account() -> usize {
+    1
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -66,6 +76,16 @@ pub struct AccountView {
     pub balances: Vec<BalanceView>,
     pub notices: Vec<NoticeView>,
     pub usage_home: String,
+}
+
+impl AccountView {
+    #[must_use]
+    pub fn display_label(&self) -> String {
+        self.label
+            .clone()
+            .or_else(|| self.email.clone())
+            .unwrap_or_else(|| self.provider_name.clone())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,6 +133,45 @@ pub struct PaceView {
     pub projected_percent: Option<f64>,
     pub spare_percent: Option<f64>,
     pub runs_out_at: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CombinedView {
+    pub provider: ProviderId,
+    pub provider_name: String,
+    pub account_ids: Vec<String>,
+    pub accounts: Vec<CombinedAccountView>,
+    pub windows: Vec<CombinedWindowView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CombinedAccountView {
+    pub account_id: String,
+    pub label: String,
+    pub plan: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CombinedWindowView {
+    pub id: String,
+    pub label: String,
+    pub capacity_percent: u32,
+    pub remaining_percent: f64,
+    pub used_percent: f64,
+    pub resets_at: Option<Timestamp>,
+    pub tone: Tone,
+    pub pace: PaceView,
+    pub segments: Vec<SegmentView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SegmentView {
+    pub account_id: String,
+    pub label: String,
+    pub remaining_percent: f64,
+    pub used_percent: f64,
+    pub resets_at: Option<Timestamp>,
+    pub tone: Tone,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
