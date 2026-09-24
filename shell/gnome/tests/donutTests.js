@@ -6,6 +6,7 @@ import {
     START_ANGLE,
     visibleFractions,
 } from '../src/donutGeometry.js';
+import { bodyKey, bodyKind, ringSlices, showsTokenLine } from '../src/spendShape.js';
 import { check } from './check.js';
 
 const SIZE = 104;
@@ -83,8 +84,35 @@ function testSectors() {
     check('sliver too thin to draw', sectorPath(GEOMETRY, { index: 0, start: 0, end: 0.01, gap: true }), null);
 }
 
+function spendPeriod(...rows) {
+    return {
+        costMicros: rows.reduce((total, [, cost]) => total + cost, 0),
+        providers: rows.map(([provider, costMicros, totalTokens]) => ({ provider, costMicros, totalTokens })),
+    };
+}
+
+function testSpendShape() {
+    const single = spendPeriod(['claude', 4_050_000, 1_203_448]);
+    check('single provider draws the ring', bodyKind(single), 'ring');
+    check('single provider is one full slice', ringSlices(single), [{ value: 4_050_000, series: 'claude' }]);
+    check('single provider ring is whole', visibleFractions(ringSlices(single).map(slice => slice.value)), [1]);
+    check('single provider keeps its tokens', showsTokenLine(single), true);
+    const pair = spendPeriod(['codex', 14_370_000, 4_812_000], ['claude', 4_050_000, 1_203_448]);
+    check('several providers draw the ring', bodyKind(pair), 'ring');
+    check(
+        'slices follow legend order',
+        ringSlices(pair).map(slice => slice.series),
+        ['codex', 'claude']
+    );
+    check('several providers leave tokens to tooltips', showsTokenLine(pair), false);
+    check('nothing spent is empty', bodyKind(spendPeriod()), 'empty');
+    check('body rebuilds when a provider joins', bodyKey(single) === bodyKey(pair), false);
+    check('body kept for the same providers', bodyKey(single), bodyKey(spendPeriod(['claude', 1, 1])));
+}
+
 export function testDonut() {
     testFractions();
     testSegments();
     testSectors();
+    testSpendShape();
 }

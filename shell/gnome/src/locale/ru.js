@@ -87,15 +87,15 @@ export const RU = {
     'Last updated {ago}': 'Обновлено {ago}',
     'Refresh failed': 'Не удалось обновить',
     Retry: 'Повторить',
-    Settings: 'Настройки',
+    'Retrying…': 'Повторяем…',
+    'Sign in…': 'Войти…',
     'Signed out of {provider}': 'Выполнен выход из {provider}',
-    'Sign in again, then Retry': 'Войдите снова и нажмите «Повторить»',
+    'Sign in again through Headroom (Preferences → Accounts → Add account), or remove the account there.':
+        'Войдите снова через Headroom (Параметры → Аккаунты → Добавить аккаунт) или удалите там этот аккаунт.',
     "Couldn't refresh {provider}": 'Не удалось обновить {provider}',
     'No active subscription': 'Подписка неактивна',
     "Limits aren't available for this account. Renew the plan or sign in with another account.":
         'Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт.',
-    dollars: 'USD',
-    tokens: 'токенов',
     'No usage in this period': 'За этот период расходов нет',
     'Total Spend': 'Всего потрачено',
     'Some models have no public price yet.': 'У некоторых моделей пока нет публичной цены.',
@@ -119,6 +119,7 @@ export const RU = {
     'Move down': 'Ниже',
     'Remove from Headroom': 'Удалить из Headroom',
     'Deletes the sign-in Headroom created for this account': 'Удаляет вход, созданный Headroom для этого аккаунта',
+    'Stops showing this account. Its CLI stays signed in.': 'Аккаунт перестанет отображаться. Вход в CLI сохранится.',
     Remove: 'Удалить',
     'Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.':
         'Перетащите, чтобы изменить порядок. Скрытые аккаунты продолжают обновляться, но не появляются на панели и в уведомлениях.',
@@ -132,6 +133,8 @@ export const RU = {
     'Remove {name}?': 'Удалить «{name}»?',
     'Headroom deletes the sign-in it created for this account. The account itself is not affected.':
         'Headroom удалит вход, который создал для этого аккаунта. Сам аккаунт не пострадает.',
+    'Headroom will stop showing this account. The {provider} CLI stays signed in; you can sign in again through Headroom.':
+        'Headroom перестанет показывать этот аккаунт. Вход в CLI {provider} сохранится; войти снова можно через Headroom.',
     Cancel: 'Отмена',
     'Account removed': 'Аккаунт удалён',
     'Add {provider} Account': 'Новый аккаунт {provider}',
@@ -228,7 +231,8 @@ export const RU = {
         'Headroom проверит ключ в {provider} и сохранит его в связке ключей. Ключ не покидает этот компьютер.',
     'Headroom finds this account on its own.': 'Headroom находит этот аккаунт сам.',
     Rescan: 'Искать снова',
-    'Already set up? Rescan to look for it now.': 'Уже настроили? Запустите поиск, чтобы найти его сейчас.',
+    'Already set up, or removed it earlier? Rescan to find it again.':
+        'Уже настроили или удалили раньше? Запустите поиск, чтобы найти его снова.',
     'Looking for accounts…': 'Ищем аккаунты…',
     'Scan finished. Accounts that were found appear in the list.':
         'Поиск завершён. Найденные аккаунты появятся в списке.',

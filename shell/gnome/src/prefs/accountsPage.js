@@ -8,6 +8,17 @@ import { AddAccountDialog } from './addAccountDialog.js';
 import { ProgressProcess } from './cli.js';
 import { RowDragger } from './rowDragger.js';
 
+function removalBody(account) {
+    if (account.owner === 'headroom')
+        return _('Headroom deletes the sign-in it created for this account. The account itself is not affected.');
+    return fill(
+        _(
+            'Headroom will stop showing this account. The {provider} CLI stays signed in; you can sign in again through Headroom.'
+        ),
+        { provider: account.providerName }
+    );
+}
+
 export class AccountsPage {
     constructor({ window, dir, client }) {
         this._window = window;
@@ -98,7 +109,7 @@ export class AccountsPage {
             dir: this._dir,
             providers: this._client.providers ?? [],
             providersError: this._client.providersError,
-            onRescan: () => this._client.rescan(),
+            onRestore: provider => this._client.restoreAccounts(provider),
         }).present(this._window);
     }
 
@@ -106,7 +117,7 @@ export class AccountsPage {
         const name = accountName(account);
         const dialog = new Adw.AlertDialog({
             heading: fill(_('Remove {name}?'), { name }),
-            body: _('Headroom deletes the sign-in it created for this account. The account itself is not affected.'),
+            body: removalBody(account),
         });
         dialog.add_response('cancel', _('Cancel'));
         dialog.add_response('remove', _('Remove'));

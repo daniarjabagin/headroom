@@ -1,14 +1,10 @@
-.headroom-card {
-    transition-duration: 150ms;
-}
-
-.headroom-card:hover {
-    background-color: var(--card-hover);
-}
-
 .headroom-trend-slot {
     width: 4px;
     height: 18px;
+}
+
+.headroom-trend-bar {
+    transition-duration: 180ms;
 }
 
 .headroom-trend-slot:hover .headroom-trend-bar {
@@ -16,15 +12,8 @@
     background-color: st-lighten(-st-accent-color, 12%);
 }
 
-.headroom-caret:active,
-.headroom-segment:active,
-.headroom-footer-link:active,
-.headroom-hover-chip:active {
-    background-color: var(--chip);
-}
-
-.headroom-icon-button:active {
-    background-color: var(--chip);
+.headroom-caret:active {
+    background-color: var(--pressed);
 }
 
 .headroom-primary-button:active {
@@ -34,7 +23,10 @@
 
 .headroom-footer-link {
     border-radius: 4px;
-    transition-duration: 120ms;
+}
+
+.headroom-footer-link .headroom-footer-text {
+    transition-duration: 180ms;
 }
 
 .headroom-header-spinner.static {
@@ -95,10 +87,6 @@
     background-color: var(--glass-card);
 }
 
-.headroom-translucent .headroom-card:hover {
-    background-color: var(--glass-card-hover);
-}
-
 .headroom-translucent .headroom-footer {
     background-color: var(--glass-footer);
 }
@@ -116,7 +104,7 @@
 .headroom-translucent .headroom-reading.dim,
 .headroom-translucent .headroom-forecast,
 .headroom-translucent .headroom-footer-text,
-.headroom-translucent .headroom-stat-caption,
+.headroom-translucent .headroom-legend-tokens,
 .headroom-translucent .headroom-segment,
 .headroom-translucent .headroom-caret-icon,
 .headroom-translucent .headroom-info-icon,
@@ -145,4 +133,16 @@
 
 .headroom-translucent .headroom-refresh-button.failed {
     color: var(--crit);
+}
+
+.headroom-reduced-motion .headroom-toggle,
+.headroom-reduced-motion .headroom-hover-chip,
+.headroom-reduced-motion .headroom-caret,
+.headroom-reduced-motion .headroom-icon-button,
+.headroom-reduced-motion .headroom-small-button,
+.headroom-reduced-motion .headroom-segment,
+.headroom-reduced-motion .headroom-primary-button,
+.headroom-reduced-motion .headroom-trend-bar,
+.headroom-reduced-motion .headroom-footer-text {
+    transition-duration: 0ms;
 }

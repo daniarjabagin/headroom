@@ -64,7 +64,7 @@
     color: var(--text);
     font-size: 7.5pt;
     font-weight: 600;
-    transition-duration: 120ms;
+    transition-duration: 180ms;
 }
 
 .headroom-small-button:hover {
@@ -75,12 +75,45 @@
     background-color: var(--chip);
 }
 
+.headroom-small-button:insensitive {
+    color: var(--text-secondary);
+    background-color: var(--control);
+}
+
+.headroom-small-button.primary {
+    border-color: transparent;
+    background-color: var(--accent);
+    background-color: -st-accent-color;
+    color: var(--accent-fg);
+    color: -st-accent-fg-color;
+}
+
+.headroom-small-button.primary:hover {
+    background-color: var(--accent);
+    background-color: st-lighten(-st-accent-color, 6%);
+}
+
+.headroom-small-button.primary:active {
+    background-color: var(--accent);
+    background-color: st-darken(-st-accent-color, 8%);
+}
+
+.headroom-button-content {
+    spacing: 4px;
+}
+
+.headroom-retry-spinner.static {
+    icon-size: 10px;
+    color: var(--text-secondary);
+}
+
 .headroom-spend-card {
-    padding: 12px 14px;
+    padding: 12px 8px 12px 14px;
     spacing: 12px;
 }
 
 .headroom-segmented {
+    margin-right: 6px;
     padding: 3px;
     spacing: 2px;
     border-radius: 999px;
@@ -93,7 +126,7 @@
     font-size: 8.25pt;
     font-weight: 500;
     color: var(--text-secondary);
-    transition-duration: 120ms;
+    transition-duration: 180ms;
 }
 
 .headroom-segment:hover {
@@ -108,7 +141,7 @@
 }
 
 .headroom-spend-body {
-    spacing: 14px;
+    spacing: 8px;
 }
 
 .headroom-donut,
@@ -124,7 +157,12 @@
 }
 
 .headroom-legend {
-    spacing: 7px;
+    spacing: 1px;
+}
+
+.headroom-legend-entry {
+    padding: 3px 6px;
+    spacing: 1px;
 }
 
 .headroom-legend-row {
@@ -148,21 +186,8 @@
     color: var(--text);
 }
 
-.headroom-spend-stats {
-    spacing: 12px;
-}
-
-.headroom-stat {
-    spacing: 2px;
-}
-
-.headroom-stat-value {
-    font-size: 10.5pt;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.headroom-stat-caption {
+.headroom-legend-tokens {
+    margin-left: 14px;
     font-size: 8.25pt;
     color: var(--text-secondary);
 }
@@ -205,6 +230,7 @@
 
 .headroom-primary-button {
     margin-top: 4px;
+    transition-duration: 180ms;
     padding: 5px 14px;
     border-radius: 999px;
     background-color: var(--accent);

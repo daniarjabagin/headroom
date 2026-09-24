@@ -1,4 +1,4 @@
-import { lacksSubscription, subscriptionNote } from '../src/accountStatus.js';
+import { isRetrying, isSignedOut, lacksSubscription, subscriptionNote } from '../src/accountStatus.js';
 import { isRefreshing, parseState } from '../src/state.js';
 import { check } from './check.js';
 
@@ -27,6 +27,30 @@ function testNoSubscription() {
     check('other errors keep limits', lacksSubscription(failing), false);
 }
 
+function signedOut(status, kind) {
+    return { id: 'grok:6d5c4b3a2f1e', provider: 'grok', status, error: { kind, message: 'x' }, windows: [] };
+}
+
+function testSignedOut() {
+    const accounts = stateWith([
+        signedOut('signed_out', 'sign_in_expired'),
+        signedOut('refreshing', 'sign_in_expired'),
+        signedOut('refreshing', 'not_signed_in'),
+        signedOut('refreshing', 'network'),
+        signedOut('error', 'sign_in_expired'),
+    ]).accounts;
+    check(
+        'signed out, also while retrying',
+        accounts.map(account => isSignedOut(account)),
+        [true, true, true, false, false]
+    );
+    check(
+        'retrying only while refreshing',
+        accounts.map(account => isRetrying(account)),
+        [false, true, true, true, false]
+    );
+}
+
 function testSubscriptionNote() {
     const note = message => subscriptionNote({ kind: 'no_subscription', message });
     check('detail kept', note('ChatGPT Plus ended on Sep 20'), 'ChatGPT Plus ended on Sep 20');
@@ -42,6 +66,7 @@ function testRefreshing() {
 
 export function testStatus() {
     testNoSubscription();
+    testSignedOut();
     testSubscriptionNote();
     testRefreshing();
 }

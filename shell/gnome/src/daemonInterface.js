@@ -17,6 +17,12 @@ const INTERFACE_XML = `
     </method>
     <method name="RefreshNow"/>
     <method name="Rescan"/>
+    <method name="RestoreAccounts">
+      <arg type="s" name="provider" direction="in"/>
+    </method>
+    <method name="DismissAccount">
+      <arg type="s" name="account_id" direction="in"/>
+    </method>
     <method name="GetSettings">
       <arg type="s" name="settings" direction="out"/>
     </method>

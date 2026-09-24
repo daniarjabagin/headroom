@@ -8,9 +8,9 @@ const CONTENT_WIDTH = 460;
 const CONTENT_HEIGHT = 600;
 
 export class AddAccountDialog {
-    constructor({ dir, providers, providersError, onRescan }) {
+    constructor({ dir, providers, providersError, onRestore }) {
         this._dir = dir;
-        this._onRescan = onRescan;
+        this._onRestore = onRestore;
         this._flows = new Map();
         this.dialog = new Adw.Dialog({ content_width: CONTENT_WIDTH, content_height: CONTENT_HEIGHT });
         this._navigation = new Adw.NavigationView();
@@ -48,7 +48,7 @@ export class AddAccountDialog {
         const onClose = () => this.dialog.close();
         if (method.kind === 'api_key') return new ApiKeyPage({ dir: this._dir, provider, method, onClose });
         if (method.kind === 'auto_detect')
-            return new AutoDetectPage({ dir: this._dir, provider, method, onRescan: this._onRescan });
+            return new AutoDetectPage({ dir: this._dir, provider, method, onRestore: this._onRestore });
         return new CliLoginPage({ dir: this._dir, provider, method, onClose });
     }
 

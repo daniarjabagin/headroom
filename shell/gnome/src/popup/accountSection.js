@@ -1,34 +1,34 @@
-import { lacksSubscription, subscriptionNote } from '../accountStatus.js';
+import { isRetrying, isSignedOut, lacksSubscription, subscriptionNote } from '../accountStatus.js';
 import { _, fill } from '../i18n.js';
 import { column } from '../widgets.js';
 import { AccountHeader, failedOffline } from './accountHeader.js';
 import { Expander } from './expander.js';
-import { noticeRow } from './notice.js';
+import { noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
 import { skeletonRows } from './skeleton.js';
 import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
 
 const SKELETON_ROWS = 2;
 
-function signedOutNotice(ctx, account) {
-    const actions = [{ label: _('Retry'), run: () => ctx.actions.refresh(account.id) }];
-    if (account.owner === 'headroom')
-        actions.unshift({ label: _('Settings'), run: () => ctx.actions.openPreferences() });
+function signedOutNotice(ctx, account, retry) {
     return noticeRow({
         kind: 'signin',
         title: fill(_('Signed out of {provider}'), { provider: account.providerName }),
-        detail: account.error?.message ?? _('Sign in again, then Retry'),
-        actions,
+        detail: _(
+            'Sign in again through Headroom (Preferences → Accounts → Add account), or remove the account there.'
+        ),
+        note: account.error?.message ?? null,
+        actions: [{ label: _('Sign in…'), run: () => ctx.actions.openPreferences(), primary: true }, retry],
     });
 }
 
-function noSubscriptionNotice(ctx, account) {
+function noSubscriptionNotice(account, retry) {
     return noticeRow({
         kind: 'warning',
         title: _('No active subscription'),
         detail: _("Limits aren't available for this account. Renew the plan or sign in with another account."),
         note: subscriptionNote(account.error),
-        actions: [{ label: _('Retry'), run: () => ctx.actions.refresh(account.id) }],
+        actions: [retry],
     });
 }
 
@@ -45,9 +45,17 @@ function showsErrorNotice(ctx, account) {
     return account.status === 'error' && !failedOffline(ctx, account);
 }
 
+function retryButton(ctx, account) {
+    const retry = new RetryButton(ctx.motion, () => ctx.actions.refresh(account.id));
+    retry.setBusy(isRetrying(account));
+    return retry;
+}
+
+function blockingNotice(ctx, account, retry) {
+    return isSignedOut(account) ? signedOutNotice(ctx, account, retry) : noSubscriptionNotice(account, retry);
+}
+
 function noticeRows(ctx, account) {
-    if (account.status === 'signed_out') return [signedOutNotice(ctx, account)];
-    if (lacksSubscription(account)) return [noSubscriptionNotice(ctx, account)];
     const rows = account.notices.map(notice =>
         noticeRow({ kind: notice.tone === 'critical' ? 'error' : 'warning', title: notice.text })
     );
@@ -55,8 +63,8 @@ function noticeRows(ctx, account) {
     return rows;
 }
 
-function showsLimits(account) {
-    return account.status !== 'signed_out' && !lacksSubscription(account);
+function isBlocked(account) {
+    return isSignedOut(account) || lacksSubscription(account);
 }
 
 function shownWindows(account) {
@@ -81,6 +89,7 @@ export class AccountSection {
         this._rows = [];
         this._trend = null;
         this._extras = null;
+        this._retry = null;
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
         this._build(account, showName);
     }
@@ -100,6 +109,7 @@ export class AccountSection {
     update(account) {
         this._account = account;
         this._header.update(account);
+        this._retry?.setBusy(isRetrying(account));
         shownWindows(account).forEach((window, index) => this._rows[index]?.update(window));
         if (account.usage) this._trend?.update(account.usage);
         this._extras?.update(account);
@@ -126,7 +136,7 @@ export class AccountSection {
         return {
             windows: shownWindows(account).map(window => window.id),
             skeleton: awaitingFirstData(account),
-            signedOut: account.status === 'signed_out',
+            signedOut: isSignedOut(account),
             noSubscription: lacksSubscription(account) ? subscriptionNote(account.error) : false,
             errorNotice: showsErrorNotice(ctx, account) ? account.error : null,
             notices: account.notices,
@@ -145,11 +155,21 @@ export class AccountSection {
         this._shapeKey = JSON.stringify(this._shape(account));
         this._header = new AccountHeader(this._ctx, account, showName);
         this.actor.add_child(this._header.actor);
-        const card = column({ style_class: 'headroom-card', x_expand: true, reactive: true, track_hover: true });
-        for (const notice of noticeRows(this._ctx, account)) card.add_child(notice);
-        if (showsLimits(account)) this._addBody(card, account);
+        const card = column({ style_class: 'headroom-card', x_expand: true, reactive: true });
+        if (isBlocked(account)) this._addBlockingNotice(card, account);
+        else this._addLimits(card, account);
         card.visible = card.get_n_children() > 0;
         this.actor.add_child(card);
+    }
+
+    _addBlockingNotice(card, account) {
+        this._retry = retryButton(this._ctx, account);
+        card.add_child(blockingNotice(this._ctx, account, this._retry));
+    }
+
+    _addLimits(card, account) {
+        for (const notice of noticeRows(this._ctx, account)) card.add_child(notice);
+        this._addBody(card, account);
     }
 
     _addBody(card, account) {
