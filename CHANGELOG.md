@@ -25,6 +25,20 @@ All notable changes to Headroom are documented here. The format is based on
   with only GNOME Shell tools installed; eslint, prettier and the unit tests run in a separate job.
 - **Dependabot** keeps the pinned GitHub Actions, Cargo crates, the GNOME extension's dev tools and
   the Swift packages current, weekly and with a small limit on open pull requests.
+- **Provider requests no longer follow redirects to another origin.** A redirect is followed only
+  to the same scheme, host and port, at most five times; anything else fails the request, so API
+  keys and refresh tokens in request bodies can never be replayed to a different server. The one
+  exception is `headroom update`'s release download, which may move from `github.com` to GitHub's
+  asset host over HTTPS.
+- **A server's `Retry-After` can no longer pause a provider for days.** Waits longer than a day are
+  ignored, and rate-limit holds are capped at one hour.
+- **Grok, Kimi and Cline save a refreshed sign-in even when the fetch is cut short.** The refresh
+  and the write run to completion on their own, and each provider's requests fit inside the 30 s
+  fetch timeout, so a rotated refresh token is never lost. Kimi now also locks its credentials file
+  during a refresh and never overwrites a file that changed meanwhile.
+- **The Ollama signing key and the Antigravity CSRF token are redacted in debug output.**
+- **Antigravity uses `--extension_server_port` only when the language server owns that port,** so
+  another local process can no longer receive its CSRF token.
 
 ### Fixed
 

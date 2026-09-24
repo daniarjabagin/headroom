@@ -48,6 +48,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
 
 pub type Clock = fn() -> Timestamp;
 
+struct Usable {
+    credentials: Credentials,
+    refreshable: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct GrokProvider {
     config: GrokConfig,
@@ -83,15 +88,19 @@ impl GrokProvider {
         account: &AccountRef,
         credentials: Credentials,
         now: Timestamp,
-    ) -> Result<Credentials, ProviderError> {
+    ) -> Result<Usable, ProviderError> {
         match account.owner {
             CredentialOwner::Cli if credentials.is_expired(now) => {
                 Err(ProviderError::SignInExpired)
             }
-            CredentialOwner::Headroom if credentials.expires_soon(now) => {
-                self.refresh(account, &credentials, now).await
-            }
-            CredentialOwner::Cli | CredentialOwner::Headroom => Ok(credentials),
+            CredentialOwner::Headroom if credentials.expires_soon(now) => Ok(Usable {
+                credentials: self.refresh(account, &credentials, now).await?,
+                refreshable: false,
+            }),
+            CredentialOwner::Cli | CredentialOwner::Headroom => Ok(Usable {
+                refreshable: account.owner == CredentialOwner::Headroom,
+                credentials,
+            }),
         }
     }
 
@@ -110,11 +119,15 @@ impl GrokProvider {
     async fn billing(
         &self,
         account: &AccountRef,
-        credentials: Credentials,
+        usable: Usable,
         now: Timestamp,
     ) -> Result<(RawBilling, Credentials), ProviderError> {
+        let Usable {
+            credentials,
+            refreshable,
+        } = usable;
         match self.client.billing(&credentials.access_token).await {
-            Err(ProviderError::SignInExpired) if account.owner == CredentialOwner::Headroom => {
+            Err(ProviderError::SignInExpired) if refreshable => {
                 let fresh = self.refresh(account, &credentials, now).await?;
                 Ok((self.client.billing(&fresh.access_token).await?, fresh))
             }
@@ -153,8 +166,8 @@ impl Provider for GrokProvider {
         let credentials = load_credentials(&account.home)?;
         ensure_same_account(account, &credentials)?;
         let now = (self.clock)();
-        let credentials = self.usable(account, credentials, now).await?;
-        let (billing, credentials) = self.billing(account, credentials, now).await?;
+        let usable = self.usable(account, credentials, now).await?;
+        let (billing, credentials) = self.billing(account, usable, now).await?;
         let plan = PlanLookup::from_settings(self.client.settings(&credentials.access_token).await);
         mapper::map_limits(&billing, &plan, credentials.identity, now)
     }

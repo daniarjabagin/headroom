@@ -40,6 +40,27 @@ fn retry_after_is_honoured_with_a_default() {
 }
 
 #[test]
+fn retry_after_is_capped_at_one_hour() {
+    let far_future: Timestamp = "9999-01-01T00:00:00Z".parse().unwrap();
+    let far_wait = far_future.duration_since(ts("2026-09-23T10:00:00Z"));
+    let cases = [
+        (secs(3_599), secs(3_599)),
+        (secs(3_600), secs(3_600)),
+        (secs(3_601), RATE_LIMIT_CAP),
+        (secs(4_294_967_295), RATE_LIMIT_CAP),
+        (far_wait, RATE_LIMIT_CAP),
+    ];
+    for (retry_after, expected) in cases {
+        assert_eq!(
+            rate_limit_delay(Some(retry_after)),
+            expected,
+            "{retry_after}"
+        );
+    }
+    assert_eq!(RATE_LIMIT_CAP, SignedDuration::from_hours(1));
+}
+
+#[test]
 fn next_delay_depends_on_the_outcome() {
     let interval = secs(300);
     let limited = RefreshFailure::Provider(ProviderError::RateLimited {

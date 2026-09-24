@@ -13,7 +13,7 @@ use crate::http;
 pub const DEFAULT_API_BASE: &str = "https://ollama.com";
 const USAGE_PATH: &str = "/api/usage";
 const ME_PATH: &str = "/api/me";
-const TIMEOUT: Duration = Duration::from_secs(15);
+const TIMEOUT: Duration = Duration::from_secs(12);
 
 #[derive(Debug, Clone)]
 pub(super) struct CloudClient {

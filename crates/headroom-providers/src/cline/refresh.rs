@@ -22,7 +22,28 @@ pub(super) async fn refresh_owned(
     let refresh_token = credentials
         .refresh_token
         .as_ref()
+        .map(|token| Secret::new(token.expose().to_owned()))
         .ok_or(ProviderError::SignInExpired)?;
+    let client = client.clone();
+    let path = stored.path.to_path_buf();
+    let text = stored.text.to_owned();
+    let detached = tokio::spawn(async move {
+        let stored = Stored {
+            path: &path,
+            text: &text,
+        };
+        refresh_and_save(&client, &stored, &refresh_token).await
+    });
+    detached.await.map_err(|_| {
+        ProviderError::LocalData("the Cline sign-in refresh was interrupted".to_owned())
+    })?
+}
+
+async fn refresh_and_save(
+    client: &ClineClient,
+    stored: &Stored<'_>,
+    refresh_token: &Secret,
+) -> Result<Secret, ProviderError> {
     let tokens = client.refresh(refresh_token).await?;
     let patched = patch_credentials(stored.text, &tokens)?;
     write_back(stored, &patched)?;

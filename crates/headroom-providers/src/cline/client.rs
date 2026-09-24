@@ -13,7 +13,7 @@ use crate::http;
 const ME_PATH: &str = "/api/v1/users/me";
 const PLAN_PATH: &str = "/api/v1/users/me/plan";
 const REFRESH_PATH: &str = "/api/v1/auth/refresh";
-const TIMEOUT: Duration = Duration::from_secs(15);
+const TIMEOUT: Duration = Duration::from_secs(8);
 const MAX_ERROR_CHARS: usize = 200;
 
 #[derive(Debug, Clone)]

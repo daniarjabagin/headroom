@@ -3,6 +3,8 @@ use std::fs;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
+use headroom_core::secret::SecretString;
+
 use super::process::{self, Candidate, Rank};
 
 const MAX_SERVERS: usize = 4;
@@ -10,7 +12,7 @@ const MAX_SERVERS: usize = 4;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct LanguageServer {
     pub rank: Rank,
-    pub csrf: String,
+    pub csrf: SecretString,
     pub ports: BTreeSet<u16>,
     pub extension_port: Option<u16>,
 }
@@ -72,7 +74,9 @@ fn server_at(dir: &Path) -> Option<LanguageServer> {
         csrf,
         extension_port,
     } = process::candidate(&process::argv(&cmdline))?;
-    let ports = ports_of(dir);
+    let sockets = Sockets::of(dir);
+    let ports = sockets.listening();
+    let extension_port = extension_port.filter(|port| sockets.bound().contains(port));
     if ports.is_empty() && extension_port.is_none() {
         return None;
     }
@@ -84,16 +88,39 @@ fn server_at(dir: &Path) -> Option<LanguageServer> {
     })
 }
 
-fn ports_of(dir: &Path) -> BTreeSet<u16> {
-    let inodes = socket_inodes(&dir.join("fd"));
-    if inodes.is_empty() {
-        return BTreeSet::new();
+struct Sockets {
+    inodes: BTreeSet<u64>,
+    tables: Vec<String>,
+}
+
+impl Sockets {
+    fn of(dir: &Path) -> Sockets {
+        let inodes = socket_inodes(&dir.join("fd"));
+        let tables = if inodes.is_empty() {
+            Vec::new()
+        } else {
+            ["net/tcp", "net/tcp6"]
+                .iter()
+                .filter_map(|table| fs::read_to_string(dir.join(table)).ok())
+                .collect()
+        };
+        Sockets { inodes, tables }
     }
-    ["net/tcp", "net/tcp6"]
-        .iter()
-        .filter_map(|table| fs::read_to_string(dir.join(table)).ok())
-        .flat_map(|table| process::listening_ports(&table, &inodes))
-        .collect()
+
+    fn listening(&self) -> BTreeSet<u16> {
+        self.collect(process::listening_ports)
+    }
+
+    fn bound(&self) -> BTreeSet<u16> {
+        self.collect(process::bound_ports)
+    }
+
+    fn collect(&self, ports: fn(&str, &BTreeSet<u64>) -> BTreeSet<u16>) -> BTreeSet<u16> {
+        self.tables
+            .iter()
+            .flat_map(|table| ports(table, &self.inodes))
+            .collect()
+    }
 }
 
 fn socket_inodes(fd_dir: &Path) -> BTreeSet<u64> {

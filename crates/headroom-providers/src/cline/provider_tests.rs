@@ -1,4 +1,5 @@
 use std::fs;
+use std::time::Duration;
 
 use headroom_core::quota::BalanceAmount;
 use headroom_core::units::MicroUsd;
@@ -213,6 +214,38 @@ async fn an_expired_headroom_sign_in_is_refreshed_and_saved() {
     let saved = auth::parse_credentials(&fs::read_to_string(&file).unwrap()).unwrap();
     assert_eq!(saved.access_token.expose(), "workos:fresh.jwt.token");
     assert_eq!(saved.refresh_token.unwrap().expose(), "rotated-refresh");
+}
+
+#[tokio::test]
+async fn a_refresh_is_saved_even_when_the_fetch_is_abandoned() {
+    let home = tempfile::tempdir().unwrap();
+    let owned = owned_home(&home, "a");
+    let file = owned.join("data/settings/providers.json");
+    sign_in(&file, "usr-0000000000000001");
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/auth/refresh"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(REFRESH)
+                .set_delay(Duration::from_millis(200)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let provider = provider(&home, &server, after_expiry);
+    let account = provider.account_at(&owned).await.unwrap().unwrap();
+    let abandoned =
+        tokio::time::timeout(Duration::from_millis(50), provider.fetch_limits(&account)).await;
+    assert!(abandoned.is_err());
+    for _ in 0..300 {
+        let saved = auth::parse_credentials(&fs::read_to_string(&file).unwrap()).unwrap();
+        if saved.access_token.expose() == "workos:fresh.jwt.token" {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("the refreshed sign-in was never saved");
 }
 
 #[tokio::test]

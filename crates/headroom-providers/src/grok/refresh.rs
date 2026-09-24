@@ -20,6 +20,24 @@ pub(super) async fn refresh(
     stale: &Credentials,
     now: Timestamp,
 ) -> Result<Credentials, ProviderError> {
+    let client = client.clone();
+    let issuer = issuer.to_owned();
+    let home = home.to_path_buf();
+    let stale = stale.clone();
+    let detached =
+        tokio::spawn(async move { refresh_locked(&client, &issuer, &home, &stale, now).await });
+    detached
+        .await
+        .map_err(|_| ProviderError::LocalData("the Grok sign-in refresh was interrupted".into()))?
+}
+
+async fn refresh_locked(
+    client: &GrokClient,
+    issuer: &str,
+    home: &Path,
+    stale: &Credentials,
+    now: Timestamp,
+) -> Result<Credentials, ProviderError> {
     let _lock = lock_auth(home)?;
     let file = read_auth_file(home)?;
     let current = credentials_from(&file.document)?;

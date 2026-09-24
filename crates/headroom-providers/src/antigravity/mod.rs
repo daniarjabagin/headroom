@@ -119,7 +119,7 @@ impl AntigravityProvider {
     async fn query_language_servers(&self) -> Option<LimitsSnapshot> {
         for server in self.language_servers().await {
             for endpoint in server.endpoints() {
-                if let Some(snapshot) = self.query_endpoint(&endpoint, &server.csrf).await {
+                if let Some(snapshot) = self.query_endpoint(&endpoint, server.csrf.expose()).await {
                     return Some(snapshot);
                 }
             }
