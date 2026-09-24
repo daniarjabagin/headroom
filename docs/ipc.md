@@ -14,14 +14,21 @@ framing differs.
 | --- | --- |
 | default path (macOS) | `~/Library/Application Support/Headroom/daemon.sock` |
 | default path (Linux, `--socket` without a path) | `$XDG_RUNTIME_DIR/headroom/daemon.sock` |
-| fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>.sock` |
+| fallback when the path exceeds 103 bytes | `$TMPDIR/headroom-<uid>/daemon.sock` |
 | override | `headroom daemon --socket <path>`, clients: `HEADROOM_SOCKET=<path>` |
 | permissions | socket `0600`, parent directory created `0700` when missing (an existing directory is left as it is) |
+| lock | `daemon.lock` next to the socket (the socket path with the extension `lock`), `0600`, held with an exclusive `flock` for the daemon's lifetime |
 | framing | UTF-8 JSON-RPC 2.0, one JSON object per line terminated by `\n` |
 
-The daemon removes a stale socket file on start. If another daemon is listening on the path, the new
-one exits with "another Headroom daemon is already listening on <path>". The socket is removed on
-shutdown.
+The fallback directory `$TMPDIR/headroom-<uid>` is created `0700` when missing. The daemon and the
+CLI both refuse to use it unless it is a real directory (not a symlink) owned by the current uid with
+mode `0700` exactly, with an error such as "refusing to use /tmp/headroom-1000: its mode is 0755, not
+0700", because another user could have created it first.
+
+On start the daemon takes the lock without waiting, then removes a stale socket file. If the lock is
+held or another daemon is listening on the path, the new one exits with "another Headroom daemon is
+already listening on <path>"; two daemons started at once therefore never both clear and bind the
+socket. The socket is removed on shutdown; the lock file stays and is simply unlocked.
 
 ## Requests
 
