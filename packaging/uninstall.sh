@@ -29,6 +29,7 @@ config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 unit="$config_home/systemd/user/headroom.service"
 dbus_file="$data_home/dbus-1/services/io.github.headroom.Daemon.service"
 icon_dir="$data_home/icons/hicolor"
+receipt="$data_home/headroom/install.json"
 extension_uuid="headroom@headroom.github.io"
 
 step() {
@@ -40,8 +41,8 @@ if command -v systemctl >/dev/null 2>&1; then
     systemctl --user disable --now headroom.service 2>/dev/null || true
 fi
 
-step "Removing the unit, D-Bus activation file, app icons and binary"
-rm -f "$unit" "$dbus_file" "$bin_dir/headroom" \
+step "Removing the unit, D-Bus activation file, app icons, install receipt and binary"
+rm -f "$unit" "$dbus_file" "$bin_dir/headroom" "$receipt" \
     "$icon_dir/scalable/apps/headroom.svg" "$icon_dir/symbolic/apps/headroom-symbolic.svg"
 
 if command -v systemctl >/dev/null 2>&1; then

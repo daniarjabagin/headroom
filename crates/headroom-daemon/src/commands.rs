@@ -101,6 +101,7 @@ impl Core {
             .run(move |conn| crate::storage::settings::save(conn, &stored))
             .await?;
         self.model().settings = settings;
+        self.settings_stored();
         self.mark_changed();
         Ok(())
     }

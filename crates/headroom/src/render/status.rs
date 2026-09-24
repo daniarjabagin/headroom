@@ -34,6 +34,12 @@ pub fn render_status(state: &StatePayload, palette: Palette) -> String {
     if hidden > 0 {
         blocks.push(vec![palette.dim(&hidden_note(hidden))]);
     }
+    if let Some(update) = &state.update {
+        blocks.push(vec![format!(
+            "Headroom {} is available · {}",
+            update.version, update.command
+        )]);
+    }
     let mut out = blocks
         .iter()
         .map(|lines| lines.join("\n"))

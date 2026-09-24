@@ -7,7 +7,7 @@ mod dismiss;
 mod home;
 mod login;
 mod plan;
-mod progress;
+pub mod progress;
 mod prompt;
 mod pty;
 mod remove;

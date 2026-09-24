@@ -8,6 +8,11 @@ serves the socket in addition, which is how the socket transport is tested on Li
 Every payload (state, settings, providers) is the same JSON document the D-Bus API returns. Only the
 framing differs.
 
+The state payload also carries `update` (a newer Headroom release, see
+[Update](dbus-api.md#update)). The macOS app updates itself with Sparkle and starts its daemon with
+`headroom daemon --no-update-check`, so `update` stays `null` there and the daemon sends no update
+requests.
+
 The state payload carries `app_version`, the release of the daemon that serves the socket. A client
 that bundles its own daemon (the macOS app) compares it with its own release to notice that it is
 connected to a foreign daemon, for example one started from another install or left running across an

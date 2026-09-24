@@ -11,6 +11,7 @@ use crate::catalog::ProviderCatalog;
 use crate::clock::{Clock, SystemClock};
 use crate::error::DaemonError;
 use crate::notify::text::Locale;
+use crate::update::UpdateConfig;
 
 pub type Shutdown = Pin<Box<dyn Future<Output = ()> + Send>>;
 
@@ -38,6 +39,7 @@ pub struct DaemonConfig {
     pub bus: BusTarget,
     pub socket: Option<PathBuf>,
     pub system_locale: Locale,
+    pub updates: Option<UpdateConfig>,
     pub shutdown: Shutdown,
 }
 
@@ -61,6 +63,7 @@ impl DaemonConfig {
             #[cfg(not(target_os = "linux"))]
             socket: Some(crate::ipc::default_socket_path()?),
             system_locale: Locale::from_env(),
+            updates: None,
             shutdown,
         })
     }

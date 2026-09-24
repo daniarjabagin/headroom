@@ -5,6 +5,7 @@ use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 
 use crate::settings::DisplaySettings;
+use crate::update::InstallKind;
 
 pub const STATE_VERSION: u32 = 1;
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -17,11 +18,21 @@ pub struct StatePayload {
     pub next_refresh_at: Option<Timestamp>,
     pub last_success_at: Option<Timestamp>,
     pub offline: bool,
+    pub update: Option<UpdateView>,
     pub display: DisplaySettings,
     pub headline: Option<Headline>,
     pub accounts: Vec<AccountView>,
     pub usage: Vec<UsageView>,
     pub spend: SpendView,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateView {
+    pub version: String,
+    pub url: String,
+    pub published_at: Timestamp,
+    pub install: InstallKind,
+    pub command: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

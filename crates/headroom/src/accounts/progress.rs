@@ -35,7 +35,12 @@ impl<W: Write> JsonLines<W> {
         JsonLines { out }
     }
 
-    pub fn emit(&mut self, event: &ProgressEvent) -> Result<()> {
+    #[cfg(test)]
+    pub fn into_inner(self) -> W {
+        self.out
+    }
+
+    pub fn emit(&mut self, event: &impl Serialize) -> Result<()> {
         serde_json::to_writer(&mut self.out, event)?;
         self.out.write_all(b"\n")?;
         self.out.flush()?;
