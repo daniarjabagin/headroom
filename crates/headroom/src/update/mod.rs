@@ -1,5 +1,6 @@
 mod apply;
 mod feed;
+mod lossy;
 mod method;
 mod report;
 mod verify;
@@ -10,9 +11,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use headroom_daemon::update::{Install, LATEST_RELEASE_API, Release, UpdateConfig, Version};
 
-use crate::accounts::progress::JsonLines;
 use crate::cli::{ProgressFormat, UpdateArgs};
 use apply::Bundle;
+use lossy::LossyWriter;
 use method::Detected;
 use report::{Finished, Reporter};
 
@@ -59,18 +60,26 @@ pub async fn run(args: &UpdateArgs) -> Result<()> {
     }
     match args.progress {
         None => {
-            let mut reporter = Reporter::Text(io::stdout());
+            let mut reporter = Reporter::text(lossy_stdout(), lossy_stderr());
             let approve = |question: &str| Ok(args.yes || confirm(question)?);
             let outcome = update(&updater, approve, &mut reporter).await;
             reporter.finish(outcome)
         }
         Some(ProgressFormat::Json) => {
-            let mut reporter = Reporter::Json(JsonLines::new(io::stdout()));
+            let mut reporter = Reporter::json(lossy_stdout(), lossy_stderr());
             let approve = |_: &str| Ok(args.yes || refuse_without_yes()?);
             let outcome = update(&updater, approve, &mut reporter).await;
             reporter.finish(outcome)
         }
     }
+}
+
+fn lossy_stdout() -> LossyWriter<io::Stdout> {
+    LossyWriter::new(io::stdout())
+}
+
+fn lossy_stderr() -> LossyWriter<io::Stderr> {
+    LossyWriter::new(io::stderr())
 }
 
 async fn check(updater: &Updater<'_>) -> Result<String> {
@@ -87,10 +96,10 @@ async fn check(updater: &Updater<'_>) -> Result<String> {
     })
 }
 
-async fn update<W: Write>(
+async fn update<W: Write, E: Write>(
     updater: &Updater<'_>,
     approve: impl FnOnce(&str) -> Result<bool>,
-    reporter: &mut Reporter<W>,
+    reporter: &mut Reporter<W, E>,
 ) -> Result<Finished> {
     reporter.step("Checking for a new release…")?;
     let raw = updater.feed.release().await?;

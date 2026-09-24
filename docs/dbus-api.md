@@ -721,7 +721,8 @@ Without `--check`, `headroom update` fetches the latest release and, when it is 
 An install that is already current ends with `done` and the running version. With
 `--progress json` stdout carries one JSON object per line (the lines of `install.sh` that start with
 `==> ` become `step` events, its other output goes to stderr); the exit code is `0` only when the last
-event is `done`.
+event is `done`. When the reader closes stdout or stderr mid-update (a settings window closed), the
+remaining output is dropped and the installation still runs to the end.
 
 | event | fields | meaning |
 | --- | --- | --- |

@@ -20,6 +20,12 @@ All notable changes to Headroom are documented here. The format is based on
   `headroom accounts add` are stored under the new keyring name, so add them again. On macOS,
   delete the old app (see [docs/macos.md](docs/macos.md)).
 
+### Fixed
+
+- `headroom update --progress json` keeps installing when the window that started it closes: output
+  to a closed stdout or stderr is dropped instead of stopping the update, and the installer's own
+  output no longer goes straight to the closed pipe.
+
 ## [0.4.0] - 2026-09-24
 
 Headroom now runs on macOS too.

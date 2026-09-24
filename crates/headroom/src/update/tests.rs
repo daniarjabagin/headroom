@@ -7,9 +7,11 @@ use wiremock::matchers::path;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::*;
+use lossy::ClosedPipe;
 use method::{Receipt, ReceiptMethod};
 
 const BUNDLE: &str = "headroom-0.5.0-x86_64-linux-musl";
+const STDERR_BYTES: usize = 262_144;
 
 struct Fixture {
     server: MockServer,
@@ -57,7 +59,7 @@ impl Fixture {
         let bundle = source.join(BUNDLE);
         std::fs::create_dir_all(&bundle).unwrap();
         let script = format!(
-            "#!/usr/bin/env bash\nset -eu\necho '==> Installing the binary'\necho 'plain output'\nprintf '%s\\n' \"$@\" > '{}'\n",
+            "#!/usr/bin/env bash\nset -eu\necho '==> Installing the binary'\necho 'plain output'\nhead -c {STDERR_BYTES} /dev/zero | tr '\\0' x >&2\nprintf '%s\\n' \"$@\" > '{}'\n",
             self.args_file().display()
         );
         std::fs::write(bundle.join("install.sh"), script).unwrap();
@@ -102,25 +104,31 @@ fn gnome_only(program: &str) -> bool {
     program == "gnome-shell"
 }
 
+fn updater<'a>(fixture: &'a Fixture, current: &'a Version, detected: &'a Detected) -> Updater<'a> {
+    Updater {
+        feed: &fixture.feed,
+        current,
+        arch: "x86_64",
+        detected,
+        on_path: &gnome_only,
+    }
+}
+
 async fn run_update(
     fixture: &Fixture,
     detected: &Detected,
     approved: bool,
-) -> (Result<Finished>, String) {
+) -> (Result<Finished>, String, Vec<u8>) {
     let current: Version = "0.4.0".parse().unwrap();
-    let updater = Updater {
-        feed: &fixture.feed,
-        current: &current,
-        arch: "x86_64",
-        detected,
-        on_path: &gnome_only,
-    };
-    let mut reporter = Reporter::Json(JsonLines::new(Vec::new()));
-    let outcome = update(&updater, |_| Ok(approved), &mut reporter).await;
-    let Reporter::Json(lines) = reporter else {
-        unreachable!("the reporter is JSON");
-    };
-    (outcome, String::from_utf8(lines.into_inner()).unwrap())
+    let mut reporter = Reporter::json(Vec::new(), Vec::new());
+    let outcome = update(
+        &updater(fixture, &current, detected),
+        |_| Ok(approved),
+        &mut reporter,
+    )
+    .await;
+    let (events, diagnostics) = reporter.into_parts();
+    (outcome, String::from_utf8(events).unwrap(), diagnostics)
 }
 
 fn read_args(path: &Path) -> Option<String> {
@@ -132,7 +140,7 @@ async fn a_verified_bundle_runs_its_installer_with_the_receipt_options() {
     let fixture = Fixture::new("v0.5.0").await;
     fixture.serve_bundle(None).await;
     let detected = script_install(&["--no-plasma"]);
-    let (outcome, events) = run_update(&fixture, &detected, true).await;
+    let (outcome, events, diagnostics) = run_update(&fixture, &detected, true).await;
     let finished = outcome.unwrap();
     assert_eq!(
         finished,
@@ -155,13 +163,43 @@ async fn a_verified_bundle_runs_its_installer_with_the_receipt_options() {
         r#"{"event":"step","text":"Installing the binary"}"#,
     ];
     assert_eq!(events, expected.join("\n") + "\n");
+    let mut expected_diagnostics = b"plain output\n".to_vec();
+    expected_diagnostics.resize(expected_diagnostics.len() + STDERR_BYTES, b'x');
+    assert_eq!(diagnostics, expected_diagnostics);
+}
+
+#[tokio::test]
+async fn the_installer_finishes_after_the_progress_reader_goes_away() {
+    let fixture = Fixture::new("v0.5.0").await;
+    fixture.serve_bundle(None).await;
+    let detected = script_install(&["--no-gnome"]);
+    let current: Version = "0.4.0".parse().unwrap();
+    let mut reporter = Reporter::json(
+        LossyWriter::new(ClosedPipe::default()),
+        LossyWriter::new(ClosedPipe::default()),
+    );
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_secs(60),
+        update(
+            &updater(&fixture, &current, &detected),
+            |_| Ok(true),
+            &mut reporter,
+        ),
+    )
+    .await
+    .unwrap();
+    reporter.finish(outcome).unwrap();
+    assert_eq!(
+        read_args(&fixture.args_file()).as_deref(),
+        Some("--no-gnome\n")
+    );
 }
 
 #[tokio::test]
 async fn a_checksum_mismatch_aborts_before_installing() {
     let fixture = Fixture::new("v0.5.0").await;
     fixture.serve_bundle(Some(&"0".repeat(64))).await;
-    let (outcome, _) = run_update(&fixture, &script_install(&[]), true).await;
+    let (outcome, _, _) = run_update(&fixture, &script_install(&[]), true).await;
     let error = outcome.unwrap_err().to_string();
     assert!(
         error.starts_with("checksum mismatch for headroom-0.5.0-x86_64-linux-musl.tar.gz"),
@@ -177,7 +215,7 @@ async fn package_and_unknown_installs_are_told_what_to_do() {
         install: Install::Package(Packager::Deb),
         receipt: None,
     };
-    let (outcome, _) = run_update(&fixture, &deb, true).await;
+    let (outcome, _, _) = run_update(&fixture, &deb, true).await;
     assert_eq!(
         outcome.unwrap_err().to_string(),
         "Headroom was installed from a deb package, so it cannot update itself. \
@@ -187,7 +225,7 @@ async fn package_and_unknown_installs_are_told_what_to_do() {
         install: Install::Unknown,
         receipt: None,
     };
-    let (outcome, _) = run_update(&fixture, &unknown, true).await;
+    let (outcome, _, _) = run_update(&fixture, &unknown, true).await;
     assert!(
         outcome
             .unwrap_err()
@@ -199,7 +237,7 @@ async fn package_and_unknown_installs_are_told_what_to_do() {
 #[tokio::test]
 async fn an_up_to_date_install_downloads_nothing() {
     let fixture = Fixture::new("v0.4.0").await;
-    let (outcome, _) = run_update(&fixture, &script_install(&[]), true).await;
+    let (outcome, _, _) = run_update(&fixture, &script_install(&[]), true).await;
     assert_eq!(
         outcome.unwrap(),
         Finished {
@@ -216,7 +254,7 @@ async fn an_up_to_date_install_downloads_nothing() {
 async fn a_declined_update_changes_nothing() {
     let fixture = Fixture::new("v0.5.0").await;
     fixture.serve_bundle(None).await;
-    let (outcome, _) = run_update(&fixture, &script_install(&[]), false).await;
+    let (outcome, _, _) = run_update(&fixture, &script_install(&[]), false).await;
     assert_eq!(outcome.unwrap_err().to_string(), "update cancelled");
     assert_eq!(read_args(&fixture.args_file()), None);
 }
@@ -226,13 +264,7 @@ async fn check_compares_the_running_version_with_the_latest() {
     let fixture = Fixture::new("v0.5.0").await;
     let detected = script_install(&[]);
     let current: Version = "0.4.0".parse().unwrap();
-    let updater = Updater {
-        feed: &fixture.feed,
-        current: &current,
-        arch: "x86_64",
-        detected: &detected,
-        on_path: &gnome_only,
-    };
+    let updater = updater(&fixture, &current, &detected);
     assert_eq!(
         check(&updater).await.unwrap(),
         "Headroom 0.4.0 is installed; 0.5.0 is available (2026-10-01).\nUpdate with: headroom update"

@@ -4,8 +4,8 @@ use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
 use headroom_daemon::update::{GithubRelease, Version};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::process::{ChildStderr, ChildStdout, Command};
 
 use super::feed::GithubFeed;
 use super::report::Reporter;
@@ -13,6 +13,7 @@ use super::verify::verify;
 
 const SUMS: &str = "SHA256SUMS";
 const INSTALLER: &str = "install.sh";
+const CHUNK_BYTES: usize = 4_096;
 
 pub struct Bundle<'a> {
     pub release: &'a GithubRelease,
@@ -33,11 +34,11 @@ impl Bundle<'_> {
     }
 }
 
-pub async fn install<W: Write>(
+pub async fn install<W: Write, E: Write>(
     feed: &GithubFeed,
     bundle: &Bundle<'_>,
     options: &[String],
-    reporter: &mut Reporter<W>,
+    reporter: &mut Reporter<W, E>,
 ) -> Result<()> {
     let name = bundle.name();
     let archive_name = format!("{name}.tar.gz");
@@ -75,10 +76,10 @@ async fn unpack(dir: &Path, archive_name: &str, archive: &[u8]) -> Result<()> {
     Ok(())
 }
 
-async fn run_installer<W: Write>(
+async fn run_installer<W: Write, E: Write>(
     script: &Path,
     options: &[String],
-    reporter: &mut Reporter<W>,
+    reporter: &mut Reporter<W, E>,
 ) -> Result<()> {
     if !script.is_file() {
         bail!("the release bundle has no {INSTALLER}");
@@ -88,17 +89,39 @@ async fn run_installer<W: Write>(
         .args(options)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .context("could not run install.sh")?;
-    if let Some(stdout) = child.stdout.take() {
-        let mut lines = BufReader::new(stdout).lines();
-        while let Some(line) = lines.next_line().await? {
-            reporter.installer_line(&line)?;
-        }
-    }
+    let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
+        bail!("could not read the output of install.sh");
+    };
+    relay(stdout, stderr, reporter).await?;
     let status = child.wait().await.context("install.sh did not finish")?;
     if !status.success() {
         bail!("install.sh failed ({status})");
+    }
+    Ok(())
+}
+
+async fn relay<W: Write, E: Write>(
+    stdout: ChildStdout,
+    mut stderr: ChildStderr,
+    reporter: &mut Reporter<W, E>,
+) -> Result<()> {
+    let mut lines = BufReader::new(stdout).lines();
+    let mut chunk = [0_u8; CHUNK_BYTES];
+    let (mut stdout_open, mut stderr_open) = (true, true);
+    while stdout_open || stderr_open {
+        tokio::select! {
+            line = lines.next_line(), if stdout_open => match line? {
+                Some(line) => reporter.installer_line(&line)?,
+                None => stdout_open = false,
+            },
+            read = stderr.read(&mut chunk), if stderr_open => match read? {
+                0 => stderr_open = false,
+                count => reporter.installer_diagnostics(&chunk[..count])?,
+            },
+        }
     }
     Ok(())
 }
