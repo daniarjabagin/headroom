@@ -64,10 +64,24 @@ def add(args):
     return 0
 
 
+def dismiss(account_id):
+    from gi.repository import Gio, GLib
+
+    Gio.bus_get_sync(Gio.BusType.SESSION).call_sync(
+        "io.github.headroom.Daemon", "/io/github/headroom/Daemon", "io.github.headroom.Daemon1", "DismissAccount",
+        GLib.Variant("(s)", (account_id,)), None, Gio.DBusCallFlags.NONE, -1, None,
+    )
+
+
 def remove(args):
     emit("started", account_id=args.id)
     time.sleep(STEP_SECONDS)
-    emit("output", line=f"Removed the Headroom-owned home of {args.id}")
+    try:
+        dismiss(args.id)
+    except Exception as error:
+        emit("error", message=str(error))
+        return 1
+    emit("output", line=f"Headroom no longer shows {args.id}")
     emit("done", account_id=args.id)
     return 0
 

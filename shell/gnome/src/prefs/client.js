@@ -52,8 +52,8 @@ export class PrefsClient {
         this._connection.enqueue(proxy => proxy.SetAccountOrderAsync(ids));
     }
 
-    rescan() {
-        return this._connection.enqueue(proxy => proxy.RescanAsync());
+    restoreAccounts(provider) {
+        return this._connection.enqueue(proxy => proxy.RestoreAccountsAsync(provider));
     }
 
     _onReady(proxy) {

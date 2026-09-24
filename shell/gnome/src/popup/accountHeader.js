@@ -1,13 +1,13 @@
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
-import * as Animation from 'resource:///org/gnome/shell/ui/animation.js';
 import { lacksSubscription } from '../accountStatus.js';
 import { agoText } from '../format.js';
 import { _, fill } from '../i18n.js';
 import { animate, FAST_MS } from '../motion.js';
 import { accountTitle } from '../providers.js';
 import { label, providerIcon, row, spacer, themeIcon } from '../widgets.js';
+import { busyIndicator } from './busy.js';
 
 export function failedOffline(ctx, account) {
     return ctx.offline && account.error?.kind === 'network';
@@ -18,15 +18,6 @@ function statusKind(ctx, account) {
     if (account.status === 'stale' || (account.status === 'error' && failedOffline(ctx, account))) return 'outdated';
     if (account.status === 'error') return 'error';
     return null;
-}
-
-function busyIndicator(motion, size, styleClass) {
-    if (!motion.enabled) return themeIcon('view-refresh-symbolic', `${styleClass} static`);
-    const spinner = new Animation.Spinner(size, { animate: true });
-    spinner.add_style_class_name(styleClass);
-    spinner.y_align = Clutter.ActorAlign.CENTER;
-    spinner.play();
-    return spinner;
 }
 
 function outdatedTag(ctx, accountOf) {

@@ -90,7 +90,7 @@ export class QuotaRow {
     }
 
     _bottomLine() {
-        const bottom = row({ style_class: 'headroom-row-line' });
+        const bottom = row({ style_class: 'headroom-row-line toggles' });
         bottom.add_child(toggle(this._headline, 'reading', () => this._ctx.actions.toggleValueMode()));
         bottom.add_child(spacer());
         bottom.add_child(toggle(this._trailing, 'trailing', () => this._ctx.actions.toggleResetFormat()));

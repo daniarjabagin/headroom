@@ -12,6 +12,11 @@ function subtitleOf(account) {
     return parts.filter(Boolean).join(' · ');
 }
 
+function removeSubtitle(account) {
+    if (account.owner === 'headroom') return _('Deletes the sign-in Headroom created for this account');
+    return _('Stops showing this account. Its CLI stays signed in.');
+}
+
 function shapeOf(account) {
     return JSON.stringify([account.owner, account.windows.map(window => [window.id, window.label])]);
 }
@@ -57,8 +62,7 @@ export class AccountRow {
         for (const child of this._children) this.widget.remove(child);
         this._labelRow = this._labelEntry();
         this._windowRows = account.windows.map(window => this._windowRow(window));
-        this._children = [this._labelRow, ...this._windowRows, this._positionRow()];
-        if (account.owner === 'headroom') this._children.push(this._removeRow());
+        this._children = [this._labelRow, ...this._windowRows, this._positionRow(), this._removeRow(account)];
         for (const child of this._children) this.widget.add_row(child);
         this._shape = shapeOf(account);
     }
@@ -99,11 +103,8 @@ export class AccountRow {
         return row;
     }
 
-    _removeRow() {
-        const row = new Adw.ActionRow({
-            title: _('Remove from Headroom'),
-            subtitle: _('Deletes the sign-in Headroom created for this account'),
-        });
+    _removeRow(account) {
+        const row = new Adw.ActionRow({ title: _('Remove from Headroom'), subtitle: removeSubtitle(account) });
         const button = new Gtk.Button({ label: _('Remove'), valign: Gtk.Align.CENTER });
         button.add_css_class('destructive-action');
         button.connect('clicked', () => this._actions.onRemove(this._account));

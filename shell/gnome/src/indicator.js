@@ -22,6 +22,7 @@ const STALE_OPACITY = 140;
 const WORK_AREA_GAP = 16;
 const WINDOW_LABEL_OPACITY = 170;
 const THEME_CLASSES = ['headroom-theme-light', 'headroom-theme-dark'];
+const REDUCED_MOTION_CLASS = 'headroom-reduced-motion';
 
 function headlineAccount(state) {
     return state.accounts.find(candidate => candidate.id === state.headline.accountId) ?? null;
@@ -65,7 +66,7 @@ export const Indicator = GObject.registerClass(
                 onAvailable: () => this._setView({ kind: 'loading', state: null }),
                 onUnavailable: () => this._setView({ kind: 'unavailable', state: null }),
                 onState: json => this._onState(json),
-                onSettings: settings => (this._motion.reduced = settings.reducedMotion),
+                onSettings: settings => this._applyMotion(settings.reducedMotion),
                 onError: message => this._onError(message),
                 onOpenRequested: () => this.menu.open(),
             });
@@ -128,6 +129,12 @@ export const Indicator = GObject.registerClass(
         _setView(view) {
             this._view = view;
             this._render();
+        }
+
+        _applyMotion(reduced) {
+            this._motion.reduced = reduced;
+            if (reduced) this.menu.actor.add_style_class_name(REDUCED_MOTION_CLASS);
+            else this.menu.actor.remove_style_class_name(REDUCED_MOTION_CLASS);
         }
 
         _patchDisplay(patchFor) {

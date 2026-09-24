@@ -1,6 +1,7 @@
 import { _ } from '../i18n.js';
+import { bodyKey } from '../spendShape.js';
 import { column, label, row, spacer, textButton, themeIcon } from '../widgets.js';
-import { bodyKey, createBody } from './spendBody.js';
+import { createBody } from './spendBody.js';
 
 const PERIODS = [
     ['today', () => _('Today')],
@@ -32,12 +33,7 @@ export class SpendSection {
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
         const [headerRow, info] = header(trailing);
         ctx.tooltips.attach(info, () => this._infoText());
-        this._card = column({
-            style_class: 'headroom-card headroom-spend-card',
-            x_expand: true,
-            reactive: true,
-            track_hover: true,
-        });
+        this._card = column({ style_class: 'headroom-card headroom-spend-card', x_expand: true, reactive: true });
         this._segments = new Map();
         this._card.add_child(this._segmentedControl());
         this.actor.add_child(headerRow);

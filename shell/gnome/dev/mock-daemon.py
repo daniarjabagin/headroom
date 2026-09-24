@@ -25,6 +25,8 @@ INTERFACE_XML = f"""
     <method name="Refresh"><arg type="s" name="account_id" direction="in"/></method>
     <method name="RefreshNow"/>
     <method name="Rescan"/>
+    <method name="RestoreAccounts"><arg type="s" name="provider" direction="in"/></method>
+    <method name="DismissAccount"><arg type="s" name="account_id" direction="in"/></method>
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
     <method name="SetSettings"><arg type="s" name="json" direction="in"/></method>
     <method name="UpdateSettings"><arg type="s" name="patch" direction="in"/></method>
@@ -87,6 +89,7 @@ class MockDaemon:
         self.scenario = scenario
         self.interval = interval
         self.hidden = set()
+        self.dismissed = set()
         self.labels = {}
         self.order = []
         self.settings = copy.deepcopy(DEFAULT_SETTINGS)
@@ -94,8 +97,11 @@ class MockDaemon:
         self.refreshed_at = None
         self.connection = None
 
+    def shown(self, state):
+        return [entry for entry in state.get("accounts", []) if entry["id"] not in self.dismissed]
+
     def account_ids(self):
-        return [account["id"] for account in build(self.scenario).get("accounts", [])]
+        return [account["id"] for account in self.shown(build(self.scenario))]
 
     def decorate(self, account):
         hidden_windows = self.settings["display"]["hidden_windows"].get(account["id"], [])
@@ -103,17 +109,18 @@ class MockDaemon:
         account["label"] = self.labels.get(account["id"], account["label"])
         for window in account["windows"]:
             window["hidden"] = window["id"] in hidden_windows
-        if account["status"] == "signed_out":
-            return
         if account["id"] in self.refreshing:
             account["status"] = "refreshing"
-        elif self.refreshed_at and account["status"] == "stale":
+        if account["status"] == "signed_out":
+            return
+        if self.refreshed_at and account["status"] == "stale":
             account["status"] = "fresh"
         if self.refreshed_at and account["status"] == "fresh":
             account["updated_at"] = iso(self.refreshed_at)
 
     def state(self):
         state = build(self.scenario)
+        state["accounts"] = self.shown(state)
         preferred = state["headline"] and (state["headline"]["account_id"], state["headline"]["window"])
         for account in state.get("accounts", []):
             self.decorate(account)
@@ -156,6 +163,14 @@ class MockDaemon:
         rest = [account_id for account_id in (self.order or self.account_ids()) if account_id not in ids]
         self.order = list(ids) + rest
 
+    def dismiss(self, account_id):
+        if account_id not in self.account_ids():
+            raise ValueError(f"unknown account {account_id}")
+        self.dismissed.add(account_id)
+
+    def restore(self, provider):
+        self.dismissed = {account_id for account_id in self.dismissed if not account_id.startswith(f"{provider}:")}
+
     def set_settings(self, text):
         raw = json.loads(text)
         if not isinstance(raw, dict):
@@ -185,6 +200,10 @@ class MockDaemon:
             self.set_settings(args[0])
         elif method == "UpdateSettings":
             self.update_settings(args[0])
+        elif method == "DismissAccount":
+            self.dismiss(args[0])
+        elif method == "RestoreAccounts":
+            self.restore(args[0])
         self.emit()
 
     def on_method(self, _connection, _sender, _path, _interface, method, parameters, invocation):
