@@ -14,6 +14,15 @@ public enum NoticeTranslation {
             "Ollama пока не сообщает лимиты Cloud для этого аккаунта.",
         "Could not read the Ollama plan; the usage above is up to date.":
             "Не удалось прочитать тариф Ollama; использование выше актуально.",
+        "Kilo credits are used up": "Кредиты Kilo закончились",
+        "Unlimited credits": "Безлимитные кредиты",
+        "No monthly credits on this plan": "В этом тарифе нет ежемесячных кредитов",
+        "Balance is not enough for API calls": "Баланса не хватает для вызовов API",
+        "Balance is used up; API calls fail until you top up":
+            "Баланс исчерпан — вызовы API не пройдут, пока вы не пополните счёт",
+        "Balance is used up; API requests fail until you top up":
+            "Баланс исчерпан — запросы к API не пройдут, пока вы не пополните счёт",
+        "Cash balance is negative: the account is in debt": "Денежный баланс отрицательный — на счёте долг",
         "Antigravity reports no quota pools for this account.": "Antigravity не сообщает лимиты для этого аккаунта.",
         "The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.":
             "Связка ключей со входом в Antigravity заблокирована. Разблокируйте её или запустите Antigravity.",

@@ -25,9 +25,39 @@ final class PresentationStringsTests: XCTestCase {
         XCTAssertEqual(translate("Weekly limit shared with Codex Cloud"), "Недельный лимит общий с Codex Cloud")
         XCTAssertEqual(translate("Max 5x renews on 2026-10-01 (UTC)."), "Max 5x продлевается 2026-10-01 (UTC).")
         XCTAssertEqual(translate("Pro ends on 2026-10-01 (UTC)."), "Pro заканчивается 2026-10-01 (UTC).")
+        XCTAssertEqual(translate("Kilo credits are used up"), "Кредиты Kilo закончились")
+        XCTAssertEqual(translate("Unlimited credits"), "Безлимитные кредиты")
+        XCTAssertEqual(translate("No monthly credits on this plan"), "В этом тарифе нет ежемесячных кредитов")
+        XCTAssertEqual(translate("Balance is not enough for API calls"), "Баланса не хватает для вызовов API")
+        XCTAssertEqual(
+            translate("Balance is used up; API calls fail until you top up"),
+            "Баланс исчерпан — вызовы API не пройдут, пока вы не пополните счёт")
+        XCTAssertEqual(
+            translate("Balance is used up; API requests fail until you top up"),
+            "Баланс исчерпан — запросы к API не пройдут, пока вы не пополните счёт")
+        XCTAssertEqual(
+            translate("Cash balance is negative: the account is in debt"),
+            "Денежный баланс отрицательный — на счёте долг")
         XCTAssertEqual(translate("Something new"), "Something new")
         XCTAssertEqual(
             NoticeTranslation.translate("No Cline credits left.", language: .en), "No Cline credits left.")
+    }
+
+    func testLabelTranslation() {
+        let translate = { (label: String) in LabelTranslation.translate(label, language: .ru) }
+        let labels = [
+            "Balance", "Vouchers", "Cash", "Credit balance", "Organization credits", "Point balance", "Bonus credits",
+            "Monthly credits", "Credits", "Extra usage",
+        ]
+        XCTAssertEqual(
+            labels.map(translate),
+            [
+                "Баланс", "Ваучеры", "Денежный баланс", "Кредиты", "Кредиты организации", "Баланс баллов",
+                "Бонусные кредиты", "Кредиты на месяц", "Кредиты", "Доп. использование",
+            ])
+        XCTAssertEqual(translate("Spent today"), "Spent today")
+        XCTAssertEqual(LabelTranslation.translate("Organization credits", language: .en), "Organization credits")
+        XCTAssertEqual(Build.russian.windowLabel(id: "monthly", label: "Monthly credits"), "Кредиты на месяц")
     }
 
     private func placeholders(_ text: String) -> Set<String> {

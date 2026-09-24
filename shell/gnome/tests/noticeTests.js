@@ -26,6 +26,33 @@ function testRussianTexts() {
         noticeText('Cline Pro ends on 2026-10-01 (UTC).'),
         'Cline Pro заканчивается 2026-10-01 (UTC).'
     );
+    check('ru kilo used up', noticeText('Kilo credits are used up'), 'Кредиты Kilo закончились');
+    check('ru warp unlimited', noticeText('Unlimited credits'), 'Безлимитные кредиты');
+    check(
+        'ru warp no credits',
+        noticeText('No monthly credits on this plan'),
+        'В этом тарифе нет ежемесячных кредитов'
+    );
+    check(
+        'ru deepseek unavailable',
+        noticeText('Balance is not enough for API calls'),
+        'Баланса не хватает для вызовов API'
+    );
+    check(
+        'ru deepseek used up',
+        noticeText('Balance is used up; API calls fail until you top up'),
+        'Баланс исчерпан — вызовы API не пройдут, пока вы не пополните счёт'
+    );
+    check(
+        'ru moonshot used up',
+        noticeText('Balance is used up; API requests fail until you top up'),
+        'Баланс исчерпан — запросы к API не пройдут, пока вы не пополните счёт'
+    );
+    check(
+        'ru moonshot debt',
+        noticeText('Cash balance is negative: the account is in debt'),
+        'Денежный баланс отрицательный — на счёте долг'
+    );
     check('ru unknown kept', noticeText('Something new'), 'Something new');
     check('ru prototype key kept', noticeText('constructor'), 'constructor');
 }

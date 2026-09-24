@@ -35,7 +35,7 @@ public struct DisplayFormatter: Sendable {
         switch id {
         case "session": strings.text(.session)
         case "weekly": strings.text(.weekly)
-        default: label
+        default: LabelTranslation.translate(label, language: strings.language)
         }
     }
 

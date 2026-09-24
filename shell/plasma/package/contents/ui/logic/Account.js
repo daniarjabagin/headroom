@@ -1,6 +1,7 @@
 .pragma library
 
 .import "Commands.js" as Commands
+.import "DaemonText.js" as DaemonText
 .import "I18n.js" as I18n
 .import "Registry.js" as Registry
 .import "State.js" as State
@@ -94,10 +95,10 @@ function providerKind(tone) {
     return "info";
 }
 
-function providerNotice(notice) {
+function providerNotice(lang, notice) {
     return {
         kind: providerKind(notice.tone),
-        title: notice.text,
+        title: DaemonText.notice(lang, notice.text),
         detail: "",
         note: "",
         actions: []
@@ -109,7 +110,7 @@ function notices(lang, account, offline, providers) {
         return [signedOutNotice(lang, account, providers)];
     if (account.status === "no_subscription")
         return [noSubscriptionNotice(lang, account)];
-    const rows = account.notices.map(providerNotice);
+    const rows = account.notices.map(notice => providerNotice(lang, notice));
     if (account.status === "error" && !failedOffline(account, offline))
         rows.unshift(errorNotice(lang, account));
     return rows;

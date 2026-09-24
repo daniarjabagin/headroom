@@ -16,6 +16,15 @@ const FIXED_TEXTS = () => ({
     'Could not read the Ollama plan; the usage above is up to date.': _(
         'Could not read the Ollama plan; the usage above is up to date.'
     ),
+    'Kilo credits are used up': _('Kilo credits are used up'),
+    'Unlimited credits': _('Unlimited credits'),
+    'No monthly credits on this plan': _('No monthly credits on this plan'),
+    'Balance is not enough for API calls': _('Balance is not enough for API calls'),
+    'Balance is used up; API calls fail until you top up': _('Balance is used up; API calls fail until you top up'),
+    'Balance is used up; API requests fail until you top up': _(
+        'Balance is used up; API requests fail until you top up'
+    ),
+    'Cash balance is negative: the account is in debt': _('Cash balance is negative: the account is in debt'),
     'Antigravity reports no quota pools for this account.': _('Antigravity reports no quota pools for this account.'),
     'The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.': _(
         'The keyring that holds the Antigravity sign-in is locked. Unlock it or start Antigravity.'
