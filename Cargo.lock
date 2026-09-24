@@ -832,6 +832,7 @@ dependencies = [
  "notify",
  "rand",
  "rusqlite",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",

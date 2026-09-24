@@ -5,29 +5,29 @@ use headroom_core::account::{AccountRef, ProviderId};
 use headroom_daemon::state::payload::AccountView;
 use headroom_providers::registry;
 
-use crate::client::{self, DaemonProxy, call_error};
+use crate::client::{self, Daemon};
 use crate::paths::Globals;
 use crate::providers;
 
 pub struct Dismissal {
-    proxy: DaemonProxy<'static>,
+    daemon: Daemon,
     account: AccountRef,
 }
 
 impl Dismissal {
     pub async fn prepare(globals: &Globals, account: &AccountRef) -> Result<Dismissal> {
-        let proxy = client::require_daemon(&globals.bus).await?;
+        let daemon = client::require_daemon(globals).await?;
         Ok(Dismissal {
-            proxy,
+            daemon,
             account: account.clone(),
         })
     }
 
     pub async fn apply(self) -> Result<String> {
         let id = &self.account.id.0;
-        let (_, state) = client::fetch_state(&self.proxy).await?;
+        let (_, state) = client::fetch_state(&self.daemon).await?;
         let shown = state.accounts.into_iter().find(|view| &view.id == id);
-        self.proxy.dismiss_account(id).await.map_err(call_error)?;
+        self.daemon.dismiss_account(id).await?;
         Ok(dismissed_message(
             &self.account.provider,
             &shown_label(id, shown),
@@ -39,11 +39,10 @@ pub async fn restore(globals: &Globals, provider: Option<&str>) -> Result<()> {
     if let Some(provider) = provider {
         providers::descriptor(provider)?;
     }
-    let proxy = client::require_daemon(&globals.bus).await?;
-    proxy
+    let daemon = client::require_daemon(globals).await?;
+    daemon
         .restore_accounts(provider.unwrap_or_default())
-        .await
-        .map_err(call_error)?;
+        .await?;
     writeln!(io::stdout(), "{}", restored_message(provider))?;
     Ok(())
 }

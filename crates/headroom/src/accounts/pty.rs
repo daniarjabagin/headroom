@@ -11,6 +11,18 @@ use rustix::termios::{LocalModes, OptionalActions, Winsize, tcgetattr, tcsetattr
 const COLUMNS: u16 = 120;
 const ROWS: u16 = 40;
 
+#[cfg(target_os = "linux")]
+fn open_master() -> rustix::io::Result<OwnedFd> {
+    openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY | OpenptFlags::CLOEXEC)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn open_master() -> rustix::io::Result<OwnedFd> {
+    let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY)?;
+    rustix::io::fcntl_setfd(&master, rustix::io::FdFlags::CLOEXEC)?;
+    Ok(master)
+}
+
 pub struct Pty {
     master: OwnedFd,
     slave: OwnedFd,
@@ -18,8 +30,7 @@ pub struct Pty {
 
 impl Pty {
     pub fn open() -> Result<Pty> {
-        let flags = OpenptFlags::RDWR | OpenptFlags::NOCTTY | OpenptFlags::CLOEXEC;
-        let master = openpt(flags).context("could not open a pseudo-terminal")?;
+        let master = open_master().context("could not open a pseudo-terminal")?;
         grantpt(&master).context("could not grant the pseudo-terminal")?;
         unlockpt(&master).context("could not unlock the pseudo-terminal")?;
         let name = ptsname(&master, Vec::new()).context("could not name the pseudo-terminal")?;

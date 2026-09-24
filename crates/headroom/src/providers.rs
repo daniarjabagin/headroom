@@ -4,6 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use headroom_core::descriptor::ProviderDescriptor;
 use headroom_core::provider::Provider;
+#[cfg(target_os = "linux")]
 use headroom_daemon::BusTarget;
 use headroom_daemon::catalog::ProviderCatalog;
 use headroom_providers::registry::{self, RegistryContext};
@@ -21,7 +22,7 @@ pub struct LocalRegistry {
 
 impl LocalRegistry {
     pub fn new(globals: &Globals, http: reqwest::Client) -> Result<LocalRegistry> {
-        let secrets = Arc::new(secret_store(&globals.bus)?);
+        let secrets = Arc::new(secret_store(globals)?);
         let context = RegistryContext {
             http,
             secrets: secrets.clone(),
@@ -71,13 +72,22 @@ pub fn list(args: &ProvidersArgs) -> Result<()> {
     Ok(())
 }
 
-fn secret_store(bus: &BusTarget) -> Result<SecretStore> {
+fn secret_store(globals: &Globals) -> Result<SecretStore> {
     let dir = SecretStore::default_dir().context("no XDG data directory is available")?;
-    let bus = match bus {
+    Ok(SecretStore::new(secret_bus(globals), dir))
+}
+
+#[cfg(target_os = "linux")]
+fn secret_bus(globals: &Globals) -> SecretBus {
+    match &globals.bus {
         BusTarget::Session => SecretBus::Session,
         BusTarget::Address(address) => SecretBus::Address(address.clone()),
-    };
-    Ok(SecretStore::new(bus, dir))
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn secret_bus(_globals: &Globals) -> SecretBus {
+    SecretBus::Disabled
 }
 
 #[cfg(test)]

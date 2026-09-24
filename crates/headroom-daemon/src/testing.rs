@@ -222,7 +222,7 @@ impl RecordingNotifier {
 impl Notifier for RecordingNotifier {
     async fn notify(&self, notification: &Notification) -> Result<(), NotifyError> {
         if self.failing.load(Ordering::SeqCst) {
-            return Err(NotifyError::Bus(zbus::Error::Failure("no server".into())));
+            return Err(NotifyError::NoSubscribers);
         }
         self.sent.lock().unwrap().push(notification.clone());
         Ok(())

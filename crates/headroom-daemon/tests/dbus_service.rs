@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::future::poll_fn;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -23,6 +25,9 @@ use headroom_daemon::{BusTarget, DaemonConfig, DaemonError, StatePayload};
 use jiff::{SignedDuration, Timestamp};
 use tokio::sync::oneshot;
 use zbus::export::futures_core::Stream;
+
+#[path = "dbus_service/socket.rs"]
+mod socket;
 
 const CODEX: ProviderId = ProviderId::from_static("codex");
 
@@ -193,6 +198,7 @@ fn config(
     provider: Arc<StaticProvider>,
     shutdown: oneshot::Receiver<()>,
 ) -> DaemonConfig {
+    let socket = db.with_extension("sock");
     DaemonConfig {
         providers: vec![provider],
         catalog: ProviderCatalog::new([&DESCRIPTOR]),
@@ -201,6 +207,7 @@ fn config(
         clock: Arc::new(SystemClock),
         tz: jiff::tz::TimeZone::UTC,
         bus: BusTarget::Address(bus.address.clone()),
+        socket: Some(socket),
         system_locale: Locale::En,
         shutdown: Box::pin(async move {
             shutdown.await.ok();
@@ -416,6 +423,8 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
     );
     assert!(label_change_is_signalled(&proxy).await.unwrap());
     assert!(order_and_visibility_apply(&proxy).await.unwrap());
+    let socket = dir.path().join("a.sock");
+    assert!(socket::follows_the_daemon(&socket, &proxy).await.unwrap());
     let (_keep, second_stopped) = oneshot::channel();
     let second = headroom_daemon::run(config(
         &bus,
@@ -425,6 +434,8 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
     ))
     .await;
     assert!(matches!(second, Err(DaemonError::AlreadyRunning)));
+    assert!(socket.exists());
     stop.send(()).unwrap();
     daemon.await.unwrap().unwrap();
+    assert!(!socket.exists());
 }

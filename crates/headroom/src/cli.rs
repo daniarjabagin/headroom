@@ -11,6 +11,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
+    #[cfg(target_os = "linux")]
     #[arg(long, global = true, hide = true, value_name = "ADDRESS")]
     pub bus_address: Option<String>,
     #[arg(long, global = true, hide = true, value_name = "PATH")]
@@ -19,8 +20,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[command(about = "Run the Headroom daemon on the session bus")]
-    Daemon,
+    #[command(about = "Run the Headroom daemon")]
+    Daemon(DaemonArgs),
     #[command(about = "Show limits and spend for every account")]
     Status(StatusArgs),
     #[command(about = "Ask the daemon to refresh one account, all due accounts or everything now")]
@@ -31,6 +32,21 @@ pub enum Command {
     Waybar,
     #[command(about = "List the providers this build supports")]
     Providers(ProvidersArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct DaemonArgs {
+    #[arg(
+        long,
+        value_name = "PATH",
+        num_args = 0..=1,
+        help = "Also serve the socket API, at PATH or the default path (always on for macOS)"
+    )]
+    #[allow(
+        clippy::option_option,
+        reason = "clap's shape for a flag whose value is optional"
+    )]
+    pub socket: Option<Option<PathBuf>>,
 }
 
 #[derive(Debug, Args)]
@@ -145,6 +161,24 @@ mod tests {
             Command::Refresh(refresh) => Ok(refresh),
             other => panic!("parsed {other:?}"),
         }
+    }
+
+    fn daemon_args(args: &[&str]) -> DaemonArgs {
+        let parsed = Cli::try_parse_from([&["headroom", "daemon"], args].concat()).unwrap();
+        match parsed.command {
+            Command::Daemon(daemon) => daemon,
+            other => panic!("parsed {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_socket_flag_takes_an_optional_path() {
+        assert_eq!(daemon_args(&[]).socket, None);
+        assert_eq!(daemon_args(&["--socket"]).socket, Some(None));
+        assert_eq!(
+            daemon_args(&["--socket", "/tmp/h.sock"]).socket,
+            Some(Some(PathBuf::from("/tmp/h.sock")))
+        );
     }
 
     #[test]

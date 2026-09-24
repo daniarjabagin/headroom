@@ -5,8 +5,7 @@ use async_trait::async_trait;
 use headroom_core::provider::Provider;
 
 use super::*;
-use crate::dbus::publisher::publish_changes;
-use crate::dbus::signals::SignalSink;
+use crate::events::{EventError, EventSink, publish_changes};
 use crate::scheduler::{FirstRefresh, Scheduler};
 use crate::testing::CODEX;
 use crate::testing::{FakeProvider, Harness, account, eventually, harness, session, snapshot};
@@ -186,13 +185,13 @@ struct RecordingSink {
 }
 
 #[async_trait]
-impl SignalSink for RecordingSink {
-    async fn state_changed(&self, state: &str) -> zbus::Result<()> {
+impl EventSink for RecordingSink {
+    async fn state_changed(&self, state: &str) -> Result<(), EventError> {
         self.states.lock().unwrap().push(state.to_owned());
         Ok(())
     }
 
-    async fn open_requested(&self) -> zbus::Result<()> {
+    async fn open_requested(&self) -> Result<(), EventError> {
         Ok(())
     }
 }
@@ -201,7 +200,7 @@ impl SignalSink for RecordingSink {
 async fn state_changes_are_debounced_into_one_signal() {
     let (harness, _) = two_accounts().await;
     let sink = Arc::new(RecordingSink::default());
-    let dynamic: Arc<dyn SignalSink> = sink.clone();
+    let dynamic: Arc<dyn EventSink> = sink.clone();
     let task = tokio::spawn(publish_changes(harness.core.clone(), dynamic));
     tokio::time::sleep(Duration::from_millis(300)).await;
     sink.states.lock().unwrap().clear();
@@ -224,7 +223,7 @@ async fn state_changes_are_debounced_into_one_signal() {
 async fn settings_changes_emit_state_with_display_and_hidden_windows() {
     let (harness, _) = two_accounts().await;
     let sink = Arc::new(RecordingSink::default());
-    let dynamic: Arc<dyn SignalSink> = sink.clone();
+    let dynamic: Arc<dyn EventSink> = sink.clone();
     for (name, used) in [("a", 90.0), ("b", 30.0)] {
         let limits = snapshot(
             vec![session(used, "2026-09-23T12:00:00Z")],

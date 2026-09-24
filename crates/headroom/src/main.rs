@@ -16,6 +16,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+#[cfg(target_os = "linux")]
 use headroom_daemon::BusTarget;
 use tokio::runtime::Runtime;
 use tracing_subscriber::EnvFilter;
@@ -31,10 +32,12 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     init_logging(&cli.command);
     let globals = Globals {
+        #[cfg(target_os = "linux")]
         bus: cli
             .bus_address
             .map_or(BusTarget::Session, BusTarget::Address),
         db: cli.db,
+        socket: paths::socket_override(std::env::var_os(headroom_daemon::SOCKET_ENV)),
     };
     let outcome = runtime()
         .context("cannot start the async runtime")
@@ -59,7 +62,7 @@ fn runtime() -> io::Result<Runtime> {
 
 async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {
     match command {
-        Command::Daemon => return daemon::run(globals).await,
+        Command::Daemon(args) => return daemon::run(globals, args).await,
         Command::Status(args) => commands::status(globals, &args).await?,
         Command::Refresh(args) => commands::refresh(globals, &args).await?,
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
@@ -100,7 +103,7 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
 }
 
 fn init_logging(command: &Command) {
-    let default = if matches!(command, Command::Daemon) {
+    let default = if matches!(command, Command::Daemon(_)) {
         "info"
     } else {
         "warn"

@@ -1,13 +1,9 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use headroom_daemon::BusTarget;
 use headroom_daemon::dbus::BUS_NAME;
-use headroom_daemon::state::payload::StatePayload;
 use zbus::Connection;
 use zbus::fdo::DBusProxy;
 use zbus::names::BusName;
-
-const NOT_RUNNING: &str =
-    "the Headroom daemon is not running (start it with `systemctl --user start headroom`)";
 
 #[zbus::proxy(
     interface = "io.github.headroom.Daemon1",
@@ -38,6 +34,9 @@ pub trait Daemon {
     fn state_changed(&self, state: String) -> zbus::Result<()>;
 }
 
+pub const NOT_RUNNING: &str =
+    "the Headroom daemon is not running (start it with `systemctl --user start headroom`)";
+
 pub async fn connect(bus: &BusTarget) -> Result<Connection> {
     headroom_daemon::dbus::connect(bus)
         .await
@@ -57,22 +56,13 @@ pub async fn daemon_proxy(conn: &Connection) -> Result<DaemonProxy<'static>> {
         .await?)
 }
 
-pub async fn require_daemon(bus: &BusTarget) -> Result<DaemonProxy<'static>> {
+pub async fn running_proxy(bus: &BusTarget) -> Result<Option<DaemonProxy<'static>>> {
     let conn = connect(bus).await?;
-    if !daemon_running(&conn).await? {
-        bail!(NOT_RUNNING);
+    if daemon_running(&conn).await? {
+        Ok(Some(daemon_proxy(&conn).await?))
+    } else {
+        Ok(None)
     }
-    daemon_proxy(&conn).await
-}
-
-pub async fn fetch_state(proxy: &DaemonProxy<'_>) -> Result<(String, StatePayload)> {
-    let json = proxy.get_state().await.map_err(call_error)?;
-    let state = parse_state(&json)?;
-    Ok((json, state))
-}
-
-pub fn parse_state(json: &str) -> Result<StatePayload> {
-    serde_json::from_str(json).context("the daemon sent a state payload this CLI cannot read")
 }
 
 pub fn call_error(error: zbus::Error) -> anyhow::Error {

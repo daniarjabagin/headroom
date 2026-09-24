@@ -82,7 +82,7 @@ impl Alerts {
             return Ok(());
         }
         let name = account.label.as_deref().or(account.email.as_deref());
-        let notification = compose_lapse(locale, provider_name, name);
+        let notification = compose_lapse(locale, &id.0, provider_name, name);
         if let Err(error) = self.notifier.notify(&notification).await {
             tracing::warn!(%error, "subscription notification not delivered, will retry");
             return Ok(());
@@ -135,6 +135,7 @@ impl Alerts {
     ) {
         let account = review.account;
         let subject = Subject {
+            account_id: &account.id().0,
             provider_name: review.provider_name,
             account_name: account.label.as_deref().or(account.email.as_deref()),
             window,

@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use anyhow::Result;
 use headroom_core::account::{AccountRef, CredentialOwner};
 
-use crate::client::{self, DaemonProxy, call_error};
+use crate::client::{self, Daemon};
 use crate::paths::Globals;
 
 const NOT_DISCOVERED: &str = "The daemon did not find this account; check `headroom accounts`.";
@@ -14,7 +14,7 @@ pub async fn announce(
     label: Option<&str>,
 ) -> Result<Option<String>> {
     let id = &account.id.0;
-    let Ok(proxy) = client::require_daemon(&globals.bus).await else {
+    let Ok(daemon) = client::require_daemon(globals).await else {
         if let Some(label) = label {
             writeln!(
                 io::stderr(),
@@ -23,8 +23,8 @@ pub async fn announce(
         }
         return Ok(None);
     };
-    proxy.rescan().await.map_err(call_error)?;
-    if !daemon_knows(&proxy, id).await? {
+    daemon.rescan().await?;
+    if !daemon_knows(&daemon, id).await? {
         writeln!(io::stderr(), "{NOT_DISCOVERED}")?;
         if let Some(label) = label {
             writeln!(
@@ -37,30 +37,27 @@ pub async fn announce(
     let Some(label) = label else {
         return Ok(None);
     };
-    proxy
-        .set_account_label(id, label)
-        .await
-        .map_err(call_error)?;
+    daemon.set_account_label(id, label).await?;
     Ok(Some(label.to_owned()))
 }
 
-async fn daemon_knows(proxy: &DaemonProxy<'_>, id: &str) -> Result<bool> {
-    let (_, state) = client::fetch_state(proxy).await?;
+async fn daemon_knows(daemon: &Daemon, id: &str) -> Result<bool> {
+    let (_, state) = client::fetch_state(daemon).await?;
     Ok(state.accounts.iter().any(|account| account.id == id))
 }
 
 pub async fn shown_owner(globals: &Globals, id: &str) -> Result<Option<CredentialOwner>> {
-    let Ok(proxy) = client::require_daemon(&globals.bus).await else {
+    let Ok(daemon) = client::require_daemon(globals).await else {
         return Ok(None);
     };
-    let (_, state) = client::fetch_state(&proxy).await?;
+    let (_, state) = client::fetch_state(&daemon).await?;
     let shown = state.accounts.into_iter().find(|account| account.id == id);
     Ok(shown.map(|account| account.owner))
 }
 
 pub async fn rescan_if_running(globals: &Globals) -> Result<()> {
-    if let Ok(proxy) = client::require_daemon(&globals.bus).await {
-        proxy.rescan().await.map_err(call_error)?;
+    if let Ok(daemon) = client::require_daemon(globals).await {
+        daemon.rescan().await?;
     }
     Ok(())
 }

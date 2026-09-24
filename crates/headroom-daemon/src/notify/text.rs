@@ -3,6 +3,7 @@ use headroom_core::quota::{QuotaWindow, WindowId};
 use jiff::{SignedDuration, Timestamp};
 
 use super::evaluator::{Milestone, Observation};
+use crate::model::window_key;
 use crate::settings::Language;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -111,14 +112,36 @@ const RU: Phrases = Phrases {
     },
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Urgency {
+    Low,
+    Normal,
+    Critical,
+}
+
+impl Urgency {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Urgency::Low => "low",
+            Urgency::Normal => "normal",
+            Urgency::Critical => "critical",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Notification {
+    pub id: String,
+    pub account_id: String,
     pub title: String,
     pub body: String,
+    pub urgency: Urgency,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Subject<'a> {
+    pub account_id: &'a str,
     pub provider_name: &'a str,
     pub account_name: Option<&'a str>,
     pub window: &'a QuotaWindow,
@@ -132,22 +155,51 @@ pub fn compose(
     observed: &Observation,
     now: Timestamp,
 ) -> Notification {
+    let window = window_key(&subject.window.id);
     Notification {
+        id: format!(
+            "{}/{window}/{}",
+            subject.account_id,
+            milestone_key(milestone)
+        ),
+        account_id: subject.account_id.to_owned(),
         title: title(locale, subject),
         body: body(locale, milestone, observed, now),
+        urgency: urgency(milestone, observed),
     }
 }
 
 #[must_use]
 pub fn compose_lapse(
     locale: Locale,
+    account_id: &str,
     provider_name: &str,
     account_name: Option<&str>,
 ) -> Notification {
     let phrases = locale.phrases();
     Notification {
+        id: format!("{account_id}/subscription_inactive"),
+        account_id: account_id.to_owned(),
         title: headed(provider_name, account_name, phrases.subscription_inactive),
         body: phrases.subscription_inactive_body.to_owned(),
+        urgency: Urgency::Normal,
+    }
+}
+
+fn milestone_key(milestone: Milestone) -> &'static str {
+    match milestone {
+        Milestone::Reset => "reset",
+        Milestone::WillRunOut => "will_run_out",
+        Milestone::CuttingItClose => "cutting_it_close",
+        Milestone::AlmostOut => "almost_out",
+    }
+}
+
+fn urgency(milestone: Milestone, observed: &Observation) -> Urgency {
+    match milestone {
+        Milestone::Reset => Urgency::Low,
+        Milestone::WillRunOut if observed.severity == Severity::Spent => Urgency::Critical,
+        Milestone::WillRunOut | Milestone::CuttingItClose | Milestone::AlmostOut => Urgency::Normal,
     }
 }
 

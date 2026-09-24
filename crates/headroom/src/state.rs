@@ -6,7 +6,7 @@ use headroom_daemon::{OnceContext, assemble_state_once};
 use headroom_pricing::PriceCatalog;
 use jiff::tz::TimeZone;
 
-use crate::client::{self, DaemonProxy};
+use crate::client;
 use crate::paths::{Globals, pricing_cache_dir};
 use crate::providers;
 
@@ -23,8 +23,8 @@ pub struct LoadedState {
 }
 
 pub async fn load(globals: &Globals) -> Result<LoadedState> {
-    if let Some(proxy) = running_daemon(globals).await {
-        let (json, state) = client::fetch_state(&proxy).await?;
+    if let Ok(Some(daemon)) = client::running_daemon(globals).await {
+        let (json, state) = client::fetch_state(&daemon).await?;
         return Ok(LoadedState {
             source: Source::Daemon,
             json,
@@ -37,15 +37,6 @@ pub async fn load(globals: &Globals) -> Result<LoadedState> {
         json: serde_json::to_string(&state)?,
         state,
     })
-}
-
-async fn running_daemon(globals: &Globals) -> Option<DaemonProxy<'static>> {
-    let conn = client::connect(&globals.bus).await.ok()?;
-    if client::daemon_running(&conn).await.ok()? {
-        client::daemon_proxy(&conn).await.ok()
-    } else {
-        None
-    }
 }
 
 fn cached_state(globals: &Globals) -> Result<impl FnOnce() -> Result<StatePayload> + use<>> {
