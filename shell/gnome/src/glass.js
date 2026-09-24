@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -6,12 +7,33 @@ const BLUR_RADIUS = 36;
 const CORNER_INSET = 4;
 const GLASS_CLASS = 'headroom-translucent';
 const GEOMETRY_SIGNALS = ['notify::allocation', 'notify::translation-x', 'notify::translation-y'];
+const FULL_REDRAWS = Clutter.DrawDebugFlag.DISABLE_CLIPPED_REDRAWS;
+
+function fullRedrawsForced() {
+    const [, drawFlags] = Clutter.get_debug_flags();
+    return (drawFlags & FULL_REDRAWS) !== 0;
+}
+
+class FullRedraws {
+    constructor() {
+        this._held = false;
+    }
+
+    setHeld(held) {
+        if (held === this._held) return;
+        if (held && fullRedrawsForced()) return;
+        if (held) Clutter.add_debug_flags(0, FULL_REDRAWS, 0);
+        else Clutter.remove_debug_flags(0, FULL_REDRAWS, 0);
+        this._held = held;
+    }
+}
 
 export class Glass {
     constructor(menu) {
         this._menu = menu;
         this._backdrop = null;
         this._bindings = [];
+        this._fullRedraws = new FullRedraws();
     }
 
     setEnabled(enabled) {
@@ -27,6 +49,7 @@ export class Glass {
         this._bindings = [];
         this._menu.actor.disconnectObject(this);
         this._menu.box.disconnectObject(this);
+        this._fullRedraws.setHeld(false);
         this._backdrop.destroy();
         this._backdrop = null;
     }
@@ -42,11 +65,17 @@ export class Glass {
         this._bindings = ['visible', 'opacity'].map(name =>
             actor.bind_property(name, this._backdrop, name, GObject.BindingFlags.SYNC_CREATE)
         );
+        this._backdrop.connectObject('notify::mapped', () => this._syncRedraws(), this);
         for (const signal of GEOMETRY_SIGNALS) {
             actor.connectObject(signal, () => this._sync(), this);
             box.connectObject(signal, () => this._sync(), this);
         }
         this._sync();
+        this._syncRedraws();
+    }
+
+    _syncRedraws() {
+        this._fullRedraws.setHeld(this._backdrop.mapped);
     }
 
     _sync() {
