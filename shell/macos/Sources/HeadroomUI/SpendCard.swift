@@ -27,12 +27,12 @@
                 .padding(.leading, PopupMetrics.headerLeading)
                 .padding(.trailing, PopupMetrics.headerTrailing)
                 .frame(minHeight: PopupMetrics.refreshSize)
-                VStack(spacing: 12) {
+                VStack(spacing: PopupMetrics.cardPaddingY) {
                     PeriodPicker(period: $period, strings: formatter.strings)
                     SpendBody(model: card, formatter: formatter)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, PopupMetrics.cardPaddingX)
+                .padding(.vertical, PopupMetrics.cardPaddingY)
                 .cardSurface()
             }
         }
@@ -64,7 +64,7 @@
                     .foregroundStyle(selected ? .primary : .secondary)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
                     .background {
                         if selected {
                             Capsule()
@@ -90,7 +90,7 @@
                     .font(Typeface.body)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
+                    .padding(.vertical, 14)
             } else {
                 HStack(spacing: PopupMetrics.legendGap) {
                     DonutView(model: model)

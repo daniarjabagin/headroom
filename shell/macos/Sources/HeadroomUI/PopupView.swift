@@ -46,26 +46,29 @@
         let model: AppModel
         let actions: PopupActions
         let presentation: Int
+        let maxHeight: CGFloat?
         let onResize: (@MainActor (CGSize) -> Void)?
         @State private var ui = PopupUIState()
         @State private var contentHeight: CGFloat = 0
         @State private var footerHeight: CGFloat = 0
         @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+        @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
 
         public init(
-            model: AppModel, actions: PopupActions, presentation: Int = 0,
+            model: AppModel, actions: PopupActions, presentation: Int = 0, maxHeight: CGFloat? = nil,
             onResize: (@MainActor (CGSize) -> Void)? = nil
         ) {
             self.model = model
             self.actions = actions
             self.presentation = presentation
+            self.maxHeight = maxHeight
             self.onResize = onResize
         }
 
         public var body: some View {
             let screen = PopupScreen.make(
                 phase: model.phase, state: model.state, lastError: model.lastError, serviceIssue: model.serviceIssue)
-            let translucent = model.state?.display.translucent ?? false
+            let translucent = (model.state?.display.translucent ?? false) && !systemReduceTransparency
             VStack(spacing: 0) {
                 scrollArea(screen)
                 FooterView(
@@ -81,7 +84,7 @@
             .overlay { TipOverlay(center: ui.tips) }
             .coordinateSpace(.named(PopupSpace.root))
             .environment(\.headroomReducedMotion, systemReduceMotion || actions.reducedMotion())
-            .environment(\.headroomGlass, PopupSurface.usesGlass(translucent: translucent))
+            .environment(\.headroomTranslucent, translucent)
             .environment(ui.tips)
             .environment(ui.icons)
             .onChange(of: model.state.map(PopupScreen.isRefreshing) ?? false, initial: true) { _, busy in
@@ -90,8 +93,9 @@
         }
 
         private var maxScrollHeight: CGFloat {
-            let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-            return max(200, screenHeight - PopupMetrics.screenMargin - footerHeight)
+            let screen = NSScreen.main?.visibleFrame.height ?? 800
+            let panel = maxHeight ?? PanelPlacement.maxHeight(visibleHeight: screen)
+            return max(PopupMetrics.minScrollHeight, panel - footerHeight)
         }
 
         @ViewBuilder
@@ -105,9 +109,7 @@
             .padding(.bottom, PopupMetrics.bottomPadding)
             .background { HeightReader(height: $contentHeight) }
             if contentHeight > maxScrollHeight {
-                ScrollView(.vertical) { content }
-                    .scrollIndicators(.automatic)
-                    .frame(height: maxScrollHeight)
+                ThinScrollView(height: maxScrollHeight, contentHeight: contentHeight, content: content)
                     .id(presentation)
             } else {
                 content.fixedSize(horizontal: false, vertical: true)

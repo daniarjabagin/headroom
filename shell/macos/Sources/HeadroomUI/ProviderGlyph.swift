@@ -66,7 +66,7 @@
 
     struct ProviderGlyph: View {
         let provider: String
-        var size: CGFloat = 16
+        var size: CGFloat = 14
         @Environment(ProviderIconStore.self) private var store: ProviderIconStore?
 
         var body: some View {

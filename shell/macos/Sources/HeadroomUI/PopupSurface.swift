@@ -2,73 +2,84 @@
     import AppKit
     import SwiftUI
 
-    struct GlassSurfaceKey: EnvironmentKey {
+    struct TranslucentSurfaceKey: EnvironmentKey {
         static let defaultValue = false
     }
 
     extension EnvironmentValues {
-        var headroomGlass: Bool {
-            get { self[GlassSurfaceKey.self] }
-            set { self[GlassSurfaceKey.self] = newValue }
+        var headroomTranslucent: Bool {
+            get { self[TranslucentSurfaceKey.self] }
+            set { self[TranslucentSurfaceKey.self] = newValue }
         }
     }
 
     struct PopupSurface: ViewModifier {
         let translucent: Bool
 
-        static func usesGlass(translucent: Bool) -> Bool {
-            #if compiler(>=6.2)
-                if #available(macOS 26, *) { return true }
-            #endif
-            return translucent
-        }
-
         private var shape: RoundedRectangle {
             RoundedRectangle(cornerRadius: PopupMetrics.cornerRadius, style: .continuous)
         }
 
-        @ViewBuilder
         func body(content: Content) -> some View {
-            #if compiler(>=6.2)
-                if #available(macOS 26, *) {
-                    content.glassEffect(translucent ? .clear : .regular, in: shape)
-                } else {
-                    fallback(content)
-                }
-            #else
-                fallback(content)
-            #endif
+            content
+                .background { backdrop }
+                .overlay(shape.strokeBorder(Palette.popupBorder, lineWidth: 1))
         }
 
         @ViewBuilder
-        private func fallback(_ content: Content) -> some View {
+        private var backdrop: some View {
             if translucent {
-                content.background(.regularMaterial, in: shape)
+                BlurredBackdrop(radius: PopupMetrics.cornerRadius)
             } else {
-                content
-                    .background(Palette.tray, in: shape)
-                    .overlay(shape.strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                shape.fill(Palette.tray)
             }
+        }
+    }
+
+    struct BlurredBackdrop: NSViewRepresentable {
+        let radius: CGFloat
+
+        func makeNSView(context: Context) -> NSVisualEffectView {
+            let view = NSVisualEffectView()
+            view.material = .menu
+            view.blendingMode = .behindWindow
+            view.state = .active
+            view.maskImage = Self.mask(radius: radius)
+            return view
+        }
+
+        func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+
+        private static func mask(radius: CGFloat) -> NSImage {
+            let edge = radius * 2 + 1
+            let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+                NSColor.black.setFill()
+                NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+                return true
+            }
+            image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+            image.resizingMode = .stretch
+            return image
         }
     }
 
     struct CardSurface: ViewModifier {
         var radius: CGFloat = PopupMetrics.cardRadius
-        @Environment(\.headroomGlass) private var glass
+        @Environment(\.headroomTranslucent) private var translucent
 
         func body(content: Content) -> some View {
             content.background(
-                Color.primary.opacity(glass ? 0.05 : 0.03),
+                translucent ? Palette.translucentCard : Palette.card,
                 in: RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
     }
 
     struct FooterSurface: ViewModifier {
-        @Environment(\.headroomGlass) private var glass
+        @Environment(\.headroomTranslucent) private var translucent
 
         func body(content: Content) -> some View {
             content
-                .background(glass ? Color.clear : Color.primary.opacity(0.035))
+                .background(translucent ? Color.clear : Palette.footer)
                 .overlay(alignment: .top) {
                     Rectangle().fill(Palette.separator).frame(height: 1)
                 }

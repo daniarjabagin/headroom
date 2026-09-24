@@ -6,6 +6,7 @@
     enum PopupSpace {
         static let root = "headroom.popup"
         static let accounts = "headroom.accounts"
+        static let scroll = "headroom.scroll"
     }
 
     struct ShownTip: Equatable {
@@ -144,7 +145,7 @@
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(
-                .regularMaterial, in: RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)
+                Palette.tooltip, in: RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)

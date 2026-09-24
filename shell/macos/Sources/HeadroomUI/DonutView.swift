@@ -85,7 +85,7 @@
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
-                    .padding(.horizontal, PopupMetrics.donutSize * 0.2)
+                    .padding(.horizontal, PopupMetrics.donutSize * 0.15)
                     .contentTransition(.numericText())
             }
             .frame(width: PopupMetrics.donutSize, height: PopupMetrics.donutSize)

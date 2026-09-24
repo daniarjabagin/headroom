@@ -17,6 +17,7 @@
         static let hover = Animation.easeOut(duration: 0.18)
         static let toggle = Animation.easeInOut(duration: 0.18)
         static let standard = Animation.timingCurve(0.33, 1, 0.68, 1, duration: 0.2)
+        static let fade = Animation.easeOut(duration: 0.25)
         static let sweep = Animation.timingCurve(0.33, 1, 0.68, 1, duration: 0.25)
         static let pulse = Animation.easeInOut(duration: 0.9).repeatForever(autoreverses: true)
 

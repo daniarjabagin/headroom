@@ -20,11 +20,14 @@
         let model: AppModel
         let actions: PopupActions
         let presentation: Int
+        let maxHeight: CGFloat?
         let onResize: @MainActor (CGSize) -> Void
 
         var body: some View {
-            PopupView(model: model, actions: actions, presentation: presentation, onResize: onResize)
-                .frame(maxHeight: .infinity, alignment: .top)
+            PopupView(
+                model: model, actions: actions, presentation: presentation, maxHeight: maxHeight, onResize: onResize
+            )
+            .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -52,7 +55,8 @@
             self.model = model
             self.actions = actions
             hosting = NSHostingView(
-                rootView: PanelRoot(model: model, actions: actions, presentation: 0, onResize: { _ in }))
+                rootView: PanelRoot(model: model, actions: actions, presentation: 0, maxHeight: nil, onResize: { _ in })
+            )
             panel = HeadroomPanel(
                 contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 200),
                 styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -82,9 +86,15 @@
         }
 
         private func root() -> PanelRoot {
-            PanelRoot(model: model, actions: actions, presentation: presentation) { [weak self] size in
+            PanelRoot(model: model, actions: actions, presentation: presentation, maxHeight: anchorMaxHeight) {
+                [weak self] size in
                 self?.contentSizeChanged(size)
             }
+        }
+
+        private var anchorMaxHeight: CGFloat? {
+            guard let screen = anchor?.window?.screen ?? NSScreen.main else { return nil }
+            return PanelPlacement.maxHeight(visibleHeight: screen.visibleFrame.height)
         }
 
         private func configurePanel() {

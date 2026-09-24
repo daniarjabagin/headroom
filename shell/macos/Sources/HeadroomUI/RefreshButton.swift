@@ -83,7 +83,7 @@
 
         private func icon(at date: Date) -> some View {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(color)
                 .rotationEffect(.degrees(reducedMotion ? 0 : control.spin.angle(at: date)))
                 .opacity(reducedMotion && control.mode == .busy ? 0.55 : 1)
