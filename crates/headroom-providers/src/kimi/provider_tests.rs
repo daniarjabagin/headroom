@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::time::Duration;
 
 use headroom_core::account::{AccountId, CredentialOwner};
 use headroom_core::quota::WindowId;
@@ -215,6 +216,36 @@ async fn an_expiring_headroom_token_is_refreshed_and_saved() {
             .unwrap();
     assert_eq!(saved["refresh_token"], "fake-refresh-token-2");
     assert_eq!(saved["expires_at"], fixed_now().as_second() + 900);
+}
+
+#[tokio::test]
+async fn a_refresh_is_saved_even_when_the_fetch_is_abandoned() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/oauth/token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(include_str!("fixtures/refreshed.json"))
+                .set_delay(Duration::from_millis(200)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().join("accounts/kimi/login");
+    write_tokens(&home, fixed_now() + SignedDuration::from_mins(2));
+    let provider = provider(&root, &server, Secrets(HashMap::new()));
+    let account = oauth_account(&provider, &home).await;
+    let abandoned =
+        tokio::time::timeout(Duration::from_millis(50), provider.fetch_limits(&account)).await;
+    assert!(abandoned.is_err());
+    for _ in 0..300 {
+        if credentials::load(&home).unwrap().refresh.expose() == "fake-refresh-token-2" {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("the refreshed sign-in was never saved");
 }
 
 #[test]

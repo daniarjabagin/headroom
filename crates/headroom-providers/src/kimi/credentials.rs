@@ -33,22 +33,32 @@ pub(super) fn has_credentials(home: &Path) -> bool {
     home.join(CREDENTIALS_FILE).is_file()
 }
 
+pub(super) struct StoredTokens {
+    pub(super) bytes: Vec<u8>,
+    pub(super) tokens: OAuthTokens,
+}
+
 pub(super) fn load(home: &Path) -> Result<OAuthTokens, ProviderError> {
+    read(home).map(|stored| stored.tokens)
+}
+
+pub(super) fn read(home: &Path) -> Result<StoredTokens, ProviderError> {
     let path = home.join(CREDENTIALS_FILE);
-    let text = match fs::read_to_string(&path) {
-        Ok(text) => text,
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             return Err(ProviderError::NotSignedIn);
         }
         Err(error) => return Err(local_error("read", &path, &error)),
     };
-    parse(&text).map_err(|problem| {
+    let tokens = parse(&bytes).map_err(|problem| {
         ProviderError::LocalData(format!("cannot parse {}: {problem}", path.display()))
-    })
+    })?;
+    Ok(StoredTokens { bytes, tokens })
 }
 
-fn parse(text: &str) -> Result<OAuthTokens, String> {
-    let fields: Map<String, Value> = serde_json::from_str(text).map_err(|e| e.to_string())?;
+fn parse(bytes: &[u8]) -> Result<OAuthTokens, String> {
+    let fields: Map<String, Value> = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
     let token = |name: &str| {
         fields
             .get(name)
@@ -83,12 +93,11 @@ impl RefreshedTokens {
     }
 }
 
-pub(super) fn save_refreshed(
-    home: &Path,
+pub(super) fn refreshed_document(
     previous: &OAuthTokens,
     refreshed: &RefreshedTokens,
     now: Timestamp,
-) -> Result<(), ProviderError> {
+) -> Result<Vec<u8>, ProviderError> {
     let mut fields = previous.fields.clone();
     let expires_at = expiry(refreshed, now)?;
     fields.insert("access_token".into(), refreshed.access_token.clone().into());
@@ -109,10 +118,24 @@ pub(super) fn save_refreshed(
             fields.insert(name.into(), value.clone().into());
         }
     }
+    serde_json::to_vec(&fields)
+        .map_err(|error| ProviderError::LocalData(format!("cannot encode tokens: {error}")))
+}
+
+pub(super) fn replace_unchanged(
+    home: &Path,
+    read: &[u8],
+    bytes: &[u8],
+) -> Result<(), ProviderError> {
     let path = home.join(CREDENTIALS_FILE);
-    let bytes = serde_json::to_vec(&fields)
-        .map_err(|error| ProviderError::LocalData(format!("cannot encode tokens: {error}")))?;
-    write_private(&path, &bytes).map_err(|error| local_error("write", &path, &error))
+    let on_disk = fs::read(&path).map_err(|error| local_error("read", &path, &error))?;
+    if on_disk != read {
+        return Err(ProviderError::LocalData(format!(
+            "{} changed during the refresh",
+            path.display()
+        )));
+    }
+    write_private(&path, bytes).map_err(|error| local_error("write", &path, &error))
 }
 
 fn expiry(refreshed: &RefreshedTokens, now: Timestamp) -> Result<Timestamp, ProviderError> {

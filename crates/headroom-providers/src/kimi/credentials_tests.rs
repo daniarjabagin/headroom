@@ -65,10 +65,11 @@ fn a_token_without_expiry_is_tried() {
 fn refreshed_tokens_are_written_back_privately_in_the_cli_format() {
     let home =
         home_with(r#"{"access_token":"a","refresh_token":"r","expires_at":1.5,"device":"keep"}"#);
-    let previous = load(home.path()).unwrap();
+    let previous = read(home.path()).unwrap();
     let refreshed: RefreshedTokens = serde_json::from_str(REFRESHED).unwrap();
     assert_eq!(refreshed.access().expose(), "fake-access-token-2");
-    save_refreshed(home.path(), &previous, &refreshed, now()).unwrap();
+    let bytes = refreshed_document(&previous.tokens, &refreshed, now()).unwrap();
+    replace_unchanged(home.path(), &previous.bytes, &bytes).unwrap();
     let path = home.path().join(CREDENTIALS_FILE);
     let saved: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(
@@ -96,12 +97,21 @@ fn an_unusable_expiry_is_not_saved() {
     let refreshed: RefreshedTokens =
         serde_json::from_str(r#"{"access_token":"a2","refresh_token":"r2","expires_in":0}"#)
             .unwrap();
-    let error = save_refreshed(home.path(), &previous, &refreshed, now())
+    let error = refreshed_document(&previous, &refreshed, now())
         .err()
         .unwrap();
     assert!(matches!(error, ProviderError::InvalidResponse(_)));
-    assert_eq!(
-        load(home.path()).unwrap().access.expose(),
-        "fake-access-token"
-    );
+}
+
+#[test]
+fn a_file_changed_since_it_was_read_is_not_replaced() {
+    let home = home_with(CREDENTIALS);
+    let read_before = read(home.path()).unwrap();
+    let path = home.path().join(CREDENTIALS_FILE);
+    fs::write(&path, r#"{"access_token":"other","refresh_token":"other"}"#).unwrap();
+    let error = replace_unchanged(home.path(), &read_before.bytes, b"{}")
+        .err()
+        .unwrap();
+    assert!(matches!(error, ProviderError::LocalData(_)));
+    assert_eq!(load(home.path()).unwrap().access.expose(), "other");
 }
