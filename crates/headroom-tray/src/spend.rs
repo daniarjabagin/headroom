@@ -94,6 +94,30 @@ fn model_line(lang: Lang, name: &str, tokens: u64, cost: i64, partial: bool) -> 
     )
 }
 
+fn other_line(lang: Lang, other: &OtherModels) -> String {
+    let name = fill(
+        lang.tr("Other ({count})"),
+        &[("count", &other.count.to_string())],
+    );
+    model_line(
+        lang,
+        &name,
+        other.total_tokens,
+        other.cost_usd_micros,
+        other.partial,
+    )
+}
+
+fn partial_note(lang: Lang, models: &[ModelUsage], other: Option<&OtherModels>) -> Option<String> {
+    let partial = models.iter().any(|model| model.partial) || other.is_some_and(|o| o.partial);
+    partial.then(|| {
+        format!(
+            "{PARTIAL_MARK} {}",
+            lang.tr("Partly unpriced, cost leaves it out")
+        )
+    })
+}
+
 #[must_use]
 pub fn breakdown_text(
     lang: Lang,
@@ -105,8 +129,7 @@ pub fn breakdown_text(
     if models.is_empty() && other.is_none() {
         return None;
     }
-    let mut lines = vec![title.to_owned()];
-    lines.extend(models.iter().map(|model| {
+    let rows = models.iter().map(|model| {
         model_line(
             lang,
             &model.model,
@@ -114,32 +137,18 @@ pub fn breakdown_text(
             model.cost_usd_micros,
             model.partial,
         )
-    }));
-    if let Some(other) = other {
-        let name = fill(
-            lang.tr("Other ({count})"),
-            &[("count", &other.count.to_string())],
-        );
-        lines.push(model_line(
-            lang,
-            &name,
-            other.total_tokens,
-            other.cost_usd_micros,
-            other.partial,
-        ));
-    }
-    lines.push(format!(
+    });
+    let total = format!(
         "{} · {}",
         exact_usd(totals.0),
         exact_tokens_text(lang, totals.1)
-    ));
-    let partial = models.iter().any(|model| model.partial) || other.is_some_and(|o| o.partial);
-    if partial {
-        lines.push(format!(
-            "{PARTIAL_MARK} {}",
-            lang.tr("Partly unpriced, cost leaves it out")
-        ));
-    }
+    );
+    let lines: Vec<String> = std::iter::once(title.to_owned())
+        .chain(rows)
+        .chain(other.map(|other| other_line(lang, other)))
+        .chain(std::iter::once(total))
+        .chain(partial_note(lang, models, other))
+        .collect();
     Some(lines.join("\n"))
 }
 

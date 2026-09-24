@@ -3,6 +3,21 @@ use super::*;
 const FULL: &str = include_str!("../../headroom-daemon/src/state/snapshots/state_full.json");
 const EMPTY: &str = include_str!("../../headroom-daemon/src/state/snapshots/state_empty.json");
 const SAMPLE: &str = include_str!("../../../shell/gnome/dev/sample-state.json");
+const COMBINED: &str =
+    include_str!("../../headroom-daemon/src/state/snapshots/state_combined.json");
+
+#[test]
+fn parses_the_combined_snapshot() {
+    let state = parse_state(COMBINED).unwrap();
+    let group = &state.combined[0];
+    assert_eq!(group.account_ids, ["codex:work", "codex:personal"]);
+    assert_eq!(group.windows[0].segments.len(), 2);
+    assert!((group.windows[0].capacity_percent - 200.0).abs() < 1e-9);
+    let headline = state.headline.unwrap();
+    assert!(!headline.combined);
+    assert_eq!(headline.account_count, Some(1));
+    assert!(parse_state(FULL).unwrap().combined.is_empty());
+}
 
 #[test]
 fn parses_the_daemon_snapshots() {

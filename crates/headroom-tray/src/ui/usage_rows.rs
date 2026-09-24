@@ -56,24 +56,26 @@ fn slot_tooltip(heights: &[(u64, Option<Daily>)], x: i32, lang: Lang) -> Option<
         .map(|day| day_tooltip(lang, day))
 }
 
+fn day_heights(usage: &Usage) -> Vec<(u64, Option<Daily>)> {
+    let days = trend_days(&usage.daily);
+    let peak = days
+        .iter()
+        .flatten()
+        .map(|day| day.total_tokens)
+        .max()
+        .unwrap_or(0);
+    days.iter()
+        .map(|day| {
+            (
+                bar_height(day.map_or(0, |d| d.total_tokens), peak),
+                day.cloned(),
+            )
+        })
+        .collect()
+}
+
 fn trend_strip(ctx: &Ctx, usage: &Usage) -> gtk::DrawingArea {
-    let heights: Vec<(u64, Option<Daily>)> = {
-        let days = trend_days(&usage.daily);
-        let peak = days
-            .iter()
-            .flatten()
-            .map(|day| day.total_tokens)
-            .max()
-            .unwrap_or(0);
-        days.iter()
-            .map(|day| {
-                (
-                    bar_height(day.map_or(0, |d| d.total_tokens), peak),
-                    day.cloned(),
-                )
-            })
-            .collect()
-    };
+    let heights = day_heights(usage);
     let area = gtk::DrawingArea::new();
     area.set_content_width(strip_width());
     area.set_content_height(i32::try_from(TREND_HEIGHT).unwrap_or(18));

@@ -1,11 +1,22 @@
 use crate::palette::{Palette, PaletteError};
 
-const TEMPLATE: &str = include_str!("style/popup.css");
+const TEMPLATES: [&str; 2] = [
+    include_str!("style/base.css"),
+    include_str!("style/cards.css"),
+];
 const VAR_OPEN: &str = "var(--";
 
 pub fn stylesheet(palette: &Palette) -> Result<String, PaletteError> {
-    let mut out = String::with_capacity(TEMPLATE.len());
-    let mut rest = TEMPLATE;
+    TEMPLATES
+        .iter()
+        .map(|template| resolve(template, palette))
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parts| parts.join("\n"))
+}
+
+fn resolve(template: &str, palette: &Palette) -> Result<String, PaletteError> {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
     while let Some(start) = rest.find(VAR_OPEN) {
         out.push_str(&rest[..start]);
         let after = &rest[start + VAR_OPEN.len()..];

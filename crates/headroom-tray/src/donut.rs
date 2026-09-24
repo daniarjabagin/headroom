@@ -167,20 +167,19 @@ fn ring_path(geometry: &Geometry) -> Vec<Arc> {
     ]
 }
 
-fn sector_arcs(
-    geometry: &Geometry,
-    segment: &Segment,
+struct Offsets {
     corner: f64,
     outer: f64,
     inner: f64,
-) -> Vec<Arc> {
-    let (start, end) = (segment.start, segment.end);
+}
+
+fn outer_arcs(geometry: &Geometry, segment: &Segment, offsets: &Offsets) -> [Arc; 3] {
+    let (start, end, corner, outer) = (segment.start, segment.end, offsets.corner, offsets.outer);
     let center = (geometry.center, geometry.center);
-    let outer_corner = |angle| polar(geometry, geometry.outer - corner, angle);
-    let inner_corner = |angle| polar(geometry, geometry.inner + corner, angle);
-    vec![
+    let rounded = |angle| polar(geometry, geometry.outer - corner, angle);
+    [
         arc(
-            outer_corner(start + outer),
+            rounded(start + outer),
             corner,
             start - FRAC_PI_2,
             start + outer,
@@ -191,29 +190,28 @@ fn sector_arcs(
             start + outer,
             (end - outer).max(start + outer),
         ),
+        arc(rounded(end - outer), corner, end - outer, end + FRAC_PI_2),
+    ]
+}
+
+fn inner_arcs(geometry: &Geometry, segment: &Segment, offsets: &Offsets) -> [Arc; 3] {
+    let (start, end, corner, inner) = (segment.start, segment.end, offsets.corner, offsets.inner);
+    let center = (geometry.center, geometry.center);
+    let rounded = |angle| polar(geometry, geometry.inner + corner, angle);
+    let back = (start + inner).min(end - inner);
+    [
         arc(
-            outer_corner(end - outer),
-            corner,
-            end - outer,
-            end + FRAC_PI_2,
-        ),
-        arc(
-            inner_corner(end - inner),
+            rounded(end - inner),
             corner,
             end + FRAC_PI_2,
             end - inner + PI,
         ),
         Arc {
             negative: true,
-            ..arc(
-                center,
-                geometry.inner,
-                end - inner,
-                (start + inner).min(end - inner),
-            )
+            ..arc(center, geometry.inner, end - inner, back)
         },
         arc(
-            inner_corner(start + inner),
+            rounded(start + inner),
             corner,
             start + inner + PI,
             start + 3.0 * FRAC_PI_2,
@@ -230,7 +228,14 @@ pub fn sector_path(geometry: &Geometry, segment: &Segment) -> Option<Vec<Arc>> {
     let corner = corner_radius(geometry, (segment.end - segment.start) / 2.0, half_gap)?;
     let outer = ((half_gap + corner) / (geometry.outer - corner)).asin();
     let inner = ((half_gap + corner) / (geometry.inner + corner)).asin();
-    Some(sector_arcs(geometry, segment, corner, outer, inner))
+    let offsets = Offsets {
+        corner,
+        outer,
+        inner,
+    };
+    let outer = outer_arcs(geometry, segment, &offsets);
+    let inner = inner_arcs(geometry, segment, &offsets);
+    Some(outer.into_iter().chain(inner).collect())
 }
 
 #[cfg(test)]
