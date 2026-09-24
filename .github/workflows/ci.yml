@@ -83,21 +83,27 @@ jobs:
           - distro: ubuntu-22.04
             image: ubuntu:22.04
             install: >-
+              for attempt in 1 2 3; do
               apt-get -o Acquire::Retries=5 update &&
               DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
-              build-essential pkg-config cmake git curl ca-certificates dbus
+              build-essential pkg-config cmake git curl ca-certificates dbus && break;
+              [ "$attempt" = 3 ] && exit 1; sleep 30; done
           - distro: ubuntu-24.04
             image: ubuntu:24.04
             install: >-
+              for attempt in 1 2 3; do
               apt-get -o Acquire::Retries=5 update &&
               DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
-              build-essential pkg-config cmake git curl ca-certificates dbus
+              build-essential pkg-config cmake git curl ca-certificates dbus && break;
+              [ "$attempt" = 3 ] && exit 1; sleep 30; done
           - distro: debian-stable
             image: debian:stable
             install: >-
+              for attempt in 1 2 3; do
               apt-get -o Acquire::Retries=5 update &&
               DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
-              build-essential pkg-config cmake git curl ca-certificates dbus
+              build-essential pkg-config cmake git curl ca-certificates dbus && break;
+              [ "$attempt" = 3 ] && exit 1; sleep 30; done
           - distro: fedora
             image: fedora:latest
             install: >-
@@ -111,7 +117,9 @@ jobs:
             image: opensuse/tumbleweed
             install: >-
               zypper --non-interactive install gcc gcc-c++ make pkg-config cmake git-core curl tar gzip
-              dbus-1-daemon
+              dbus-1-daemon &&
+              { command -v dbus-daemon ||
+              ln -s "$(rpm -ql dbus-1-daemon | grep -m1 '/dbus-daemon$')" /usr/local/bin/dbus-daemon; }
     env:
       CARGO_HOME: /usr/local/cargo
       RUSTUP_HOME: /usr/local/rustup

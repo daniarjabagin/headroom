@@ -152,8 +152,7 @@ TestCase {
         open("ready");
         const section = sections().find(item => item.account.status === "signed_out");
         verify(section !== undefined);
-        tryVerify(() => section.notices[0].actions.length === 2, settleMs);
-        compare(section.notices[0].actions.map(action => action.kind), ["signin", "retry"]);
+        tryVerify(() => JSON.stringify(section.notices[0].actions.map(action => action.kind)) === '["signin","retry"]', settleMs);
         section.runAction("signin", section.account.provider);
         const runner = findAll(plasmoid, item => item.engine === "executable", [])[0];
         verify(runner !== undefined);
