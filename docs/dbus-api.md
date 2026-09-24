@@ -29,7 +29,7 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
-| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
+| `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters; control characters (C0, DEL, C1) are rejected. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
 | `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). The daemon records the account's current CLI home (provider, account id, home path) as dismissed, then rescans; that record leaves `accounts[]` at once, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Only that CLI record is dismissed: the same person signed in through a Headroom-owned home still shows (see [Rescan semantics](#rescan-semantics)). Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
@@ -75,7 +75,7 @@ Refresh semantics:
 
 | D-Bus error | when |
 | --- | --- |
-| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
+| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters or containing control characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
 | `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
