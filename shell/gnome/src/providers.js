@@ -14,6 +14,11 @@ const SERIES = new Set([
     'cursor',
     'antigravity',
     'ollama',
+    'kilo',
+    'warp',
+    'poe',
+    'deepseek',
+    'moonshot',
 ]);
 const FALLBACK_SERIES = 4;
 

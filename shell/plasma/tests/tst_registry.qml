@@ -30,7 +30,7 @@ TestCase {
 
     function test_parses_sample_registry() {
         const providers = sample();
-        compare(providers.length, 14);
+        compare(providers.length, 19);
         compare(providers.slice(0, 4).map(entry => entry.id), ["codex", "claude", "opencode", "openrouter"]);
         compare(provider("codex"), {
             id: "codex",
@@ -188,6 +188,8 @@ TestCase {
         }
         compare(Providers.iconFile("antigravity"), "antigravity.svg");
         compare(Providers.iconFile("devin"), "provider-generic.svg");
+        compare(["warp", "poe", "deepseek", "moonshot"].map(id => Providers.iconFile(id)), ["warp.svg", "poe.svg", "deepseek.svg", "moonshot.svg"]);
+        compare(Providers.iconFile("kilo"), "provider-generic.svg");
         verify(read("../package/contents/icons/provider-generic.svg").includes("<svg"));
         verify(!Providers.isTinted("claude"));
         verify(Providers.isTinted("openrouter"));
@@ -203,6 +205,8 @@ TestCase {
         compare(Providers.ringColor("codex", false), "#10A37F");
         compare(Providers.ringColor("claude", false), "#D97757");
         compare(Providers.ringColor("claude", true), "#D97757");
+        compare(["kilo", "warp", "poe", "deepseek", "moonshot"].map(id => Providers.ringColor(id, false)), ["#B59A00", "#005A9E", "#B42BC9", "#2C3FC2", "#475A78"]);
+        compare(["kilo", "warp", "poe", "deepseek", "moonshot"].map(id => Providers.ringColor(id, true)), ["#F8F675", "#6CCBFF", "#DE7BF0", "#A3B1FF", "#A5B4CC"]);
         compare(Providers.ringColor("newcomer", false), Providers.ringColor("newcomer", false));
         verify(Providers.ringColor("newcomer", true) !== Providers.ringColor("newcomer", false));
     }

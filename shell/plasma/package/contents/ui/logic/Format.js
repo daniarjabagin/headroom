@@ -1,13 +1,13 @@
 .pragma library
 
 .import "I18n.js" as I18n
+.import "Money.js" as Money
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 const WEEK_DAYS = 7;
-const MICROS_PER_CENT = 10000;
 
 const DASH = "—";
 
@@ -315,25 +315,19 @@ function tokenCount(lang, count) {
     });
 }
 
-function centsOf(micros) {
-    return Math.round(micros / MICROS_PER_CENT);
-}
-
 function exactUsd(micros) {
-    const cents = centsOf(micros);
-    const rest = String(Math.abs(cents % 100)).padStart(2, "0");
-    return `$${exactTokens(Math.trunc(cents / 100))}.${rest}`;
+    return Money.money("USD", micros);
 }
 
 function usd(micros) {
-    const cents = centsOf(micros);
+    const cents = Money.centsOf(micros);
     if (cents >= 100000)
         return `$${abbreviate(cents / 100, moneyDigits)}`;
     return exactUsd(micros);
 }
 
 function ringUsd(micros) {
-    const cents = centsOf(micros);
+    const cents = Money.centsOf(micros);
     if (cents < 10000)
         return usd(micros);
     if (cents < 1000000)
@@ -360,6 +354,8 @@ function spendTooltip(lang, totals) {
 function balanceValue(lang, balance) {
     if (balance.kind === "usd" && balance.usdMicros !== null)
         return usd(balance.usdMicros);
+    if (balance.kind === "money" && balance.currency !== null && balance.micros !== null)
+        return Money.money(balance.currency, balance.micros);
     if (balance.kind === "count" && balance.value !== null)
         return `${exactTokens(balance.value)} ${balance.unit ?? ""}`.trim();
     return I18n.tr(lang, "No data");

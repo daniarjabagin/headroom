@@ -1,6 +1,7 @@
 import { _, currentLanguage, fill, n_ } from './i18n.js';
 
 const MICROS_PER_CENT = 10000;
+const CURRENCY_SYMBOLS = { USD: '$', CNY: '¥', EUR: '€' };
 const COMPACT_FROM = 1000;
 
 const UNITS = [
@@ -53,13 +54,21 @@ export function exactTokensText(count) {
 }
 
 function centsOf(micros) {
-    return Math.round(micros / MICROS_PER_CENT);
+    const cents = Math.round(Math.abs(micros) / MICROS_PER_CENT);
+    return micros < 0 ? -cents : cents;
+}
+
+export function money(currency, micros) {
+    const cents = centsOf(micros);
+    const whole = Math.abs(cents);
+    const digits = `${groupDigits(Math.trunc(whole / 100), ',')}.${String(whole % 100).padStart(2, '0')}`;
+    const sign = cents < 0 ? '-' : '';
+    const symbol = CURRENCY_SYMBOLS[currency];
+    return symbol ? `${sign}${symbol}${digits}` : `${sign}${digits} ${currency}`;
 }
 
 export function exactUsd(micros) {
-    const cents = centsOf(micros);
-    const rest = String(Math.abs(cents % 100)).padStart(2, '0');
-    return `$${groupDigits(Math.trunc(cents / 100), ',')}.${rest}`;
+    return money('USD', micros);
 }
 
 export function usd(micros) {

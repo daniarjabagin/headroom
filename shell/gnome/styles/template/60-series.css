@@ -13,6 +13,11 @@
     -headroom-series-cursor: var(--series-cursor);
     -headroom-series-antigravity: var(--series-antigravity);
     -headroom-series-ollama: var(--series-ollama);
+    -headroom-series-kilo: var(--series-kilo);
+    -headroom-series-warp: var(--series-warp);
+    -headroom-series-poe: var(--series-poe);
+    -headroom-series-deepseek: var(--series-deepseek);
+    -headroom-series-moonshot: var(--series-moonshot);
     -headroom-series-other-0: var(--series-other-0);
     -headroom-series-other-1: var(--series-other-1);
     -headroom-series-other-2: var(--series-other-2);
@@ -73,6 +78,26 @@
 
 .headroom-series-ollama {
     background-color: var(--series-ollama);
+}
+
+.headroom-series-kilo {
+    background-color: var(--series-kilo);
+}
+
+.headroom-series-warp {
+    background-color: var(--series-warp);
+}
+
+.headroom-series-poe {
+    background-color: var(--series-poe);
+}
+
+.headroom-series-deepseek {
+    background-color: var(--series-deepseek);
+}
+
+.headroom-series-moonshot {
+    background-color: var(--series-moonshot);
 }
 
 .headroom-series-other-0 {

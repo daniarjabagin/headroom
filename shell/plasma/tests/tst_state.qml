@@ -316,6 +316,52 @@ TestCase {
         compare(Account.removal("ru", state.accounts[3]).confirmation, "Headroom перестанет показывать этот аккаунт. Вход в CLI Claude сохранится; войти снова можно через Headroom.");
     }
 
+    function test_money_balances() {
+        const state = State.parseState(JSON.stringify({
+            version: 1,
+            accounts: [
+                {
+                    id: "deepseek:1",
+                    provider: "deepseek",
+                    balances: [
+                        {
+                            id: "balance_cny",
+                            label: "Balance",
+                            kind: "money",
+                            currency: "CNY",
+                            micros: 12500000
+                        },
+                        {
+                            id: "balance_usd",
+                            label: "Balance",
+                            kind: "money",
+                            currency: "USD",
+                            micros: -3000000
+                        },
+                        {
+                            id: "bad",
+                            label: "Bad",
+                            kind: "money",
+                            currency: "yuan",
+                            micros: 1
+                        },
+                        {
+                            id: "future",
+                            label: "Future",
+                            kind: "gems",
+                            micros: 1
+                        }
+                    ]
+                }
+            ]
+        }));
+        const [cny, usd, bad, future] = state.accounts[0].balances;
+        compare([cny.kind, cny.currency, cny.micros, cny.usdMicros], ["money", "CNY", 12500000, null]);
+        compare([usd.currency, usd.micros], ["USD", -3000000]);
+        compare([bad.kind, bad.currency], ["money", null]);
+        compare([future.kind, future.currency, future.micros], [null, null, null]);
+    }
+
     function test_balance_only_account_opens_extras() {
         const state = sample();
         verify(Account.extrasAlwaysOpen(state.accounts[6]));

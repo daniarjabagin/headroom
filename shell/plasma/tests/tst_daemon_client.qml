@@ -88,7 +88,7 @@ TestCase {
         compare(calls.length, 1);
         compare(calls[0].signature, "");
         compare(calls[0].arguments, []);
-        compare(tracking.providers.length, 14);
+        compare(tracking.providers.length, 19);
         compare(tracking.providers[1].name, "Claude");
         tracking.load();
         tryVerify(() => DBus.SessionBus.messages.filter(message => message.member === "GetState").length >= 2, settleMs);

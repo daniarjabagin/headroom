@@ -2,7 +2,7 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { dayTitle } from '../dates.js';
 import { _ } from '../i18n.js';
-import { compactTokensText, exactSpendLine, exactTokens, spendLine, usd } from '../numbers.js';
+import { compactTokensText, exactSpendLine, exactTokens, money, spendLine, usd } from '../numbers.js';
 import { column, label, row } from '../widgets.js';
 import { modelTooltip } from './modelTooltip.js';
 
@@ -85,6 +85,8 @@ function balanceTitle(balance) {
 
 function balanceValue(balance) {
     if (balance.kind === 'usd' && balance.usdMicros !== null) return usd(balance.usdMicros);
+    if (balance.kind === 'money' && balance.currency !== null && balance.micros !== null)
+        return money(balance.currency, balance.micros);
     if (balance.kind === 'count' && balance.value !== null)
         return `${exactTokens(balance.value)} ${balance.unit ?? ''}`.trim();
     return _('No data');
