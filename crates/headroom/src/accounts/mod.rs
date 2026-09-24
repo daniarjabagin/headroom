@@ -3,6 +3,7 @@ mod ansi;
 mod api_key;
 mod cancel;
 mod discovery;
+mod dismiss;
 mod home;
 mod login;
 mod plan;
@@ -32,6 +33,7 @@ use login::{Console, Launcher, LoginEvent, LoginSpec, sign_in};
 use plan::{AddPlan, KeyInput, choose_add_plan};
 use progress::{JsonLines, ProgressEvent};
 
+pub use dismiss::restore;
 pub use remove::remove;
 
 pub struct AddRequest<'a> {

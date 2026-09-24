@@ -18,7 +18,14 @@ impl Core {
             return Ok(());
         }
         let id = self.known_account(account_id)?;
-        self.trigger(&id);
+        let allowed = {
+            let model = self.model();
+            policy::forced_refresh_allowed(model.runtime.get(&id), self.clock.now())
+        };
+        if allowed {
+            self.force_refresh(&id);
+        }
+        self.mark_changed();
         Ok(())
     }
 
@@ -47,14 +54,21 @@ impl Core {
                 .map(|a| a.id().clone())
                 .collect()
         };
-        for id in allowed.iter().filter(|id| self.has_trigger(id)) {
-            let before = self.mark_refreshing(id);
-            if !self.send_trigger(id) {
-                *self.model().runtime_mut(id) = before;
-            }
+        for id in &allowed {
+            self.force_refresh(id);
         }
         self.request_ingest();
         self.mark_changed();
+    }
+
+    fn force_refresh(&self, id: &AccountId) {
+        if !self.has_trigger(id) {
+            return;
+        }
+        let before = self.mark_refreshing(id);
+        if !self.send_trigger(id) {
+            *self.model().runtime_mut(id) = before;
+        }
     }
 
     fn mark_refreshing(&self, id: &AccountId) -> AccountRuntime {
@@ -81,7 +95,7 @@ impl Core {
         self.store_settings(current.patched(patch)?).await
     }
 
-    async fn store_settings(&self, settings: Settings) -> Result<(), CommandError> {
+    pub(crate) async fn store_settings(&self, settings: Settings) -> Result<(), CommandError> {
         let stored = settings.clone();
         self.storage
             .run(move |conn| crate::storage::settings::save(conn, &stored))

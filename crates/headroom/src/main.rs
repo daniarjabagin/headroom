@@ -93,6 +93,9 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
         AccountsAction::Remove { id, yes, progress } => {
             accounts::remove(globals, &id, yes, progress).await
         }
+        AccountsAction::Restore { provider } => {
+            accounts::restore(globals, provider.as_deref()).await
+        }
     }
 }
 

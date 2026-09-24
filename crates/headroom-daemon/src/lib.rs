@@ -5,6 +5,7 @@ pub mod config;
 pub mod core;
 mod daemon;
 pub mod dbus;
+mod dismissal;
 pub mod error;
 pub mod home;
 pub mod model;

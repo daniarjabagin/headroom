@@ -190,6 +190,50 @@ async fn refresh_now_keeps_rate_limit_holds_and_rechecks_lapses() {
 }
 
 #[tokio::test]
+async fn refreshing_one_account_bypasses_the_minute_rule_and_shows_refreshing_at_once() {
+    let mut scripted = ScriptedProvider::new(Vec::new());
+    scripted.gate = Some(Semaphore::new(1));
+    let provider = Arc::new(scripted);
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Fresh).await;
+    harness.core.refresh("codex:work").unwrap();
+    assert_eq!(status(&harness), AccountStatus::Refreshing);
+    assert_eq!(harness.core.state().next_refresh_at, None);
+    eventually(|| provider.calls() == 2).await;
+    provider.gate.as_ref().unwrap().add_permits(10);
+    eventually(|| status(&harness) == AccountStatus::Fresh).await;
+}
+
+#[tokio::test]
+async fn refreshing_a_signed_out_account_retries_it() {
+    let provider = Arc::new(ScriptedProvider::new(vec![Err(
+        ProviderError::SignInExpired,
+    )]));
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::SignedOut).await;
+    harness.core.refresh("codex:work").unwrap();
+    assert_eq!(status(&harness), AccountStatus::Refreshing);
+    eventually(|| provider.calls() == 2 && status(&harness) == AccountStatus::Fresh).await;
+}
+
+#[tokio::test]
+async fn refreshing_one_account_keeps_rate_limit_holds() {
+    let limited = Err(ProviderError::RateLimited {
+        retry_after: Some(SignedDuration::from_secs(120)),
+    });
+    let provider = Arc::new(ScriptedProvider::new(vec![limited]));
+    let (harness, _scheduler) = start(&provider).await;
+    eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Error).await;
+    harness.core.refresh("codex:work").unwrap();
+    assert_eq!(status(&harness), AccountStatus::Error);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(provider.calls(), 1);
+    harness.clock.advance(SignedDuration::from_secs(121));
+    harness.core.refresh("codex:work").unwrap();
+    eventually(|| provider.calls() == 2 && status(&harness) == AccountStatus::Fresh).await;
+}
+
+#[tokio::test]
 async fn refreshing_an_unknown_account_is_rejected() {
     let provider = Arc::new(ScriptedProvider::new(Vec::new()));
     let (harness, _scheduler) = start(&provider).await;

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use headroom_core::provider::Provider;
+use headroom_core::account::ProviderId;
+use headroom_core::provider::{Provider, ProviderError};
+use tracing::Level;
 
 use crate::core::Core;
 use crate::rescan::{self, RescanRequests};
@@ -64,7 +66,7 @@ async fn discover(core: &Core, provider: &dyn Provider) {
     let found = match tokio::time::timeout(DISCOVERY_TIMEOUT, provider.discover()).await {
         Ok(Ok(found)) => found,
         Ok(Err(error)) => {
-            tracing::warn!(provider = %id, %error, "account discovery failed");
+            log_failure(id, &error, "account discovery failed");
             return;
         }
         Err(_) => {
@@ -86,8 +88,24 @@ async fn discover_usage_homes(core: &Core, provider: &dyn Provider) {
     let id = provider.id();
     match tokio::time::timeout(DISCOVERY_TIMEOUT, provider.usage_homes()).await {
         Ok(Ok(homes)) => core.set_usage_homes(id, homes),
-        Ok(Err(error)) => tracing::warn!(provider = %id, %error, "usage home discovery failed"),
+        Ok(Err(error)) => log_failure(id, &error, "usage home discovery failed"),
         Err(_) => tracing::warn!(provider = %id, "usage home discovery timed out"),
+    }
+}
+
+fn log_failure(id: &ProviderId, error: &ProviderError, what: &'static str) {
+    if failure_level(error) == Level::DEBUG {
+        tracing::debug!(provider = %id, %error, "{what}");
+    } else {
+        tracing::warn!(provider = %id, %error, "{what}");
+    }
+}
+
+fn failure_level(error: &ProviderError) -> Level {
+    if error.is_nothing_to_discover() {
+        Level::DEBUG
+    } else {
+        Level::WARN
     }
 }
 

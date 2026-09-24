@@ -1,7 +1,9 @@
+mod dismissed;
 mod display;
 mod migrate;
 mod patch;
 
+use std::collections::BTreeSet;
 use std::ops::RangeInclusive;
 
 use jiff::SignedDuration;
@@ -21,6 +23,7 @@ pub struct Settings {
     pub headline: HeadlineMode,
     pub reduced_motion: bool,
     pub display: DisplaySettings,
+    pub dismissed_accounts: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,6 +54,7 @@ impl Default for Settings {
             headline: HeadlineMode::Auto {},
             reduced_motion: false,
             display: DisplaySettings::default(),
+            dismissed_accounts: BTreeSet::new(),
         }
     }
 }
@@ -95,6 +99,7 @@ impl Settings {
         }
         self.display.validate()?;
         self.display.normalize();
+        self.validate_dismissed()?;
         Ok(self)
     }
 

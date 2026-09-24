@@ -20,7 +20,7 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
 | `ListProviders` | `() → s` | The providers compiled into this build and how to add their accounts (see [Providers](#providers)). Does not change while the daemon runs. |
-| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now. |
+| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. This is what a card's Retry button calls. |
 | `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
@@ -29,6 +29,8 @@ already owns it, the new one exits with "another Headroom daemon already owns th
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
+| `DismissAccount` | `(s account_id) → ()` | Stop showing a CLI-owned account (`"owner": "cli"`). Adds the id to the `dismissed_accounts` setting, then rescans; the account leaves `accounts[]`, is no longer refreshed and is ignored by the headline and notifications. The CLI home and its credentials are never touched. Dismissing an already dismissed account succeeds. Headroom-owned accounts are removed by deleting their home (`headroom accounts remove`), so dismissing one fails with `InvalidArgs`. Emits `StateChanged`. |
+| `RestoreAccounts` | `(s provider) → ()` | Clear the dismissals of one provider (`"grok"`), or of every provider with `""`, then rescan so the accounts come back. An unknown provider id fails with `InvalidArgs`. Emits `StateChanged`. |
 
 Refresh semantics:
 
@@ -40,7 +42,8 @@ Refresh semantics:
   up to 30 min (± 10 %). A provider rate limit waits `retry_after`, or 5 min when none is given.
   `no_subscription` is not transient: the account is checked again after 1 h (± 10 %).
 - Rate-limited and `no_subscription` accounts are skipped by `Refresh("")` until their next scheduled
-  check; `Refresh(account_id)` still forces a check. `RefreshNow` skips only rate-limited accounts
+  check; `Refresh(account_id)` still forces a check of `no_subscription` accounts and of rate-limited
+  accounts whose `retry_after` has passed. `RefreshNow` skips only rate-limited accounts
   whose `retry_after` has not passed yet; it rechecks `no_subscription` accounts.
 - `Refresh("")` suits automatic calls such as opening a popup; a user's explicit refresh should call
   `RefreshNow`, which also re-reads local usage logs instead of waiting for the file watcher or the
@@ -56,12 +59,15 @@ Rescan semantics:
 - Accounts found by a rescan (new ones and ones that come back) refresh immediately; accounts that
   disappeared stop being refreshed and leave `accounts[]`.
 - `headroom accounts add` and `headroom accounts remove` call `Rescan`, so the change shows up at once.
+- Dismissed accounts (`dismissed_accounts`) are still discovered and stored, but they are left out of
+  `accounts[]` and are not refreshed until `RestoreAccounts` clears the dismissal. Usage homes are
+  independent of accounts: local usage and spend of a dismissed account's home are still read.
 
 ### Errors
 
 | D-Bus error | when |
 | --- | --- |
-| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
+| `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
 | `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
@@ -563,6 +569,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.show_forecast` | bool | `true` | Show pace forecasts (`~8% spare`, `limit in 23m`). |
 | `display.translucent` | bool | `false` | Shells render the popup with a translucent (blurred where supported) background instead of an opaque one. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
+| `dismissed_accounts` | array | `[]` | Ids of CLI-owned accounts the user removed, e.g. `["grok:1a2b3c4d5e6f"]`. Normally changed through `DismissAccount` and `RestoreAccounts`. Ids must be non-empty; the list is stored sorted without duplicates. Dismissed accounts are left out of `accounts[]`, the headline, notifications and refreshes. |
 
 ```json
 {
@@ -582,7 +589,8 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
     "show_forecast": true,
     "translucent": false,
     "hidden_windows": {}
-  }
+  },
+  "dismissed_accounts": []
 }
 ```
 
@@ -635,7 +643,7 @@ Rules per `(account, window)`:
   `Reset` fires if the window's last tone was `warning` or `critical`.
 - The state is stored in the daemon's database, so restarts do not repeat alerts. A failed delivery is
   rolled back and retried at the next refresh. Disabled milestones advance silently.
-- Hidden accounts and hidden windows (`display.hidden_windows`) are not evaluated.
+- Hidden accounts, dismissed accounts and hidden windows (`display.hidden_windows`) are not evaluated.
 
 Subscription lapse, per account:
 
@@ -669,6 +677,7 @@ stdout (human hints go to stderr). The exit code is `0` only when the last event
 ```
 headroom accounts add <PROVIDER-ID> [--label NAME] [--api-key-stdin] --progress json
 headroom accounts remove <ID> --yes --progress json
+headroom accounts restore [<PROVIDER-ID>]
 headroom providers [--json]
 ```
 
@@ -685,6 +694,15 @@ or, without an unlocked keyring, in `$XDG_DATA_HOME/headroom/secrets/<account id
 and writes the account into a new Headroom-owned home. A rejected key fails with `error` before any
 `started`; nothing is stored. Adding a key for an account that is already added replaces its key.
 The key never appears in events, messages or logs. `remove` also deletes the stored key.
+
+`remove` depends on who owns the account. A Headroom-owned account (`"owner": "headroom"`) is signed
+out: its home under `$XDG_DATA_HOME/headroom/accounts/` is deleted. Headroom never deletes or changes
+a CLI home, so for a CLI-owned account (`"owner": "cli"`) `remove` calls `DismissAccount` instead:
+Headroom stops showing the account and the provider's CLI stays signed in. This needs a running
+daemon; without one `remove` fails with a message saying so. Both cases end with the same `done`
+event. A dismissed account can then be added again through Headroom's own sign-in
+(`accounts add`, a Headroom-owned home); `headroom accounts restore [<PROVIDER-ID>]` calls
+`RestoreAccounts` to show dismissed CLI accounts again.
 
 | event | fields | meaning |
 | --- | --- | --- |

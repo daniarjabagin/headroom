@@ -2,18 +2,38 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use headroom_core::account::{AccountId, CredentialOwner, ProviderId};
+use headroom_core::account::{AccountId, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::descriptor::ProviderDescriptor;
 use headroom_providers::registry;
 use headroom_providers::secrets::SecretStore;
 
 use super::announce::rescan_if_running;
 use super::discovery::discover_local;
+use super::dismiss::Dismissal;
 use super::home::headroom_home;
 use super::progress::{JsonLines, ProgressEvent};
 use crate::cli::ProgressFormat;
 use crate::paths::{Globals, accounts_root};
 use crate::providers::LocalRegistry;
+
+struct Confirmation {
+    question: String,
+    refusal: String,
+}
+
+enum Removal {
+    Deleted { id: String, home: PathBuf },
+    Dismissed { message: String },
+}
+
+impl Removal {
+    fn message(&self) -> String {
+        match self {
+            Removal::Deleted { id, home } => format!("Removed {id} and deleted {}", home.display()),
+            Removal::Dismissed { message } => message.clone(),
+        }
+    }
+}
 
 pub async fn remove(
     globals: &Globals,
@@ -23,15 +43,15 @@ pub async fn remove(
 ) -> Result<()> {
     match progress {
         None => {
-            let approve = |home: &Path| Ok(assume_yes || confirm(id, home)?);
-            let home = delete_account(globals, id, approve).await?;
-            writeln!(io::stdout(), "Removed {id} and deleted {}", home.display())?;
+            let approve = |ask: &Confirmation| Ok(assume_yes || confirm(ask)?);
+            let removal = remove_account(globals, id, approve).await?;
+            writeln!(io::stdout(), "{}", removal.message())?;
             Ok(())
         }
         Some(ProgressFormat::Json) => {
-            let approve = |home: &Path| Ok(assume_yes || refuse_without_yes(home)?);
-            let result = delete_account(globals, id, approve).await;
-            let done = |_: &PathBuf| ProgressEvent::Done {
+            let approve = |ask: &Confirmation| Ok(assume_yes || refuse_without_yes(ask)?);
+            let result = remove_account(globals, id, approve).await;
+            let done = |_: &Removal| ProgressEvent::Done {
                 account_id: id.to_owned(),
                 label: None,
             };
@@ -41,31 +61,69 @@ pub async fn remove(
     }
 }
 
-async fn delete_account(
+async fn remove_account(
     globals: &Globals,
     id: &str,
-    approve: impl FnOnce(&Path) -> Result<bool>,
-) -> Result<PathBuf> {
+    approve: impl FnOnce(&Confirmation) -> Result<bool>,
+) -> Result<Removal> {
     let registry = LocalRegistry::for_cli(globals)?;
     let accounts = discover_local(&registry.all()).await;
     let Some(account) = accounts.iter().find(|account| account.id.0 == id) else {
         bail!("no signed-in account {id} found");
     };
-    if account.owner == CredentialOwner::Cli {
-        bail!(
-            "{id} belongs to the {} CLI ({}); Headroom never deletes CLI homes, sign out with the CLI",
-            account.provider,
-            account.home.display()
-        );
+    match account.owner {
+        CredentialOwner::Cli => dismiss_account(globals, account, approve).await,
+        CredentialOwner::Headroom => delete_account(globals, &registry, account, approve).await,
     }
+}
+
+async fn dismiss_account(
+    globals: &Globals,
+    account: &AccountRef,
+    approve: impl FnOnce(&Confirmation) -> Result<bool>,
+) -> Result<Removal> {
+    let dismissal = Dismissal::prepare(globals, account).await?;
+    if !approve(&dismiss_confirmation(account))? {
+        bail!("cancelled");
+    }
+    let message = dismissal.apply().await?;
+    Ok(Removal::Dismissed { message })
+}
+
+async fn delete_account(
+    globals: &Globals,
+    registry: &LocalRegistry,
+    account: &AccountRef,
+    approve: impl FnOnce(&Confirmation) -> Result<bool>,
+) -> Result<Removal> {
     let home = headroom_home(&accounts_root()?, &account.provider, &account.home)?;
-    if !approve(&home)? {
+    if !approve(&delete_confirmation(&account.id, &home))? {
         bail!("cancelled");
     }
     let secrets = takes_api_keys(&account.provider).then_some(registry.secrets.as_ref());
     forget(secrets, &account.id, &home).await?;
     rescan_if_running(globals).await?;
-    Ok(home)
+    Ok(Removal::Deleted {
+        id: account.id.0.clone(),
+        home,
+    })
+}
+
+fn dismiss_confirmation(account: &AccountRef) -> Confirmation {
+    Confirmation {
+        question: format!(
+            "Stop showing {} in Headroom? The {} CLI stays signed in.",
+            account.id, account.provider
+        ),
+        refusal: format!("refusing to dismiss {} without --yes", account.id),
+    }
+}
+
+fn delete_confirmation(id: &AccountId, home: &Path) -> Confirmation {
+    Confirmation {
+        question: format!("Sign out {id} and delete {}?", home.display()),
+        refusal: format!("refusing to delete {} without --yes", home.display()),
+    }
 }
 
 async fn forget(secrets: Option<&SecretStore>, id: &AccountId, home: &Path) -> Result<()> {
@@ -82,20 +140,16 @@ fn takes_api_keys(provider: &ProviderId) -> bool {
     registry::descriptor(provider.as_str()).is_some_and(ProviderDescriptor::accepts_api_key)
 }
 
-fn refuse_without_yes(home: &Path) -> Result<bool> {
-    bail!("refusing to delete {} without --yes", home.display())
+fn refuse_without_yes(ask: &Confirmation) -> Result<bool> {
+    bail!("{}", ask.refusal)
 }
 
-fn confirm(id: &str, home: &Path) -> Result<bool> {
+fn confirm(ask: &Confirmation) -> Result<bool> {
     let stdin = io::stdin();
     if !stdin.is_terminal() {
-        return refuse_without_yes(home);
+        return refuse_without_yes(ask);
     }
-    write!(
-        io::stderr(),
-        "Sign out {id} and delete {}? [y/N] ",
-        home.display()
-    )?;
+    write!(io::stderr(), "{} [y/N] ", ask.question)?;
     io::stderr().flush()?;
     let mut answer = String::new();
     stdin.lock().read_line(&mut answer)?;
@@ -107,6 +161,24 @@ mod tests {
     use headroom_providers::secrets::SecretBus;
 
     use super::*;
+
+    #[test]
+    fn confirmations_say_what_happens_to_the_account() {
+        let account = AccountRef {
+            id: AccountId("grok:0123456789ab".into()),
+            provider: ProviderId::parse("grok").unwrap(),
+            home: PathBuf::from("/home/ada/.grok"),
+            owner: CredentialOwner::Cli,
+        };
+        let dismiss = dismiss_confirmation(&account);
+        assert!(dismiss.question.contains("The grok CLI stays signed in"));
+        assert_eq!(
+            dismiss.refusal,
+            "refusing to dismiss grok:0123456789ab without --yes"
+        );
+        let delete = delete_confirmation(&account.id, Path::new("/x/home"));
+        assert_eq!(delete.refusal, "refusing to delete /x/home without --yes");
+    }
 
     #[tokio::test]
     async fn a_key_that_cannot_be_deleted_keeps_the_home() {
