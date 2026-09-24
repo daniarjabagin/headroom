@@ -6,8 +6,30 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-24
+
+Headroom now runs on macOS too.
+
 ### Added
 
+- **Native macOS menu-bar app** (macOS 14 Sonoma or newer), built with SwiftUI and AppKit. It shows
+  the same popup as on Linux: the spend donut, every limit with its pace forecast, usage trends and
+  provider notices. The menu-bar item shows the limit that needs attention most, or one you pin, as
+  a percentage or with the provider and limit name.
+- A native preferences window with toolbar tabs (General, Accounts, Notifications, Service).
+- Add and remove accounts on macOS: CLI sign-ins with the sign-in page, device code and progress
+  shown in the window, API keys stored in the Keychain, and a "Detect again" button for apps
+  Headroom finds by itself.
+- Limit alerts on macOS through Notification Center; clicking one opens the popup.
+- Launch at login, light, dark or system theme, an optional translucent popup, and English and
+  Russian texts on macOS.
+- Unix-socket transport: `headroom daemon --socket` serves the same commands, state and
+  notifications as the D-Bus API as line-delimited JSON-RPC, with subscription topics for state,
+  alerts and open requests. See [docs/ipc.md](docs/ipc.md). The CLI uses it on macOS.
+- macOS credentials: Claude Code and Codex sign-ins are read from the Keychain (read-only), Copilot
+  accounts come from `gh`, and Headroom's own API keys are kept in the Keychain.
+- The state payload reports the daemon release as `app_version`, so a shell can tell when it is
+  talking to a daemon from another install.
 - Remove any account from Settings. Accounts found from a CLI sign-in are dismissed instead of
   deleted, so the CLI itself stays signed in; `headroom accounts restore` brings them back.
 
@@ -24,9 +46,18 @@ All notable changes to Headroom are documented here. The format is based on
 
 ### Fixed
 
-- With the translucent background on GNOME, hovering no longer leaves dark or light squares behind
-  buttons and rows.
+- With the translucent background on GNOME, the popup is fully redrawn while open, and hovering no
+  longer leaves dark or light squares behind buttons and rows.
 - Translucent hover in Plasma is a light tint instead of an almost opaque patch.
+- Refreshing a single account always refreshes it at once and shows it as refreshing.
+
+### Security
+
+- The socket is private to your user: the socket file is `0600`, and a fallback directory is used
+  only if it is a real `0700` directory owned by you. A lock file keeps two daemons from sharing one
+  socket.
+- On macOS, secrets reach the Keychain through `security` on stdin, never on a command line, and
+  the app passes API keys to the CLI on stdin as well.
 
 ## [0.3.0] - 2026-09-23
 
@@ -115,7 +146,8 @@ First version.
 - Settings changes from several windows no longer overwrite each other.
 - Cancelling an account sign-in cleans up after itself.
 
-[Unreleased]: https://github.com/OWNER/headroom/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/OWNER/headroom/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/OWNER/headroom/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/OWNER/headroom/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/OWNER/headroom/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OWNER/headroom/releases/tag/v0.1.0

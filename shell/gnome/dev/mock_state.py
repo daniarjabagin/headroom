@@ -330,6 +330,59 @@ def full_usage(now):
     ]
 
 
+GROK_MIX = [("grok-4", 70, 82), ("grok-code-fast-1", 30, 18)]
+
+
+def showcase_accounts(now):
+    claude = account(
+        "claude:0a1b2c3d4e5f", "claude", "personal", "me@example.org", "Max 5x", "fresh",
+        [
+            window("session", "Session", 24.0, 3 * HOUR + 12 * MINUTE, 5 * HOUR, "good",
+                   pace("healthy", 36.0, 67.0), now),
+            window("weekly", "Weekly", 68.0, 2 * DAY + 14 * HOUR, 7 * DAY, "warning",
+                   pace("running_out", 63.4, 107.0, now + 2 * DAY + 2 * HOUR), now),
+            window("model:opus", "Opus", 18.0, 2 * DAY + 14 * HOUR, 7 * DAY, "good",
+                   pace("healthy", 63.4, 28.0), now),
+        ],
+        now,
+    )
+    codex = account(
+        "codex:1a2b3c4d5e6f", "codex", "work", "dev@example.com", "Pro", "fresh",
+        [
+            window("session", "Session", 31.0, 2 * HOUR + 41 * MINUTE, 5 * HOUR, "good",
+                   pace("healthy", 46.3, 67.0), now),
+            window("weekly", "Weekly", 27.0, 4 * DAY + 6 * HOUR, 7 * DAY, "good", pace("healthy", 39.3, 69.0), now),
+        ],
+        now,
+    )
+    copilot = account(
+        "copilot:4b3a2f1e0d9c", "copilot", None, "dev@example.com", "Individual Pro", "fresh",
+        [window("credits", "Credits", 44.0, 11 * DAY, 30 * DAY, "good", pace("healthy", 63.3, 70.0), now)],
+        now,
+        provider_name="Copilot",
+    )
+    grok = account(
+        "grok:6d5c4b3a2f1e", "grok", None, "dev@example.com", "SuperGrok", "fresh",
+        [window("weekly", "Weekly", 36.0, 3 * DAY + 4 * HOUR, 7 * DAY, "good", pace("healthy", 54.8, 66.0), now)],
+        now,
+    )
+    return [claude, codex, copilot, grok]
+
+
+def showcase_usage(now):
+    return [
+        usage_entry("claude", "~/.claude", now, 5,
+                    (totals(1_904_220, 11_240_000, CLAUDE_MIX), totals(3_112_000, 17_860_000, CLAUDE_MIX),
+                     totals(48_310_500, 262_400_000, CLAUDE_MIX)), 31_000),
+        usage_entry("codex", "~/.codex", now, 3,
+                    (totals(3_210_400, 8_420_000, CODEX_MIX), totals(5_004_000, 12_930_000, CODEX_MIX),
+                     totals(96_120_000, 231_750_000, CODEX_MIX)), 44_000),
+        usage_entry("grok", "~/.grok", now, 11,
+                    (totals(812_000, 2_350_000, GROK_MIX), totals(1_020_000, 2_910_000, GROK_MIX),
+                     totals(14_300_000, 38_600_000, GROK_MIX)), 8_000),
+    ]
+
+
 TONE_RANK = {"neutral": 0, "good": 1, "warning": 2, "critical": 3}
 DEFAULT_SETTINGS = {
     "refresh_interval_secs": 300,
@@ -384,7 +437,7 @@ def choose_headline(accounts, *targets):
 def assemble(now, accounts, usage, preferred, **extra):
     state = {
         "version": 1,
-        "app_version": "0.3.0",
+        "app_version": "0.4.0",
         "generated_at": iso(now),
         "next_refresh_at": iso(now + 3 * MINUTE + timedelta(seconds=10)),
         "last_success_at": iso(now - 2 * MINUTE),
@@ -409,6 +462,10 @@ def full_accounts(now):
 
 def full_state(now):
     return assemble(now, full_accounts(now), full_usage(now), WORK_SESSION)
+
+
+def showcase_state(now):
+    return assemble(now, showcase_accounts(now), showcase_usage(now), ("claude:0a1b2c3d4e5f", "weekly"))
 
 
 def critical_state(now):
@@ -439,6 +496,7 @@ def empty_state(now):
 
 SCENARIOS = {
     "full": full_state,
+    "showcase": showcase_state,
     "empty": empty_state,
     "offline": offline_state,
     "single": single_state,

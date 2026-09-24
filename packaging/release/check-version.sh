@@ -26,6 +26,16 @@ gnome_version() {
         "$root/shell/gnome/metadata.json"
 }
 
+gnome_package_version() {
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' \
+        "$root/shell/gnome/package.json"
+}
+
+gnome_lock_version() {
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["packages"][""]["version"])' \
+        "$root/shell/gnome/package-lock.json"
+}
+
 plasma_version() {
     python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["KPlugin"]["Version"])' \
         "$root/shell/plasma/package/metadata.json"
@@ -43,5 +53,7 @@ check() {
 
 check "Cargo.toml workspace" "$(workspace_version)"
 check "GNOME extension metadata" "$(gnome_version)"
+check "GNOME package.json" "$(gnome_package_version)"
+check "GNOME package-lock.json" "$(gnome_lock_version)"
 check "Plasma widget metadata" "$(plasma_version)"
 exit "$status"
