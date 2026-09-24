@@ -111,6 +111,8 @@ default.</sub>
 | **Kilo Code** | Credit balance in USD (personal or organization), used-up warning | Sign in with `kilo`, paste a Kilo API key, or detected from `kilo auth login` |
 | **Warp** | Monthly credits and reset time, bonus credits | Paste a Warp API key (`wk-…`) |
 | **Poe** | Point balance | Paste a Poe API key |
+| **DeepSeek** | API balance in each currency the account holds (¥ or $) | Paste an API key |
+| **Moonshot API** | Kimi Open Platform balance, vouchers and cash, in $ (platform.kimi.ai) or ¥ (mainland) | Paste an API key |
 
 On macOS, Claude Code and Codex sign-ins are read from the Keychain (read-only, after an "Always
 Allow" prompt), Copilot asks `gh`, which keeps its tokens there too, and API keys you add go into

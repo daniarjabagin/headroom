@@ -458,10 +458,21 @@ Tone: `neutral`, `good`, `warning`, `critical` (blue accent, amber, red; neutral
 | --- | --- | --- |
 | `id` | string | Stable id, e.g. `credits`. |
 | `label` | string | Display label. |
-| `kind` | string | `usd` or `count`. |
-| `usd_micros` | integer | Only for `kind = "usd"`. |
+| `kind` | string | `usd`, `money` or `count`. Treat any other value as unknown and skip the row. |
+| `usd_micros` | integer | Only for `kind = "usd"`: millionths of a US dollar, may be negative. |
+| `currency` | string | Only for `kind = "money"`: ISO 4217 code, three upper-case letters (`CNY`, `USD`, `EUR`, …). |
+| `micros` | integer | Only for `kind = "money"`: millionths of one unit of `currency`, may be negative (debt). |
 | `value` | integer | Only for `kind = "count"`. |
 | `unit` | string | Only for `kind = "count"`, e.g. `requests`. |
+
+`money` is a balance in a currency the provider reports, e.g. DeepSeek and Moonshot yuan accounts:
+`{ "id": "balance_cny", "label": "Balance", "kind": "money", "currency": "CNY", "micros": 12500000 }`
+is ¥12.50. Providers that report US dollars keep `kind = "usd"`; `money` may also carry `USD`
+(Moonshot's international platform, DeepSeek's dollar balance). Amounts in different currencies are
+never summed or converted, and spend totals (`cost_usd_micros`) stay USD only. Shells format a
+`money` balance with the currency's symbol when they know it (`$` USD, `¥` CNY, `€` EUR: `¥12.50`,
+`-¥3.00`) and otherwise as the number followed by the code (`12.50 GBP`), rounded half away from
+zero to two decimals; this is what `headroom status` prints.
 
 ### Notice
 

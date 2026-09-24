@@ -103,6 +103,35 @@ fn accounts_without_data_say_so() {
     );
 }
 
+#[test]
+fn balances_in_other_currencies_keep_their_currency() {
+    let mut state = full_state();
+    state.accounts.truncate(1);
+    state.usage.clear();
+    let account = &mut state.accounts[0];
+    account.windows.clear();
+    account.notices.clear();
+    account.balances = vec![
+        money_balance("CNY", 12_500_000),
+        money_balance("GBP", -1_250_000),
+    ];
+    assert_eq!(
+        render_status(&state, Palette::plain()),
+        "Codex · Work  Pro\n  Balance  ¥12.50\n  Balance  -1.25 GBP\n"
+    );
+}
+
+fn money_balance(currency: &str, micros: i64) -> BalanceView {
+    BalanceView {
+        id: format!("total_{}", currency.to_ascii_lowercase()),
+        label: "Balance".into(),
+        amount: BalanceAmountView::Money {
+            currency: currency.into(),
+            micros,
+        },
+    }
+}
+
 const INJECTED: &str = "\x1b]0;owned\x07\x1b[2J\u{9b}31m";
 
 fn injected_state() -> StatePayload {

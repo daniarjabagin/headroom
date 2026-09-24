@@ -252,6 +252,34 @@
       ],
       "multi_account": true,
       "local_usage": false
+    },
+    {
+      "id": "deepseek",
+      "display_name": "DeepSeek",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "DeepSeek API key",
+          "console_url": "https://platform.deepseek.com/api_keys",
+          "hint": "Any key of the account; the balance is shown in each currency it holds"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
+    },
+    {
+      "id": "moonshot",
+      "display_name": "Moonshot API",
+      "add_account": [
+        {
+          "kind": "api_key",
+          "label": "Moonshot API key",
+          "console_url": "https://platform.kimi.ai/console/api-keys",
+          "hint": "A pay-as-you-go key from platform.kimi.ai (USD) or platform.kimi.com (CNY); Kimi Code keys belong to Kimi Code"
+        }
+      ],
+      "multi_account": true,
+      "local_usage": false
     }
   ]
 }

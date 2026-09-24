@@ -20,6 +20,17 @@ All notable changes to Headroom are documented here. The format is based on
   with the reset time, or "Unlimited", plus bonus credits; Poe shows the point balance. Both take a
   pasted API key. Test fixtures follow the documented and open-source response shapes; no real
   response has been captured yet.
+- **DeepSeek provider.** Paste an API key to see the account balance in each currency it holds
+  (yuan and dollars shown separately, never added up), with a warning when DeepSeek reports the
+  balance cannot pay for API calls.
+- **Moonshot API provider** for the Kimi Open Platform (pay-as-you-go, separate from Kimi Code).
+  Paste a key from platform.kimi.ai (USD) or the mainland platform (CNY); Headroom finds which one
+  it belongs to and shows the balance, vouchers and cash, with a red notice when the balance is used
+  up or the account is in debt.
+- **Balances in other currencies.** Balances now carry their currency: the state payload has a new
+  balance kind `money` (`currency` ISO 4217 code, `micros` in millionths of that currency) and
+  `headroom status` prints `¥12.50`, `€3.00` or `12.50 GBP`. Amounts are read from the exact
+  decimal text, never through floating point. Existing `usd` balances are unchanged.
 - **Combine accounts of the same provider.** The new `display.combine_accounts` setting (off by
   default) makes the daemon publish a `combined` list in the state: for every provider with two or
   more signed-in, visible accounts it sums each window across the accounts (capacity 100 % per

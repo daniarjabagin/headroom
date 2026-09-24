@@ -79,7 +79,7 @@ fn usd(snapshot: &LimitsSnapshot) -> Vec<(String, i64)> {
         .iter()
         .map(|balance| match balance.amount {
             BalanceAmount::Usd(MicroUsd(value)) => (balance.id.clone(), value),
-            BalanceAmount::Count { .. } => panic!("{balance:?}"),
+            BalanceAmount::Count { .. } | BalanceAmount::Money(_) => panic!("{balance:?}"),
         })
         .collect()
 }

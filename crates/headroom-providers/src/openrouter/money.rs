@@ -2,8 +2,7 @@ use headroom_core::units::MicroUsd;
 use serde::Deserialize;
 use serde_json::Number;
 
-const MICROS_PER_USD: i128 = 1_000_000;
-const MICRO_DIGITS: usize = 6;
+use crate::decimal::parse_micros;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(try_from = "RawAmount")]
@@ -43,45 +42,8 @@ fn number_to_micros(number: &Number) -> Option<MicroUsd> {
         .and_then(|value| parse_usd(&value.to_string()))
 }
 
-/// Exact decimal text to micro-USD, rounding the seventh decimal half away from zero.
-pub(super) fn parse_usd(text: &str) -> Option<MicroUsd> {
-    let text = text.trim();
-    let (negative, unsigned) = match text.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, text),
-    };
-    let (whole, fraction) = unsigned.split_once('.').unwrap_or((unsigned, ""));
-    let well_formed = !(whole.is_empty() && fraction.is_empty())
-        && whole
-            .bytes()
-            .chain(fraction.bytes())
-            .all(|b| b.is_ascii_digit());
-    if !well_formed {
-        return None;
-    }
-    let magnitude = unsigned_micros(whole, fraction)?;
-    let signed = if negative { -magnitude } else { magnitude };
-    i64::try_from(signed).ok().map(MicroUsd)
-}
-
-fn unsigned_micros(whole: &str, fraction: &str) -> Option<i128> {
-    let kept = fraction.get(..MICRO_DIGITS).unwrap_or(fraction);
-    let dropped = fraction.get(MICRO_DIGITS..).unwrap_or("");
-    let micros = digits_value(whole)?
-        .checked_mul(MICROS_PER_USD)?
-        .checked_add(digits_value(kept)?.checked_mul(scale(kept.len()))?)?;
-    let round_up = dropped.bytes().next().is_some_and(|digit| digit >= b'5');
-    micros.checked_add(i128::from(round_up))
-}
-
-fn digits_value(digits: &str) -> Option<i128> {
-    digits.bytes().try_fold(0_i128, |value, digit| {
-        value.checked_mul(10)?.checked_add(i128::from(digit - b'0'))
-    })
-}
-
-fn scale(kept_digits: usize) -> i128 {
-    (kept_digits..MICRO_DIGITS).fold(1, |value, _| value * 10)
+fn parse_usd(text: &str) -> Option<MicroUsd> {
+    parse_micros(text).map(MicroUsd)
 }
 
 #[cfg(test)]
@@ -90,45 +52,6 @@ mod tests {
 
     fn usd(json: &str) -> Result<Usd, serde_json::Error> {
         serde_json::from_str(json)
-    }
-
-    #[test]
-    fn decimal_text_converts_exactly() {
-        let cases = [
-            ("0", 0),
-            ("12", 12_000_000),
-            ("6.5", 6_500_000),
-            ("0.000001", 1),
-            ("0.0000004", 0),
-            ("0.0000005", 1),
-            ("-0.0000005", -1),
-            ("123.456789", 123_456_789),
-            ("0.1234564999", 123_456),
-            ("-2.25", -2_250_000),
-            (".5", 500_000),
-            ("7.", 7_000_000),
-            ("9223372036854.775807", i64::MAX),
-        ];
-        for (text, micros) in cases {
-            assert_eq!(parse_usd(text), Some(MicroUsd(micros)), "{text}");
-        }
-    }
-
-    #[test]
-    fn malformed_or_overflowing_text_is_rejected() {
-        for text in [
-            "",
-            ".",
-            "-",
-            "1e-5",
-            "1,5",
-            "abc",
-            "1.2.3",
-            "+1",
-            "9223372036855",
-        ] {
-            assert_eq!(parse_usd(text), None, "{text}");
-        }
     }
 
     #[test]
@@ -149,6 +72,7 @@ mod tests {
             assert_eq!(usd(json).unwrap(), Usd(MicroUsd(micros)), "{json}");
         }
         assert_eq!(usd("\"42.1\"").unwrap(), Usd(MicroUsd(42_100_000)));
+        assert_eq!(usd("\"-0.0000005\"").unwrap(), Usd(MicroUsd(-1)));
     }
 
     #[test]
@@ -156,6 +80,7 @@ mod tests {
         assert!(usd("18446744073709551615").is_err());
         assert!(usd("1e300").is_err());
         assert!(usd("\"lots\"").is_err());
+        assert!(usd("\"1e-5\"").is_err());
         assert!(usd("true").is_err());
     }
 }
