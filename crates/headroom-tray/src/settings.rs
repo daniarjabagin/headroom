@@ -1,36 +1,20 @@
-use serde::Deserialize;
-use serde_json::json;
-
 use crate::payload::{Display, ResetFormat, ValueMode};
+use crate::preferences::change::Change;
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(default)]
-struct MotionSettings {
-    reduced_motion: bool,
+#[must_use]
+pub fn toggled_value_mode(display: &Display) -> Change {
+    Change::ValueMode(match display.value_mode {
+        ValueMode::Left => ValueMode::Used,
+        ValueMode::Used => ValueMode::Left,
+    })
 }
 
 #[must_use]
-pub fn reduced_motion_setting(settings_json: &str) -> bool {
-    serde_json::from_str::<MotionSettings>(settings_json)
-        .is_ok_and(|settings| settings.reduced_motion)
-}
-
-#[must_use]
-pub fn toggled_value_mode_patch(display: &Display) -> String {
-    let next = match display.value_mode {
-        ValueMode::Left => "used",
-        ValueMode::Used => "left",
-    };
-    json!({ "display": { "value_mode": next } }).to_string()
-}
-
-#[must_use]
-pub fn toggled_reset_format_patch(display: &Display) -> String {
-    let next = match display.reset_format {
-        ResetFormat::Countdown => "exact",
-        ResetFormat::Exact => "countdown",
-    };
-    json!({ "display": { "reset_format": next } }).to_string()
+pub fn toggled_reset_format(display: &Display) -> Change {
+    Change::ResetFormat(match display.reset_format {
+        ResetFormat::Countdown => ResetFormat::Exact,
+        ResetFormat::Exact => ResetFormat::Countdown,
+    })
 }
 
 #[cfg(test)]
@@ -38,24 +22,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reads_reduced_motion() {
-        assert!(reduced_motion_setting(
-            r#"{"reduced_motion":true,"display":{}}"#
-        ));
-        assert!(!reduced_motion_setting("{}"));
-        assert!(!reduced_motion_setting("not json"));
-    }
-
-    #[test]
-    fn toggle_patches() {
+    fn toggles_flip_the_current_value() {
         let display = Display::default();
         assert_eq!(
-            toggled_value_mode_patch(&display),
+            toggled_value_mode(&display).patch().to_string(),
             r#"{"display":{"value_mode":"used"}}"#
         );
         assert_eq!(
-            toggled_reset_format_patch(&display),
+            toggled_reset_format(&display).patch().to_string(),
             r#"{"display":{"reset_format":"exact"}}"#
+        );
+        let flipped = Display {
+            value_mode: ValueMode::Used,
+            reset_format: ResetFormat::Exact,
+            ..Display::default()
+        };
+        assert_eq!(
+            toggled_value_mode(&flipped),
+            Change::ValueMode(ValueMode::Left)
+        );
+        assert_eq!(
+            toggled_reset_format(&flipped),
+            Change::ResetFormat(ResetFormat::Countdown)
         );
     }
 }

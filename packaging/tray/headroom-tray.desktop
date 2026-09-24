@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Headroom Tray
+Name[ru]=Headroom в трее
+Comment=How much of your AI coding limits is left, in the system tray
+Comment[ru]=Сколько осталось от лимитов ИИ-инструментов для программирования, в системном трее
+Exec=@EXEC@ --autostart
+Icon=headroom
+Terminal=false
+NoDisplay=true
+NotShowIn=KDE;
+X-GNOME-Autostart-enabled=true

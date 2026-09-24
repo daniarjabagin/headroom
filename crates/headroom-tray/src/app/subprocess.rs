@@ -4,9 +4,11 @@ use gtk::gio;
 use gtk::gio::prelude::*;
 use gtk::glib;
 
+use crate::i18n::Lang;
+use crate::process::spawn_headroom;
 use crate::update::{ProgressEvent, parse_progress};
 
-const UPDATE_ARGS: [&str; 5] = ["headroom", "update", "--yes", "--progress", "json"];
+const UPDATE_ARGS: [&str; 4] = ["update", "--yes", "--progress", "json"];
 
 fn spawn(command: &[&str], flags: gio::SubprocessFlags) -> Result<gio::Subprocess, glib::Error> {
     let argv: Vec<&OsStr> = command.iter().map(OsStr::new).collect();
@@ -40,11 +42,12 @@ async fn read_events(process: &gio::Subprocess, on_event: &impl Fn(ProgressEvent
 pub fn run_update(
     on_event: impl Fn(ProgressEvent) + 'static,
     on_exit: impl FnOnce(Option<String>) + 'static,
+    lang: Lang,
 ) {
-    let process = match spawn(&UPDATE_ARGS, gio::SubprocessFlags::STDOUT_PIPE) {
+    let process = match spawn_headroom(&UPDATE_ARGS, gio::SubprocessFlags::STDOUT_PIPE) {
         Ok(process) => process,
         Err(error) => {
-            on_exit(Some(error.to_string()));
+            on_exit(Some(error.message(lang)));
             return;
         }
     };

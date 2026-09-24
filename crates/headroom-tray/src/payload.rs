@@ -186,6 +186,8 @@ pub struct Account {
     pub email: Option<String>,
     pub plan: Option<String>,
     pub hidden: bool,
+    #[serde(default)]
+    pub owner: Owner,
     pub status: Status,
     pub error: Option<AccountError>,
     pub updated_at: Option<Timestamp>,
@@ -193,6 +195,15 @@ pub struct Account {
     pub balances: Vec<Balance>,
     pub notices: Vec<Notice>,
     pub usage_home: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Owner {
+    Headroom,
+    #[default]
+    #[serde(other)]
+    Cli,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

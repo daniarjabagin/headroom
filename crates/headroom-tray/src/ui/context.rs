@@ -24,6 +24,7 @@ pub enum Action {
     Copy(String),
     OpenUrl(String),
     SignIn(String),
+    OpenSettings,
     Quit,
 }
 

@@ -21,6 +21,14 @@ Environment:
 
 Arguments are passed to the bundled install.sh: --no-service, --no-gnome, --no-plasma.
 
+  --tray     also install the Headroom tray (a tray icon with a popup for desktops other than
+             GNOME Shell and KDE Plasma)
+  --no-tray  never install the tray
+
+Without either, the tray is installed when it is already installed, or when a graphical session
+runs a desktop other than GNOME Shell or Plasma and GTK 4 and libadwaita are present. The build
+with gtk4-layer-shell is chosen when that library is installed.
+
 SHA256SUMS is checked against its Ed25519 signature (SHA256SUMS.sig) with OpenSSL 1.1.1 or
 newer. Without such an OpenSSL the signature check is skipped with a warning and only the
 checksums are verified.
@@ -120,6 +128,78 @@ verify_checksum() {
     ) || fail "checksum mismatch for $2"
 }
 
+library_listing() {
+    for candidate in ldconfig /sbin/ldconfig /usr/sbin/ldconfig; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            "$candidate" -p 2>/dev/null || true
+            return
+        fi
+    done
+}
+
+has_library() {
+    printf '%s\n' "$libraries" | grep -q "$1"
+}
+
+desktop_has_own_shell() {
+    case "${XDG_CURRENT_DESKTOP:-}" in
+        GNOME | GNOME:* | ubuntu | ubuntu:* | pop | pop:* | Zorin | Zorin:* | GNOME-Classic | GNOME-Classic:*)
+            return 0 ;;
+    esac
+    case ":${XDG_CURRENT_DESKTOP:-}:" in
+        *:KDE:*) return 0 ;;
+    esac
+    return 1
+}
+
+graphical_session() {
+    [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]
+}
+
+has_gtk_runtime() {
+    has_library 'libgtk-4\.so\.1' && has_library 'libadwaita-1\.so\.0'
+}
+
+wants_tray() {
+    case "$tray_mode" in
+        off) return 1 ;;
+        on)
+            has_gtk_runtime || warn "GTK 4 or libadwaita was not found; the Headroom tray needs both to start"
+            return 0
+            ;;
+    esac
+    [ -x "$HOME/.local/bin/headroom-tray" ] && return 0
+    graphical_session || return 1
+    desktop_has_own_shell && return 1
+    if ! has_gtk_runtime; then
+        printf 'Skipping the Headroom tray: GTK 4 and libadwaita are needed; install them and run this again with --tray\n'
+        return 1
+    fi
+    return 0
+}
+
+tray_variant() {
+    if has_library 'libgtk4-layer-shell\.so\.0'; then
+        echo linux-gnu-layershell
+    else
+        echo linux-gnu
+    fi
+}
+
+tray_tarball_name() {
+    name="$(grep -o "headroom-tray-[^ ]*-$1-$2\.tar\.gz\$" "$3/SHA256SUMS" | head -n 1)"
+    [ -n "$name" ] || fail "no $1 $2 Headroom tray in this release"
+    echo "$name"
+}
+
+fetch_verified() {
+    step "Downloading $2"
+    download "$base/$2" "$1/$2"
+    verify_checksum "$1" "$2"
+    step "Checksum verified"
+    tar -xzf "$1/$2" -C "$1"
+}
+
 tarball_name() {
     name="$(grep -o "headroom-[^ ]*-$1-linux-musl\.tar\.gz\$" "$2/SHA256SUMS" | head -n 1)"
     [ -n "$name" ] || fail "no $1 tarball in this release"
@@ -127,9 +207,20 @@ tarball_name() {
 }
 
 main() {
-    case "${1:-}" in
-        -h | --help) usage; exit 0 ;;
-    esac
+    tray_mode=auto
+    count=$#
+    while [ "$count" -gt 0 ]; do
+        arg="$1"
+        shift
+        count=$((count - 1))
+        case "$arg" in
+            -h | --help) usage; exit 0 ;;
+            --tray) tray_mode=on ;;
+            --no-tray) tray_mode=off ;;
+            *) set -- "$@" "$arg" ;;
+        esac
+    done
+    libraries="$(library_listing)"
     arch="$(detect_arch)"
     tag="$(resolve_tag)"
     base="https://github.com/$repo/releases/download/$tag"
@@ -140,11 +231,13 @@ main() {
     download "$base/SHA256SUMS.sig" "$work/SHA256SUMS.sig" || fail "release $tag has no SHA256SUMS.sig"
     verify_signature "$work"
     name="$(tarball_name "$arch" "$work")"
-    step "Downloading $name"
-    download "$base/$name" "$work/$name"
-    verify_checksum "$work" "$name"
-    step "Checksum verified"
-    tar -xzf "$work/$name" -C "$work"
+    fetch_verified "$work" "$name"
+    if wants_tray; then
+        tray="$(tray_tarball_name "$arch" "$(tray_variant)" "$work")"
+        fetch_verified "$work" "$tray"
+        mv "$work/${tray%.tar.gz}" "$work/${name%.tar.gz}/tray"
+        set -- "$@" --tray
+    fi
     bash "$work/${name%.tar.gz}/install.sh" "$@"
 }
 

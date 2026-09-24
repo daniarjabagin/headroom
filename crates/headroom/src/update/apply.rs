@@ -8,6 +8,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{ChildStderr, ChildStdout, Command};
 
 use super::feed::GithubFeed;
+use super::method::TrayVariant;
 use super::report::Reporter;
 use super::signature::{PublicKey, verify_signature};
 use super::verify::verify;
@@ -18,6 +19,7 @@ const SUMS_LIMIT: usize = 64 * 1024;
 const SIGNATURE_LIMIT: usize = 1024;
 const ARCHIVE_LIMIT: usize = 64 * 1024 * 1024;
 const INSTALLER: &str = "install.sh";
+const TRAY_DIR: &str = "tray";
 const CHUNK_BYTES: usize = 4_096;
 
 pub struct Bundle<'a> {
@@ -25,11 +27,45 @@ pub struct Bundle<'a> {
     pub version: &'a Version,
     pub arch: &'a str,
     pub release_key: &'a PublicKey,
+    pub tray: Option<TrayVariant>,
+}
+
+struct Download<'a> {
+    name: String,
+    url: &'a str,
 }
 
 impl Bundle<'_> {
     fn name(&self) -> String {
         format!("headroom-{}-{}-linux-musl", self.version, self.arch)
+    }
+
+    fn tray_name(&self, variant: TrayVariant) -> String {
+        format!(
+            "headroom-tray-{}-{}-{}",
+            self.version,
+            self.arch,
+            variant.suffix()
+        )
+    }
+
+    fn archive(&self, name: String) -> Result<Download<'_>> {
+        let url = self.asset_url(&format!("{name}.tar.gz"))?;
+        Ok(Download { name, url })
+    }
+
+    fn tray_archive(&self, variant: TrayVariant) -> Result<Download<'_>> {
+        let name = self.tray_name(variant);
+        match self.release.asset(&format!("{name}.tar.gz")) {
+            Some(asset) => Ok(Download {
+                url: &asset.browser_download_url,
+                name,
+            }),
+            None => bail!(
+                "release {} has no {name}.tar.gz, so the installed Headroom tray cannot be updated",
+                self.version
+            ),
+        }
     }
 
     fn asset_url(&self, name: &str) -> Result<&str> {
@@ -46,24 +82,51 @@ pub async fn install<W: Write, E: Write>(
     options: &[String],
     reporter: &mut Reporter<W, E>,
 ) -> Result<()> {
-    let name = bundle.name();
-    let archive_name = format!("{name}.tar.gz");
     let sums_url = bundle.asset_url(SUMS)?;
     let signature_url = bundle.asset_url(SIGNATURE)?;
-    let archive_url = bundle.asset_url(&archive_name)?;
+    let main = bundle.archive(bundle.name())?;
+    let tray = match bundle.tray {
+        Some(variant) => Some(bundle.tray_archive(variant)?),
+        None => None,
+    };
     reporter.step(&format!("Downloading Headroom {}…", bundle.version))?;
     let sums = feed.download(sums_url, SUMS_LIMIT).await?;
     let signature = feed.download(signature_url, SIGNATURE_LIMIT).await?;
     reporter.step("Verifying the signature…")?;
     verify_signature(bundle.release_key, &sums, &signature)?;
-    let archive = feed.download(archive_url, ARCHIVE_LIMIT).await?;
-    reporter.step("Verifying the checksum…")?;
     let sums = String::from_utf8(sums).context("SHA256SUMS is not text")?;
-    verify(&sums, &archive_name, &archive)?;
     let work = tempfile::tempdir().context("could not create a temporary directory")?;
+    fetch(feed, &sums, &main, work.path(), reporter).await?;
+    let root = work.path().join(&main.name);
+    if let Some(tray) = &tray {
+        fetch(feed, &sums, tray, work.path(), reporter).await?;
+        place_tray(&work.path().join(&tray.name), &root.join(TRAY_DIR)).await?;
+    }
+    run_installer(&root.join(INSTALLER), options, reporter).await
+}
+
+async fn fetch<W: Write, E: Write>(
+    feed: &GithubFeed,
+    sums: &str,
+    download: &Download<'_>,
+    dir: &Path,
+    reporter: &mut Reporter<W, E>,
+) -> Result<()> {
+    let archive_name = format!("{}.tar.gz", download.name);
+    let archive = feed.download(download.url, ARCHIVE_LIMIT).await?;
+    reporter.step("Verifying the checksum…")?;
+    verify(sums, &archive_name, &archive)?;
     reporter.step("Unpacking…")?;
-    unpack(work.path(), &archive_name, &archive).await?;
-    run_installer(&work.path().join(name).join(INSTALLER), options, reporter).await
+    unpack(dir, &archive_name, &archive).await
+}
+
+async fn place_tray(unpacked: &Path, target: &Path) -> Result<()> {
+    if !unpacked.is_dir() {
+        bail!("the tray archive has no {} directory", unpacked.display());
+    }
+    tokio::fs::rename(unpacked, target)
+        .await
+        .with_context(|| format!("could not move the tray bundle to {}", target.display()))
 }
 
 async fn unpack(dir: &Path, archive_name: &str, archive: &[u8]) -> Result<()> {

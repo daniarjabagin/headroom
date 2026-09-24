@@ -638,6 +638,9 @@ that take API keys, the stored key.
   (`update::signature::RELEASE_KEY`, the same key as `packaging/release/release-signing-key.pub.pem`;
   a missing or invalid signature is a hard failure), then downloads the tarball, verifies SHA-256,
   unpacks with `tar` into a temp dir and runs the bundled `install.sh` with the receipt's options.
+  When the receipt records a `tray` variant, it also downloads
+  `headroom-tray-<version>-<arch>-<variant>.tar.gz`, verifies it against the same signed
+  `SHA256SUMS` and places it as the bundle's `tray/` directory, which `install.sh --tray` installs.
   Package and unknown installs get instructions instead. The update feed has its own HTTP client:
   HTTPS only, requests and redirects limited to `api.github.com`, `github.com`,
   `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, and response bodies

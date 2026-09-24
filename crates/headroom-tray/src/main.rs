@@ -1,15 +1,20 @@
 use std::process::ExitCode;
 
-use headroom_tray::app::{TOGGLE_FLAG, run};
+use headroom_tray::app::{SETTINGS_FLAG, TOGGLE_FLAG, run};
+use headroom_tray::desktop::has_own_shell;
 use tracing_subscriber::EnvFilter;
 
-const USAGE: &str = "Usage: headroom-tray [--toggle]
+const AUTOSTART_FLAG: &str = "--autostart";
+const FLAGS: [&str; 3] = [TOGGLE_FLAG, SETTINGS_FLAG, AUTOSTART_FLAG];
+const USAGE: &str = "Usage: headroom-tray [--toggle | --settings] [--autostart]
 
 Shows Headroom's usage limits in the system tray.
 
-  --toggle   open or close the popup of the running headroom-tray
-  --version  print the version
-  --help     print this help";
+  --toggle     open or close the popup of the running headroom-tray
+  --settings   open the settings window
+  --autostart  exit quietly on GNOME Shell and KDE Plasma, which have their own Headroom
+  --version    print the version
+  --help       print this help";
 
 fn main() -> ExitCode {
     tracing_subscriber::fmt()
@@ -28,9 +33,14 @@ fn main() -> ExitCode {
         println!("headroom-tray {}", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
     }
-    if let Some(unknown) = flags.iter().find(|arg| *arg != TOGGLE_FLAG) {
+    if let Some(unknown) = flags.iter().find(|arg| !FLAGS.contains(&arg.as_str())) {
         eprintln!("headroom-tray: unknown option {unknown}\n\n{USAGE}");
         return ExitCode::from(2);
+    }
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
+    if flags.iter().any(|arg| arg == AUTOSTART_FLAG) && has_own_shell(desktop.as_deref()) {
+        tracing::info!(?desktop, "this desktop shows Headroom in its own shell");
+        return ExitCode::SUCCESS;
     }
     if run(&args) == gtk::glib::ExitCode::SUCCESS {
         ExitCode::SUCCESS

@@ -31,6 +31,7 @@ fn menu_labels(lang: Lang) -> MenuLabels {
     MenuLabels {
         open: lang.tr("Open Headroom").to_owned(),
         refresh: lang.tr("Refresh now").to_owned(),
+        settings: lang.tr("Settings…").to_owned(),
         quit: lang.tr("Quit").to_owned(),
     }
 }
@@ -57,7 +58,7 @@ pub(super) fn start_tray_clock(app: &Rc<App>) {
 }
 
 impl App {
-    fn display(&self) -> Display {
+    pub(super) fn display(&self) -> Display {
         self.model
             .borrow()
             .view
@@ -110,7 +111,12 @@ impl App {
         Ctx {
             locale: locale(&display),
             palette: self.palette(&display),
-            motion: !reduced_motion(model.reduced_motion_setting),
+            motion: !reduced_motion(
+                model
+                    .settings
+                    .settings()
+                    .is_some_and(|settings| settings.reduced_motion),
+            ),
             offline: model.view.state().is_some_and(|state| state.offline),
             sign_in: model.sign_in.clone(),
             ui,

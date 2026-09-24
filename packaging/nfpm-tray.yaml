@@ -1,0 +1,80 @@
+name: headroom-tray
+arch: ${NFPM_ARCH}
+platform: linux
+version: ${VERSION}
+release: 1
+section: utils
+priority: optional
+maintainer: Daniar Jabagin
+vendor: Daniar Jabagin
+homepage: ${HOMEPAGE}
+license: MIT
+description: |
+  Headroom's tray icon and popup for desktops other than GNOME Shell and Plasma.
+  Shows how much of your AI coding limits is left (Codex, Claude Code and other
+  tools) in the system tray of Xfce, Cinnamon, MATE, Budgie, LXQt, Hyprland,
+  Sway, niri and other StatusNotifierItem hosts. Needs the Headroom service.
+
+rpm:
+  packager: Daniar Jabagin
+
+archlinux:
+  packager: Daniar Jabagin
+
+suggests:
+  - snixembed
+
+overrides:
+  deb:
+    depends:
+      - headroom
+      - libgtk-4-1 (>= 4.14)
+      - libadwaita-1-0 (>= 1.5)
+  rpm:
+    depends:
+      - headroom
+      - gtk4 >= 4.14
+      - libadwaita >= 1.5
+      - gtk4-layer-shell
+  archlinux:
+    depends:
+      - headroom
+      - gtk4
+      - libadwaita
+      - gtk4-layer-shell
+
+contents:
+  - src: dist/tray-stage/headroom-tray
+    dst: /usr/bin/headroom-tray
+    file_info:
+      mode: 0755
+
+  - src: dist/tray-stage/io.github.daniarjabagin.HeadroomTray.desktop
+    dst: /usr/share/applications/io.github.daniarjabagin.HeadroomTray.desktop
+    file_info:
+      mode: 0644
+
+  - src: dist/tray-stage/headroom-tray.desktop
+    dst: /etc/xdg/autostart/headroom-tray.desktop
+    type: config|noreplace
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/doc/headroom-tray/copyright
+    packager: deb
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/licenses/headroom-tray/LICENSE
+    packager: rpm
+    type: license
+    file_info:
+      mode: 0644
+
+  - src: LICENSE
+    dst: /usr/share/licenses/headroom-tray/LICENSE
+    packager: archlinux
+    file_info:
+      mode: 0644

@@ -5,7 +5,8 @@ usage() {
     cat <<'EOF'
 Usage: packaging/uninstall.sh [--no-gnome]
 
-Stops and removes what install.sh installed, including the Plasma widget. Headroom's data is kept:
+Stops and removes what install.sh installed, including the Plasma widget and the Headroom tray.
+Headroom's data is kept:
   ~/.local/state/headroom      cached limits and usage
   ~/.cache/headroom            price catalog cache
   ~/.local/share/headroom      accounts added with `headroom accounts add`
@@ -32,6 +33,8 @@ icon_dir="$data_home/icons/hicolor"
 receipt="$data_home/headroom/install.json"
 extension_uuid="headroom@daniarjabagin.github.io"
 plasmoid_dir="$data_home/plasma/plasmoids/io.github.daniarjabagin.headroom"
+tray_autostart="$config_home/autostart/headroom-tray.desktop"
+tray_menu_entry="$data_home/applications/io.github.daniarjabagin.HeadroomTray.desktop"
 
 step() {
     printf '==> %s\n' "$*"
@@ -55,7 +58,19 @@ remove_legacy_install() {
     rm -f "$legacy_dbus_file"
 }
 
+remove_tray() {
+    if [ ! -e "$bin_dir/headroom-tray" ] && [ ! -e "$tray_autostart" ] && [ ! -e "$tray_menu_entry" ]; then
+        return
+    fi
+    step "Stopping and removing the Headroom tray"
+    if command -v pkill >/dev/null 2>&1; then
+        pkill -x -u "$(id -u)" headroom-tray >/dev/null 2>&1 || true
+    fi
+    rm -f "$bin_dir/headroom-tray" "$tray_autostart" "$tray_menu_entry"
+}
+
 remove_legacy_install
+remove_tray
 
 if command -v systemctl >/dev/null 2>&1; then
     step "Stopping and disabling headroom.service"

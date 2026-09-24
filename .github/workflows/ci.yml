@@ -203,11 +203,11 @@ jobs:
           - distro: ubuntu-24.04
             image: ubuntu:24.04
             packages: libgtk-4-dev libadwaita-1-dev
-            features: ""
+            layer_shell: false
           - distro: debian-trixie-layer-shell
             image: debian:trixie
             packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev
-            features: --features layer-shell
+            layer_shell: true
     env:
       CARGO_HOME: /usr/local/cargo
       RUSTUP_HOME: /usr/local/rustup
@@ -217,7 +217,7 @@ jobs:
           for attempt in 1 2 3; do
           apt-get -o Acquire::Retries=5 update &&
           DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends
-          build-essential pkg-config git curl ca-certificates binutils ${{ matrix.packages }} && break;
+          build-essential pkg-config git curl ca-certificates binutils desktop-file-utils ${{ matrix.packages }} && break;
           [ "$attempt" = 3 ] && exit 1; sleep 30; done
 
       - name: Check out
@@ -239,17 +239,39 @@ jobs:
           key: tray-${{ matrix.distro }}
 
       - name: cargo clippy
-        run: cargo clippy -p headroom-tray ${{ matrix.features }} --all-targets --locked -- -D warnings
+        if: ${{ !matrix.layer_shell }}
+        run: cargo clippy -p headroom-tray --all-targets --locked -- -D warnings
+
+      - name: cargo clippy (layer-shell)
+        if: ${{ matrix.layer_shell }}
+        run: cargo clippy -p headroom-tray --features layer-shell --all-targets --locked -- -D warnings
 
       - name: cargo test
-        run: cargo test -p headroom-tray ${{ matrix.features }} --locked
+        if: ${{ !matrix.layer_shell }}
+        run: cargo test -p headroom-tray --locked
+
+      - name: cargo test (layer-shell)
+        if: ${{ matrix.layer_shell }}
+        run: cargo test -p headroom-tray --features layer-shell --locked
 
       - name: cargo build --release
-        run: cargo build -p headroom-tray ${{ matrix.features }} --release --locked
+        if: ${{ !matrix.layer_shell }}
+        run: cargo build -p headroom-tray --release --locked
+
+      - name: cargo build --release (layer-shell)
+        if: ${{ matrix.layer_shell }}
+        run: cargo build -p headroom-tray --features layer-shell --release --locked
 
       - name: Check the gtk4-layer-shell link order
-        if: matrix.features != ''
+        if: ${{ matrix.layer_shell }}
         run: .github/scripts/check-layer-shell-link.sh target/release/headroom-tray
+
+      - name: Check the desktop entries
+        run: |
+          for file in packaging/tray/*.desktop; do
+            sed 's|@EXEC@|/usr/bin/headroom-tray|' "$file" > "$RUNNER_TEMP/$(basename "$file")"
+          done
+          desktop-file-validate "$RUNNER_TEMP"/*.desktop
 
   gnome-extension:
     name: GNOME Shell extension lint and tests
@@ -365,7 +387,7 @@ jobs:
           persist-credentials: false
 
       - name: shellcheck
-        run: shellcheck packaging/*.sh packaging/release/*.sh packaging/homebrew/*.sh packaging/tests/*.sh .github/scripts/*.sh shell/macos/script/*.sh
+        run: shellcheck packaging/*.sh packaging/release/*.sh packaging/tray/*.sh packaging/homebrew/*.sh packaging/tests/*.sh .github/scripts/*.sh shell/macos/script/*.sh
 
       - name: Release signing script tests
         run: bash packaging/tests/release-signing-test.sh

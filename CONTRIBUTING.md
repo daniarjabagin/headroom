@@ -62,11 +62,13 @@ crates/
   headroom-providers/      one module per provider: auth, client, local logs, mapper
   headroom-daemon/         scheduler, storage, transports (D-Bus, socket), notifications, updates
   headroom/                the single `headroom` binary: CLI subcommands, daemon, waybar
+  headroom-tray/           `headroom-tray`: SNI tray icon + GTK 4 popup and settings for other desktops
 shell/
   gnome/                   GNOME Shell extension (ESM, GNOME 46+)
   plasma/                  Plasma 6 widget (QML)
   macos/                   SwiftPM package: HeadroomKit (models, socket client), menu-bar app
-packaging/                 systemd unit, D-Bus activation, icons, nfpm (deb, rpm, Arch), install scripts
+packaging/                 systemd unit, D-Bus activation, icons, nfpm (deb, rpm, Arch), install scripts,
+                           tray desktop entries (packaging/tray)
 assets/                    brand and provider logos
 docs/                      architecture, D-Bus and socket API, macOS guide, screenshots
 ```
@@ -193,6 +195,9 @@ modern macOS look adapted to each toolkit:
 
 ### Rust
 
+The workspace includes the GTK tray, so install its build dependencies first (see
+[Headroom tray](#headroom-tray)) or add `--exclude headroom-tray` to the workspace commands.
+
 ```sh
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
@@ -212,8 +217,53 @@ The macOS code paths of the Rust crates can be checked from Linux without an App
 ```sh
 rustup target add aarch64-apple-darwin
 CC_aarch64_apple_darwin=/bin/true CXX_aarch64_apple_darwin=/bin/true AR_aarch64_apple_darwin=/bin/true \
-  cargo clippy --workspace --all-targets --target aarch64-apple-darwin -- -D warnings
+  cargo clippy --workspace --exclude headroom-tray --all-targets --target aarch64-apple-darwin -- -D warnings
 ```
+
+### Headroom tray
+
+`crates/headroom-tray` links GTK 4 (≥ 4.14) and libadwaita (≥ 1.5) dynamically against glibc, so it is
+built separately from the static `headroom` binary. Build dependencies:
+
+```sh
+sudo apt install libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev   # Debian 13, Ubuntu 25.04+
+sudo apt install libgtk-4-dev libadwaita-1-dev                           # Ubuntu 24.04 (no layer shell)
+sudo dnf install gtk4-devel libadwaita-devel gtk4-layer-shell-devel      # Fedora
+sudo pacman -S --needed gtk4 libadwaita gtk4-layer-shell                 # Arch
+```
+
+The cargo feature `layer-shell` links gtk4-layer-shell so the popup is placed next to the tray on
+wlroots compositors; without it the popup opens centered there (X11 placement works either way).
+
+```sh
+cargo clippy -p headroom-tray --all-targets -- -D warnings
+cargo test -p headroom-tray
+cargo run -p headroom-tray -- --toggle                  # needs a running daemon
+cargo build --release -p headroom-tray --features layer-shell
+.github/scripts/check-layer-shell-link.sh target/release/headroom-tray
+packaging/install.sh --tray                             # build and install for your user
+```
+
+### Release assets
+
+`.github/workflows/release.yml` builds, for x86_64 and aarch64 (native `ubuntu-24.04` and
+`ubuntu-24.04-arm` runners), every file below; all of them are listed in the signed `SHA256SUMS`.
+
+| File | Built on | Runs on |
+| --- | --- | --- |
+| `headroom-<ver>-<arch>-linux-musl.tar.gz` | static musl | any Linux; `get-headroom.sh` and `headroom update` install it |
+| `headroom_<ver>-1_<deb-arch>.deb`, `headroom-<ver>-1.<arch>.rpm`, `headroom-<ver>-1-<arch>.pkg.tar.zst` | static musl | Debian/Ubuntu, Fedora/openSUSE, Arch |
+| `headroom-tray-<ver>-<arch>-linux-gnu.tar.gz` | `ubuntu:24.04`, no layer shell | glibc ≥ 2.39, GTK ≥ 4.14, libadwaita ≥ 1.5: Ubuntu 24.04 / Mint 22+, Debian 13 |
+| `headroom-tray_<ver>-1_<deb-arch>.deb` | same build | the same, as a package (depends on `headroom`) |
+| `headroom-tray-<ver>-<arch>-linux-gnu-layershell.tar.gz` | `debian:trixie`, `--features layer-shell` | glibc ≥ 2.40 and `libgtk4-layer-shell.so.0`: Debian 13, Ubuntu 25.04+, Fedora 41+, Arch |
+| `headroom-tray-<ver>-1.<arch>.rpm`, `headroom-tray-<ver>-1-<arch>.pkg.tar.zst` | same build | Fedora 41+ and Arch (depend on `gtk4-layer-shell`) |
+
+`.github/scripts/check-glibc.sh` fails the build when a tray binary needs a newer glibc than its row
+says. `get-headroom.sh` downloads the `-layershell` tray tarball when `ldconfig -p` lists
+`libgtk4-layer-shell.so.0` and the plain one otherwise; the install receipt records the variant so
+`headroom update` fetches the same one. A tray tarball holds `headroom-tray`, `install-tray.sh`,
+the desktop entries from `packaging/tray/` and a `variant` file; `packaging/release/stage-tray.sh`
+assembles it.
 
 ### GNOME Shell extension
 

@@ -2,7 +2,7 @@ use futures_util::StreamExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 use zbus::Connection;
 
-use crate::events::{Command, Event, Events};
+use crate::events::{AccountCommand, Command, Event, Events};
 
 const SYSTEMD_UNIT: &str = "headroom.service";
 const BUS_NAME: &str = "io.github.daniarjabagin.Headroom";
@@ -25,6 +25,14 @@ trait Daemon {
     fn refresh_now(&self) -> zbus::Result<()>;
 
     fn update_settings(&self, patch: &str) -> zbus::Result<()>;
+
+    fn set_account_label(&self, account_id: &str, label: &str) -> zbus::Result<()>;
+
+    fn set_account_hidden(&self, account_id: &str, hidden: bool) -> zbus::Result<()>;
+
+    fn set_account_order(&self, ids: &[&str]) -> zbus::Result<()>;
+
+    fn restore_accounts(&self, provider: &str) -> zbus::Result<()>;
 
     #[zbus(signal)]
     fn state_changed(&self, state: String) -> zbus::Result<()>;
@@ -80,34 +88,59 @@ async fn start_service(connection: &Connection) -> Result<(), String> {
         .map_err(|error| message(&error))
 }
 
+fn outcome(result: zbus::Result<()>) -> Result<(), String> {
+    result.map_err(|error| message(&error))
+}
+
+async fn account_command(proxy: &DaemonProxy<'_>, command: AccountCommand, events: &Events) {
+    let result = match command {
+        AccountCommand::SetLabel { account_id, label } => {
+            proxy.set_account_label(&account_id, &label).await
+        }
+        AccountCommand::SetHidden { account_id, hidden } => {
+            proxy.set_account_hidden(&account_id, hidden).await
+        }
+        AccountCommand::SetOrder(ids) => {
+            let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
+            proxy.set_account_order(&ids).await
+        }
+        AccountCommand::Restore(provider) => {
+            let result = outcome(proxy.restore_accounts(&provider).await);
+            events.send(Event::Restored(result));
+            return;
+        }
+    };
+    events.send(Event::AccountsWritten(outcome(result)));
+}
+
 async fn run_command(
     connection: &Connection,
     proxy: &DaemonProxy<'_>,
     command: Command,
     events: &Events,
 ) {
-    let failed = |error: zbus::Error| events.send(Event::CallFailed(message(&error)));
     match command {
         Command::RefreshNow => {
             let result = proxy.refresh_now().await;
             events.send(Event::RefreshSettled(result.is_ok()));
             if let Err(error) = result {
-                failed(error);
+                events.send(Event::CallFailed(message(&error)));
             }
         }
         Command::Refresh(id) => {
             if let Err(error) = proxy.refresh(&id).await {
-                failed(error);
+                events.send(Event::CallFailed(message(&error)));
             }
         }
         Command::UpdateSettings(patch) => {
-            if let Err(error) = proxy.update_settings(&patch).await {
-                failed(error);
-            }
+            let result = outcome(proxy.update_settings(&patch).await);
+            events.send(Event::SettingsWritten(result));
         }
+        Command::ReloadSettings => fetch_settings(proxy, events).await,
         Command::StartService => {
             events.send(Event::ServiceStarted(start_service(connection).await));
         }
+        Command::Account(command) => account_command(proxy, command, events).await,
     }
 }
 

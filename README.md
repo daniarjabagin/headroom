@@ -79,9 +79,9 @@ default.</sub>
 - **Notifications that matter.** *Under 10 % left*, *projected to run out in …*, *limit reset*.
   Sent once per window, remembered across restarts, through your desktop's notifications or macOS
   Notification Center.
-- **Native everywhere.** A GNOME Shell extension, a KDE Plasma 6 widget and a SwiftUI menu-bar app
-  with the same popup: spend donut, limits with pace, 30-day trend and model breakdown. Plus a CLI
-  and a Waybar module for everything else.
+- **Native everywhere.** A GNOME Shell extension, a KDE Plasma 6 widget, a GTK 4 tray app for every
+  other Linux desktop and a SwiftUI menu-bar app with the same popup: spend donut, limits with pace,
+  30-day trend and model breakdown. Plus a CLI and a Waybar module.
 - **Stays current.** Linux installs tell you when a new release is out and update in one click;
   the macOS app updates itself with Sparkle.
 - **Light and dark, English and Russian.** Both themes are first-class and follow the system;
@@ -143,6 +143,7 @@ the Keychain. `headroom providers` prints the same list for your build. Missing 
 | | Recommended | Alternatives |
 | --- | --- | --- |
 | **Linux** | [one-line installer](#linux-one-line-installer) | [deb, rpm and Arch packages](#linux-packages), [from source](#linux-from-source) |
+| **Other Linux desktops** (Xfce, Cinnamon, MATE, Budgie, LXQt, Hyprland, Sway, niri…) | [one-line installer](#linux-one-line-installer), which adds the [Headroom tray](#linux-other-desktops-headroom-tray) | [tray packages](#linux-packages), [from source](#linux-from-source) |
 | **macOS** | [Homebrew](#macos) | [DMG from the release page](#macos-dmg), [from source](docs/macos.md) |
 
 ### Linux: one-line installer
@@ -163,13 +164,43 @@ click.
 ```sh
 # skip parts you do not use
 curl -fsSL https://github.com/daniarjabagin/headroom/releases/latest/download/get-headroom.sh | sh -s -- --no-gnome
-# flags: --no-gnome, --no-plasma, --no-service (binary only)
+# flags: --no-gnome, --no-plasma, --no-service (binary only), --tray / --no-tray
 # pin a release: HEADROOM_VERSION=v0.4.0
 ```
+
+On a desktop other than GNOME Shell and Plasma the installer also adds the
+[Headroom tray](#linux-other-desktops-headroom-tray) (`--tray` forces it, `--no-tray` skips it).
 
 On Wayland, log out and back in once, then enable the extension:
 `gnome-extensions enable headroom@daniarjabagin.github.io`. On Plasma, add the **Headroom** widget
 to a panel.
+
+### Linux: other desktops (Headroom tray)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tray-dark.png">
+    <img src="docs/screenshots/tray-light.png" width="318" alt="The Headroom tray popup: a spend donut and Claude and Codex limits with pace ticks, the same cards as the GNOME and Plasma popups">
+  </picture>
+</p>
+
+Xfce, Cinnamon, MATE, Budgie, LXQt, Hyprland, Sway, niri and every other desktop with a system tray
+get `headroom-tray`: a tray icon with the usage ring and the same popup as GNOME and Plasma. Left
+click opens the popup, right click shows Open, Refresh now, Settings… and Quit. The one-line
+installer picks it by itself from `XDG_CURRENT_DESKTOP` and installs `~/.local/bin/headroom-tray`,
+an autostart entry and a menu entry, and starts it. It is updated together with Headroom.
+
+- It needs GTK ≥ 4.14, libadwaita ≥ 1.5 (Ubuntu 24.04 / Mint 22, Debian 13, Fedora 40 and newer,
+  Arch) and a StatusNotifierItem tray host. With `gtk4-layer-shell` installed (Debian 13,
+  Ubuntu 25.04+, Fedora, Arch) the installer picks the build that places the popup next to the tray
+  on wlroots compositors (Sway, Hyprland, niri, river, labwc, Wayfire); without it the popup opens
+  centered there. On X11 it opens at the tray icon.
+- Tiling window managers start it from their config: `exec headroom-tray` (Sway, i3) or
+  `exec-once = headroom-tray` (Hyprland). Bind `headroom-tray --toggle` to a key to open the popup
+  without a tray.
+- i3bar, polybar, tint2 and other XEmbed-only trays show it through
+  [snixembed](https://git.sr.ht/~steef/snixembed): run `snixembed --fork` before `headroom-tray`.
+- Waybar needs its `tray` module; swaybar opens the popup on click but has no right-click menu.
 
 ### Linux: packages
 
@@ -182,6 +213,12 @@ sudo apt install ./headroom_*_amd64.deb          # Debian, Ubuntu
 sudo dnf install ./headroom-*.x86_64.rpm         # Fedora (zypper install on openSUSE)
 sudo pacman -U ./headroom-*-x86_64.pkg.tar.zst   # Arch Linux
 ```
+
+For desktops other than GNOME and Plasma add the `headroom-tray` package from the same release: the
+`.deb` runs on Ubuntu 24.04 / Mint 22 and newer and Debian 13, the `.rpm` (Fedora 41+) and the Arch
+package use gtk4-layer-shell. They install `/usr/bin/headroom-tray`, a menu entry and
+`/etc/xdg/autostart/headroom-tray.desktop`, which starts the tray at login everywhere except GNOME
+Shell and Plasma.
 
 Then, as your user:
 
@@ -205,6 +242,7 @@ openssl pkeyutl -verify -rawin -pubin -inkey release-signing-key.pub.pem -in SHA
 packaging/install.sh                # binary, user service, D-Bus activation, GNOME extension
 packaging/install.sh --no-gnome     # skip the GNOME Shell extension
 packaging/install.sh --no-service   # install ~/.local/bin/headroom only
+packaging/install.sh --tray         # also build and install the Headroom tray
 make -C shell/plasma install        # Plasma widget
 ```
 
@@ -253,7 +291,9 @@ troubleshooting.
 ### Requirements
 
 - Linux on x86_64 or aarch64 with a systemd user session and a D-Bus session bus, Wayland or X11
-- A panel: GNOME Shell 46–50, KDE Plasma 6.2+ (live updates on 6.4+, polling before), or Waybar
+- A panel: GNOME Shell 46–50, KDE Plasma 6.2+ (live updates on 6.4+, polling before), Waybar, or
+  any StatusNotifierItem tray for the Headroom tray (GTK ≥ 4.14, libadwaita ≥ 1.5; optional
+  gtk4-layer-shell for popup placement on wlroots compositors)
 - Optional: a Secret Service keyring (GNOME Keyring, KWallet) for API keys
 - macOS 14 Sonoma or newer, Apple silicon or Intel
 - Building from source: Rust 1.98; the GNOME extension also needs `gnome-extensions`,
@@ -267,7 +307,7 @@ troubleshooting.
 - Installed with the one-line installer: press **Update**, or run `headroom update` in a terminal.
   It downloads the release, checks the signature of `SHA256SUMS` against the release key built
   into Headroom, verifies the download against `SHA256SUMS` and reinstalls with the same options
-  you chose the first time.
+  you chose the first time, the Headroom tray included.
 - Installed from a package: **How to update** shows what to do; download the new package from the
   [release page](https://github.com/daniarjabagin/headroom/releases/latest) and install it the same
   way as the first one.
@@ -392,7 +432,7 @@ too; this is what differs.
 | --- | --- | --- | --- |
 | Platforms | Linux + macOS 14+ | macOS 15+ | Windows, macOS, Linux |
 | Built with | Rust daemon + native shells (GJS, QML, SwiftUI) | Swift, SwiftUI | Tauri 2, Rust, Svelte |
-| Lives in | GNOME top panel, Plasma panel, Waybar, macOS menu bar | macOS menu bar | System tray, app window |
+| Lives in | GNOME top panel, Plasma panel, system tray of other Linux desktops, Waybar, macOS menu bar | macOS menu bar | System tray, app window |
 | Providers | 14 | 11 | 12 |
 | License | MIT | MIT | MIT |
 
@@ -406,7 +446,7 @@ too; this is what differs.
 - [x] Homebrew cask
 - [ ] AUR package
 - [ ] apt and dnf repositories
-- [ ] Tray icon with a GTK4 popover for desktops without GNOME or Plasma
+- [x] Tray icon with a GTK 4 popup for desktops without GNOME or Plasma
 - [ ] Antigravity on macOS
 - [ ] More providers
 
