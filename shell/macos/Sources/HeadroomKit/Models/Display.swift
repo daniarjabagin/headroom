@@ -35,6 +35,7 @@ public struct DisplaySettings: Codable, Sendable, Hashable {
     public var showForecast: Bool
     public var translucent: Bool
     public var hiddenWindows: [String: [String]]
+    public var combineAccounts: Bool
 
     enum CodingKeys: String, CodingKey {
         case theme, language, translucent
@@ -46,5 +47,22 @@ public struct DisplaySettings: Codable, Sendable, Hashable {
         case showTrend = "show_trend"
         case showForecast = "show_forecast"
         case hiddenWindows = "hidden_windows"
+        case combineAccounts = "combine_accounts"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        theme = try container.decode(ThemePreference.self, forKey: .theme)
+        language = try container.decode(LanguagePreference.self, forKey: .language)
+        valueMode = try container.decode(ValueMode.self, forKey: .valueMode)
+        resetFormat = try container.decode(ResetFormat.self, forKey: .resetFormat)
+        panelLabel = try container.decode(PanelLabel.self, forKey: .panelLabel)
+        showSpend = try container.decode(Bool.self, forKey: .showSpend)
+        showAccountSpend = try container.decode(Bool.self, forKey: .showAccountSpend)
+        showTrend = try container.decode(Bool.self, forKey: .showTrend)
+        showForecast = try container.decode(Bool.self, forKey: .showForecast)
+        translucent = try container.decode(Bool.self, forKey: .translucent)
+        hiddenWindows = try container.decode([String: [String]].self, forKey: .hiddenWindows)
+        combineAccounts = try container.decodeIfPresent(Bool.self, forKey: .combineAccounts) ?? false
     }
 }

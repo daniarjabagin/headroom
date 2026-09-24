@@ -34,6 +34,13 @@ final class SettingsChangeTests: XCTestCase {
         XCTAssertEqual(try patchText(.panelLabel(.window)), #"{"display":{"panel_label":"window"}}"#)
         XCTAssertEqual(try patchText(.translucent(true)), #"{"display":{"translucent":true}}"#)
         XCTAssertEqual(try patchText(.section(.showTrend, false)), #"{"display":{"show_trend":false}}"#)
+        XCTAssertEqual(try patchText(.combineAccounts(true)), #"{"display":{"combine_accounts":true}}"#)
+    }
+
+    func testCombineAccountsDefaultsOffAndApplies() throws {
+        let base = try settings()
+        XCTAssertFalse(base.display.combineAccounts)
+        XCTAssertTrue(SettingsChange.combineAccounts(true).applied(to: base).display.combineAccounts)
     }
 
     func testTopLevelPatches() throws {

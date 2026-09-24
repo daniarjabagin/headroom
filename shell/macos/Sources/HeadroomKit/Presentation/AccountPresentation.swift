@@ -9,6 +9,15 @@ public struct AccountHeaderModel: Sendable, Hashable {
     public let title: String
     public let plan: String?
     public let status: HeaderStatus?
+    public let accountCount: String?
+
+    init(provider: String, title: String, plan: String?, status: HeaderStatus?, accountCount: String? = nil) {
+        self.provider = provider
+        self.title = title
+        self.plan = plan
+        self.status = status
+        self.accountCount = accountCount
+    }
 }
 
 public enum NoticeKind: Sendable, Hashable {
@@ -48,6 +57,7 @@ public struct AccountLimits: Sendable, Hashable {
 public enum AccountBody: Sendable, Hashable {
     case blocked(BlockingNotice)
     case limits(AccountLimits)
+    case combined(CombinedLimits)
 }
 
 public struct AccountSectionModel: Sendable, Hashable, Identifiable {
@@ -55,6 +65,7 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
 
     public let id: String
     public let provider: String
+    public let memberIDs: [String]
     public let header: AccountHeaderModel
     public let body: AccountBody
 
@@ -62,8 +73,13 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
         _ state: DaemonState, ordered accounts: [Account]? = nil, formatter: DisplayFormatter
     ) -> [AccountSectionModel] {
         let visible = (accounts ?? state.accounts).filter { !$0.hidden }
-        return visible.map { account in
-            make(account, siblings: visible, state: state, formatter: formatter)
+        return visible.compactMap { account in
+            guard let group = group(of: account, in: state.combined) else {
+                return make(account, siblings: visible, state: state, formatter: formatter)
+            }
+            let members = visible.filter { group.accountIDs.contains($0.id) }
+            guard members.first?.id == account.id else { return nil }
+            return combined(group, members: members, state: state, formatter: formatter)
         }
     }
 
@@ -76,17 +92,20 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
             ? .blocked(blockingNotice(account, strings: formatter.strings))
             : .limits(limits(account, state: state, formatter: formatter))
         return AccountSectionModel(
-            id: account.id, provider: account.provider,
+            id: account.id, provider: account.provider, memberIDs: [account.id],
             header: header(account, showsName: showsName, offline: state.offline), body: body)
     }
 
     static func header(_ account: Account, showsName: Bool, offline: Bool) -> AccountHeaderModel {
-        let who = account.label ?? account.email
-        let title =
-            showsName ? who.map { "\(account.providerName): \($0)" } ?? account.providerName : account.providerName
         let plan = AccountStatusRules.lacksSubscription(account) ? nil : account.plan
         return AccountHeaderModel(
-            provider: account.provider, title: title, plan: plan, status: status(account, offline: offline))
+            provider: account.provider, title: title(account, showsName: showsName), plan: plan,
+            status: status(account, offline: offline))
+    }
+
+    static func title(_ account: Account, showsName: Bool) -> String {
+        let who = account.label ?? account.email
+        return showsName ? who.map { "\(account.providerName): \($0)" } ?? account.providerName : account.providerName
     }
 
     static func status(_ account: Account, offline: Bool) -> HeaderStatus? {
@@ -137,7 +156,7 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
             extrasCollapsible: !extras.isEmpty && (!windows.isEmpty || trend != nil))
     }
 
-    static func notices(_ account: Account, offline: Bool, strings: UIStrings) -> [NoticeModel] {
+    static func notices(_ account: Account, offline: Bool, strings: UIStrings, name: String? = nil) -> [NoticeModel] {
         let daemonNotices = account.notices.enumerated().map { index, notice in
             NoticeModel(
                 id: "notice:\(index)", kind: kind(of: notice.tone),
@@ -146,7 +165,8 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
         }
         guard AccountStatusRules.showsErrorNotice(account, offline: offline) else { return daemonNotices }
         let error = NoticeModel(
-            id: "error", kind: .error, title: strings.fill(.couldNotRefresh, ["provider": account.providerName]),
+            id: "error", kind: .error,
+            title: strings.fill(.couldNotRefresh, ["provider": name ?? account.providerName]),
             detail: account.error?.message, retryAccountID: account.id)
         return [error] + daemonNotices
     }

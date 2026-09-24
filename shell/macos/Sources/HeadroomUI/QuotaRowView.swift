@@ -17,10 +17,11 @@
                 }
                 PillMeter(fraction: row.fill, tick: row.tick, tone: row.tone)
                 HStack(spacing: 8) {
-                    toggle(row.headline, font: Typeface.body, style: .primary, action: toggleValueMode)
+                    ReadingButton(text: row.headline, font: Typeface.body, style: .primary, action: toggleValueMode)
                         .contentTransition(.numericText())
                     Spacer(minLength: 8)
-                    toggle(row.trailing, font: Typeface.caption, style: .secondary, action: toggleResetFormat)
+                    ReadingButton(
+                        text: row.trailing, font: Typeface.caption, style: .secondary, action: toggleResetFormat)
                 }
                 if let forecast = row.forecast {
                     Text(forecast)
@@ -35,10 +36,15 @@
             .padding(.vertical, PopupMetrics.barRowPadding)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: row.percent)
         }
+    }
 
-        private func toggle(
-            _ text: String, font: Font, style: HierarchicalShapeStyle, action: @escaping @MainActor () -> Void
-        ) -> some View {
+    struct ReadingButton: View {
+        let text: String
+        let font: Font
+        let style: HierarchicalShapeStyle
+        let action: @MainActor () -> Void
+
+        var body: some View {
             Button {
                 action()
             } label: {

@@ -48,15 +48,19 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
     static func note(
         _ window: QuotaWindow, now: Timestamp, showForecast: Bool, formatter: DisplayFormatter
     ) -> PaceNote? {
+        note(window.pace, now: now, showForecast: showForecast, formatter: formatter)
+    }
+
+    static func note(_ pace: Pace, now: Timestamp, showForecast: Bool, formatter: DisplayFormatter) -> PaceNote? {
         let strings = formatter.strings
-        switch window.pace.severity {
+        switch pace.severity {
         case .spent:
             return PaceNote(flame: true, text: strings.text(.limitReached))
         case .runningOut:
-            let text = showForecast ? strings.text(.overPace) : limitText(window.pace.runsOutAt, now, formatter)
+            let text = showForecast ? strings.text(.overPace) : limitText(pace.runsOutAt, now, formatter)
             return PaceNote(flame: true, text: text)
         case .close:
-            guard let spare = window.pace.sparePercent, !showForecast else { return nil }
+            guard let spare = pace.sparePercent, !showForecast else { return nil }
             return PaceNote(flame: false, text: spareText(spare, strings))
         case .healthy, .untracked:
             return nil
@@ -66,12 +70,18 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
     static func forecast(
         _ window: QuotaWindow, now: Timestamp, display: DisplaySettings, formatter: DisplayFormatter
     ) -> String? {
-        switch window.pace.severity {
+        forecast(window.pace, resetsAt: window.resetsAt, now: now, display: display, formatter: formatter)
+    }
+
+    static func forecast(
+        _ pace: Pace, resetsAt: Timestamp?, now: Timestamp, display: DisplaySettings, formatter: DisplayFormatter
+    ) -> String? {
+        switch pace.severity {
         case .runningOut:
-            return runOutForecast(window, now: now, format: display.resetFormat, formatter: formatter)
+            return runOutForecast(pace, resetsAt: resetsAt, now: now, format: display.resetFormat, formatter: formatter)
         case .healthy, .close:
-            guard let spare = window.pace.sparePercent else { return nil }
-            return atResetForecast(window.pace, spare: spare, mode: display.valueMode, strings: formatter.strings)
+            guard let spare = pace.sparePercent else { return nil }
+            return atResetForecast(pace, spare: spare, mode: display.valueMode, strings: formatter.strings)
         case .spent, .untracked:
             return nil
         }
@@ -88,12 +98,12 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
     }
 
     private static func runOutForecast(
-        _ window: QuotaWindow, now: Timestamp, format: ResetFormat, formatter: DisplayFormatter
+        _ pace: Pace, resetsAt: Timestamp?, now: Timestamp, format: ResetFormat, formatter: DisplayFormatter
     ) -> String {
         let strings = formatter.strings
-        guard let runsOutAt = window.pace.runsOutAt, runsOutAt > now else { return strings.text(.runsOutAnyMinute) }
+        guard let runsOutAt = pace.runsOutAt, runsOutAt > now else { return strings.text(.runsOutAnyMinute) }
         let runsOut = strings.fill(.runsOutIn, ["duration": formatter.duration(seconds: runsOutAt.seconds(since: now))])
-        guard let resetsAt = window.resetsAt else { return strings.fill(.paceRunsOut, ["runsOut": runsOut]) }
+        guard let resetsAt else { return strings.fill(.paceRunsOut, ["runsOut": runsOut]) }
         let resets = formatter.resetPhrase(resetsAt: resetsAt, now: now, format: format)
         return strings.fill(.paceRunsOutResets, ["runsOut": runsOut, "resets": resets])
     }
@@ -105,7 +115,7 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
         return strings.fill(.paceLeftAtReset, ["percent": wholePercent(spare)])
     }
 
-    private static func wholePercent(_ value: Double) -> String {
+    static func wholePercent(_ value: Double) -> String {
         DisplayFormatter.roundedPercent(value).map { "\($0)" } ?? DisplayFormatter.dash
     }
 }

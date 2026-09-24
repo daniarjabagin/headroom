@@ -166,7 +166,7 @@ public enum ServiceText: LocalizedText {
 }
 
 public enum PluralTemplate: Sendable, CaseIterable {
-    case everySeconds, everyMinutes
+    case everySeconds, everyMinutes, accounts
 
     func forms(_ language: UILanguage) -> [String] {
         switch (self, language) {
@@ -174,6 +174,8 @@ public enum PluralTemplate: Sendable, CaseIterable {
         case (.everySeconds, .ru): ["Каждую {count} секунду", "Каждые {count} секунды", "Каждые {count} секунд"]
         case (.everyMinutes, .en): ["Every {count} minute", "Every {count} minutes"]
         case (.everyMinutes, .ru): ["Каждую {count} минуту", "Каждые {count} минуты", "Каждые {count} минут"]
+        case (.accounts, .en): ["{count} account", "{count} accounts"]
+        case (.accounts, .ru): ["{count} аккаунт", "{count} аккаунта", "{count} аккаунтов"]
         }
     }
 }
