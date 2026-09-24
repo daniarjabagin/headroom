@@ -1,0 +1,51 @@
+name: New provider
+description: Ask for support of another AI coding tool or API.
+labels: ["provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Headroom only shows numbers the provider itself reports, so the key question is where a tool exposes its limits and usage.
+        **Remove tokens, API keys, cookies, emails and account ids from everything you paste.**
+  - type: input
+    id: name
+    attributes:
+      label: Tool or service
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link
+      description: The product page or its documentation.
+      placeholder: https://
+    validations:
+      required: true
+  - type: textarea
+    id: limits
+    attributes:
+      label: Limits and usage
+      description: Session or weekly limits, credits, balance, spend, token counts…
+    validations:
+      required: true
+  - type: textarea
+    id: exposure
+    attributes:
+      label: How the tool exposes them
+      description: |
+        An HTTP API, a CLI command, local log files, a web page. Mention how it signs in (API key, OAuth, CLI login) and where it keeps its credentials, if you know.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample response
+      description: A real response or log line with **every secret and personal value replaced** by placeholders.
+      render: json
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I can test a development build with my account.
+        - label: I would like to implement it myself (see "Adding a provider" in docs/architecture.md).

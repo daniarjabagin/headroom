@@ -3,9 +3,24 @@
 Thanks for helping. Headroom is small on purpose: one Rust core and a few thin native shells. This
 page explains how the pieces fit, the rules the code follows and how to run and test each part.
 
-Bug reports and feature requests go to
-[issues](https://github.com/daniarjabagin/headroom/issues). For anything larger than a fix, open an
-issue first so we can agree on the approach before you write the code.
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Issues and discussions
+
+- **Bugs, feature requests and new providers:** pick a form on
+  [New issue](https://github.com/daniarjabagin/headroom/issues/new/choose). The forms ask for
+  exactly what is needed to act on a report, such as `headroom --version`, `headroom status --json`
+  and the daemon log; remove emails and never paste tokens.
+- **Questions and ideas:** [Discussions](https://github.com/daniarjabagin/headroom/discussions).
+- **Vulnerabilities:** privately, as described in [SECURITY.md](SECURITY.md).
+
+For anything larger than a fix, open an issue first so we can agree on the approach before you write
+the code. Issues labelled
+[`good first issue`](https://github.com/daniarjabagin/headroom/labels/good%20first%20issue) are
+small, well-described tasks that need little knowledge of the codebase, a good way in. Issues
+labelled [`help wanted`](https://github.com/daniarjabagin/headroom/labels/help%20wanted) are ones
+where a pull request is especially welcome. Leave a comment before you start so no one else works on
+the same thing.
 
 ## Architecture
 
@@ -266,7 +281,7 @@ shell/macos/script/bundle.sh --install --open   # build, sign ad-hoc, copy to /A
   screenshots for personal data.
 - User-visible changes get a line under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
 - Before opening a pull request, run the checks for every part you touched (see above). CI runs the
-  same checks.
+  same checks, and the pull request template has a short checklist.
 
 By contributing you agree that your contribution is licensed under the [MIT license](LICENSE). The
 Headroom brand assets are not part of that license; see [NOTICE.md](NOTICE.md).
