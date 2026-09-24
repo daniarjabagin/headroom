@@ -127,6 +127,7 @@ pub struct BalanceView {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BalanceAmountView {
     Usd { usd_micros: i64 },
+    Money { currency: String, micros: i64 },
     Count { value: u64, unit: String },
 }
 

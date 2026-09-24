@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::account::AccountIdentity;
 use crate::pace::Tone;
-use crate::units::{MicroUsd, Percent};
+use crate::units::{MicroUsd, Money, Percent};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QuotaWindow {
@@ -50,6 +50,7 @@ pub struct Balance {
 #[serde(rename_all = "snake_case")]
 pub enum BalanceAmount {
     Usd(MicroUsd),
+    Money(Money),
     Count { value: u64, unit: String },
 }
 
@@ -116,6 +117,20 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&WindowId::Model("sonnet".into())).unwrap(),
             "{\"model\":\"sonnet\"}"
+        );
+    }
+
+    #[test]
+    fn money_balances_keep_their_currency() {
+        let amount = BalanceAmount::Money(Money {
+            currency: crate::units::CurrencyCode::parse("CNY").unwrap(),
+            micros: -1,
+        });
+        let json = serde_json::to_string(&amount).unwrap();
+        assert_eq!(json, r#"{"money":{"currency":"CNY","micros":-1}}"#);
+        assert_eq!(
+            serde_json::from_str::<BalanceAmount>(&json).unwrap(),
+            amount
         );
     }
 

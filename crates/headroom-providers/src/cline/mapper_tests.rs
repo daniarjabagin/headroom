@@ -21,7 +21,7 @@ fn fetched(plan: &str, balance: &str) -> Fetched {
 fn usd(balance: &Balance) -> i64 {
     match balance.amount {
         BalanceAmount::Usd(MicroUsd(value)) => value,
-        BalanceAmount::Count { .. } => panic!("{balance:?}"),
+        BalanceAmount::Count { .. } | BalanceAmount::Money(_) => panic!("{balance:?}"),
     }
 }
 

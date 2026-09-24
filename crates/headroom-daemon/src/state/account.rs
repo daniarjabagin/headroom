@@ -118,6 +118,10 @@ fn balance_view(balance: &Balance) -> BalanceView {
         BalanceAmount::Usd(micros) => BalanceAmountView::Usd {
             usd_micros: micros.0,
         },
+        BalanceAmount::Money(money) => BalanceAmountView::Money {
+            currency: money.currency.to_string(),
+            micros: money.micros,
+        },
         BalanceAmount::Count { value, unit } => BalanceAmountView::Count {
             value: *value,
             unit: unit.clone(),
@@ -134,5 +138,47 @@ fn notice_view(notice: &Notice) -> NoticeView {
     NoticeView {
         tone: notice.tone,
         text: notice.text.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use headroom_core::units::{CurrencyCode, MicroUsd, Money};
+
+    use super::*;
+
+    fn view_json(amount: BalanceAmount) -> serde_json::Value {
+        let balance = Balance {
+            id: "total".into(),
+            label: "Balance".into(),
+            amount,
+        };
+        serde_json::to_value(balance_view(&balance)).unwrap()
+    }
+
+    #[test]
+    fn money_balances_carry_their_currency_and_micros() {
+        let amount = BalanceAmount::Money(Money {
+            currency: CurrencyCode::parse("CNY").unwrap(),
+            micros: 12_500_000,
+        });
+        assert_eq!(
+            view_json(amount),
+            serde_json::json!({
+                "id": "total",
+                "label": "Balance",
+                "kind": "money",
+                "currency": "CNY",
+                "micros": 12_500_000
+            })
+        );
+    }
+
+    #[test]
+    fn usd_balances_keep_their_existing_shape() {
+        assert_eq!(
+            view_json(BalanceAmount::Usd(MicroUsd(-1))),
+            serde_json::json!({ "id": "total", "label": "Balance", "kind": "usd", "usd_micros": -1 })
+        );
     }
 }

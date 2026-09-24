@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
@@ -66,6 +67,57 @@ impl Sum for MicroUsd {
     fn sum<I: Iterator<Item = MicroUsd>>(iter: I) -> MicroUsd {
         iter.fold(MicroUsd::ZERO, Add::add)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct CurrencyCode(String);
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0:?} is not an ISO 4217 currency code")]
+pub struct InvalidCurrencyCode(pub String);
+
+impl CurrencyCode {
+    pub fn parse(text: &str) -> Result<CurrencyCode, InvalidCurrencyCode> {
+        let valid = text.len() == 3 && text.bytes().all(|b| b.is_ascii_alphabetic());
+        if valid {
+            Ok(CurrencyCode(text.to_ascii_uppercase()))
+        } else {
+            Err(InvalidCurrencyCode(text.to_owned()))
+        }
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for CurrencyCode {
+    type Error = InvalidCurrencyCode;
+
+    fn try_from(text: String) -> Result<CurrencyCode, InvalidCurrencyCode> {
+        CurrencyCode::parse(&text)
+    }
+}
+
+impl From<CurrencyCode> for String {
+    fn from(code: CurrencyCode) -> String {
+        code.0
+    }
+}
+
+impl fmt::Display for CurrencyCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// An amount in millionths of one unit of `currency`; amounts in different currencies never mix.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Money {
+    pub currency: CurrencyCode,
+    pub micros: i64,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -154,5 +206,31 @@ mod tests {
         let parsed: Percent = serde_json::from_str("-5.0").unwrap();
         assert_eq!(parsed, Percent::ZERO);
         assert_eq!(serde_json::to_string(&Percent::new(12.5)).unwrap(), "12.5");
+    }
+
+    #[test]
+    fn currency_codes_are_three_letters_in_upper_case() {
+        assert_eq!(CurrencyCode::parse("cny").unwrap().as_str(), "CNY");
+        assert_eq!(CurrencyCode::parse("USD").unwrap().to_string(), "USD");
+        for text in ["", "US", "USDT", "U5D", "¥¥¥", " CN"] {
+            assert_eq!(
+                CurrencyCode::parse(text),
+                Err(InvalidCurrencyCode(text.to_owned())),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn money_serializes_its_currency_as_a_code() {
+        let money = Money {
+            currency: CurrencyCode::parse("CNY").unwrap(),
+            micros: 12_500_000,
+        };
+        let json = serde_json::to_string(&money).unwrap();
+        assert_eq!(json, r#"{"currency":"CNY","micros":12500000}"#);
+        assert_eq!(serde_json::from_str::<Money>(&json).unwrap(), money);
+        let bad = serde_json::from_str::<Money>(r#"{"currency":"yuan","micros":1}"#);
+        assert!(bad.is_err());
     }
 }
