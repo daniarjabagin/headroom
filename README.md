@@ -135,7 +135,14 @@ the Keychain. `headroom providers` prints the same list for your build. Missing 
 
 ## Install
 
+| | Recommended | Alternatives |
+| --- | --- | --- |
+| **Linux** | [one-line installer](#linux-one-line-installer) | [deb, rpm and Arch packages](#linux-packages), [from source](#linux-from-source) |
+| **macOS** | [Homebrew](#macos) | [DMG from the release page](#macos-dmg), [from source](docs/macos.md) |
+
 ### Linux: one-line installer
+
+The recommended way on every distribution:
 
 ```sh
 curl -fsSL https://github.com/daniarjabagin/headroom/releases/latest/download/get-headroom.sh | sh
@@ -143,7 +150,8 @@ curl -fsSL https://github.com/daniarjabagin/headroom/releases/latest/download/ge
 
 It downloads the static binary for x86_64 or aarch64, verifies it against the release's
 `SHA256SUMS` and installs into `~/.local`: the binary, the systemd user service, D-Bus activation,
-the GNOME Shell extension and the Plasma widget. No root needed.
+the GNOME Shell extension and the Plasma widget. No root needed, and Headroom updates itself in one
+click.
 
 ```sh
 # skip parts you do not use
@@ -191,22 +199,30 @@ The script is idempotent, so run it again to upgrade. `packaging/uninstall.sh` (
 release tarball) removes everything and keeps your data in `~/.local/share/headroom`,
 `~/.local/state/headroom` and `~/.cache/headroom`.
 
-### Requirements
-
-- Linux on x86_64 or aarch64 with a systemd user session and a D-Bus session bus, Wayland or X11
-- A panel: GNOME Shell 46–50, KDE Plasma 6.2+ (live updates on 6.4+, polling before), or Waybar
-- Optional: a Secret Service keyring (GNOME Keyring, KWallet) for API keys
-- macOS 14 Sonoma or newer, Apple silicon or Intel
-- Building from source: Rust 1.98; the GNOME extension also needs `gnome-extensions`,
-  `glib-compile-schemas` and `python3`; the macOS app needs Xcode (Swift 6)
-
 ### macOS
+
+The recommended way is the Homebrew cask:
+
+```sh
+brew install --cask daniarjabagin/tap/headroom
+```
+
+The app is ad-hoc signed and not notarized yet; the cask removes the quarantine flag after
+installing, so it opens without the Gatekeeper steps below. `brew uninstall --cask --zap headroom`
+removes it together with its settings, logs and caches.
+
+Headroom lives in the menu bar, with no Dock icon: click it for the popup, right-click for Refresh,
+Settings, Check for Updates and Quit. Settings → Service turns on launch at login. When macOS asks
+for access to "Claude Code-credentials" in the Keychain, choose **Always Allow**; because the app is
+ad-hoc signed, macOS asks once more after each update.
+
+#### macOS: DMG
 
 Download `Headroom-<version>-universal.dmg` from the
 [latest release](https://github.com/daniarjabagin/headroom/releases/latest), open it and drag
 **Headroom** to **Applications**.
 
-The app is not notarized yet (it is ad-hoc signed), so macOS blocks the first launch:
+Because the app is not notarized, macOS blocks the first launch of a downloaded DMG:
 
 1. Open Headroom once and click **Done** in the warning.
 2. Go to System Settings → Privacy & Security and click **Open Anyway**, then confirm with your
@@ -218,13 +234,17 @@ Or remove the quarantine flag in Terminal and open the app normally:
 xattr -dr com.apple.quarantine /Applications/Headroom.app
 ```
 
-Headroom lives in the menu bar, with no Dock icon: click it for the popup, right-click for Refresh,
-Settings, Check for Updates and Quit. Settings → Service turns on launch at login. When macOS asks
-for access to "Claude Code-credentials" in the Keychain, choose **Always Allow**; because the app is
-ad-hoc signed, macOS asks once more after each update.
-
 To build the app yourself, see the [macOS guide](docs/macos.md), which also covers files, logs and
 troubleshooting.
+
+### Requirements
+
+- Linux on x86_64 or aarch64 with a systemd user session and a D-Bus session bus, Wayland or X11
+- A panel: GNOME Shell 46–50, KDE Plasma 6.2+ (live updates on 6.4+, polling before), or Waybar
+- Optional: a Secret Service keyring (GNOME Keyring, KWallet) for API keys
+- macOS 14 Sonoma or newer, Apple silicon or Intel
+- Building from source: Rust 1.98; the GNOME extension also needs `gnome-extensions`,
+  `glib-compile-schemas` and `python3`; the macOS app needs Xcode (Swift 6)
 
 ## Updates
 
@@ -246,7 +266,8 @@ anything.
 **macOS.** The app updates itself with [Sparkle](https://sparkle-project.org). It checks once a day
 and offers the new version with its release notes; right-click the menu-bar item → **Check for
 Updates…** to check at once. Every update is verified with an EdDSA signature before it is
-installed.
+installed. Installed with Homebrew, the app still updates itself; `brew upgrade --cask --greedy
+headroom` works too.
 
 Both checks are a single request to GitHub and can be turned off, see [Privacy](#privacy).
 
@@ -368,7 +389,7 @@ too; this is what differs.
 - [x] Native macOS menu-bar app on the same Rust core
 - [x] Update notices on Linux, Sparkle updates on macOS
 - [ ] Signed and notarized macOS build
-- [ ] Homebrew cask
+- [x] Homebrew cask
 - [ ] AUR package
 - [ ] apt and dnf repositories
 - [ ] Tray icon with a GTK4 popover for desktops without GNOME or Plasma

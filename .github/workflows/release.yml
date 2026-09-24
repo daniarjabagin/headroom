@@ -306,3 +306,37 @@ jobs:
           prerelease: ${{ contains(env.TAG, '-') }}
           files: dist/*
           fail_on_unmatched_files: true
+
+  homebrew:
+    name: Update the Homebrew cask
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to update the tap
+        id: tap
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          if [[ "$TAG" == *-* ]]; then
+            echo "::notice title=No cask update::$TAG is a pre-release; the cask stays on the last release"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [[ -z "$HOMEBREW_TAP_DEPLOY_KEY" ]]; then
+            echo "::warning title=No cask update::HOMEBREW_TAP_DEPLOY_KEY is not set, so the Homebrew cask was not updated to $TAG"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out
+        if: steps.tap.outputs.publish == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Push Casks/headroom.rb to the tap
+        if: steps.tap.outputs.publish == 'true'
+        env:
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          HEADROOM_REPO: ${{ github.repository }}
+        run: packaging/homebrew/update-tap.sh "$TAG"
