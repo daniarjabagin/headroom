@@ -10,19 +10,21 @@ import "../../package/contents/ui/logic/Settings.js" as Settings
 ColumnLayout {
     id: samples
 
-    readonly property var headlines: [sample("codex", "session", 62, "good"), sample("codex", "weekly", 29, "warning"), sample("claude", "session", 17, "critical"), null]
+    readonly property var headlines: [sample("codex", "session", 62, "good"), sample("codex", "weekly", 29, "warning", 2), sample("claude", "session", 17, "critical"), null]
     readonly property var windowDisplay: Object.assign({}, Settings.parseDisplay(null), {
         panelLabel: "window"
     })
 
-    function sample(provider, windowId, remainingPercent, tone) {
+    function sample(provider, windowId, remainingPercent, tone, accountCount) {
         return {
             provider,
             windowId,
             windowLabel: windowId,
             usedPercent: 100 - remainingPercent,
             remainingPercent,
-            tone
+            tone,
+            combined: (accountCount ?? 1) > 1,
+            accountCount: accountCount ?? 1
         };
     }
 

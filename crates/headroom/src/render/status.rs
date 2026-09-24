@@ -6,7 +6,7 @@ use jiff::Timestamp;
 
 use super::bar;
 use super::format::{
-    account_title, grouped, pace_note, percent_left, reset_text, shown_windows, usd,
+    account_title, grouped, money, pace_note, percent_left, reset_text, shown_windows, usd,
 };
 use super::printable::printable;
 use super::spend::spend_lines;
@@ -166,6 +166,7 @@ fn window_line(window: &WindowView, layout: &Layout, now: Timestamp, palette: Pa
 fn balance_line(balance: &BalanceView, layout: &Layout, palette: Palette) -> String {
     let value = match &balance.amount {
         BalanceAmountView::Usd { usd_micros } => usd(*usd_micros),
+        BalanceAmountView::Money { currency, micros } => money(currency, *micros),
         BalanceAmountView::Count { value, unit } => format!("{} {unit}", grouped(*value)),
     };
     format!(

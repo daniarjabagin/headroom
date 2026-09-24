@@ -1,5 +1,6 @@
 .pragma library
 
+.import "Combined.js" as Combined
 .import "I18n.js" as I18n
 .import "Settings.js" as Settings
 .import "Update.js" as Update
@@ -214,7 +215,9 @@ function parseHeadline(raw) {
         windowLabel: text(raw.window_label),
         usedPercent: number(raw.used_percent),
         remainingPercent,
-        tone: oneOf(TONES, raw.tone, "neutral")
+        tone: oneOf(TONES, raw.tone, "neutral"),
+        combined: raw.combined === true,
+        accountCount: number(raw.account_count)
     };
 }
 
@@ -279,6 +282,7 @@ function parseState(json) {
         headline: parseHeadline(raw.headline),
         display: Settings.parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
+        combined: Combined.parseGroups(list(raw.combined), parseWindow),
         spend: parseSpend(raw.spend, usage),
         update: Update.parseUpdate(raw.update)
     };

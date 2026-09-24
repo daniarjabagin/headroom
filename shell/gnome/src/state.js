@@ -183,6 +183,38 @@ function parseAccount(raw, usage) {
     };
 }
 
+function parseSegment(raw) {
+    return {
+        accountId: text(raw.account_id) ?? '',
+        label: text(raw.label),
+        remainingPercent: number(raw.remaining_percent),
+        usedPercent: number(raw.used_percent),
+        resetsAt: timestamp(raw.resets_at),
+        tone: oneOf(TONES, raw.tone, 'neutral'),
+    };
+}
+
+function parseCombinedWindow(raw) {
+    return {
+        ...parseWindow(raw),
+        capacityPercent: number(raw.capacity_percent) ?? 100,
+        segments: list(raw.segments).map(parseSegment),
+    };
+}
+
+function parseMember(raw) {
+    return { accountId: text(raw.account_id) ?? '', label: text(raw.label), plan: text(raw.plan) };
+}
+
+function parseGroup(raw) {
+    return {
+        ...providerOf(raw),
+        accountIds: Array.isArray(raw.account_ids) ? raw.account_ids.filter(text) : [],
+        accounts: list(raw.accounts).map(parseMember),
+        windows: list(raw.windows).map(parseCombinedWindow),
+    };
+}
+
 function parseHeadline(raw) {
     if (!isObject(raw)) return null;
     const remainingPercent = number(raw.remaining_percent);
@@ -197,6 +229,8 @@ function parseHeadline(raw) {
         usedPercent: number(raw.used_percent),
         remainingPercent,
         tone: oneOf(TONES, raw.tone, 'neutral'),
+        combined: raw.combined === true,
+        accountCount: number(raw.account_count),
     };
 }
 
@@ -252,6 +286,9 @@ export function parseState(json) {
         headline: parseHeadline(raw.headline),
         display: parseDisplay(raw.display),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
+        combined: list(raw.combined)
+            .map(parseGroup)
+            .filter(group => group.accountIds.length > 0),
         spend: parseSpend(raw.spend, usage),
         update: parseUpdate(raw.update),
     };

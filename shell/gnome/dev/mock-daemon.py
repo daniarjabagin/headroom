@@ -12,7 +12,8 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mock_state import DEFAULT_SETTINGS, PROVIDERS, SCENARIOS, build, choose_headline, iso
+from mock_combined import SCENARIOS, build, with_combined
+from mock_state import DEFAULT_SETTINGS, PROVIDERS, choose_headline, iso
 
 BUS_NAME = "io.github.daniarjabagin.Headroom"
 OBJECT_PATH = "/io/github/daniarjabagin/Headroom"
@@ -93,6 +94,7 @@ class MockDaemon:
         self.labels = {}
         self.order = []
         self.settings = copy.deepcopy(DEFAULT_SETTINGS)
+        self.settings["display"] = merged(DEFAULT_SETTINGS["display"], build(scenario)["display"])
         self.refreshing = set()
         self.refreshed_at = None
         self.connection = None
@@ -129,6 +131,7 @@ class MockDaemon:
         pinned = (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
         state["headline"] = choose_headline(state["accounts"], pinned, preferred)
         state["display"] = self.settings["display"]
+        state = with_combined(state)
         if not self.settings["updates"]["check"]:
             state["update"] = None
         if self.refreshed_at and state.get("last_success_at"):

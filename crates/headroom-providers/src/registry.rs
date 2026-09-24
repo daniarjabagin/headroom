@@ -10,11 +10,13 @@ use crate::cline::{self, ClineConfig, ClineProvider};
 use crate::codex::{self, CodexConfig, CodexProvider};
 use crate::copilot::{self, CopilotConfig, CopilotProvider};
 use crate::cursor::{self, CursorConfig, CursorProvider};
+use crate::deepseek::{self, DeepSeekConfig, DeepSeekProvider};
 use crate::devin::{self, DevinConfig, DevinProvider};
 use crate::grok::{self, GrokConfig, GrokProvider};
 use crate::kilo::{self, KiloConfig, KiloProvider};
 use crate::kimi::{self, KimiConfig, KimiProvider};
 use crate::minimax::{self, MiniMaxConfig, MiniMaxProvider};
+use crate::moonshot::{self, MoonshotConfig, MoonshotProvider};
 use crate::ollama::{self, OllamaConfig, OllamaProvider};
 use crate::opencode::{self, OpenCodeConfig, OpenCodeProvider};
 use crate::openrouter::{self, OpenRouterConfig, OpenRouterProvider};
@@ -35,7 +37,7 @@ struct Entry {
     build: Build,
 }
 
-static ENTRIES: [Entry; 17] = [
+static ENTRIES: [Entry; 19] = [
     Entry {
         descriptor: &codex::DESCRIPTOR,
         build: build_codex,
@@ -103,6 +105,14 @@ static ENTRIES: [Entry; 17] = [
     Entry {
         descriptor: &poe::DESCRIPTOR,
         build: build_poe,
+    },
+    Entry {
+        descriptor: &deepseek::DESCRIPTOR,
+        build: build_deepseek,
+    },
+    Entry {
+        descriptor: &moonshot::DESCRIPTOR,
+        build: build_moonshot,
     },
 ];
 
@@ -208,6 +218,26 @@ fn build_minimax(context: &RegistryContext) -> Result<Arc<dyn Provider>, Provide
         config,
         http,
         context.secrets.clone(),
+    )))
+}
+
+fn build_deepseek(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = DeepSeekConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(DeepSeekProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
+    )))
+}
+
+fn build_moonshot(context: &RegistryContext) -> Result<Arc<dyn Provider>, ProviderError> {
+    let config = MoonshotConfig::from_process()?;
+    let secrets = Arc::clone(&context.secrets);
+    Ok(Arc::new(MoonshotProvider::new(
+        config,
+        context.http.clone(),
+        secrets,
     )))
 }
 

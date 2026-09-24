@@ -27,10 +27,12 @@ Item {
     required property string indicator
     required property real gap
     required property bool reducedMotion
+    property var group: null
+    property var members: []
     readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var plates: Account.plates(notices)
     readonly property var infoLines: Account.infoLines(notices)
-    readonly property var windows: Account.showsQuotas(account) ? State.shownWindows(account) : []
+    readonly property var windows: group !== null ? group.windows : Account.showsQuotas(account) ? State.shownWindows(account) : []
     readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
     signal refreshRequested(string accountId)
@@ -108,6 +110,7 @@ Item {
                     display: section.display
                     lang: section.lang
                     appear: section.appear
+                    members: section.members
                     onValueModeToggled: section.valueModeToggled()
                     onResetFormatToggled: section.resetFormatToggled()
                 }

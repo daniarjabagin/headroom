@@ -41,8 +41,23 @@ export function percentReading(percent, valueMode) {
     return valueMode === 'used' ? percentUsed(percent) : percentLeft(percent);
 }
 
+export function isPooled(window) {
+    return (window.segments?.length ?? 0) > 1;
+}
+
+export function capacityReading(percent, capacityPercent, valueMode) {
+    if (percent === null) return DASH;
+    const values = { percent: roundPercent(percent), capacity: roundPercent(capacityPercent) };
+    if (valueMode === 'used') return fill(_('{percent}% used of {capacity}%'), values);
+    return fill(_('{percent}% left of {capacity}%'), values);
+}
+
 export function panelPercent(percent) {
     return `${roundPercent(percent)}%`;
+}
+
+export function panelCount(count) {
+    return `\u00d7${count}`;
 }
 
 export function windowLabel(windowId, label) {
@@ -106,6 +121,7 @@ export function limitText(runsOutAt, now) {
 
 function runOutForecast(window, now, resetFormat) {
     const { runsOutAt } = window.pace;
+    if (runsOutAt === null && isPooled(window)) return _('At this pace: runs out before reset');
     if (runsOutAt === null || runsOutAt <= now) return _('At this pace: runs out any minute');
     const runsOut = fill(_('runs out in {duration}'), { duration: duration(runsOutAt - now) });
     if (window.resetsAt === null) return fill(_('At this pace: {runsOut}'), { runsOut });
@@ -113,7 +129,23 @@ function runOutForecast(window, now, resetFormat) {
     return fill(_('At this pace: {runsOut} · {resets}'), { runsOut, resets });
 }
 
-function atResetForecast(pace, valueMode) {
+function capacityForecast(window, valueMode) {
+    const { pace } = window;
+    const capacity = roundPercent(window.capacityPercent);
+    if (valueMode === 'used' && pace.projectedPercent !== null)
+        return fill(_('At this pace: ~{percent}% of {capacity}% used at reset'), {
+            percent: roundPercent(pace.projectedPercent),
+            capacity,
+        });
+    return fill(_('At this pace: ~{percent}% of {capacity}% left at reset'), {
+        percent: roundPercent(pace.sparePercent),
+        capacity,
+    });
+}
+
+function atResetForecast(window, valueMode) {
+    const { pace } = window;
+    if (isPooled(window)) return capacityForecast(window, valueMode);
     if (valueMode === 'used' && pace.projectedPercent !== null)
         return fill(_('At this pace: ~{percent}% used at reset'), { percent: roundPercent(pace.projectedPercent) });
     return fill(_('At this pace: ~{percent}% left at reset'), { percent: roundPercent(pace.sparePercent) });
@@ -124,7 +156,7 @@ export function forecastText(window, now, display) {
     if (window.remainingPercent === null) return null;
     if (severity === 'running_out') return runOutForecast(window, now, display.resetFormat);
     if ((severity === 'healthy' || severity === 'close') && sparePercent !== null)
-        return atResetForecast(window.pace, display.valueMode);
+        return atResetForecast(window, display.valueMode);
     return null;
 }
 

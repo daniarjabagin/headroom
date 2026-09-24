@@ -114,10 +114,27 @@ pub fn grouped(value: u64) -> String {
 }
 
 pub fn usd(micros: i64) -> String {
+    money("USD", micros)
+}
+
+pub fn money(currency: &str, micros: i64) -> String {
     let cents = rounded_cents(micros);
     let sign = if cents < 0 { "-" } else { "" };
     let cents = cents.unsigned_abs();
-    format!("{sign}${}.{:02}", grouped(cents / 100), cents % 100)
+    let digits = format!("{}.{:02}", grouped(cents / 100), cents % 100);
+    match currency_symbol(currency) {
+        Some(symbol) => format!("{sign}{symbol}{digits}"),
+        None => format!("{sign}{digits} {currency}"),
+    }
+}
+
+fn currency_symbol(currency: &str) -> Option<&'static str> {
+    match currency {
+        "USD" => Some("$"),
+        "CNY" => Some("¥"),
+        "EUR" => Some("€"),
+        _ => None,
+    }
 }
 
 fn rounded_cents(micros: i64) -> i64 {
@@ -257,6 +274,16 @@ mod tests {
         assert_eq!(usd(12_500_000), "$12.50");
         assert_eq!(usd(1_234_567_890), "$1,234.57");
         assert_eq!(usd(-12_500_000), "-$12.50");
+    }
+
+    #[test]
+    fn other_currencies_use_their_symbol_or_code() {
+        assert_eq!(money("CNY", 12_500_000), "¥12.50");
+        assert_eq!(money("EUR", 1_234_567_890), "€1,234.57");
+        assert_eq!(money("USD", 5_000), "$0.01");
+        assert_eq!(money("CNY", -3_000_000), "-¥3.00");
+        assert_eq!(money("GBP", 12_500_000), "12.50 GBP");
+        assert_eq!(money("XYZ", -5_000), "-0.01 XYZ");
     }
 
     #[test]

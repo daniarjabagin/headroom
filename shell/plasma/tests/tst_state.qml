@@ -8,6 +8,7 @@ import "../package/contents/ui/logic/Summary.js" as Summary
 
 TestCase {
     readonly property date now: new Date("2026-09-23T10:00:00Z")
+    readonly property var optionalSampleKeys: ["models_other", "combined", "account_count", "combine_accounts"]
 
     function read(relative) {
         const request = new XMLHttpRequest();
@@ -34,7 +35,7 @@ TestCase {
         const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
         if (!isObject(sample) || !isObject(daemon) || path.endsWith(".hidden_windows"))
             return [];
-        const sampleKeys = Object.keys(sample).filter(key => key !== "models_other" || key in daemon).sort().join(",");
+        const sampleKeys = Object.keys(sample).filter(key => !optionalSampleKeys.includes(key) || key in daemon).sort().join(",");
         const daemonKeys = Object.keys(daemon).sort().join(",");
         if (sampleKeys !== daemonKeys)
             return [`${path}: ${sampleKeys} vs ${daemonKeys}`];
@@ -53,7 +54,9 @@ TestCase {
             windowLabel: "Session",
             usedPercent: 38,
             remainingPercent: 62,
-            tone: "good"
+            tone: "good",
+            combined: false,
+            accountCount: 1
         });
         compare(state.nextRefreshAt.toISOString(), "2026-09-23T10:03:10.000Z");
         compare(state.offline, false);

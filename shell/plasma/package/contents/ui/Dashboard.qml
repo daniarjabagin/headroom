@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Combined.js" as Combined
 import "logic/Metrics.js" as Metrics
 import "logic/Motion.js" as Motion
 import "logic/Order.js" as Order
@@ -21,15 +22,16 @@ ColumnLayout {
     required property real reveal
     required property bool reducedMotion
     readonly property var accounts: State.visibleAccounts(snapshot)
+    readonly property var cards: Combined.cards(snapshot, accounts)
     readonly property bool showSpend: display.showSpend && snapshot.spend !== null
     readonly property int spendOffset: showSpend ? 1 : 0
-    readonly property int itemCount: accounts.length + spendOffset
+    readonly property int itemCount: cards.length + spendOffset
     property string period: "today"
     property var expandedIds: []
     property int dragIndex: -1
     property real dragOffset: 0
     property int dropTarget: -1
-    readonly property var dropSlot: Order.indicatorSlot(dragIndex, dropTarget, accounts.length)
+    readonly property var dropSlot: Order.indicatorSlot(dragIndex, dropTarget, cards.length)
 
     signal refreshRequested(string accountId)
     signal signInRequested(string providerId)
@@ -71,7 +73,7 @@ ColumnLayout {
         if (target < 0 || target === index)
             return;
         const all = snapshot.accounts.map(account => account.id);
-        orderRequested(Order.reordered(all, accounts.map(account => account.id), index, target));
+        orderRequested(Order.reorderedGroups(all, cards.map(card => card.accountIds), index, target));
     }
 
     spacing: Metrics.sectionGap(Kirigami.Units)
@@ -93,14 +95,17 @@ ColumnLayout {
     Repeater {
         id: sections
 
-        model: dashboard.accounts.length
+        model: dashboard.cards.length
 
         AccountSection {
             required property int index
+            readonly property var card: dashboard.cards[index]
 
-            account: dashboard.accounts[index]
+            account: card.account ?? Combined.headerAccount(dashboard.lang, card)
+            group: card.group
+            members: card.members
             providers: dashboard.providers
-            showName: State.showsName(account, dashboard.accounts)
+            showName: card.kind === "account" && State.showsName(account, dashboard.accounts)
             offline: dashboard.snapshot.offline
             now: dashboard.now
             live: dashboard.live
@@ -108,7 +113,7 @@ ColumnLayout {
             lang: dashboard.lang
             appear: dashboard.appear(index + dashboard.spendOffset)
             expanded: dashboard.expandedIds.includes(account.id)
-            canReorder: dashboard.accounts.length > 1
+            canReorder: dashboard.cards.length > 1
             lifted: dashboard.dragIndex === index
             dragOffset: lifted ? dashboard.dragOffset : 0
             indicator: dashboard.dropSlot?.index === index ? (dashboard.dropSlot.below ? "below" : "above") : ""

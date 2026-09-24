@@ -21,7 +21,8 @@ fn from<T: DeserializeOwned>(value: Value) -> T {
 fn credits_left(balance: Option<Balance>) -> Option<MicroUsd> {
     balance.map(|balance| match balance.amount {
         headroom_core::quota::BalanceAmount::Usd(amount) => amount,
-        headroom_core::quota::BalanceAmount::Count { .. } => panic!("not usd"),
+        headroom_core::quota::BalanceAmount::Count { .. }
+        | headroom_core::quota::BalanceAmount::Money(_) => panic!("not usd"),
     })
 }
 
