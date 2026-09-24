@@ -144,6 +144,7 @@ Top level:
 | field | type | description |
 | --- | --- | --- |
 | `version` | integer | Schema version, currently `1`. Incompatible changes bump it; new fields may be added without a bump, so ignore unknown fields. |
+| `app_version` | string | Release of the daemon that assembled the payload, e.g. `"0.3.0"` (its `CARGO_PKG_VERSION`). Daemons older than this field omit it, so treat it as optional. It describes the release, not the schema; compatibility is decided by `version`. |
 | `generated_at` | RFC 3339 timestamp | When the payload was assembled. Use it as "now" for countdowns. |
 | `next_refresh_at` | timestamp \| null | Earliest scheduled refresh among visible accounts. Accounts that are refreshing have no schedule until they finish; `null` when nothing is scheduled. |
 | `last_success_at` | timestamp \| null | `fetched_at` of the newest live snapshot of a visible account (cached snapshots from an earlier daemon run count; data read from local logs does not). `null` when there is none. |
@@ -382,6 +383,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
 ```json
 {
   "version": 1,
+  "app_version": "0.3.0",
   "generated_at": "2026-09-23T10:00:00Z",
   "next_refresh_at": "2026-09-23T10:03:00Z",
   "last_success_at": "2026-09-23T09:58:00Z",

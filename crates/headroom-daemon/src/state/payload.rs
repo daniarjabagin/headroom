@@ -7,10 +7,12 @@ use serde::{Deserialize, Serialize};
 use crate::settings::DisplaySettings;
 
 pub const STATE_VERSION: u32 = 1;
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StatePayload {
     pub version: u32,
+    pub app_version: Option<String>,
     pub generated_at: Timestamp,
     pub next_refresh_at: Option<Timestamp>,
     pub last_success_at: Option<Timestamp>,
@@ -204,3 +206,7 @@ pub struct ProviderSpendView {
     pub models: Vec<ModelView>,
     pub models_other: Option<OtherModelsView>,
 }
+
+#[cfg(test)]
+#[path = "payload_tests.rs"]
+mod tests;
