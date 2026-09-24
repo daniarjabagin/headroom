@@ -42,7 +42,7 @@
         }
     }
 
-    enum SettingsTab: Hashable {
+    enum SettingsTab: Hashable, CaseIterable {
         case general, accounts, notifications, service
     }
 

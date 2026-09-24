@@ -2,12 +2,12 @@
     import AppKit
     import HeadroomKit
     import Observation
-    import SwiftUI
 
     @MainActor
     public final class SettingsWindowController: NSObject, NSWindowDelegate {
         private let context: SettingsContext
         private var window: NSWindow?
+        private var tabs: SettingsTabController?
 
         public init(context: SettingsContext) {
             self.context = context
@@ -18,6 +18,7 @@
             context.navigation.open(route)
             let window = self.window ?? makeWindow()
             self.window = window
+            tabs?.fitWindow(animated: false)
             NSApp.activate()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
@@ -26,29 +27,35 @@
         }
 
         private func makeWindow() -> NSWindow {
-            let hosting = NSHostingController(rootView: SettingsView(context: context))
-            hosting.sizingOptions = [.preferredContentSize]
-            let window = NSWindow(contentViewController: hosting)
+            let tabs = SettingsTabController(context: context) { [context] in
+                context.store.settings?.reducedMotion ?? false
+                    || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            }
+            self.tabs = tabs
+            let window = NSWindow(contentViewController: tabs)
             window.styleMask = [.titled, .closable, .miniaturizable]
+            window.toolbarStyle = .preference
             window.isReleasedWhenClosed = false
             window.collectionBehavior = [.moveToActiveSpace]
             window.delegate = self
+            window.setContentSize(tabs.selectedTab.contentSize)
             window.center()
             window.setFrameAutosaveName("HeadroomSettings")
-            observeTitle(of: window)
+            window.title = tabs.selectedTab.title(context.strings)
+            followTheme(of: window)
             return window
         }
 
-        private func observeTitle(of window: NSWindow) {
-            let title = withObservationTracking {
-                context.strings.text(SettingsText.windowTitle)
+        private func followTheme(of window: NSWindow) {
+            let theme = withObservationTracking {
+                context.model.state?.display.theme
             } onChange: { [weak self, weak window] in
                 Task { @MainActor in
                     guard let self, let window else { return }
-                    self.observeTitle(of: window)
+                    self.followTheme(of: window)
                 }
             }
-            window.title = title
+            window.appearance = (theme ?? .system).appearance
         }
     }
 #endif

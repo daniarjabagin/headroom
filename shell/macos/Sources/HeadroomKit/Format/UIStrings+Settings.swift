@@ -3,12 +3,11 @@ public protocol LocalizedText: Sendable, CaseIterable {
 }
 
 public enum SettingsText: LocalizedText {
-    case windowTitle, general, notifications, service, refreshNow, settingsMenu, settingsUnavailable,
+    case general, notifications, service, refreshNow, settingsMenu, settingsUnavailable,
         settingsUnavailableDetail
 
     public var translations: (english: String, russian: String) {
         switch self {
-        case .windowTitle: ("Headroom Settings", "Настройки Headroom")
         case .general: ("General", "Общие")
         case .notifications: ("Notifications", "Уведомления")
         case .service: ("Service", "Служба")
