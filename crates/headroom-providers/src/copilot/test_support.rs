@@ -1,6 +1,7 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+
+use crate::test_support::install_script;
 
 const FAKE_GH: &str = r#"#!/bin/sh
 [ "$1 $2 $3 $4 $5" = "auth token --hostname github.com --user" ] || exit 2
@@ -19,8 +20,7 @@ pub(super) fn fake_gh_printing_stored_tokens(dir: &Path) -> PathBuf {
     let bin = dir.join("bin");
     fs::create_dir_all(&bin).unwrap();
     let program = bin.join("gh");
-    fs::write(&program, FAKE_GH).unwrap();
-    fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
+    install_script(&program, FAKE_GH).unwrap();
     program
 }
 

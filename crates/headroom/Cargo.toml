@@ -29,6 +29,7 @@ zbus.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
+headroom-providers = { workspace = true, features = ["test-support"] }
 rustix = { workspace = true, features = ["pty"] }
 tempfile.workspace = true
 

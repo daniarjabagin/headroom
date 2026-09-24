@@ -24,6 +24,9 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
+[features]
+test-support = []
+
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus.workspace = true
 
