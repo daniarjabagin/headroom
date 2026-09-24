@@ -10,6 +10,7 @@ Installs this Headroom release for the current user:
   ~/.local/share/icons/hicolor/{scalable,symbolic}/apps/headroom*.svg
   ~/.config/systemd/user/headroom.service   (enabled and started)
   ~/.local/share/dbus-1/services/io.github.headroom.Daemon.service
+  ~/.local/share/headroom/install.json      (options for `headroom update`)
   the GNOME Shell extension, when GNOME Shell is installed
   the Plasma widget, when KDE Plasma is installed
 
@@ -31,14 +32,17 @@ for arg in "$@"; do
         *) usage >&2; exit 2 ;;
     esac
 done
+options=("$@")
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bin_dir="$HOME/.local/bin"
+prefix="$HOME/.local"
+bin_dir="$prefix/bin"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 unit_dir="$config_home/systemd/user"
 dbus_dir="$data_home/dbus-1/services"
 icon_dir="$data_home/icons/hicolor"
+receipt="$data_home/headroom/install.json"
 extension_uuid="headroom@headroom.github.io"
 extension_dir="$data_home/gnome-shell/extensions/$extension_uuid"
 plasmoid_id="io.github.headroom.plasmoid"
@@ -59,6 +63,26 @@ install_icons() {
     step "Installing the app icons into $icon_dir"
     install -D -m 0644 "$here/icons/headroom.svg" "$icon_dir/scalable/apps/headroom.svg"
     install -D -m 0644 "$here/icons/headroom-symbolic.svg" "$icon_dir/symbolic/apps/headroom-symbolic.svg"
+}
+
+json_string() {
+    local text="$1"
+    text="${text//\\/\\\\}"
+    text="${text//\"/\\\"}"
+    printf '"%s"' "$text"
+}
+
+write_receipt() {
+    local version_line list="" option
+    version_line="$("$bin_dir/headroom" --version)"
+    for option in "${options[@]}"; do
+        list="${list:+$list,}$(json_string "$option")"
+    done
+    step "Recording this install in $receipt"
+    mkdir -p "$(dirname "$receipt")"
+    printf '{"method":"script","version":%s,"options":[%s],"prefix":%s}\n' \
+        "$(json_string "${version_line##* }")" "$list" "$(json_string "$prefix")" >"$receipt.new"
+    mv -f "$receipt.new" "$receipt"
 }
 
 install_units() {
@@ -109,6 +133,7 @@ install_plasmoid() {
 
 install_binary
 install_icons
+write_receipt
 if [ "$install_service" -eq 1 ]; then
     install_units
     start_service

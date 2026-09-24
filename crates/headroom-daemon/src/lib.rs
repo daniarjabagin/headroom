@@ -23,6 +23,7 @@ pub mod service;
 pub mod settings;
 pub mod state;
 pub mod storage;
+pub mod update;
 pub mod usage;
 
 #[cfg(test)]

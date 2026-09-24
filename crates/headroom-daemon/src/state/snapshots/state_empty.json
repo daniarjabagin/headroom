@@ -5,6 +5,7 @@
   "next_refresh_at": null,
   "last_success_at": null,
   "offline": false,
+  "update": null,
   "display": {
     "theme": "system",
     "language": "system",

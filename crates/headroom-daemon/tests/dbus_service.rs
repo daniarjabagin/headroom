@@ -209,6 +209,7 @@ fn config(
         bus: BusTarget::Address(bus.address.clone()),
         socket: Some(socket),
         system_locale: Locale::En,
+        updates: None,
         shutdown: Box::pin(async move {
             shutdown.await.ok();
         }),

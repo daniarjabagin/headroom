@@ -52,6 +52,7 @@ fn fresh_database_is_migrated_to_latest() {
             "notification_state",
             "settings",
             "subscription_lapses",
+            "update_check",
             "usage_events"
         ]
     );

@@ -11,7 +11,7 @@ visual design in `docs/design/`.
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
 | `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers (shared client, `Retry-After` parsing), provider `registry`, `secrets` store, `key_accounts` (records, key-hash identities, stored-key reader), one module per provider | core, `zbus`, `rusqlite` |
 | `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, transports (D-Bus service on Linux, Unix socket everywhere), notifications, state assembly | core, `zbus` (Linux only) |
-| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `tui`, `waybar` | all |
+| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `update` (self-update of script installs, JSON progress for shells), `waybar`; the GitHub release feed and install-method detection | all |
 
 The daemon crate never names a provider: the binary builds the providers from
 `headroom_providers::registry` and hands them, with the registry's descriptors, to the daemon.
@@ -538,7 +538,8 @@ that take API keys, the stored key.
   directory still exists.
 - **Storage** (`$XDG_STATE_HOME/headroom/headroom.db` on Linux, `~/Library/Application Support/Headroom/headroom.db` on macOS, WAL): `accounts`, `limits_snapshots` (last good per
   account), `usage_events`, `log_cursors`, `notification_state`, `subscription_lapses`,
-  `dismissed_homes` (dismissed CLI records), `settings`. Migrations are numbered
+  `dismissed_homes` (dismissed CLI records), `settings`, `update_check` (last update check: time,
+  `ETag`, latest stable release). Migrations are numbered
   SQL files applied in order.
 - **Staleness**: a snapshot older than 10 min is `stale`. A failed refresh keeps the last good snapshot
   and attaches the error.
@@ -551,6 +552,17 @@ that take API keys, the stored key.
   Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
   `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`. Titles name the
   provider by its registry display name.
+- **Update checks** (`headroom-daemon::update`): the daemon owns the schedule, storage and state
+  (`update` in the payload); the binary injects the HTTP side as a `ReleaseFeed` (GitHub
+  `releases/latest` with `ETag`) and the detected install method (`self` from the install receipt,
+  `package` from the `/usr/share/headroom/installed-by-package` marker, `unknown`). First check 2 min
+  after start or 24 h after the stored last check, then every 24 h ± 10 %; rate limits wait at least
+  1 h, failures retry after 1 h and are logged at `debug` only. `updates.check` and
+  `headroom daemon --no-update-check` turn it off. Version comparison, release parsing and command
+  texts are pure; see [Update checks](dbus-api.md#update-checks).
+- **Self-update** (`headroom update`, binary): downloads the release tarball and `SHA256SUMS`,
+  verifies SHA-256, unpacks with `tar` into a temp dir and runs the bundled `install.sh` with the
+  receipt's options. Package and unknown installs get instructions instead.
 
 ## Transports
 
@@ -609,6 +621,7 @@ State payload outline:
 {
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
+  "update": null,
   "display": { "theme": "system", "language": "system", "value_mode": "left", "…": "copy of settings.display" },
   "headline": { "account_id": "codex:…", "provider": "codex", "provider_name": "Codex", "account_label": "Work", "window": "session",
                 "window_label": "Session", "used_percent": 62.0, "remaining_percent": 38.0, "tone": "warning" },

@@ -7,17 +7,21 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
 clap.workspace = true
 dirs.workspace = true
 headroom-core.workspace = true
 headroom-daemon.workspace = true
 headroom-pricing.workspace = true
 headroom-providers.workspace = true
+hex.workspace = true
 jiff.workspace = true
 reqwest.workspace = true
 rustix = { workspace = true, features = ["pty", "termios"] }
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -28,10 +32,9 @@ futures-util.workspace = true
 zbus.workspace = true
 
 [dev-dependencies]
-async-trait.workspace = true
 headroom-providers = { workspace = true, features = ["test-support"] }
 rustix = { workspace = true, features = ["pty"] }
-tempfile.workspace = true
+wiremock.workspace = true
 
 [lints]
 workspace = true
