@@ -3,7 +3,6 @@ mod client;
 mod config;
 mod mapper;
 
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -119,8 +118,6 @@ impl Provider for OpenCodeProvider {
             Err(error) if accounts.is_empty() => return Err(error),
             Err(error) => tracing::warn!(%error, "skipping the OpenCode login"),
         }
-        let mut seen = BTreeSet::new();
-        accounts.retain(|account| seen.insert(account.id.clone()));
         Ok(accounts)
     }
 

@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -17,11 +16,9 @@ struct Candidate {
 }
 
 pub(super) fn discover_accounts(config: &ClaudeConfig) -> Vec<AccountRef> {
-    let mut seen = BTreeSet::new();
     candidates(config)
         .into_iter()
         .filter_map(|candidate| inspect(config, candidate))
-        .filter(|account| seen.insert(account.id.clone()))
         .collect()
 }
 

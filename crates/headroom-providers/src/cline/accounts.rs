@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,11 +8,9 @@ use super::auth::{parse_credentials, read_file};
 use super::config::ClineConfig;
 
 pub(super) fn discover_accounts(config: &ClineConfig) -> Vec<AccountRef> {
-    let mut seen = BTreeSet::new();
     candidates(config)
         .into_iter()
         .filter_map(|(home, owner)| inspect(config, home, owner))
-        .filter(|account| seen.insert(account.id.clone()))
         .collect()
 }
 

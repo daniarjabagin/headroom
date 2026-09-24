@@ -84,7 +84,7 @@ fn usd(snapshot: &LimitsSnapshot) -> Vec<(String, i64)> {
 }
 
 #[tokio::test]
-async fn cli_and_headroom_homes_are_discovered_once_per_account() {
+async fn cli_and_headroom_homes_are_discovered_cli_first() {
     let home = tempfile::tempdir().unwrap();
     sign_in(&cli_file(&home), "usr-0000000000000001");
     let same = owned_home(&home, "a");
@@ -106,6 +106,7 @@ async fn cli_and_headroom_homes_are_discovered_once_per_account() {
         found,
         [
             (home.path().join(".cline").as_path(), CredentialOwner::Cli),
+            (same.as_path(), CredentialOwner::Headroom),
             (other.as_path(), CredentialOwner::Headroom)
         ]
     );

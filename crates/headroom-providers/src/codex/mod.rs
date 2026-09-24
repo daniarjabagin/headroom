@@ -181,7 +181,7 @@ fn discover_accounts(
     let mut cli_error = None;
     for (home, owner) in homes {
         match load_credentials(&home) {
-            Ok(credentials) => push_unique(&mut accounts, account_ref(home, owner, &credentials)),
+            Ok(credentials) => accounts.push(account_ref(home, owner, &credentials)),
             Err(error) if owner == CredentialOwner::Cli => cli_error = Some(error),
             Err(error) => tracing::warn!(home = %home.display(), %error, "skipping codex home"),
         }
@@ -199,12 +199,6 @@ fn account_ref(home: PathBuf, owner: CredentialOwner, credentials: &Credentials)
         provider: ID,
         home,
         owner,
-    }
-}
-
-fn push_unique(accounts: &mut Vec<AccountRef>, account: AccountRef) {
-    if accounts.iter().all(|known| known.id != account.id) {
-        accounts.push(account);
     }
 }
 

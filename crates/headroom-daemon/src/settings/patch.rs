@@ -1,16 +1,17 @@
 use serde_json::{Map, Value};
 
-use super::Settings;
+use super::{Settings, migrate};
 use crate::error::SettingsError;
 
 const REPLACED_WHOLE: &[&str] = &["headline"];
 
 impl Settings {
     pub fn patched(&self, patch_json: &str) -> Result<Settings, SettingsError> {
-        let patch: Value = serde_json::from_str(patch_json)?;
+        let mut patch: Value = serde_json::from_str(patch_json)?;
         if !patch.is_object() {
             return Err(SettingsError::PatchNotObject);
         }
+        migrate::drop_daemon_managed(&mut patch);
         let mut document = serde_json::to_value(self)?;
         clear_replaced_whole(&mut document, &patch);
         merge_patch(&mut document, &patch);

@@ -23,8 +23,7 @@ fn defaults_match_the_spec() {
             "show_forecast": true,
             "translucent": false,
             "hidden_windows": {}
-        },
-        "dismissed_accounts": []
+        }
     });
     assert_eq!(serde_json::to_value(Settings::default()).unwrap(), expected);
     assert_eq!(Settings::parse("{}").unwrap(), Settings::default());
@@ -211,4 +210,18 @@ fn rejects_malformed_json_and_wrong_types() {
         Settings::parse(r#"{"headline":{"mode":"loudest"}}"#),
         Err(SettingsError::Json(_))
     ));
+}
+
+#[test]
+fn daemon_managed_keys_are_ignored_on_input_and_dropped_from_storage() {
+    let parsed = Settings::parse(r#"{"reduced_motion":true,"dismissed_accounts":["grok:a"]}"#);
+    assert!(parsed.unwrap().reduced_motion);
+    let stored = Settings::from_stored(r#"{"dismissed_accounts":["grok:a"]}"#).unwrap();
+    assert_eq!(stored, Settings::default());
+    let patched = Settings::default()
+        .patched(r#"{"dismissed_accounts":["grok:a"],"reduced_motion":true}"#)
+        .unwrap();
+    assert!(patched.reduced_motion);
+    let served = serde_json::to_value(&patched).unwrap();
+    assert!(served.get("dismissed_accounts").is_none());
 }

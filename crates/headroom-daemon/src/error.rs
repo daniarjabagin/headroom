@@ -37,8 +37,6 @@ pub enum SettingsError {
     EmptyHeadlineTarget,
     #[error("hidden windows need non-empty account and window ids")]
     BlankHiddenWindow,
-    #[error("dismissed accounts need non-empty account ids")]
-    BlankDismissedAccount,
     #[error("a settings patch must be a JSON object")]
     PatchNotObject,
 }

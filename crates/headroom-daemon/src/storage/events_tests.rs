@@ -83,7 +83,10 @@ fn migrating_keeps_old_rows_without_a_reported_cost() {
     )
     .unwrap();
     migrations::migrate(&mut conn).unwrap();
-    assert_eq!(migrations::user_version(&conn).unwrap(), 3);
+    assert_eq!(
+        migrations::user_version(&conn).unwrap(),
+        migrations::latest()
+    );
     let stored = load_since(&conn, &home(), since()).unwrap();
     assert_eq!(
         stored,

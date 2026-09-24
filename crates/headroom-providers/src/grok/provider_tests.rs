@@ -170,15 +170,15 @@ async fn a_rejected_headroom_token_is_refreshed_once_and_retried() {
 }
 
 #[tokio::test]
-async fn the_same_account_prefers_its_headroom_home() {
+async fn the_same_account_lists_its_headroom_home_first() {
     let server = MockServer::start().await;
     let setup = Setup::new(&server);
     sign_in(&setup.cli_home(), "https://auth.x.ai");
     sign_in(&setup.headroom_home("one"), "https://auth.x.ai");
     let provider = setup.provider(fixed_now);
     let accounts = provider.discover().await.unwrap();
-    assert_eq!(accounts.len(), 1);
-    assert_eq!(accounts[0].owner, CredentialOwner::Headroom);
+    let owners: Vec<_> = accounts.iter().map(|account| account.owner).collect();
+    assert_eq!(owners, [CredentialOwner::Headroom, CredentialOwner::Cli]);
     let id = AccountIdentity {
         email: None,
         plan: None,

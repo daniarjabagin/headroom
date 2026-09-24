@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -100,6 +101,16 @@ pub struct AccountRef {
     pub owner: CredentialOwner,
 }
 
+/// Keeps the first record of every account id, so records listed earlier win.
+#[must_use]
+pub fn first_per_id(accounts: Vec<AccountRef>) -> Vec<AccountRef> {
+    let mut seen = HashSet::new();
+    accounts
+        .into_iter()
+        .filter(|account| seen.insert(account.id.clone()))
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccountIdentity {
     pub email: Option<String>,
@@ -148,6 +159,25 @@ mod tests {
             identity.account_id(&CLAUDE),
             AccountId::from_stable_key(&CLAUDE, "a/o")
         );
+    }
+
+    fn at(id: &str, home: &str, owner: CredentialOwner) -> AccountRef {
+        AccountRef {
+            id: AccountId(id.into()),
+            provider: CODEX,
+            home: PathBuf::from(home),
+            owner,
+        }
+    }
+
+    #[test]
+    fn first_record_of_each_id_wins() {
+        let cli = at("codex:a", "/cli", CredentialOwner::Cli);
+        let own = at("codex:a", "/own", CredentialOwner::Headroom);
+        let other = at("codex:b", "/b", CredentialOwner::Headroom);
+        let kept = first_per_id(vec![cli.clone(), other.clone(), own.clone()]);
+        assert_eq!(kept, [cli, other.clone()]);
+        assert_eq!(first_per_id(vec![own.clone(), other.clone()]), [own, other]);
     }
 
     #[test]

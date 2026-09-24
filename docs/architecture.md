@@ -133,12 +133,17 @@ pub struct AccountIdentity { pub email: Option<String>, pub plan: Option<String>
   since it was read.
 - Removing an account (`headroom accounts remove <id>`) depends on the owner. A Headroom-owned account
   is signed out by deleting its home (and its stored API key). A CLI-owned home is never deleted or
-  changed, so removing a CLI-owned account *dismisses* it: D-Bus `DismissAccount` adds the id to the
-  `dismissed_accounts` setting and the daemon leaves it out of `accounts[]`, the headline,
-  notifications and refreshes, while discovery keeps storing it. The same person can then be added
-  again through `headroom accounts add` (a Headroom-owned home whose tokens Headroom refreshes).
-  `headroom accounts restore [<provider>]` (D-Bus `RestoreAccounts`) clears dismissals. Usage homes
-  are independent of accounts, so a dismissed account's local usage and spend still count.
+  changed, so removing a CLI-owned account *dismisses* it: D-Bus `DismissAccount` records that CLI
+  record (provider, account id, home) in the daemon's `dismissed_homes` table, never in the settings.
+  `Provider::discover` lists every signed-in home, so one id may appear at a CLI home and at a
+  Headroom-owned home; the daemon drops dismissed CLI records first and only then keeps the first
+  record per id (`DismissedHomes::resolve`, then `first_per_id`). Dismissed records leave
+  `accounts[]`, the headline, notifications and refreshes, and a refresh that finishes after the
+  dismissal is discarded. The same person can then be added again through `headroom accounts add`:
+  the Headroom-owned home (whose tokens Headroom refreshes) wins and shows with `owner: "headroom"`.
+  `headroom accounts restore [<provider>]` (D-Bus `RestoreAccounts`) clears dismissals, and the CLI
+  home wins again where the provider lists it first. Usage homes are independent of accounts, so a
+  dismissed account's local usage and spend still count.
 - Local token usage belongs to a **usage home** (a directory with the tool's logs), not an account.
   Usage homes are discovered on their own (`Provider::usage_homes`): a home with logs but no OAuth
   account (API-key users, signed-out users) still counts, and so does a second config dir signed into
@@ -491,7 +496,8 @@ that take API keys, the stored key.
   Without a running daemon, `headroom status` reads cached usage for every stored usage home whose
   directory still exists.
 - **Storage** (`$XDG_STATE_HOME/headroom/headroom.db`, WAL): `accounts`, `limits_snapshots` (last good per
-  account), `usage_events`, `log_cursors`, `notification_state`, `settings`. Migrations are numbered
+  account), `usage_events`, `log_cursors`, `notification_state`, `subscription_lapses`,
+  `dismissed_homes` (dismissed CLI records), `settings`. Migrations are numbered
   SQL files applied in order.
 - **Staleness**: a snapshot older than 10 min is `stale`. A failed refresh keeps the last good snapshot
   and attaches the error.

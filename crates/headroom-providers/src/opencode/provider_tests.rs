@@ -98,7 +98,10 @@ async fn discovery_lists_pasted_keys_first_then_the_opencode_login() {
         .discover()
         .await
         .unwrap();
-    assert_eq!(accounts, [pasted, same_as_cli]);
+    assert_eq!(accounts[..2], [pasted, same_as_cli.clone()]);
+    assert_eq!(accounts.len(), 3);
+    assert_eq!(accounts[2].owner, CredentialOwner::Cli);
+    assert_eq!(accounts[2].id, same_as_cli.id);
 
     let cli_only = Sandbox::new(DEFAULT_API_BASE).with_cli_login(AUTH);
     let accounts = cli_only

@@ -1,9 +1,7 @@
-mod dismissed;
 mod display;
 mod migrate;
 mod patch;
 
-use std::collections::BTreeSet;
 use std::ops::RangeInclusive;
 
 use jiff::SignedDuration;
@@ -23,7 +21,6 @@ pub struct Settings {
     pub headline: HeadlineMode,
     pub reduced_motion: bool,
     pub display: DisplaySettings,
-    pub dismissed_accounts: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,7 +51,6 @@ impl Default for Settings {
             headline: HeadlineMode::Auto {},
             reduced_motion: false,
             display: DisplaySettings::default(),
-            dismissed_accounts: BTreeSet::new(),
         }
     }
 }
@@ -78,7 +74,9 @@ impl Default for NotificationSettings {
 
 impl Settings {
     pub fn parse(json: &str) -> Result<Settings, SettingsError> {
-        let settings: Settings = serde_json::from_str(json)?;
+        let mut value: serde_json::Value = serde_json::from_str(json)?;
+        migrate::drop_daemon_managed(&mut value);
+        let settings: Settings = serde_json::from_value(value)?;
         settings.validated()
     }
 
@@ -99,7 +97,6 @@ impl Settings {
         }
         self.display.validate()?;
         self.display.normalize();
-        self.validate_dismissed()?;
         Ok(self)
     }
 

@@ -18,6 +18,7 @@ pub trait Provider: Send + Sync {
         &self.descriptor().id
     }
 
+    /// Every signed-in home, most preferred first; one account may be listed at several homes.
     async fn discover(&self) -> Result<Vec<AccountRef>, ProviderError>;
 
     /// The account signed in at one Headroom-owned home, even when discovery lists it elsewhere.
