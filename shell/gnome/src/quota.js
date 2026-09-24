@@ -1,4 +1,4 @@
-import { limitText, readingPercent, resetText, spareText } from './format.js';
+import { isPooled, limitText, readingPercent, resetText, spareText } from './format.js';
 import { _ } from './i18n.js';
 
 const TONE_CLASSES = { good: 'ok', warning: 'warn', critical: 'crit', neutral: 'none' };
@@ -28,7 +28,7 @@ export function tickPosition(window, display) {
 }
 
 function combinedEstimate(window) {
-    return window.capacityPercent !== undefined && window.pace.runsOutAt === null;
+    return isPooled(window) && window.pace.runsOutAt === null;
 }
 
 export function paceNote(window, now, showForecast) {

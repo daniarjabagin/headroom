@@ -2,7 +2,7 @@ import GLib from 'gi://GLib';
 import { parseDisplay } from '../src/settings.js';
 import { parseState, StateError } from '../src/state.js';
 import { check, failures, throws } from './check.js';
-import { testCombined } from './combinedTests.js';
+import { testCombined, testCombinedSnapshot } from './combinedTests.js';
 import { testDonut } from './donutTests.js';
 import { testFormat, testNumbers } from './formatTests.js';
 import { testLocale } from './localeTests.js';
@@ -25,8 +25,8 @@ function readRelative(...parts) {
 }
 
 const readSample = () => readRelative('dev', 'sample-state.json');
-const readDaemonSnapshot = () =>
-    readRelative('..', '..', 'crates', 'headroom-daemon', 'src', 'state', 'snapshots', 'state_full.json');
+const readSnapshot = name => readRelative('..', '..', 'crates', 'headroom-daemon', 'src', 'state', 'snapshots', name);
+const readDaemonSnapshot = () => readSnapshot('state_full.json');
 
 function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -63,7 +63,7 @@ function testSampleHeadline() {
         remainingPercent: 62,
         tone: 'good',
         combined: false,
-        accountCount: null,
+        accountCount: 1,
     });
 }
 
@@ -199,6 +199,7 @@ testStatus();
 testNotices();
 testDonut();
 testCombined();
+testCombinedSnapshot(readSnapshot('state_combined.json'));
 testRefresh();
 testUpdate();
 await testSerialQueue();

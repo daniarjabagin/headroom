@@ -28,7 +28,7 @@ ColumnLayout {
     signal resetFormatToggled
 
     function reading(value) {
-        if (combined)
+        if (Format.isPooled(window))
             return Format.capacityReading(lang, value, window.capacityPercent, display.valueMode);
         return Format.readingFor(lang, value, display.valueMode);
     }

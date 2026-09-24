@@ -560,9 +560,15 @@ that take API keys, the stored key.
   1 h, failures retry after 1 h and are logged at `debug` only. `updates.check` and
   `headroom daemon --no-update-check` turn it off. Version comparison, release parsing and command
   texts are pure; see [Update checks](dbus-api.md#update-checks).
-- **Self-update** (`headroom update`, binary): downloads the release tarball and `SHA256SUMS`,
-  verifies SHA-256, unpacks with `tar` into a temp dir and runs the bundled `install.sh` with the
-  receipt's options. Package and unknown installs get instructions instead.
+- **Self-update** (`headroom update`, binary): downloads `SHA256SUMS` and `SHA256SUMS.sig`,
+  verifies the Ed25519 signature against the release key pinned in the binary
+  (`update::signature::RELEASE_KEY`, the same key as `packaging/release/release-signing-key.pub.pem`;
+  a missing or invalid signature is a hard failure), then downloads the tarball, verifies SHA-256,
+  unpacks with `tar` into a temp dir and runs the bundled `install.sh` with the receipt's options.
+  Package and unknown installs get instructions instead. The update feed has its own HTTP client:
+  HTTPS only, requests and redirects limited to `api.github.com`, `github.com`,
+  `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, and response bodies
+  capped (release JSON 1 MiB, `SHA256SUMS` 64 KiB, signature 1 KiB, tarball 64 MiB).
 
 ## Transports
 
@@ -582,7 +588,8 @@ adapters over it.
   with `NotifyError::NoSubscribers` when there is none, so the milestone is rolled back and retried.
 - `ipc` serves line-delimited JSON-RPC 2.0 on a Unix socket ([ipc.md](ipc.md)): `protocol` parses
   and encodes lines (pure), `dispatch` maps methods to `Service` calls, `connection` runs one reader
-  and one writer task per client with concurrent requests, `listener` handles the socket file
+  and one writer task per client with concurrent requests (at most 16 commands in flight per
+  connection; the reader stops reading until one finishes), `listener` handles the socket file
   (0700 parent created when missing, an exclusive `flock` on a sibling `daemon.lock` held for the
   daemon's lifetime, stale-socket removal after a failed connect, 0600 socket, removal on shutdown
   only while the file is still ours).

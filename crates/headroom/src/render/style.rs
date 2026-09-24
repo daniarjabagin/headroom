@@ -2,6 +2,8 @@ use std::ffi::OsStr;
 
 use headroom_core::pace::Tone;
 
+use super::printable::printable;
+
 const RESET: &str = "\x1b[0m";
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
@@ -63,10 +65,11 @@ impl Palette {
     }
 
     fn wrap(self, text: &str, code: &str) -> String {
+        let text = printable(text);
         if self.color && !text.is_empty() {
             format!("{code}{text}{RESET}")
         } else {
-            text.to_owned()
+            text.into_owned()
         }
     }
 }

@@ -19,6 +19,11 @@ connected to a foreign daemon, for example one started from another install or l
 upgrade. The field is missing from daemons that predate it; `version` alone decides whether the
 payload can be read.
 
+With `display.combine_accounts` on, the state payload's `combined` list groups accounts of the same
+provider and the headline can be a combined window with `"combined": true` and
+`"account_label": null` (see [Combined accounts](dbus-api.md#combined-accounts)). Clients must accept a
+`null` `account_label` and a missing `combined` list (older daemons) before offering the setting.
+
 ## Socket
 
 | item | value |

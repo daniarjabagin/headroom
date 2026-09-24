@@ -51,6 +51,10 @@ function readingFor(lang, percent, valueMode) {
     return valueMode === "used" ? percentUsed(lang, percent) : percentLeft(lang, percent);
 }
 
+function isPooled(window) {
+    return (window.segments?.length ?? 0) > 1;
+}
+
 function capacityReading(lang, percent, capacityPercent, valueMode) {
     if (percent === null)
         return DASH;
@@ -203,7 +207,7 @@ function limitText(lang, runsOutAt, now) {
 
 function runOutForecast(lang, window, now, resetFormat) {
     const runsOutAt = window.pace.runsOutAt;
-    if (runsOutAt === null && window.capacityPercent !== undefined)
+    if (runsOutAt === null && isPooled(window))
         return I18n.tr(lang, "At this pace: runs out before reset");
     if (runsOutAt === null || runsOutAt <= now)
         return I18n.tr(lang, "At this pace: runs out any minute");
@@ -236,7 +240,7 @@ function capacityForecast(lang, window, valueMode) {
 
 function atResetForecast(lang, window, valueMode) {
     const pace = window.pace;
-    if (window.capacityPercent !== undefined)
+    if (isPooled(window))
         return capacityForecast(lang, window, valueMode);
     if (valueMode === "used" && pace.projectedPercent !== null)
         return I18n.tr(lang, "At this pace: ~{percent}% used at reset", {

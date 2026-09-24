@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::tokens::TokenCounts;
-use crate::units::MicroUsd;
+use crate::units::{MicroUsd, Tokens};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UsageEvent {
@@ -16,6 +16,28 @@ pub struct UsageEvent {
     /// Exact cost the provider logged for this event; it takes precedence over the price book.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reported_cost: Option<MicroUsd>,
+}
+
+impl UsageEvent {
+    /// The timestamp fits in signed 64-bit nanoseconds and every token count, the total included, in `i64`.
+    #[must_use]
+    pub fn fits_in_i64(&self) -> bool {
+        let tokens = &self.tokens;
+        let counts = [
+            tokens.input,
+            tokens.cache_read,
+            tokens.cache_write_5m,
+            tokens.cache_write_1h,
+            tokens.output,
+            tokens.reasoning,
+            tokens.total(),
+        ];
+        i64::try_from(self.at.as_nanosecond()).is_ok() && counts.into_iter().all(fits_in_i64)
+    }
+}
+
+fn fits_in_i64(count: Tokens) -> bool {
+    i64::try_from(count.0).is_ok()
 }
 
 #[derive(
@@ -66,7 +88,6 @@ fn fallback_material(at: Timestamp, model: &str, tokens: &TokenCounts) -> String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::units::Tokens;
 
     fn tokens(output: u64) -> TokenCounts {
         TokenCounts {
@@ -105,6 +126,44 @@ mod tests {
         let utc = EventKey::fallback(at("2026-09-23T10:00:00Z"), "m", &tokens(1));
         let offset = EventKey::fallback(at("2026-09-23T15:00:00+05:00"), "m", &tokens(1));
         assert_eq!(utc, offset);
+    }
+
+    fn usage(at_text: &str, tokens: TokenCounts) -> UsageEvent {
+        UsageEvent {
+            key: EventKey("e".into()),
+            at: at(at_text),
+            model: "m".into(),
+            tier: ServiceTier::Standard,
+            tokens,
+            web_search_requests: 0,
+            reported_cost: None,
+        }
+    }
+
+    #[test]
+    fn events_fit_in_i64_until_the_nanosecond_range_or_token_counts_overflow() {
+        let max = Tokens(u64::try_from(i64::MAX).unwrap());
+        assert!(usage("2026-09-23T10:00:00Z", tokens(5)).fits_in_i64());
+        assert!(usage("2262-04-11T23:47:16Z", tokens(5)).fits_in_i64());
+        assert!(usage("1677-09-21T00:12:44Z", tokens(5)).fits_in_i64());
+        assert!(!usage("2262-04-11T23:47:17Z", tokens(5)).fits_in_i64());
+        assert!(!usage("1677-09-21T00:12:43Z", tokens(5)).fits_in_i64());
+        let biggest = TokenCounts {
+            input: max,
+            ..TokenCounts::default()
+        };
+        assert!(usage("2026-09-23T10:00:00Z", biggest).fits_in_i64());
+        let too_big = TokenCounts {
+            reasoning: Tokens(max.0 + 1),
+            ..TokenCounts::default()
+        };
+        assert!(!usage("2026-09-23T10:00:00Z", too_big).fits_in_i64());
+        let overflowing_total = TokenCounts {
+            input: max,
+            output: Tokens(1),
+            ..TokenCounts::default()
+        };
+        assert!(!usage("2026-09-23T10:00:00Z", overflowing_total).fits_in_i64());
     }
 
     #[test]

@@ -38,7 +38,7 @@ function tickPosition(window, display) {
 }
 
 function combinedEstimate(window) {
-    return window.capacityPercent !== undefined && window.pace.runsOutAt === null;
+    return Format.isPooled(window) && window.pace.runsOutAt === null;
 }
 
 function paceNote(lang, window, now, showForecast) {

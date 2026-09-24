@@ -12,6 +12,26 @@ TestCase {
 
     readonly property date now: new Date("2026-09-23T10:00:00Z")
 
+    function readSnapshot() {
+        const request = new XMLHttpRequest();
+        request.open("GET", Qt.resolvedUrl("../../../crates/headroom-daemon/src/state/snapshots/state_combined.json"), false);
+        request.send();
+        return State.parseState(request.responseText);
+    }
+
+    function test_daemon_snapshot() {
+        const snapshot = readSnapshot();
+        const cards = Combined.cards(snapshot, State.visibleAccounts(snapshot));
+        compare(kinds(cards), [["combined", ["codex:work", "codex:personal"]], ["account", ["claude:main"]]]);
+        const session = cards[0].group.windows[0];
+        const weekly = cards[0].group.windows[1];
+        compare(Format.capacityReading("en", session.remainingPercent, session.capacityPercent, "left"), "125% left of 200%");
+        compare(Format.forecastText("en", session, now, snapshot.display), "At this pace: ~68% of 200% left at reset");
+        compare([weekly.capacityPercent, weekly.segments.length, Format.isPooled(weekly)], [100, 1, false]);
+        compare(Format.forecastText("en", weekly, now, snapshot.display), "At this pace: ~16% left at reset");
+        compare(Combined.headerAccount("en", cards[0]).plan, "2 accounts · Pro · Plus");
+    }
+
     function accountWindow(used, resetsAt, tone, even) {
         return {
             id: "session",

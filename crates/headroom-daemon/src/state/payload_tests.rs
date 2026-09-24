@@ -1,6 +1,22 @@
 use super::*;
 
 const EMPTY: &str = include_str!("snapshots/state_empty.json");
+const FULL: &str = include_str!("snapshots/state_full.json");
+
+#[test]
+fn payloads_from_daemons_without_combined_accounts_still_parse() {
+    let mut json: serde_json::Value = serde_json::from_str(FULL).unwrap();
+    let state = json.as_object_mut().unwrap();
+    state.remove("combined").unwrap();
+    let headline = state["headline"].as_object_mut().unwrap();
+    headline.remove("combined").unwrap();
+    headline.remove("account_count").unwrap();
+    let parsed: StatePayload = serde_json::from_value(json).unwrap();
+    assert!(parsed.combined.is_empty());
+    let headline = parsed.headline.unwrap();
+    assert!(!headline.combined);
+    assert_eq!(headline.account_count, 1);
+}
 
 #[test]
 fn the_app_version_is_the_daemon_release() {

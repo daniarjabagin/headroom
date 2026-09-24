@@ -28,44 +28,104 @@ const SELECT_SINCE: &str = "SELECT key, at, model, tier, input, cache_read, cach
      cache_write_1h, output, reasoning, web_search, reported_cost FROM usage_events \
      WHERE provider = ?1 AND usage_home = ?2 AND at >= ?3 ORDER BY at, key";
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Ingested {
+    pub changed: usize,
+    pub skipped: usize,
+}
+
+struct HomeKey<'a> {
+    provider: String,
+    home: &'a str,
+}
+
+struct EventRow<'a> {
+    key: &'a str,
+    at: i64,
+    model: &'a str,
+    tier: String,
+    counts: [i64; 7],
+    web_search: u32,
+    reported_cost: Option<i64>,
+}
+
 pub fn ingest(
     conn: &mut Connection,
     home: &UsageHome,
     events: &[UsageEvent],
     cursors: &LogCursors,
-) -> Result<usize, StorageError> {
+) -> Result<Ingested, StorageError> {
+    let key = HomeKey {
+        provider: enum_to_sql(&home.provider)?,
+        home: path_to_sql(&home.home)?,
+    };
     let tx = conn.transaction()?;
-    let mut changed = 0;
+    let mut ingested = Ingested::default();
     for event in events {
-        changed += upsert(&tx, home, event)?;
+        match encode(event) {
+            Ok(row) => ingested.changed += upsert(&tx, &key, &row)?,
+            Err(error) => {
+                tracing::warn!(key = %event.key.0, %error, "skipped a usage event that cannot be stored");
+                ingested.skipped += 1;
+            }
+        }
     }
     cursors::save(&tx, home, cursors)?;
     tx.commit()?;
-    Ok(changed)
+    Ok(ingested)
+}
+
+fn encode(event: &UsageEvent) -> Result<EventRow<'_>, StorageError> {
+    let tokens = &event.tokens;
+    Ok(EventRow {
+        key: &event.key.0,
+        at: timestamp_to_sql(event.at)?,
+        model: &event.model,
+        tier: enum_to_sql(&event.tier)?,
+        counts: [
+            tokens_to_sql(tokens.input)?,
+            tokens_to_sql(tokens.cache_read)?,
+            tokens_to_sql(tokens.cache_write_5m)?,
+            tokens_to_sql(tokens.cache_write_1h)?,
+            tokens_to_sql(tokens.output)?,
+            tokens_to_sql(tokens.reasoning)?,
+            tokens_to_sql(tokens.total())?,
+        ],
+        web_search: event.web_search_requests,
+        reported_cost: event.reported_cost.map(|cost| cost.0),
+    })
 }
 
 fn upsert(
     tx: &Transaction<'_>,
-    home: &UsageHome,
-    event: &UsageEvent,
+    home: &HomeKey<'_>,
+    row: &EventRow<'_>,
 ) -> Result<usize, StorageError> {
-    let tokens = &event.tokens;
+    let [
+        input,
+        read,
+        short_write,
+        long_write,
+        output,
+        reasoning,
+        total,
+    ] = row.counts;
     Ok(tx.prepare_cached(UPSERT)?.execute(params![
-        enum_to_sql(&home.provider)?,
-        path_to_sql(&home.home)?,
-        event.key.0,
-        timestamp_to_sql(event.at)?,
-        event.model,
-        enum_to_sql(&event.tier)?,
-        tokens_to_sql(tokens.input)?,
-        tokens_to_sql(tokens.cache_read)?,
-        tokens_to_sql(tokens.cache_write_5m)?,
-        tokens_to_sql(tokens.cache_write_1h)?,
-        tokens_to_sql(tokens.output)?,
-        tokens_to_sql(tokens.reasoning)?,
-        tokens_to_sql(tokens.total())?,
-        event.web_search_requests,
-        event.reported_cost.map(|cost| cost.0)
+        home.provider,
+        home.home,
+        row.key,
+        row.at,
+        row.model,
+        row.tier,
+        input,
+        read,
+        short_write,
+        long_write,
+        output,
+        reasoning,
+        total,
+        row.web_search,
+        row.reported_cost
     ])?)
 }
 

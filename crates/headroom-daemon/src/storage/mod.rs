@@ -6,6 +6,7 @@ pub mod dismissed;
 pub mod events;
 pub mod lapses;
 mod migrations;
+mod private;
 pub mod settings;
 pub mod snapshots;
 pub mod updates;
@@ -28,7 +29,8 @@ pub struct Storage {
 
 impl Storage {
     pub fn open(path: &Path) -> Result<Storage, StorageError> {
-        create_parent(path)?;
+        let app_dir = crate::config::app_dir().ok();
+        private::prepare(path, app_dir.as_deref())?;
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         Storage::prepare(conn)
@@ -66,16 +68,6 @@ impl Storage {
             .await
             .map_err(|error| StorageError::Task(error.to_string()))?
     }
-}
-
-fn create_parent(path: &Path) -> Result<(), StorageError> {
-    let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) else {
-        return Ok(());
-    };
-    std::fs::create_dir_all(parent).map_err(|source| StorageError::CreateDir {
-        path: parent.to_path_buf(),
-        source,
-    })
 }
 
 #[cfg(test)]

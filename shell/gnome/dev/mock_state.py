@@ -419,7 +419,7 @@ def headline_for(entry, window_entry):
         "remaining_percent": window_entry["remaining_percent"],
         "tone": window_entry["tone"],
         "combined": False,
-        "account_count": None,
+        "account_count": 1,
     }
 
 

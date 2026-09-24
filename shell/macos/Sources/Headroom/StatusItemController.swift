@@ -53,7 +53,7 @@
             guard case .reading(let text, _) = content, let headline = model.state?.headline else {
                 return "Headroom"
             }
-            return "\(headline.accountLabel) · \(headline.windowLabel): \(text)"
+            return "\(MenuBarContent.subject(headline)) · \(headline.windowLabel): \(text)"
         }
 
         @objc private func buttonClicked(_ sender: NSStatusBarButton) {

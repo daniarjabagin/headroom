@@ -13,6 +13,12 @@ All notable changes to Headroom are documented here. The format is based on
   place), explains that Claude Code and Codex CLI accounts are found automatically and others are
   added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
   Homebrew cask's caveats now say to start the app with `open -a Headroom`.
+- **Combine accounts of the same provider.** The new `display.combine_accounts` setting (off by
+  default) makes the daemon publish a `combined` list in the state: for every provider with two or
+  more signed-in, visible accounts it sums each window across the accounts (capacity 100 % per
+  account, earliest reset, per-account segments) and computes one pace and tone for the total. The
+  headline then shows the combined window, and a pin on any grouped account resolves to it. Accounts
+  stay in `accounts` unchanged and notifications remain per account.
 
 ### Security
 
@@ -27,9 +33,30 @@ All notable changes to Headroom are documented here. The format is based on
   the Swift packages current, weekly and with a small limit on open pull requests.
 - **Provider requests no longer follow redirects to another origin.** A redirect is followed only
   to the same scheme, host and port, at most five times; anything else fails the request, so API
-  keys and refresh tokens in request bodies can never be replayed to a different server. The one
-  exception is `headroom update`'s release download, which may move from `github.com` to GitHub's
-  asset host over HTTPS.
+  keys and refresh tokens in request bodies can never be replayed to a different server.
+- **Linux releases are signed.** The release workflow signs `SHA256SUMS` with an Ed25519 key and
+  publishes `SHA256SUMS.sig`; a stable release without the key fails. `headroom update` checks the
+  signature against the key built into Headroom before it trusts any checksum and refuses a release
+  whose signature is missing or wrong. `get-headroom.sh` pins the same key and checks it with
+  OpenSSL 1.1.1 or newer; without such an OpenSSL it warns and relies on the checksums alone.
+- **`headroom update` downloads only from GitHub over HTTPS.** Its own HTTP client follows
+  redirects only to `api.github.com`, `github.com`, `objects.githubusercontent.com` and
+  `release-assets.githubusercontent.com`, and caps the size of every response.
+- **`get-headroom.sh` resolves the release once** and downloads `SHA256SUMS`, its signature and the
+  tarball from that tag, with `wget` limited to HTTPS as `curl` already was.
+- **One malformed log line can no longer stop usage tracking.** A record with a timestamp after
+  2262 or a token count above 2^63 − 1 is skipped instead of failing the whole import and leaving
+  the log position behind, which dropped every later event.
+- **The usage database is private.** Its directory is created `0700` and the database, WAL and SHM
+  files `0600` whatever the umask; existing installs are tightened on the next start. The install
+  receipt is written `0600` as well.
+- **Terminal output cannot be hijacked by provider text.** `headroom status` and `headroom accounts`
+  drop control characters (including escape sequences) from provider messages, plan names, labels
+  and emails, and the daemon rejects account labels that contain control characters.
+- **A socket client can run at most 16 commands at once;** the daemon stops reading from that
+  connection until one finishes.
+- **`install.sh` handles any home directory.** The D-Bus activation file quotes the binary's path,
+  so spaces, `&`, `|` and quotes in `$HOME` work, and the install receipt escapes control characters.
 - **A server's `Retry-After` can no longer pause a provider for days.** Waits longer than a day are
   ignored, and rate-limit holds are capped at one hour.
 - **Grok, Kimi and Cline save a refreshed sign-in even when the fetch is cut short.** The refresh

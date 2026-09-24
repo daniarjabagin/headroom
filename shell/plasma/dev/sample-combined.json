@@ -1,0 +1,1754 @@
+{
+  "version": 1,
+  "app_version": "0.4.1",
+  "generated_at": "2026-09-23T10:00:00Z",
+  "next_refresh_at": "2026-09-23T10:03:10Z",
+  "last_success_at": "2026-09-23T09:58:00Z",
+  "offline": false,
+  "headline": {
+    "account_id": null,
+    "window": "weekly",
+    "provider": "codex",
+    "provider_name": "Codex",
+    "account_label": null,
+    "window_label": "Weekly",
+    "used_percent": 49.0,
+    "remaining_percent": 51.0,
+    "tone": "warning",
+    "combined": true,
+    "account_count": 2
+  },
+  "display": {
+    "theme": "system",
+    "language": "system",
+    "value_mode": "left",
+    "reset_format": "countdown",
+    "panel_label": "percent",
+    "show_spend": true,
+    "show_account_spend": true,
+    "show_trend": true,
+    "show_forecast": true,
+    "translucent": false,
+    "combine_accounts": true,
+    "hidden_windows": {}
+  },
+  "accounts": [
+    {
+      "id": "claude:0a1b2c3d4e5f",
+      "provider": "claude",
+      "provider_name": "Claude",
+      "label": "personal",
+      "email": "me@example.org",
+      "plan": "Max 5x",
+      "owner": "cli",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 24.0,
+          "remaining_percent": 76.0,
+          "resets_at": "2026-09-23T13:12:00Z",
+          "period_seconds": 18000,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 36.0,
+            "projected_percent": 67.0,
+            "spare_percent": 33.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 68.0,
+          "remaining_percent": 32.0,
+          "resets_at": "2026-09-26T00:00:00Z",
+          "period_seconds": 604800,
+          "tone": "warning",
+          "pace": {
+            "severity": "running_out",
+            "even_pace_percent": 63.4,
+            "projected_percent": 107.0,
+            "spare_percent": null,
+            "runs_out_at": "2026-09-25T12:00:00Z"
+          },
+          "hidden": false
+        },
+        {
+          "id": "model:opus",
+          "label": "Opus",
+          "used_percent": 18.0,
+          "remaining_percent": 82.0,
+          "resets_at": "2026-09-26T00:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 63.4,
+            "projected_percent": 28.0,
+            "spare_percent": 72.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        }
+      ],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.claude"
+    },
+    {
+      "id": "codex:1a2b3c4d5e6f",
+      "provider": "codex",
+      "provider_name": "Codex",
+      "label": "work",
+      "email": "dev@example.com",
+      "plan": "Pro",
+      "owner": "cli",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 31.0,
+          "remaining_percent": 69.0,
+          "resets_at": "2026-09-23T12:41:00Z",
+          "period_seconds": 18000,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 46.3,
+            "projected_percent": 67.0,
+            "spare_percent": 33.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 27.0,
+          "remaining_percent": 73.0,
+          "resets_at": "2026-09-27T16:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 39.3,
+            "projected_percent": 69.0,
+            "spare_percent": 31.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        }
+      ],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.codex"
+    },
+    {
+      "id": "codex:9f8e7d6c5b4a",
+      "provider": "codex",
+      "provider_name": "Codex",
+      "label": "personal",
+      "email": "me@example.org",
+      "plan": "Plus",
+      "owner": "headroom",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "used_percent": 50.0,
+          "remaining_percent": 50.0,
+          "resets_at": "2026-09-23T11:12:00Z",
+          "period_seconds": 18000,
+          "tone": "warning",
+          "pace": {
+            "severity": "close",
+            "even_pace_percent": 76.0,
+            "projected_percent": 96.0,
+            "spare_percent": 4.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 71.0,
+          "remaining_percent": 29.0,
+          "resets_at": "2026-09-26T12:00:00Z",
+          "period_seconds": 604800,
+          "tone": "critical",
+          "pace": {
+            "severity": "running_out",
+            "even_pace_percent": 55.0,
+            "projected_percent": 129.0,
+            "spare_percent": null,
+            "runs_out_at": "2026-09-24T19:00:00Z"
+          },
+          "hidden": false
+        },
+        {
+          "id": "model:spark",
+          "label": "Spark",
+          "used_percent": 40.0,
+          "remaining_percent": 60.0,
+          "resets_at": "2026-09-23T12:00:00Z",
+          "period_seconds": 18000,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 60.0,
+            "projected_percent": 70.0,
+            "spare_percent": 30.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        }
+      ],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.codex"
+    },
+    {
+      "id": "copilot:4b3a2f1e0d9c",
+      "provider": "copilot",
+      "provider_name": "Copilot",
+      "label": null,
+      "email": "dev@example.com",
+      "plan": "Individual Pro",
+      "owner": "cli",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "credits",
+          "label": "Credits",
+          "used_percent": 44.0,
+          "remaining_percent": 56.0,
+          "resets_at": "2026-10-04T10:00:00Z",
+          "period_seconds": 2592000,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 63.3,
+            "projected_percent": 70.0,
+            "spare_percent": 30.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        }
+      ],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.local/share/headroom/accounts/copilot/4b3a2f1e0d9c"
+    },
+    {
+      "id": "grok:6d5c4b3a2f1e",
+      "provider": "grok",
+      "provider_name": "Grok",
+      "label": null,
+      "email": "dev@example.com",
+      "plan": "SuperGrok",
+      "owner": "cli",
+      "hidden": false,
+      "status": "fresh",
+      "error": null,
+      "updated_at": "2026-09-23T09:58:00Z",
+      "source": "live",
+      "windows": [
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "used_percent": 36.0,
+          "remaining_percent": 64.0,
+          "resets_at": "2026-09-26T14:00:00Z",
+          "period_seconds": 604800,
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 54.8,
+            "projected_percent": 66.0,
+            "spare_percent": 34.0,
+            "runs_out_at": null
+          },
+          "hidden": false
+        }
+      ],
+      "balances": [],
+      "notices": [],
+      "usage_home": "~/.local/share/headroom/accounts/grok/6d5c4b3a2f1e"
+    }
+  ],
+  "combined": [
+    {
+      "provider": "codex",
+      "provider_name": "Codex",
+      "account_ids": [
+        "codex:1a2b3c4d5e6f",
+        "codex:9f8e7d6c5b4a"
+      ],
+      "accounts": [
+        {
+          "account_id": "codex:1a2b3c4d5e6f",
+          "label": "work",
+          "plan": "Pro"
+        },
+        {
+          "account_id": "codex:9f8e7d6c5b4a",
+          "label": "personal",
+          "plan": "Plus"
+        }
+      ],
+      "windows": [
+        {
+          "id": "session",
+          "label": "Session",
+          "capacity_percent": 200,
+          "remaining_percent": 119.0,
+          "used_percent": 81.0,
+          "resets_at": "2026-09-23T11:12:00Z",
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 122.3,
+            "projected_percent": 163.0,
+            "spare_percent": 37.0,
+            "runs_out_at": null
+          },
+          "segments": [
+            {
+              "account_id": "codex:1a2b3c4d5e6f",
+              "label": "work",
+              "remaining_percent": 69.0,
+              "used_percent": 31.0,
+              "resets_at": "2026-09-23T12:41:00Z",
+              "tone": "good"
+            },
+            {
+              "account_id": "codex:9f8e7d6c5b4a",
+              "label": "personal",
+              "remaining_percent": 50.0,
+              "used_percent": 50.0,
+              "resets_at": "2026-09-23T11:12:00Z",
+              "tone": "warning"
+            }
+          ]
+        },
+        {
+          "id": "weekly",
+          "label": "Weekly",
+          "capacity_percent": 200,
+          "remaining_percent": 102.0,
+          "used_percent": 98.0,
+          "resets_at": "2026-09-26T12:00:00Z",
+          "tone": "warning",
+          "pace": {
+            "severity": "close",
+            "even_pace_percent": 94.3,
+            "projected_percent": 198.0,
+            "spare_percent": 2.0,
+            "runs_out_at": null
+          },
+          "segments": [
+            {
+              "account_id": "codex:1a2b3c4d5e6f",
+              "label": "work",
+              "remaining_percent": 73.0,
+              "used_percent": 27.0,
+              "resets_at": "2026-09-27T16:00:00Z",
+              "tone": "good"
+            },
+            {
+              "account_id": "codex:9f8e7d6c5b4a",
+              "label": "personal",
+              "remaining_percent": 29.0,
+              "used_percent": 71.0,
+              "resets_at": "2026-09-26T12:00:00Z",
+              "tone": "critical"
+            }
+          ]
+        },
+        {
+          "id": "model:spark",
+          "label": "Spark",
+          "capacity_percent": 100,
+          "remaining_percent": 60.0,
+          "used_percent": 40.0,
+          "resets_at": "2026-09-23T12:00:00Z",
+          "tone": "good",
+          "pace": {
+            "severity": "healthy",
+            "even_pace_percent": 60.0,
+            "projected_percent": 70.0,
+            "spare_percent": 30.0,
+            "runs_out_at": null
+          },
+          "segments": [
+            {
+              "account_id": "codex:9f8e7d6c5b4a",
+              "label": "personal",
+              "remaining_percent": 60.0,
+              "used_percent": 40.0,
+              "resets_at": "2026-09-23T12:00:00Z",
+              "tone": "good"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": [
+    {
+      "provider": "claude",
+      "provider_name": "Claude",
+      "usage_home": "~/.claude",
+      "today": {
+        "tokens": {
+          "input": 1174269,
+          "cache_read": 634740,
+          "cache_write": 0,
+          "output": 95211,
+          "reasoning": 23802,
+          "total": 1904220
+        },
+        "cost_usd_micros": 11240000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 647436,
+            "cost_usd_micros": 6856400,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 723603,
+            "cost_usd_micros": 3034800,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 95211,
+            "cost_usd_micros": 562000,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 228506,
+            "cost_usd_micros": 449600,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 114253,
+            "cost_usd_micros": 224800,
+            "partial": false
+          }
+        ],
+        "models_other": {
+          "count": 1,
+          "total_tokens": 95211,
+          "cost_usd_micros": 112400,
+          "partial": false
+        }
+      },
+      "yesterday": {
+        "tokens": {
+          "input": 1919067,
+          "cache_read": 1037333,
+          "cache_write": 0,
+          "output": 155600,
+          "reasoning": 38900,
+          "total": 3112000
+        },
+        "cost_usd_micros": 17860000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 1058080,
+            "cost_usd_micros": 10894600,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 1182560,
+            "cost_usd_micros": 4822200,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 155600,
+            "cost_usd_micros": 893000,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 373440,
+            "cost_usd_micros": 714400,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 186720,
+            "cost_usd_micros": 357200,
+            "partial": false
+          }
+        ],
+        "models_other": {
+          "count": 1,
+          "total_tokens": 155600,
+          "cost_usd_micros": 178600,
+          "partial": false
+        }
+      },
+      "last_30_days": {
+        "tokens": {
+          "input": 29791475,
+          "cache_read": 16103500,
+          "cache_write": 0,
+          "output": 2415525,
+          "reasoning": 603881,
+          "total": 48310500
+        },
+        "cost_usd_micros": 262400000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "claude-opus-4-5",
+            "total_tokens": 16425570,
+            "cost_usd_micros": 160064000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4-5",
+            "total_tokens": 18357990,
+            "cost_usd_micros": 70848000,
+            "partial": false
+          },
+          {
+            "model": "claude-opus-4-1",
+            "total_tokens": 2415525,
+            "cost_usd_micros": 13120000,
+            "partial": false
+          },
+          {
+            "model": "claude-haiku-4-5",
+            "total_tokens": 5797260,
+            "cost_usd_micros": 10496000,
+            "partial": false
+          },
+          {
+            "model": "claude-sonnet-4",
+            "total_tokens": 2898630,
+            "cost_usd_micros": 5248000,
+            "partial": false
+          }
+        ],
+        "models_other": {
+          "count": 1,
+          "total_tokens": 2415525,
+          "cost_usd_micros": 2624000,
+          "partial": false
+        }
+      },
+      "daily": [
+        {
+          "date": "2026-08-25",
+          "total_tokens": 1240000,
+          "cost_usd_micros": 3720000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-26",
+          "total_tokens": 1395000,
+          "cost_usd_micros": 4185000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-27",
+          "total_tokens": 1550000,
+          "cost_usd_micros": 4650000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-28",
+          "total_tokens": 1705000,
+          "cost_usd_micros": 5115000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-29",
+          "total_tokens": 1860000,
+          "cost_usd_micros": 5580000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-30",
+          "total_tokens": 2015000,
+          "cost_usd_micros": 6045000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-31",
+          "total_tokens": 2170000,
+          "cost_usd_micros": 6510000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-01",
+          "total_tokens": 2325000,
+          "cost_usd_micros": 6975000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-02",
+          "total_tokens": 2480000,
+          "cost_usd_micros": 7440000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-03",
+          "total_tokens": 2635000,
+          "cost_usd_micros": 7905000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-04",
+          "total_tokens": 2790000,
+          "cost_usd_micros": 8370000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-05",
+          "total_tokens": 2945000,
+          "cost_usd_micros": 8835000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-06",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-07",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-08",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-09",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-10",
+          "total_tokens": 620000,
+          "cost_usd_micros": 1860000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-11",
+          "total_tokens": 775000,
+          "cost_usd_micros": 2325000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-12",
+          "total_tokens": 930000,
+          "cost_usd_micros": 2790000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-13",
+          "total_tokens": 1085000,
+          "cost_usd_micros": 3255000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-14",
+          "total_tokens": 1240000,
+          "cost_usd_micros": 3720000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-15",
+          "total_tokens": 1395000,
+          "cost_usd_micros": 4185000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-16",
+          "total_tokens": 1550000,
+          "cost_usd_micros": 4650000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-17",
+          "total_tokens": 1705000,
+          "cost_usd_micros": 5115000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-18",
+          "total_tokens": 1860000,
+          "cost_usd_micros": 5580000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-19",
+          "total_tokens": 2015000,
+          "cost_usd_micros": 6045000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-20",
+          "total_tokens": 2170000,
+          "cost_usd_micros": 6510000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-21",
+          "total_tokens": 2325000,
+          "cost_usd_micros": 6975000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-22",
+          "total_tokens": 2480000,
+          "cost_usd_micros": 7440000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-23",
+          "total_tokens": 2635000,
+          "cost_usd_micros": 7905000,
+          "partial": false
+        }
+      ],
+      "models": [
+        {
+          "model": "claude-opus-4-5",
+          "total_tokens": 16425570,
+          "cost_usd_micros": 160064000,
+          "partial": false
+        },
+        {
+          "model": "claude-sonnet-4-5",
+          "total_tokens": 18357990,
+          "cost_usd_micros": 70848000,
+          "partial": false
+        },
+        {
+          "model": "claude-opus-4-1",
+          "total_tokens": 2415525,
+          "cost_usd_micros": 13120000,
+          "partial": false
+        },
+        {
+          "model": "claude-haiku-4-5",
+          "total_tokens": 5797260,
+          "cost_usd_micros": 10496000,
+          "partial": false
+        },
+        {
+          "model": "claude-sonnet-4",
+          "total_tokens": 2898630,
+          "cost_usd_micros": 5248000,
+          "partial": false
+        },
+        {
+          "model": "claude-3-5-haiku",
+          "total_tokens": 2415525,
+          "cost_usd_micros": 2624000,
+          "partial": false
+        }
+      ]
+    },
+    {
+      "provider": "codex",
+      "provider_name": "Codex",
+      "usage_home": "~/.codex",
+      "today": {
+        "tokens": {
+          "input": 1979747,
+          "cache_read": 1070133,
+          "cache_write": 0,
+          "output": 160520,
+          "reasoning": 40130,
+          "total": 3210400
+        },
+        "cost_usd_micros": 8420000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 1990448,
+            "cost_usd_micros": 6567600,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 674184,
+            "cost_usd_micros": 1010400,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 353144,
+            "cost_usd_micros": 673600,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 192624,
+            "cost_usd_micros": 168400,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "yesterday": {
+        "tokens": {
+          "input": 3085800,
+          "cache_read": 1668000,
+          "cache_write": 0,
+          "output": 250200,
+          "reasoning": 62550,
+          "total": 5004000
+        },
+        "cost_usd_micros": 12930000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 3102480,
+            "cost_usd_micros": 10085400,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 1050840,
+            "cost_usd_micros": 1551600,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 550440,
+            "cost_usd_micros": 1034400,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 300240,
+            "cost_usd_micros": 258600,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "last_30_days": {
+        "tokens": {
+          "input": 59274000,
+          "cache_read": 32040000,
+          "cache_write": 0,
+          "output": 4806000,
+          "reasoning": 1201500,
+          "total": 96120000
+        },
+        "cost_usd_micros": 231750000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "gpt-5.5",
+            "total_tokens": 59594400,
+            "cost_usd_micros": 180765000,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.5-mini",
+            "total_tokens": 20185200,
+            "cost_usd_micros": 27810000,
+            "partial": false
+          },
+          {
+            "model": "gpt-5.4-codex",
+            "total_tokens": 10573200,
+            "cost_usd_micros": 18540000,
+            "partial": false
+          },
+          {
+            "model": "o4-mini",
+            "total_tokens": 5767200,
+            "cost_usd_micros": 4635000,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "daily": [
+        {
+          "date": "2026-08-25",
+          "total_tokens": 1056000,
+          "cost_usd_micros": 3168000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-26",
+          "total_tokens": 2948000,
+          "cost_usd_micros": 8844000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-27",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-08-28",
+          "total_tokens": 2332000,
+          "cost_usd_micros": 6996000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-29",
+          "total_tokens": 4224000,
+          "cost_usd_micros": 12672000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-30",
+          "total_tokens": 1716000,
+          "cost_usd_micros": 5148000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-31",
+          "total_tokens": 3608000,
+          "cost_usd_micros": 10824000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-01",
+          "total_tokens": 1100000,
+          "cost_usd_micros": 3300000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-02",
+          "total_tokens": 2992000,
+          "cost_usd_micros": 8976000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-03",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-04",
+          "total_tokens": 2376000,
+          "cost_usd_micros": 7128000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-05",
+          "total_tokens": 4268000,
+          "cost_usd_micros": 12804000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-06",
+          "total_tokens": 1760000,
+          "cost_usd_micros": 5280000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-07",
+          "total_tokens": 3652000,
+          "cost_usd_micros": 10956000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-08",
+          "total_tokens": 1144000,
+          "cost_usd_micros": 3432000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-09",
+          "total_tokens": 3036000,
+          "cost_usd_micros": 9108000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-10",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-11",
+          "total_tokens": 2420000,
+          "cost_usd_micros": 7260000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-12",
+          "total_tokens": 4312000,
+          "cost_usd_micros": 12936000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-13",
+          "total_tokens": 1804000,
+          "cost_usd_micros": 5412000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-14",
+          "total_tokens": 3696000,
+          "cost_usd_micros": 11088000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-15",
+          "total_tokens": 1188000,
+          "cost_usd_micros": 3564000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-16",
+          "total_tokens": 3080000,
+          "cost_usd_micros": 9240000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-17",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-18",
+          "total_tokens": 2464000,
+          "cost_usd_micros": 7392000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-19",
+          "total_tokens": 4356000,
+          "cost_usd_micros": 13068000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-20",
+          "total_tokens": 1848000,
+          "cost_usd_micros": 5544000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-21",
+          "total_tokens": 3740000,
+          "cost_usd_micros": 11220000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-22",
+          "total_tokens": 1232000,
+          "cost_usd_micros": 3696000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-23",
+          "total_tokens": 3124000,
+          "cost_usd_micros": 9372000,
+          "partial": false
+        }
+      ],
+      "models": [
+        {
+          "model": "gpt-5.5",
+          "total_tokens": 59594400,
+          "cost_usd_micros": 180765000,
+          "partial": false
+        },
+        {
+          "model": "gpt-5.5-mini",
+          "total_tokens": 20185200,
+          "cost_usd_micros": 27810000,
+          "partial": false
+        },
+        {
+          "model": "gpt-5.4-codex",
+          "total_tokens": 10573200,
+          "cost_usd_micros": 18540000,
+          "partial": false
+        },
+        {
+          "model": "o4-mini",
+          "total_tokens": 5767200,
+          "cost_usd_micros": 4635000,
+          "partial": false
+        }
+      ]
+    },
+    {
+      "provider": "grok",
+      "provider_name": "Grok",
+      "usage_home": "~/.grok",
+      "today": {
+        "tokens": {
+          "input": 500734,
+          "cache_read": 270666,
+          "cache_write": 0,
+          "output": 40600,
+          "reasoning": 10150,
+          "total": 812000
+        },
+        "cost_usd_micros": 2350000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "grok-4",
+            "total_tokens": 568400,
+            "cost_usd_micros": 1927000,
+            "partial": false
+          },
+          {
+            "model": "grok-code-fast-1",
+            "total_tokens": 243600,
+            "cost_usd_micros": 423000,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "yesterday": {
+        "tokens": {
+          "input": 629000,
+          "cache_read": 340000,
+          "cache_write": 0,
+          "output": 51000,
+          "reasoning": 12750,
+          "total": 1020000
+        },
+        "cost_usd_micros": 2910000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "grok-4",
+            "total_tokens": 714000,
+            "cost_usd_micros": 2386200,
+            "partial": false
+          },
+          {
+            "model": "grok-code-fast-1",
+            "total_tokens": 306000,
+            "cost_usd_micros": 523800,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "last_30_days": {
+        "tokens": {
+          "input": 8818334,
+          "cache_read": 4766666,
+          "cache_write": 0,
+          "output": 715000,
+          "reasoning": 178750,
+          "total": 14300000
+        },
+        "cost_usd_micros": 38600000,
+        "partial": false,
+        "unpriced_tokens": 0,
+        "unpriced_models": [],
+        "models": [
+          {
+            "model": "grok-4",
+            "total_tokens": 10010000,
+            "cost_usd_micros": 31652000,
+            "partial": false
+          },
+          {
+            "model": "grok-code-fast-1",
+            "total_tokens": 4290000,
+            "cost_usd_micros": 6948000,
+            "partial": false
+          }
+        ],
+        "models_other": null
+      },
+      "daily": [
+        {
+          "date": "2026-08-25",
+          "total_tokens": 704000,
+          "cost_usd_micros": 2112000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-26",
+          "total_tokens": 632000,
+          "cost_usd_micros": 1896000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-27",
+          "total_tokens": 560000,
+          "cost_usd_micros": 1680000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-28",
+          "total_tokens": 488000,
+          "cost_usd_micros": 1464000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-29",
+          "total_tokens": 416000,
+          "cost_usd_micros": 1248000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-30",
+          "total_tokens": 344000,
+          "cost_usd_micros": 1032000,
+          "partial": false
+        },
+        {
+          "date": "2026-08-31",
+          "total_tokens": 272000,
+          "cost_usd_micros": 816000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-01",
+          "total_tokens": 200000,
+          "cost_usd_micros": 600000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-02",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-03",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-04",
+          "total_tokens": 784000,
+          "cost_usd_micros": 2352000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-05",
+          "total_tokens": 712000,
+          "cost_usd_micros": 2136000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-06",
+          "total_tokens": 640000,
+          "cost_usd_micros": 1920000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-07",
+          "total_tokens": 568000,
+          "cost_usd_micros": 1704000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-08",
+          "total_tokens": 496000,
+          "cost_usd_micros": 1488000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-09",
+          "total_tokens": 424000,
+          "cost_usd_micros": 1272000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-10",
+          "total_tokens": 352000,
+          "cost_usd_micros": 1056000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-11",
+          "total_tokens": 280000,
+          "cost_usd_micros": 840000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-12",
+          "total_tokens": 208000,
+          "cost_usd_micros": 624000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-13",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-14",
+          "total_tokens": 0,
+          "cost_usd_micros": 0,
+          "partial": false
+        },
+        {
+          "date": "2026-09-15",
+          "total_tokens": 792000,
+          "cost_usd_micros": 2376000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-16",
+          "total_tokens": 720000,
+          "cost_usd_micros": 2160000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-17",
+          "total_tokens": 648000,
+          "cost_usd_micros": 1944000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-18",
+          "total_tokens": 576000,
+          "cost_usd_micros": 1728000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-19",
+          "total_tokens": 504000,
+          "cost_usd_micros": 1512000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-20",
+          "total_tokens": 432000,
+          "cost_usd_micros": 1296000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-21",
+          "total_tokens": 360000,
+          "cost_usd_micros": 1080000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-22",
+          "total_tokens": 288000,
+          "cost_usd_micros": 864000,
+          "partial": false
+        },
+        {
+          "date": "2026-09-23",
+          "total_tokens": 216000,
+          "cost_usd_micros": 648000,
+          "partial": false
+        }
+      ],
+      "models": [
+        {
+          "model": "grok-4",
+          "total_tokens": 10010000,
+          "cost_usd_micros": 31652000,
+          "partial": false
+        },
+        {
+          "model": "grok-code-fast-1",
+          "total_tokens": 4290000,
+          "cost_usd_micros": 6948000,
+          "partial": false
+        }
+      ]
+    }
+  ],
+  "spend": {
+    "today": {
+      "cost_usd_micros": 22010000,
+      "total_tokens": 5926620,
+      "partial": false,
+      "by_provider": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "cost_usd_micros": 11240000,
+          "total_tokens": 1904220,
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 647436,
+              "cost_usd_micros": 6856400,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 723603,
+              "cost_usd_micros": 3034800,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 95211,
+              "cost_usd_micros": 562000,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 228506,
+              "cost_usd_micros": 449600,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 114253,
+              "cost_usd_micros": 224800,
+              "partial": false
+            }
+          ],
+          "models_other": {
+            "count": 1,
+            "total_tokens": 95211,
+            "cost_usd_micros": 112400,
+            "partial": false
+          }
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "cost_usd_micros": 8420000,
+          "total_tokens": 3210400,
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 1990448,
+              "cost_usd_micros": 6567600,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 674184,
+              "cost_usd_micros": 1010400,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 353144,
+              "cost_usd_micros": 673600,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 192624,
+              "cost_usd_micros": 168400,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "cost_usd_micros": 2350000,
+          "total_tokens": 812000,
+          "partial": false,
+          "models": [
+            {
+              "model": "grok-4",
+              "total_tokens": 568400,
+              "cost_usd_micros": 1927000,
+              "partial": false
+            },
+            {
+              "model": "grok-code-fast-1",
+              "total_tokens": 243600,
+              "cost_usd_micros": 423000,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        }
+      ]
+    },
+    "yesterday": {
+      "cost_usd_micros": 33700000,
+      "total_tokens": 9136000,
+      "partial": false,
+      "by_provider": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "cost_usd_micros": 17860000,
+          "total_tokens": 3112000,
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 1058080,
+              "cost_usd_micros": 10894600,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 1182560,
+              "cost_usd_micros": 4822200,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 155600,
+              "cost_usd_micros": 893000,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 373440,
+              "cost_usd_micros": 714400,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 186720,
+              "cost_usd_micros": 357200,
+              "partial": false
+            }
+          ],
+          "models_other": {
+            "count": 1,
+            "total_tokens": 155600,
+            "cost_usd_micros": 178600,
+            "partial": false
+          }
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "cost_usd_micros": 12930000,
+          "total_tokens": 5004000,
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 3102480,
+              "cost_usd_micros": 10085400,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 1050840,
+              "cost_usd_micros": 1551600,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 550440,
+              "cost_usd_micros": 1034400,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 300240,
+              "cost_usd_micros": 258600,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "cost_usd_micros": 2910000,
+          "total_tokens": 1020000,
+          "partial": false,
+          "models": [
+            {
+              "model": "grok-4",
+              "total_tokens": 714000,
+              "cost_usd_micros": 2386200,
+              "partial": false
+            },
+            {
+              "model": "grok-code-fast-1",
+              "total_tokens": 306000,
+              "cost_usd_micros": 523800,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        }
+      ]
+    },
+    "last_30_days": {
+      "cost_usd_micros": 532750000,
+      "total_tokens": 158730500,
+      "partial": false,
+      "by_provider": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "cost_usd_micros": 262400000,
+          "total_tokens": 48310500,
+          "partial": false,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 16425570,
+              "cost_usd_micros": 160064000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 18357990,
+              "cost_usd_micros": 70848000,
+              "partial": false
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 2415525,
+              "cost_usd_micros": 13120000,
+              "partial": false
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 5797260,
+              "cost_usd_micros": 10496000,
+              "partial": false
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 2898630,
+              "cost_usd_micros": 5248000,
+              "partial": false
+            }
+          ],
+          "models_other": {
+            "count": 1,
+            "total_tokens": 2415525,
+            "cost_usd_micros": 2624000,
+            "partial": false
+          }
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "cost_usd_micros": 231750000,
+          "total_tokens": 96120000,
+          "partial": false,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 59594400,
+              "cost_usd_micros": 180765000,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 20185200,
+              "cost_usd_micros": 27810000,
+              "partial": false
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 10573200,
+              "cost_usd_micros": 18540000,
+              "partial": false
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 5767200,
+              "cost_usd_micros": 4635000,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "cost_usd_micros": 38600000,
+          "total_tokens": 14300000,
+          "partial": false,
+          "models": [
+            {
+              "model": "grok-4",
+              "total_tokens": 10010000,
+              "cost_usd_micros": 31652000,
+              "partial": false
+            },
+            {
+              "model": "grok-code-fast-1",
+              "total_tokens": 4290000,
+              "cost_usd_micros": 6948000,
+              "partial": false
+            }
+          ],
+          "models_other": null
+        }
+      ]
+    }
+  },
+  "update": null
+}

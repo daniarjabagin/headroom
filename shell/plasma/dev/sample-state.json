@@ -17,7 +17,7 @@
     "remaining_percent": 62.0,
     "tone": "good",
     "combined": false,
-    "account_count": null
+    "account_count": 1
   },
   "display": {
     "theme": "system",
@@ -30,8 +30,8 @@
     "show_trend": true,
     "show_forecast": true,
     "hidden_windows": {},
-    "combine_accounts": false,
-    "translucent": false
+    "translucent": false,
+    "combine_accounts": false
   },
   "accounts": [
     {

@@ -56,7 +56,7 @@ TestCase {
             remainingPercent: 62,
             tone: "good",
             combined: false,
-            accountCount: null
+            accountCount: 1
         });
         compare(state.nextRefreshAt.toISOString(), "2026-09-23T10:03:10.000Z");
         compare(state.offline, false);

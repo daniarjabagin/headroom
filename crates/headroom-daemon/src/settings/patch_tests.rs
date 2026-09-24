@@ -68,6 +68,25 @@ fn patch_changes_only_the_given_fields() {
 }
 
 #[test]
+fn combine_accounts_is_patched_and_reset_on_its_own() {
+    let on = customized()
+        .patched(r#"{"display":{"combine_accounts":true}}"#)
+        .unwrap();
+    let mut expected = customized();
+    expected.display.combine_accounts = true;
+    assert_eq!(on, expected);
+    let off = on
+        .patched(r#"{"display":{"combine_accounts":null}}"#)
+        .unwrap();
+    assert_eq!(off, customized());
+    assert!(
+        customized()
+            .patched(r#"{"display":{"combine_accounts":"yes"}}"#)
+            .is_err()
+    );
+}
+
+#[test]
 fn null_resets_a_field_or_section_to_its_default() {
     let base = customized();
     let interval = base.patched(r#"{"refresh_interval_secs":null}"#).unwrap();

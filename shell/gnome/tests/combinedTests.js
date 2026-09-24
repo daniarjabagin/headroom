@@ -245,6 +245,31 @@ function testSetting() {
     check('combine patch', displayPatch({ combineAccounts: true }), { display: { combine_accounts: true } });
 }
 
+export function testCombinedSnapshot(json) {
+    setLanguage('en');
+    const state = parseState(json);
+    const visible = state.accounts.filter(entry => !entry.hidden);
+    const cards = combined.dashboardCards(state, visible);
+    check('snapshot cards', kinds(cards), [
+        ['combined', ['codex:work', 'codex:personal']],
+        ['account', ['claude:main']],
+    ]);
+    const [session, weekly] = cards[0].group.windows;
+    check(
+        'snapshot pooled reading',
+        capacityReading(session.remainingPercent, session.capacityPercent, 'left'),
+        '125% left of 200%'
+    );
+    check(
+        'snapshot pooled forecast',
+        forecastText(session, NOW, state.display),
+        'At this pace: ~68% of 200% left at reset'
+    );
+    check('snapshot single segment', [weekly.capacityPercent, weekly.segments.length], [100, 1]);
+    check('snapshot single forecast', forecastText(weekly, NOW, state.display), 'At this pace: ~16% left at reset');
+    check('snapshot header', combined.headerAccount(cards[0]).plan, '2 accounts · Pro · Plus');
+}
+
 export function testCombined() {
     testCards();
     testHeader();

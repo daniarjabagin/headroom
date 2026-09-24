@@ -1,6 +1,6 @@
 import Clutter from 'gi://Clutter';
 import { breakdownEntries, combinedMeterState, combinedPercent, headerAccount } from '../combined.js';
-import { capacityReading, windowLabel } from '../format.js';
+import { capacityReading, isPooled, percentReading, windowLabel } from '../format.js';
 import { column, label, row } from '../widgets.js';
 import { AccountHeader } from './accountHeader.js';
 import { QuotaRow } from './quotaRow.js';
@@ -11,7 +11,10 @@ function combinedLook(membersOf) {
         meter: () => new SegmentedMeter(),
         meterState: (window, display) => combinedMeterState(window, membersOf(), display),
         percent: (window, valueMode) => combinedPercent(window, valueMode),
-        reading: (percent, window, valueMode) => capacityReading(percent, window.capacityPercent, valueMode),
+        reading: (percent, window, valueMode) =>
+            isPooled(window)
+                ? capacityReading(percent, window.capacityPercent, valueMode)
+                : percentReading(percent, valueMode),
     };
 }
 

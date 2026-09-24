@@ -72,7 +72,7 @@ MouseArea {
 
         PlasmaComponents3.Label {
             objectName: "compactCountLabel"
-            visible: compact.windowMode && compact.headline.combined && compact.headline.accountCount !== null
+            visible: compact.windowMode && compact.headline.combined === true && typeof compact.headline.accountCount === "number"
             Layout.alignment: Qt.AlignCenter
             opacity: 0.7
             textFormat: Text.PlainText

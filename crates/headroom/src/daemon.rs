@@ -27,7 +27,7 @@ pub async fn run(globals: &Globals, args: DaemonArgs) -> Result<ExitCode> {
         config.socket = Some(socket_path(socket)?);
     }
     if !args.no_update_check {
-        config.updates = Some(update::daemon_config(http.clone())?);
+        config.updates = Some(update::daemon_config()?);
     }
     let pricing = tokio::spawn(keep_fresh(prices, http));
     let result = headroom_daemon::run(config).await;

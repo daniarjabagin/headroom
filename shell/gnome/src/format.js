@@ -41,6 +41,10 @@ export function percentReading(percent, valueMode) {
     return valueMode === 'used' ? percentUsed(percent) : percentLeft(percent);
 }
 
+export function isPooled(window) {
+    return (window.segments?.length ?? 0) > 1;
+}
+
 export function capacityReading(percent, capacityPercent, valueMode) {
     if (percent === null) return DASH;
     const values = { percent: roundPercent(percent), capacity: roundPercent(capacityPercent) };
@@ -117,7 +121,7 @@ export function limitText(runsOutAt, now) {
 
 function runOutForecast(window, now, resetFormat) {
     const { runsOutAt } = window.pace;
-    if (runsOutAt === null && window.capacityPercent !== undefined) return _('At this pace: runs out before reset');
+    if (runsOutAt === null && isPooled(window)) return _('At this pace: runs out before reset');
     if (runsOutAt === null || runsOutAt <= now) return _('At this pace: runs out any minute');
     const runsOut = fill(_('runs out in {duration}'), { duration: duration(runsOutAt - now) });
     if (window.resetsAt === null) return fill(_('At this pace: {runsOut}'), { runsOut });
@@ -141,7 +145,7 @@ function capacityForecast(window, valueMode) {
 
 function atResetForecast(window, valueMode) {
     const { pace } = window;
-    if (window.capacityPercent !== undefined) return capacityForecast(window, valueMode);
+    if (isPooled(window)) return capacityForecast(window, valueMode);
     if (valueMode === 'used' && pace.projectedPercent !== null)
         return fill(_('At this pace: ~{percent}% used at reset'), { percent: roundPercent(pace.projectedPercent) });
     return fill(_('At this pace: ~{percent}% left at reset'), { percent: roundPercent(pace.sparePercent) });
