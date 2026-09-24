@@ -14,9 +14,9 @@ from gi.repository import Gio, GLib
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mock_state import DEFAULT_SETTINGS, PROVIDERS, SCENARIOS, build, choose_headline, iso
 
-BUS_NAME = "io.github.headroom.Daemon"
-OBJECT_PATH = "/io/github/headroom/Daemon"
-INTERFACE = "io.github.headroom.Daemon1"
+BUS_NAME = "io.github.daniarjabagin.Headroom"
+OBJECT_PATH = "/io/github/daniarjabagin/Headroom"
+INTERFACE = "io.github.daniarjabagin.Headroom1"
 INTERFACE_XML = f"""
 <node>
   <interface name="{INTERFACE}">

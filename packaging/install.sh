@@ -9,7 +9,7 @@ Builds Headroom and installs it for the current user:
   ~/.local/bin/headroom
   ~/.local/share/icons/hicolor/{scalable,symbolic}/apps/headroom*.svg
   ~/.config/systemd/user/headroom.service   (enabled and started)
-  ~/.local/share/dbus-1/services/io.github.headroom.Daemon.service
+  ~/.local/share/dbus-1/services/io.github.daniarjabagin.Headroom.service
   ~/.local/share/headroom/install.json      (marks a source build: `headroom update` leaves it alone)
   the GNOME Shell extension, when GNOME Shell is installed
 
@@ -40,10 +40,28 @@ dbus_dir="$data_home/dbus-1/services"
 icon_dir="$data_home/icons/hicolor"
 receipt="$data_home/headroom/install.json"
 target_dir="${CARGO_TARGET_DIR:-$root/target}"
-extension_uuid="headroom@headroom.github.io"
+extension_uuid="headroom@daniarjabagin.github.io"
 
 step() {
     printf '==> %s\n' "$*"
+}
+
+legacy_extension_uuid="headroom@headroom.github.io"
+legacy_plasmoid_id="io.github.headroom.plasmoid"
+legacy_dbus_file="$data_home/dbus-1/services/io.github.headroom.Daemon.service"
+
+remove_legacy_install() {
+    local old_extension_dir="$data_home/gnome-shell/extensions/$legacy_extension_uuid"
+    local old_plasmoid_dir="$data_home/plasma/plasmoids/$legacy_plasmoid_id"
+    if [ ! -e "$old_extension_dir" ] && [ ! -e "$old_plasmoid_dir" ] && [ ! -e "$legacy_dbus_file" ]; then
+        return
+    fi
+    step "Removing the GNOME extension, Plasma widget and D-Bus file installed under the old names"
+    if [ -e "$old_extension_dir" ] && command -v gnome-extensions >/dev/null 2>&1; then
+        gnome-extensions disable "$legacy_extension_uuid" >/dev/null 2>&1 || true
+    fi
+    rm -rf "$old_extension_dir" "$old_plasmoid_dir"
+    rm -f "$legacy_dbus_file"
 }
 
 build_binary() {
@@ -88,9 +106,9 @@ install_units() {
     step "Installing the systemd user unit and D-Bus activation file"
     mkdir -p "$unit_dir" "$dbus_dir"
     install -m 0644 "$root/packaging/systemd/headroom.service" "$unit_dir/headroom.service"
-    sed "s|@BINDIR@|$bin_dir|g" "$root/packaging/dbus/io.github.headroom.Daemon.service" \
-        >"$dbus_dir/io.github.headroom.Daemon.service"
-    chmod 0644 "$dbus_dir/io.github.headroom.Daemon.service"
+    sed "s|@BINDIR@|$bin_dir|g" "$root/packaging/dbus/io.github.daniarjabagin.Headroom.service" \
+        >"$dbus_dir/io.github.daniarjabagin.Headroom.service"
+    chmod 0644 "$dbus_dir/io.github.daniarjabagin.Headroom.service"
 }
 
 start_service() {
@@ -111,6 +129,7 @@ On Wayland, GNOME Shell only sees newly installed extensions after you log out a
 EOF
 }
 
+remove_legacy_install
 build_binary
 install_binary
 install_icons

@@ -24,7 +24,7 @@ fn attributes_name_the_application_account_and_provider() {
     assert_eq!(
         full,
         Attributes::from([
-            ("application", "io.github.headroom"),
+            ("application", "io.github.daniarjabagin.headroom"),
             ("provider", "tool"),
             ("account", "tool:0123456789ab"),
         ])
@@ -98,8 +98,11 @@ async fn keychain_keys_live_under_the_headroom_service() {
     let backend = store.store(&provider(), &account(), &key).await.unwrap();
     assert_eq!(backend, SecretBackend::Keychain);
     assert_eq!(
-        fake.item("io.github.headroom", Some("tool:0123456789ab"))
-            .as_deref(),
+        fake.item(
+            "io.github.daniarjabagin.headroom",
+            Some("tool:0123456789ab")
+        )
+        .as_deref(),
         Some("sk-keychain")
     );
     assert!(!files.join("tool:0123456789ab").exists());
@@ -107,7 +110,10 @@ async fn keychain_keys_live_under_the_headroom_service() {
     assert_eq!(store.read(&account()).await.unwrap(), Some(key));
     store.delete(&account()).await.unwrap();
     assert_eq!(
-        fake.item("io.github.headroom", Some("tool:0123456789ab")),
+        fake.item(
+            "io.github.daniarjabagin.headroom",
+            Some("tool:0123456789ab")
+        ),
         None
     );
     assert_eq!(store.read(&account()).await.unwrap(), None);

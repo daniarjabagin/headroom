@@ -17,8 +17,8 @@ Item {
         }
 
         busType: DBus.BusType.Session
-        service: "io.github.headroom.Daemon"
-        path: "/io/github/headroom/Daemon"
-        iface: "io.github.headroom.Daemon1"
+        service: "io.github.daniarjabagin.Headroom"
+        path: "/io/github/daniarjabagin/Headroom"
+        iface: "io.github.daniarjabagin.Headroom1"
     }
 }

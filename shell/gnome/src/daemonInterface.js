@@ -1,11 +1,11 @@
 import Gio from 'gi://Gio';
 
-export const BUS_NAME = 'io.github.headroom.Daemon';
-export const OBJECT_PATH = '/io/github/headroom/Daemon';
+export const BUS_NAME = 'io.github.daniarjabagin.Headroom';
+export const OBJECT_PATH = '/io/github/daniarjabagin/Headroom';
 
 const INTERFACE_XML = `
 <node>
-  <interface name="io.github.headroom.Daemon1">
+  <interface name="io.github.daniarjabagin.Headroom1">
     <method name="GetState">
       <arg type="s" name="state" direction="out"/>
     </method>

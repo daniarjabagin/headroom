@@ -230,7 +230,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: gnome-extension
-          path: shell/gnome/build/headroom@headroom.github.io.shell-extension.zip
+          path: shell/gnome/build/headroom@daniarjabagin.github.io.shell-extension.zip
           if-no-files-found: error
 
   plasmoid:
@@ -260,13 +260,13 @@ jobs:
       - name: Pack
         run: |
           mkdir -p build
-          (cd package && zip -r -X ../build/io.github.headroom.plasmoid.plasmoid .)
+          (cd package && zip -r -X ../build/io.github.daniarjabagin.headroom.plasmoid .)
 
       - name: Upload the widget package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plasmoid
-          path: shell/plasma/build/io.github.headroom.plasmoid.plasmoid
+          path: shell/plasma/build/io.github.daniarjabagin.headroom.plasmoid
           if-no-files-found: error
 
   shellcheck:

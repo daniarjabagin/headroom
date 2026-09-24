@@ -10,8 +10,8 @@ use crate::error::DaemonError;
 use crate::service::Service;
 use interface::DaemonInterface;
 
-pub const BUS_NAME: &str = "io.github.headroom.Daemon";
-pub const OBJECT_PATH: &str = "/io/github/headroom/Daemon";
+pub const BUS_NAME: &str = "io.github.daniarjabagin.Headroom";
+pub const OBJECT_PATH: &str = "/io/github/daniarjabagin/Headroom";
 
 pub async fn connect(target: &BusTarget) -> Result<Connection, DaemonError> {
     let builder = match target {

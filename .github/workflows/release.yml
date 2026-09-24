@@ -112,7 +112,7 @@ jobs:
             --version "${TAG#v}" \
             --arch "$ARCH" \
             --binary "target/$TARGET/release/headroom" \
-            --extension-zip gnome-extension/headroom@headroom.github.io.shell-extension.zip \
+            --extension-zip gnome-extension/headroom@daniarjabagin.github.io.shell-extension.zip \
             --out dist
 
       - name: Install nFPM
@@ -278,7 +278,7 @@ jobs:
 
       - name: Add the one-line installer for this repository
         run: |
-          sed "s|^default_repo=\"OWNER/headroom\"$|default_repo=\"$GITHUB_REPOSITORY\"|" \
+          sed "s|^default_repo=\"daniarjabagin/headroom\"$|default_repo=\"$GITHUB_REPOSITORY\"|" \
             packaging/release/get-headroom.sh > dist/get-headroom.sh
           grep -q "^default_repo=\"$GITHUB_REPOSITORY\"$" dist/get-headroom.sh
 

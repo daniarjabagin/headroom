@@ -68,7 +68,7 @@ def dismiss(account_id):
     from gi.repository import Gio, GLib
 
     Gio.bus_get_sync(Gio.BusType.SESSION).call_sync(
-        "io.github.headroom.Daemon", "/io/github/headroom/Daemon", "io.github.headroom.Daemon1", "DismissAccount",
+        "io.github.daniarjabagin.Headroom", "/io/github/daniarjabagin/Headroom", "io.github.daniarjabagin.Headroom1", "DismissAccount",
         GLib.Variant("(s)", (account_id,)), None, Gio.DBusCallFlags.NONE, -1, None,
     )
 

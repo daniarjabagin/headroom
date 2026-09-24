@@ -6,9 +6,9 @@ use zbus::fdo::DBusProxy;
 use zbus::names::BusName;
 
 #[zbus::proxy(
-    interface = "io.github.headroom.Daemon1",
-    default_service = "io.github.headroom.Daemon",
-    default_path = "/io/github/headroom/Daemon",
+    interface = "io.github.daniarjabagin.Headroom1",
+    default_service = "io.github.daniarjabagin.Headroom",
+    default_path = "/io/github/daniarjabagin/Headroom",
     gen_blocking = false
 )]
 pub trait Daemon {

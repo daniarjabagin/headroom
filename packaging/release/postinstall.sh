@@ -6,7 +6,7 @@ Headroom is installed. As your own user (not root), start the daemon and enable 
   systemctl --user daemon-reload
   systemctl --user enable --now headroom.service
 
-  GNOME:  gnome-extensions enable headroom@headroom.github.io
+  GNOME:  gnome-extensions enable headroom@daniarjabagin.github.io
           (on Wayland, log out and back in first)
   Plasma: add the "Headroom" widget to your panel
 

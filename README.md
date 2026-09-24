@@ -16,7 +16,7 @@ app.
 [![Plasma 6.2+](https://img.shields.io/badge/Plasma-6.2%2B-1d99f3.svg?logo=kde&logoColor=white)](shell/plasma)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000.svg?logo=apple&logoColor=white)](docs/macos.md)
 [![Wayland | X11](https://img.shields.io/badge/Wayland%20%7C%20X11-supported-555.svg)](#requirements)
-[![CI](https://github.com/OWNER/headroom/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/headroom/actions/workflows/ci.yml)
+[![CI](https://github.com/daniarjabagin/headroom/actions/workflows/ci.yml/badge.svg)](https://github.com/daniarjabagin/headroom/actions/workflows/ci.yml)
 
 [Install](#-install) · [Quick start](#-quick-start) · [Providers](#-supported-providers) ·
 [How it works](#-how-it-works) · [macOS](#macos) · [Changelog](CHANGELOG.md)
@@ -116,7 +116,7 @@ into the Keychain. `headroom providers` prints the same list for your build. Mis
 ### Linux: one-line installer
 
 ```sh
-curl -fsSL https://github.com/OWNER/headroom/releases/latest/download/get-headroom.sh | sh
+curl -fsSL https://github.com/daniarjabagin/headroom/releases/latest/download/get-headroom.sh | sh
 ```
 
 Downloads the static binary for x86_64 or aarch64, verifies it against `SHA256SUMS` and installs into
@@ -140,11 +140,11 @@ Then, as your user:
 
 ```sh
 systemctl --user enable --now headroom.service
-gnome-extensions enable headroom@headroom.github.io   # GNOME; on Plasma, add the Headroom widget
+gnome-extensions enable headroom@daniarjabagin.github.io   # GNOME; on Plasma, add the Headroom widget
 ```
 
 Verify downloads with `sha256sum -c SHA256SUMS --ignore-missing` or
-`gh attestation verify <file> --repo OWNER/headroom`.
+`gh attestation verify <file> --repo daniarjabagin/headroom`.
 
 ### Linux: from source
 

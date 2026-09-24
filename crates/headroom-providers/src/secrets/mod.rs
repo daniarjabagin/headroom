@@ -21,7 +21,7 @@ use file::FileSecrets;
 use crate::keychain::{KeychainError, Security};
 use crate::paths::{HeadroomDirs, Os};
 
-const APPLICATION: &str = "io.github.headroom";
+const APPLICATION: &str = "io.github.daniarjabagin.headroom";
 #[cfg(target_os = "linux")]
 const SERVICE_TIMEOUT: Duration = Duration::from_secs(10);
 

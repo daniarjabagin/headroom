@@ -103,7 +103,7 @@ async fn keys_go_to_the_default_collection_with_headroom_attributes() {
     assert_eq!(items[0].value, b"sk-2");
     assert_eq!(items[0].content_type, "text/plain; charset=utf8");
     let expected: HashMap<String, String> = [
-        ("application", "io.github.headroom"),
+        ("application", "io.github.daniarjabagin.headroom"),
         ("provider", "tool"),
         ("account", "tool:0123456789ab"),
     ]

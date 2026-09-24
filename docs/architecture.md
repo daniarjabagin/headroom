@@ -432,7 +432,7 @@ daemon (which reads them through `SecretReader`).
 
 - Secret Service over the existing `zbus` dependency (no extra crates): `OpenSession("plain")`,
   `ReadAlias("default")`, `Unlock`, `CreateItem` (replace), `SearchItems`, `Item.GetSecret`,
-  `Item.Delete`, `Session.Close`. Attributes `{application: "io.github.headroom", provider, account}`,
+  `Item.Delete`, `Session.Close`. Attributes `{application: "io.github.daniarjabagin.headroom", provider, account}`,
   label `Headroom API key for <account id>`.
 - Fallback file `$XDG_DATA_HOME/headroom/secrets/<account id>` (directory `0700`, file `0600`,
   written atomically) when no Secret Service answers, there is no default collection, or the
@@ -467,7 +467,7 @@ daemon (which reads them through `SecretReader`).
   contain `"`, `\` or control characters, and every write is read back and compared. Items created by
   `/usr/bin/security` trust that tool, so reading them does not prompt. The program path and timeout are
   injectable; tests run a fake `security` script on Linux and assert its argv and stdin.
-- **Secret store on macOS**: `SecretStore::new` picks the Keychain (service `io.github.headroom`,
+- **Secret store on macOS**: `SecretStore::new` picks the Keychain (service `io.github.daniarjabagin.headroom`,
   account = account id, label `Headroom <provider> API key`) instead of the Secret Service, which with
   its `zbus` dependency is compiled on Linux only. The file fallback and its rules are unchanged; a
   denied Keychain behaves like a locked keyring. `read_foreign` returns `Absent` off Linux.
@@ -604,8 +604,8 @@ socket, Headroom-owned account homes, secrets fallback); the price cache in
 
 ## D-Bus API
 
-- Bus name `io.github.headroom.Daemon`, object `/io/github/headroom/Daemon`, interface
-  `io.github.headroom.Daemon1`.
+- Bus name `io.github.daniarjabagin.Headroom`, object `/io/github/daniarjabagin/Headroom`, interface
+  `io.github.daniarjabagin.Headroom1`.
 - Methods: `GetState() -> s`, `ListProviders() -> s` (compiled-in providers and how to add their
   accounts), `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts now),
   `GetSettings() -> s`, `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,

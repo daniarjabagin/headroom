@@ -34,6 +34,11 @@ Every GitHub release has `Headroom-<version>-universal.dmg` (Apple silicon and I
 
 4. Headroom appears in the menu bar (there is no Dock icon). Continue with [First run](#5-first-run).
 
+Upgrading from a 0.4.0 development build: the bundle id changed from `io.github.headroom` to
+`io.github.daniarjabagin.headroom`, so macOS treats the new app as a different one. Quit and delete the
+old app, allow notifications and launch at login again, and add API keys again (the old ones stay in
+the Keychain under `io.github.headroom` until you delete them in Keychain Access).
+
 Why this is needed: notarization requires a paid Apple Developer account, which the project does
 not have yet. The DMG is built by the release workflow from the tagged source, with the same
 `bundle.sh --universal --dmg` described below, and the app signature is only an ad-hoc one. Because
@@ -172,7 +177,7 @@ If a step fails, send back:
   `-bundle.log`), not only the last lines: the first `error:` is usually the one that matters;
 - the output of `swift --version` and `sw_vers`;
 - for a crash or wrong behaviour after launch: `log show --last 5m --predicate 'subsystem ==
-  "io.github.headroom"'` and `~/Library/Logs/Headroom/daemon.log`, plus a screenshot.
+  "io.github.daniarjabagin.headroom"'` and `~/Library/Logs/Headroom/daemon.log`, plus a screenshot.
 
 The logs contain file paths but no credentials; still skim them for account emails before sending.
 
@@ -203,12 +208,12 @@ CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID1234)" \
   (from the SwiftPM build, without its XPC services because the app is not sandboxed; the app binary
   gets the `@executable_path/../Frameworks` rpath), `Contents/Resources/AppIcon.icns` (the app icon,
   converted with `iconutil` from the committed `shell/macos/Icon/AppIcon.iconset`; the build fails
-  if that fails) and `Info.plist` (`LSUIElement`, `io.github.headroom`, `CFBundleShortVersionString`
+  if that fails) and `Info.plist` (`LSUIElement`, `io.github.daniarjabagin.headroom`, `CFBundleShortVersionString`
   from the workspace `Cargo.toml`, `CFBundleVersion` as the build number
   `major × 10000 + minor × 100 + patch` (0.4.0 → 400; minor and patch must stay below 100),
   minimum macOS 14.0, and the Sparkle keys `SUFeedURL`, `SUPublicEDKey` from
   `script/sparkle-public-key.txt`, `SUEnableAutomaticChecks`, `SUScheduledCheckInterval` = 86400),
-- signs the helper (`io.github.headroom.helper`), then Sparkle's `Autoupdate`, `Updater.app` and
+- signs the helper (`io.github.daniarjabagin.headroom.helper`), then Sparkle's `Autoupdate`, `Updater.app` and
   the framework, then the app with `CODESIGN_IDENTITY` (default `-`, ad-hoc) and verifies the
   signature,
 - `--dmg` then creates `shell/macos/dist/Headroom-<version>-<arch>.dmg` (`arm64` natively,
@@ -272,11 +277,11 @@ CLI and the app always talk to the same daemon.
 | daemon socket | `~/Library/Application Support/Headroom/daemon.sock`; when that path is longer than 103 bytes, `$TMPDIR/headroom-<uid>/daemon.sock` in a private `0700` directory that the daemon creates (the app never creates it) |
 | daemon database | `~/Library/Application Support/Headroom/` (see the daemon's config) |
 | daemon log (stdout + stderr of the helper) | `~/Library/Logs/Headroom/daemon.log`, rotated to `daemon.log.1` above 5 MiB at start |
-| app log | unified log, subsystem `io.github.headroom` |
+| app log | unified log, subsystem `io.github.daniarjabagin.headroom` |
 
 ```sh
 tail -f ~/Library/Logs/Headroom/daemon.log
-log stream --level info --predicate 'subsystem == "io.github.headroom"'
+log stream --level info --predicate 'subsystem == "io.github.daniarjabagin.headroom"'
 ```
 
 The CLI works against the same daemon: `HEADROOM_SOCKET` selects another socket.

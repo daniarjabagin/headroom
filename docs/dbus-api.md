@@ -7,9 +7,9 @@ session bus. Payloads are JSON strings so every toolkit can parse them the same 
 | item | value |
 | --- | --- |
 | bus | session bus |
-| well-known name | `io.github.headroom.Daemon` |
-| object path | `/io/github/headroom/Daemon` |
-| interface | `io.github.headroom.Daemon1` |
+| well-known name | `io.github.daniarjabagin.Headroom` |
+| object path | `/io/github/daniarjabagin/Headroom` |
+| interface | `io.github.daniarjabagin.Headroom1` |
 
 The daemon requests the name with `DO_NOT_QUEUE` and without `ALLOW_REPLACEMENT`. If another daemon
 already owns it, the new one exits with "another Headroom daemon already owns the bus name".
@@ -811,7 +811,7 @@ the known ids.
 
 API keys: `add <id> --api-key-stdin` reads the first line of stdin (surrounding whitespace is
 trimmed; a key is never accepted from arguments or the environment), checks it with the provider,
-stores it in the Secret Service (attributes `application=io.github.headroom`, `provider`, `account`)
+stores it in the Secret Service (attributes `application=io.github.daniarjabagin.headroom`, `provider`, `account`)
 or, without an unlocked keyring, in `$XDG_DATA_HOME/headroom/secrets/<account id>` (mode `0600`),
 and writes the account into a new Headroom-owned home. A rejected key fails with `error` before any
 `started`; nothing is stored. Adding a key for an account that is already added replaces its key.

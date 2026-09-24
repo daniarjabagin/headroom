@@ -16,7 +16,7 @@
         private let client: DaemonClient
         private let alerts: AlertPoster?
         private let updater: SparkleUpdates?
-        private let log = Logger(subsystem: "io.github.headroom", category: "app")
+        private let log = Logger(subsystem: "io.github.daniarjabagin.headroom", category: "app")
         private var supervisor: DaemonSupervisor?
         private var pumps: [Task<Void, Never>] = []
         private var helperEnvironment: [String: String]

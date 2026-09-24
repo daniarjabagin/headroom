@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-default_repo="OWNER/headroom"
+default_repo="daniarjabagin/headroom"
 repo="${HEADROOM_REPO:-$default_repo}"
 version="${HEADROOM_VERSION:-latest}"
 
@@ -78,9 +78,6 @@ tarball_name() {
 main() {
     case "${1:-}" in
         -h | --help) usage; exit 0 ;;
-    esac
-    case "$repo" in
-        OWNER/*) fail "this installer has no repository configured; set HEADROOM_REPO=<owner>/headroom" ;;
     esac
     arch="$(detect_arch)"
     base="$(release_url)"

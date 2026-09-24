@@ -20,7 +20,7 @@ impl DaemonInterface {
     }
 }
 
-#[zbus::interface(name = "io.github.headroom.Daemon1")]
+#[zbus::interface(name = "io.github.daniarjabagin.Headroom1")]
 impl DaemonInterface {
     fn get_state(&self) -> fdo::Result<String> {
         self.core()

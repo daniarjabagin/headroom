@@ -2,7 +2,7 @@ use super::fake::FakeKeychain;
 use super::*;
 
 const ITEM: GenericPassword<'static> = GenericPassword {
-    service: "io.github.headroom",
+    service: "io.github.daniarjabagin.headroom",
     account: Some("tool:0123456789ab"),
 };
 
@@ -19,7 +19,7 @@ async fn a_found_item_is_returned_without_the_trailing_newline() {
     assert_eq!(found, Some(secret("sk-one")));
     assert_eq!(
         fake.argv_log(),
-        "find-generic-password -s io.github.headroom -a tool:0123456789ab -w\n"
+        "find-generic-password -s io.github.daniarjabagin.headroom -a tool:0123456789ab -w\n"
     );
 }
 
@@ -92,7 +92,7 @@ async fn stored_secrets_travel_on_stdin_never_on_argv() {
     assert_eq!(
         fake.stdin_log(),
         format!(
-            "add-generic-password -U -s \"io.github.headroom\" -l \"Headroom tool API key\" -a \"tool:0123456789ab\" -X \"{}\"\n",
+            "add-generic-password -U -s \"io.github.daniarjabagin.headroom\" -l \"Headroom tool API key\" -a \"tool:0123456789ab\" -X \"{}\"\n",
             hex::encode(key.expose())
         )
     );

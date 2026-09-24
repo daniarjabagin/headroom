@@ -6,6 +6,20 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking for development installs:** Headroom's identifiers moved to the project's own GitHub
+  namespace, `github.com/daniarjabagin/headroom`. The D-Bus name is now
+  `io.github.daniarjabagin.Headroom` (object `/io/github/daniarjabagin/Headroom`, interface
+  `io.github.daniarjabagin.Headroom1`), the GNOME extension `headroom@daniarjabagin.github.io`, the
+  Plasma widget `io.github.daniarjabagin.headroom` and the macOS bundle id
+  `io.github.daniarjabagin.headroom`. They replace `io.github.headroom.Daemon`,
+  `headroom@headroom.github.io`, `io.github.headroom.plasmoid` and `io.github.headroom`.
+  `install.sh`, the release installer and `uninstall.sh` remove the old extension, widget and D-Bus
+  activation file; enable the new extension after logging back in. API keys added with
+  `headroom accounts add` are stored under the new keyring name, so add them again. On macOS,
+  delete the old app (see [docs/macos.md](docs/macos.md)).
+
 ## [0.4.0] - 2026-09-24
 
 Headroom now runs on macOS too.
@@ -146,8 +160,8 @@ First version.
 - Settings changes from several windows no longer overwrite each other.
 - Cancelling an account sign-in cleans up after itself.
 
-[Unreleased]: https://github.com/OWNER/headroom/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/OWNER/headroom/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/OWNER/headroom/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/OWNER/headroom/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/OWNER/headroom/releases/tag/v0.1.0
+[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/daniarjabagin/headroom/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/daniarjabagin/headroom/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/daniarjabagin/headroom/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/daniarjabagin/headroom/releases/tag/v0.1.0

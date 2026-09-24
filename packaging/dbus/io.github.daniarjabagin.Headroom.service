@@ -1,4 +1,4 @@
 [D-BUS Service]
-Name=io.github.headroom.Daemon
+Name=io.github.daniarjabagin.Headroom
 Exec=@BINDIR@/headroom daemon
 SystemdService=headroom.service

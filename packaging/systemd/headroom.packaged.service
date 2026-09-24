@@ -4,7 +4,7 @@ After=graphical-session.target
 
 [Service]
 Type=dbus
-BusName=io.github.headroom.Daemon
+BusName=io.github.daniarjabagin.Headroom
 ExecStart=/usr/bin/headroom daemon
 Restart=on-failure
 RestartSec=5

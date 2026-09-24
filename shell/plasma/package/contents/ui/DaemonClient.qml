@@ -9,9 +9,9 @@ import "logic/State.js" as State
 Item {
     id: client
 
-    readonly property string busName: "io.github.headroom.Daemon"
-    readonly property string objectPath: "/io/github/headroom/Daemon"
-    readonly property string interfaceName: "io.github.headroom.Daemon1"
+    readonly property string busName: "io.github.daniarjabagin.Headroom"
+    readonly property string objectPath: "/io/github/daniarjabagin/Headroom"
+    readonly property string interfaceName: "io.github.daniarjabagin.Headroom1"
     readonly property int activePollMs: 30000
     readonly property int idlePollMs: 60000
     readonly property int startGraceMs: 5000

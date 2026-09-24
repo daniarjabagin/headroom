@@ -37,17 +37,17 @@ contents:
     file_info:
       mode: 0644
 
-  - src: packaging/dbus/io.github.headroom.Daemon.packaged.service
-    dst: /usr/share/dbus-1/services/io.github.headroom.Daemon.service
+  - src: packaging/dbus/io.github.daniarjabagin.Headroom.packaged.service
+    dst: /usr/share/dbus-1/services/io.github.daniarjabagin.Headroom.service
     file_info:
       mode: 0644
 
   - src: dist/stage/gnome-extension/
-    dst: /usr/share/gnome-shell/extensions/headroom@headroom.github.io/
+    dst: /usr/share/gnome-shell/extensions/headroom@daniarjabagin.github.io/
     type: tree
 
   - src: shell/plasma/package/
-    dst: /usr/share/plasma/plasmoids/io.github.headroom.plasmoid/
+    dst: /usr/share/plasma/plasmoids/io.github.daniarjabagin.headroom/
     type: tree
 
   - src: packaging/icons/headroom.svg

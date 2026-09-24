@@ -1,4 +1,4 @@
-PLUGIN_ID := io.github.headroom.plasmoid
+PLUGIN_ID := io.github.daniarjabagin.headroom
 QT_BIN := /usr/lib/qt6/bin
 QML := $(QT_BIN)/qml
 QMLLINT := $(QT_BIN)/qmllint

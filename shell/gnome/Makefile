@@ -1,4 +1,4 @@
-UUID := headroom@headroom.github.io
+UUID := headroom@daniarjabagin.github.io
 BUILD := build
 BUNDLE := $(BUILD)/$(UUID).shell-extension.zip
 INSTALL_DIR := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)/gnome-shell/extensions/$(UUID)

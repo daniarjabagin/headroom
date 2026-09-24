@@ -10,11 +10,11 @@
         "Description": "How much of your AI coding limits is left — Codex, Claude and more. Requires the Headroom service.",
         "EnabledByDefault": true,
         "Icon": "headroom",
-        "Id": "io.github.headroom.plasmoid",
+        "Id": "io.github.daniarjabagin.headroom",
         "License": "MIT",
         "Name": "Headroom",
         "Version": "0.4.0",
-        "Website": "https://github.com/headroom/headroom"
+        "Website": "https://github.com/daniarjabagin/headroom"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
 }

@@ -4,7 +4,8 @@
 
     struct NotificationsSettingsView: View {
         static let systemSettingsURL = URL(
-            string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=io.github.headroom")
+            string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+                + "?id=io.github.daniarjabagin.headroom")
 
         let context: SettingsContext
 
