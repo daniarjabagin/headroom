@@ -31,7 +31,7 @@
                     openSettings()
                 } label: {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(.secondary)
                         .frame(width: PopupMetrics.gearSize, height: PopupMetrics.gearSize)
                 }
@@ -40,7 +40,7 @@
                 .accessibilityLabel(formatter.strings.text(.settings))
             }
             .padding(.horizontal, PopupMetrics.padding)
-            .padding(.vertical, 12)
+            .padding(.vertical, PopupMetrics.footerPaddingY)
             .footerSurface()
         }
 

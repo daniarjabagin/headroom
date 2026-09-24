@@ -16,7 +16,9 @@
                         TrendBarView(accountID: accountID, bar: bar)
                     }
                 }
-                .frame(minWidth: 90, maxWidth: 150, minHeight: UsageRows.trendHeight, maxHeight: UsageRows.trendHeight)
+                .frame(
+                    minWidth: 90, maxWidth: 150, minHeight: CGFloat(UsageRows.trendHeight),
+                    maxHeight: CGFloat(UsageRows.trendHeight))
             }
             .padding(.horizontal, PopupMetrics.rowInset)
             .padding(.vertical, PopupMetrics.textRowPadding)
@@ -33,7 +35,7 @@
                 Spacer(minLength: 0)
                 UnevenRoundedRectangle(topLeadingRadius: 1, topTrailingRadius: 1, style: .continuous)
                     .fill(Palette.ok.opacity(hovered ? 0.75 : 1))
-                    .frame(height: bar.height)
+                    .frame(height: CGFloat(bar.height))
             }
             .frame(minWidth: 2, maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())

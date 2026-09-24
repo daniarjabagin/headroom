@@ -104,15 +104,7 @@
             let wanted = theme ?? .system
             guard wanted != appliedTheme else { return }
             appliedTheme = wanted
-            NSApp.appearance = Self.appearance(for: wanted)
-        }
-
-        private static func appearance(for theme: ThemePreference) -> NSAppearance? {
-            switch theme {
-            case .system: nil
-            case .light: NSAppearance(named: .aqua)
-            case .dark: NSAppearance(named: .darkAqua)
-            }
+            NSApp.appearance = wanted.appearance
         }
 
         private func handle(_ event: DaemonEvent) {

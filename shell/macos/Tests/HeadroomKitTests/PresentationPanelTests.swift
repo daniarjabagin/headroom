@@ -3,6 +3,10 @@ import XCTest
 
 @testable import HeadroomKit
 
+#if canImport(CoreGraphics)
+    import CoreGraphics
+#endif
+
 final class PresentationPanelTests: XCTestCase {
     private let screen = CGRect(x: 0, y: 0, width: 1440, height: 875)
     private let button = CGRect(x: 1000, y: 877, width: 40, height: 22)
@@ -18,16 +22,30 @@ final class PresentationPanelTests: XCTestCase {
 
     func testTopEdgeStaysPutWhenTheContentHeightChanges() {
         let short = place(CGSize(width: 320, height: 200))
-        let tall = place(CGSize(width: 320, height: 640))
+        let tall = place(CGSize(width: 320, height: 560))
         XCTAssertEqual(short.maxY, tall.maxY)
         XCTAssertEqual(short.minX, tall.minX)
-        XCTAssertEqual(tall.height, 640)
+        XCTAssertEqual(tall.height, 560)
     }
 
-    func testHeightIsLimitedToTheVisibleScreen() {
+    func testHeightIsCappedAtSixHundredPoints() {
         let frame = place(CGSize(width: 320, height: 5000))
-        XCTAssertEqual(frame.height, 875 - 16)
+        XCTAssertEqual(frame.height, 600)
         XCTAssertEqual(frame.maxY, 873)
+    }
+
+    func testHeightKeepsClearOfTheBottomOnShortScreens() {
+        let short = CGRect(x: 0, y: 0, width: 1280, height: 500)
+        let frame = PanelPlacement.frame(
+            content: CGSize(width: 320, height: 5000), below: CGRect(x: 600, y: 502, width: 40, height: 22),
+            within: short, gap: 4, margin: 8)
+        XCTAssertEqual(frame.height, 460)
+    }
+
+    func testMaxHeightTakesTheSmallerOfCapAndScreen() {
+        XCTAssertEqual(PanelPlacement.maxHeight(visibleHeight: 956), 600)
+        XCTAssertEqual(PanelPlacement.maxHeight(visibleHeight: 600), 560)
+        XCTAssertEqual(PanelPlacement.maxHeight(visibleHeight: 20), 0)
     }
 
     func testStaysInsideTheScreenNearItsEdges() {

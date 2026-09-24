@@ -2,36 +2,6 @@
     import HeadroomKit
     import SwiftUI
 
-    struct SettingsView: View {
-        static let size = CGSize(width: 680, height: 580)
-
-        let context: SettingsContext
-
-        var body: some View {
-            @Bindable var navigation = context.navigation
-            let strings = context.strings
-            TabView(selection: $navigation.tab) {
-                GeneralSettingsView(context: context)
-                    .tabItem { Label(strings.text(SettingsText.general), systemImage: "gearshape") }
-                    .tag(SettingsTab.general)
-                AccountsSettingsView(context: context)
-                    .tabItem { Label(strings.text(AccountsText.accounts), systemImage: "person.2") }
-                    .tag(SettingsTab.accounts)
-                NotificationsSettingsView(context: context)
-                    .tabItem { Label(strings.text(SettingsText.notifications), systemImage: "bell") }
-                    .tag(SettingsTab.notifications)
-                ServiceSettingsView(context: context)
-                    .tabItem { Label(strings.text(SettingsText.service), systemImage: "server.rack") }
-                    .tag(SettingsTab.service)
-            }
-            .padding(12)
-            .frame(width: Self.size.width, height: Self.size.height)
-            .sheet(item: $navigation.addAccount) { request in
-                AddAccountSheet(context: context, initialProvider: request.provider)
-            }
-        }
-    }
-
     struct SettingsPlaceholder: View {
         let context: SettingsContext
 

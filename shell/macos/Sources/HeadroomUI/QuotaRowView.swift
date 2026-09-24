@@ -17,17 +17,17 @@
                 }
                 PillMeter(fraction: row.fill, tick: row.tick, tone: row.tone)
                 HStack(spacing: 8) {
-                    toggle(row.headline, style: .primary, action: toggleValueMode)
+                    toggle(row.headline, font: Typeface.body, style: .primary, action: toggleValueMode)
                         .contentTransition(.numericText())
                     Spacer(minLength: 8)
-                    toggle(row.trailing, style: .secondary, action: toggleResetFormat)
+                    toggle(row.trailing, font: Typeface.caption, style: .secondary, action: toggleResetFormat)
                 }
                 if let forecast = row.forecast {
                     Text(forecast)
                         .font(Typeface.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 2)
+                        .padding(.top, 1)
                 }
             }
             .monospacedDigit()
@@ -36,13 +36,13 @@
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: row.percent)
         }
 
-        private func toggle(_ text: String, style: HierarchicalShapeStyle, action: @escaping @MainActor () -> Void)
-            -> some View
-        {
+        private func toggle(
+            _ text: String, font: Font, style: HierarchicalShapeStyle, action: @escaping @MainActor () -> Void
+        ) -> some View {
             Button {
                 action()
             } label: {
-                Text(text).font(Typeface.body).foregroundStyle(style).lineLimit(1)
+                Text(text).font(font).foregroundStyle(style).lineLimit(1)
             }
             .buttonStyle(TintButtonStyle(insets: EdgeInsets(top: 1, leading: 5, bottom: 1, trailing: 5)))
             .padding(EdgeInsets(top: -1, leading: -5, bottom: -1, trailing: -5))
@@ -55,9 +55,9 @@
         var body: some View {
             HStack(spacing: 4) {
                 if note.flame {
-                    Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(Palette.crit)
+                    Image(systemName: "flame.fill").font(.system(size: 10)).foregroundStyle(Palette.crit)
                 }
-                Text(note.text).font(Typeface.body).foregroundStyle(.secondary).lineLimit(1)
+                Text(note.text).font(Typeface.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
     }
@@ -94,11 +94,11 @@
 
         private func fillWidth(in width: CGFloat) -> CGFloat {
             let clamped = min(1, max(0, fraction))
-            return clamped == 0 ? 0 : max(PopupMetrics.meterHeight, width * clamped)
+            return clamped == 0 ? 0 : max(PopupMetrics.meterHeight, width * CGFloat(clamped))
         }
 
         private func tickOffset(_ tick: Double, in width: CGFloat) -> CGFloat {
-            let position = width * min(1, max(0, tick)) - PopupMetrics.tickWidth / 2
+            let position = width * CGFloat(min(1, max(0, tick))) - PopupMetrics.tickWidth / 2
             return min(max(0, position), max(0, width - PopupMetrics.tickWidth))
         }
     }

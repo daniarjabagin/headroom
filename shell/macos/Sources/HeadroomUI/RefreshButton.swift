@@ -83,7 +83,7 @@
 
         private func icon(at date: Date) -> some View {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(color)
                 .rotationEffect(.degrees(reducedMotion ? 0 : control.spin.angle(at: date)))
                 .opacity(reducedMotion && control.mode == .busy ? 0.55 : 1)
@@ -104,7 +104,7 @@
 
         private func shakeOffset(at date: Date) -> CGFloat {
             guard let start = control.shakeStartedAt else { return 0 }
-            return ShakeMotion.offset(elapsed: date.timeIntervalSince(start))
+            return CGFloat(ShakeMotion.offset(elapsed: date.timeIntervalSince(start)))
         }
     }
 #endif

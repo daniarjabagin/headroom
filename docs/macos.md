@@ -5,8 +5,9 @@ Headroom on macOS is a native menu-bar app (`shell/macos`, SwiftUI + AppKit) tha
 process, talks to it over the [socket API](ipc.md) and only renders what the daemon sends. All
 numbers, tones and pace come from the daemon, exactly as on Linux. Background: [research/macos.md](research/macos.md).
 
-Requirements: macOS 14 (Sonoma) or newer. On macOS 26 and later the popup uses Liquid Glass; older
-systems get the opaque tray or a system material.
+Requirements: macOS 14 (Sonoma) or newer. The popup is an opaque surface by default; Settings →
+General → Translucent background switches it to a blurred system material (ignored under Reduce
+Transparency). Popup and Settings follow `display.theme`.
 
 ## 1. One-time setup
 
@@ -79,7 +80,9 @@ first compile. Go through these steps in order and stop at the first one that fa
    (add `CODESIGN_IDENTITY=…` once you have one). The log lists `resources:
    HeadroomMac_HeadroomUI.bundle` and ends with `built …/Headroom.app`.
 5. The menu-bar item appears; the popup opens under it, shows provider logos, grows and shrinks with
-   its content (expand an account, switch the spend period) and starts at the top when reopened.
+   its content (expand an account, switch the spend period), stops growing at 600 pt (or 40 pt short
+   of the screen's visible height) and scrolls beyond that with a thin indicator, and starts at the
+   top when reopened. With Translucent background off it is fully opaque in both themes.
 
 If a step fails, send back:
 
@@ -109,7 +112,9 @@ CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID1234)" \
 - `--no-cargo` skips the Rust build for UI-only changes and reuses the helper of the previous
   `dist/Headroom.app` (or the last `cargo build --release`); the helper's `--version` must still match
   the workspace version, otherwise the app refuses to start it,
-- assembles `shell/macos/dist/Headroom.app`:
+- stages the helper as `dist/headroom-daemon` (macOS file systems are case-insensitive, so
+  `dist/headroom` would overwrite the app binary `dist/Headroom`) and assembles
+  `shell/macos/dist/Headroom.app`:
   `Contents/MacOS/Headroom`, `Contents/Helpers/headroom`, every SwiftPM resource bundle from
   `swift build --show-bin-path` in `Contents/Resources/` (`HeadroomMac_HeadroomUI.bundle` with the
   provider logos; the build fails when none is found), `Contents/Resources/AppIcon.icns`
@@ -130,7 +135,8 @@ System Settings → General → Login Items.
 
 ## 4. Settings
 
-Settings… opens a regular window (the app comes to the front even though it has no Dock icon). All
+Settings… opens a preferences window with toolbar tabs (General, Accounts, Notifications, Service; the
+window title follows the tab, the app comes to the front even though it has no Dock icon). All
 values live in the daemon; every change is sent at once as an `UpdateSettings` merge patch, in order,
 and the window re-reads the settings when the writes are done. The app also loads them every time it
 (re)connects to the daemon, so app-side options such as reduce motion apply to the popup before
@@ -199,8 +205,8 @@ Package layout:
 | target | contents |
 | --- | --- |
 | `HeadroomKit` | platform-independent: Codable payload models, JSON-RPC line codec, `DaemonClient` actor over a Unix socket, `DaemonSupervisor` with restart backoff, login-shell environment, the `headroom accounts` progress runner, display formatting and every app string (en/ru), `AppModel`, `SettingsStore`, the add-account session. Builds and tests on Linux too. |
-| `HeadroomUI` | SwiftUI views (popup, menu-bar label, Liquid Glass / material surfaces). macOS only. |
-| `HeadroomSettings` | the Settings window (SwiftUI in an `NSWindow`), add-account flows, notification permission, launch at login. macOS only. |
+| `HeadroomUI` | SwiftUI views (popup, menu-bar label, opaque and blurred surfaces, thin scroll indicator). macOS only. |
+| `HeadroomSettings` | the Settings window (toolbar-style `NSTabViewController`, one SwiftUI form per tab), add-account flows, notification permission, launch at login. macOS only. |
 | `Headroom` | the AppKit app: `NSStatusItem`, key-capable non-activating `NSPanel`, menus, notifications, theme, wiring. macOS only. |
 
 Running the app outside a bundle (`swift run Headroom`) does not start a helper; it connects to a
