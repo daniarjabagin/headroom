@@ -14,8 +14,10 @@ final class PresentationScreenTests: XCTestCase {
         XCTAssertEqual(
             PopupScreen.make(phase: .incompatible(.schemaMismatch), state: full, lastError: nil, serviceIssue: nil),
             .incompatible(.schemaMismatch))
-        XCTAssertEqual(PopupScreen.make(phase: .connected, state: full, lastError: nil, serviceIssue: nil), .dashboard(full))
-        XCTAssertEqual(PopupScreen.make(phase: .connected, state: empty, lastError: nil, serviceIssue: nil), .empty(empty))
+        XCTAssertEqual(
+            PopupScreen.make(phase: .connected, state: full, lastError: nil, serviceIssue: nil), .dashboard(full))
+        XCTAssertEqual(
+            PopupScreen.make(phase: .connected, state: empty, lastError: nil, serviceIssue: nil), .empty(empty))
         XCTAssertEqual(
             PopupScreen.make(phase: .connected, state: nil, lastError: .invalidResponse("bad json"), serviceIssue: nil),
             .unreadable(message: "bad json"))
@@ -26,9 +28,11 @@ final class PresentationScreenTests: XCTestCase {
     func testSpendAloneStillShowsTheDashboard() throws {
         let hidden = Build.accountJSON(id: "a", hidden: true)
         var state = try Build.state(accounts: [hidden])
-        XCTAssertEqual(PopupScreen.make(phase: .connected, state: state, lastError: nil, serviceIssue: nil), .empty(state))
+        XCTAssertEqual(
+            PopupScreen.make(phase: .connected, state: state, lastError: nil, serviceIssue: nil), .empty(state))
         state = try Build.full()
-        XCTAssertTrue(PopupScreen.isRefreshing(try Build.state(accounts: [Build.accountJSON(id: "a", status: "refreshing")])))
+        XCTAssertTrue(
+            PopupScreen.isRefreshing(try Build.state(accounts: [Build.accountJSON(id: "a", status: "refreshing")])))
         XCTAssertFalse(PopupScreen.isRefreshing(state))
     }
 
@@ -36,7 +40,8 @@ final class PresentationScreenTests: XCTestCase {
         let now = try Build.now()
         let full = try Build.full()
         let status = { (screen: PopupScreen) in FooterStatus.make(screen: screen, now: now, formatter: Build.english) }
-        XCTAssertEqual(status(.dashboard(full)), FooterStatus(text: "Next update in 3m", isNotice: false, refreshes: true))
+        XCTAssertEqual(
+            status(.dashboard(full)), FooterStatus(text: "Next update in 3m", isNotice: false, refreshes: true))
         XCTAssertEqual(status(.loading).text, "Connecting…")
         XCTAssertEqual(status(.serviceDown(detail: nil)).text, "Service not running")
         XCTAssertFalse(status(.serviceDown(detail: nil)).refreshes)
@@ -57,11 +62,10 @@ final class PresentationScreenTests: XCTestCase {
         XCTAssertEqual(line, FooterStatus(text: "Нет сети — обновлено в 09:58", isNotice: true, refreshes: true))
     }
 
-    func testDisplayPatchesToggleTheSetting() throws {
-        XCTAssertEqual(
-            DisplayPatch.toggledValueMode(try Build.display()), ["display": .object(["value_mode": .string("used")])])
-        XCTAssertEqual(
-            DisplayPatch.toggledResetFormat(try Build.display(resetFormat: "exact")),
-            ["display": .object(["reset_format": .string("countdown")])])
+    func testDisplayTogglesFlipTheSetting() throws {
+        XCTAssertEqual(DisplayToggle.valueMode(try Build.display()), .valueMode(.used))
+        XCTAssertEqual(DisplayToggle.valueMode(try Build.display(valueMode: "used")), .valueMode(.left))
+        XCTAssertEqual(DisplayToggle.resetFormat(try Build.display()), .resetFormat(.exact))
+        XCTAssertEqual(DisplayToggle.resetFormat(try Build.display(resetFormat: "exact")), .resetFormat(.countdown))
     }
 }

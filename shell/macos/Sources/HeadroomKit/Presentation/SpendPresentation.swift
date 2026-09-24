@@ -76,7 +76,8 @@ public struct SpendCardModel: Sendable, Hashable {
             costMicros: spend.costUSDMicros, totalTokens: spend.totalTokens, partial: spend.partial)
         return LegendEntry(
             provider: spend.provider, name: spend.providerName, amount: formatter.usd(micros: spend.costUSDMicros),
-            costMicros: spend.costUSDMicros, tokensLine: withTokens ? formatter.exactTokensText(spend.totalTokens) : nil,
+            costMicros: spend.costUSDMicros,
+            tokensLine: withTokens ? formatter.exactTokensText(spend.totalTokens) : nil,
             color: ProviderStyle.seriesColor(for: spend.provider),
             tip: breakdown.map(TipContent.breakdown) ?? .text(fallback))
     }

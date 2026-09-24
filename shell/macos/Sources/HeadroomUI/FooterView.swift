@@ -19,7 +19,8 @@
                 VStack(alignment: .leading, spacing: 1) {
                     Text(versionLine)
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        statusLine(FooterStatus.make(screen: screen, now: Timestamp(date: context.date), formatter: formatter))
+                        statusLine(
+                            FooterStatus.make(screen: screen, now: Timestamp(date: context.date), formatter: formatter))
                     }
                 }
                 .font(Typeface.caption2)
@@ -45,7 +46,8 @@
 
         @ViewBuilder
         private func statusLine(_ status: FooterStatus) -> some View {
-            let text = Text(status.text).foregroundStyle(status.isNotice ? AnyShapeStyle(Palette.notice) : AnyShapeStyle(.secondary))
+            let text = Text(status.text).foregroundStyle(
+                status.isNotice ? AnyShapeStyle(Palette.notice) : AnyShapeStyle(.secondary))
             if status.refreshes && !status.text.isEmpty {
                 Button {
                     refresh()

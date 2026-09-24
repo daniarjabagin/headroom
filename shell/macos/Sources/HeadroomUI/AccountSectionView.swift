@@ -11,12 +11,12 @@
 
         @MainActor
         func toggleValueMode() {
-            actions.updateSettings(DisplayPatch.toggledValueMode(display))
+            actions.updateSettings(DisplayToggle.valueMode(display))
         }
 
         @MainActor
         func toggleResetFormat() {
-            actions.updateSettings(DisplayPatch.toggledResetFormat(display))
+            actions.updateSettings(DisplayToggle.resetFormat(display))
         }
     }
 
@@ -64,7 +64,8 @@
         let context: PopupContext
 
         var body: some View {
-            NoticePlate(kind: notice.kind, title: notice.title, detail: notice.detail, note: notice.note, actions: actions)
+            NoticePlate(
+                kind: notice.kind, title: notice.title, detail: notice.detail, note: notice.note, actions: actions)
         }
 
         private var actions: [NoticeAction] {

@@ -30,9 +30,11 @@ enum Build {
         even: String = "null", projected: String = "null", spare: String = "null", runsOut: String = "null",
         resetsAt: String = "\"2026-09-23T12:00:00Z\"", hidden: Bool = false
     ) throws -> QuotaWindow {
-        try Fixture.decode(QuotaWindow.self, json: windowJSON(
-            id: id, used: used, tone: tone, severity: severity, even: even, projected: projected, spare: spare,
-            runsOut: runsOut, resetsAt: resetsAt, hidden: hidden))
+        try Fixture.decode(
+            QuotaWindow.self,
+            json: windowJSON(
+                id: id, used: used, tone: tone, severity: severity, even: even, projected: projected, spare: spare,
+                runsOut: runsOut, resetsAt: resetsAt, hidden: hidden))
     }
 
     static func windowJSON(

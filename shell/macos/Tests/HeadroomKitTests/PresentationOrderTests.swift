@@ -4,10 +4,6 @@ import XCTest
 @testable import HeadroomKit
 
 final class PresentationOrderTests: XCTestCase {
-    private struct Item: Identifiable, Equatable {
-        let id: String
-    }
-
     func testMoveItem() {
         XCTAssertEqual(AccountOrder.moveItem(["a", "b", "c"], from: 0, to: 2), ["b", "c", "a"])
         XCTAssertEqual(AccountOrder.moveItem(["a", "b", "c"], from: 2, to: 0), ["c", "a", "b"])
@@ -20,17 +16,6 @@ final class PresentationOrderTests: XCTestCase {
         XCTAssertEqual(
             AccountOrder.mergeOrder(all: ["a", "hidden", "b", "c"], visible: ["c", "a", "b"]),
             ["c", "hidden", "a", "b"])
-    }
-
-    func testLocalOrderAppliesUntilTheDaemonCatchesUp() {
-        let items = [Item(id: "a"), Item(id: "b"), Item(id: "c")]
-        XCTAssertEqual(AccountOrder.apply(["c", "a", "b"], to: items).map(\.id), ["c", "a", "b"])
-        XCTAssertEqual(AccountOrder.apply(["b"], to: items).map(\.id), ["b", "a", "c"])
-        XCTAssertEqual(AccountOrder.apply(nil, to: items).map(\.id), ["a", "b", "c"])
-        XCTAssertEqual(AccountOrder.reconcile(local: ["b", "a"], incoming: ["a", "b"]), ["b", "a"])
-        XCTAssertNil(AccountOrder.reconcile(local: ["b", "a"], incoming: ["b", "a"]))
-        XCTAssertNil(AccountOrder.reconcile(local: ["b", "a"], incoming: ["a", "b", "c"]))
-        XCTAssertNil(AccountOrder.reconcile(local: nil, incoming: ["a"]))
     }
 
     func testDropIndexAndIndicator() {

@@ -74,7 +74,8 @@ public enum UsageRows {
         return .day(title: formatter.dayTitle(day.date), detail: "\(figures)\(partial)")
     }
 
-    private static func totalsTip(_ title: String, _ totals: UsageTotals, _ formatter: DisplayFormatter) -> TipContent? {
+    private static func totalsTip(_ title: String, _ totals: UsageTotals, _ formatter: DisplayFormatter) -> TipContent?
+    {
         guard totals.tokens.total > 0 else { return nil }
         let breakdown = ModelBreakdown.make(
             title: title, models: totals.models, other: totals.modelsOther, costMicros: totals.costUSDMicros,

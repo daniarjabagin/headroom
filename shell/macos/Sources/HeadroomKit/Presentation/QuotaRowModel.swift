@@ -79,7 +79,8 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
 
     private static func limitText(_ runsOutAt: Timestamp?, _ now: Timestamp, _ formatter: DisplayFormatter) -> String {
         guard let runsOutAt, runsOutAt > now else { return formatter.strings.text(.limitSoon) }
-        return formatter.strings.fill(.limitIn, ["duration": formatter.duration(seconds: runsOutAt.seconds(since: now))])
+        return formatter.strings.fill(
+            .limitIn, ["duration": formatter.duration(seconds: runsOutAt.seconds(since: now))])
     }
 
     private static func spareText(_ spare: Double, _ strings: UIStrings) -> String {

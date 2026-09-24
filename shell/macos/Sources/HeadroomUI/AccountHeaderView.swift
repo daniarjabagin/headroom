@@ -62,7 +62,9 @@
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Palette.notice)
-                    .hoverTip(id: "failed.\(header.title)", text: message.isEmpty ? context.strings.text(.refreshFailed) : message)
+                    .hoverTip(
+                        id: "failed.\(header.title)",
+                        text: message.isEmpty ? context.strings.text(.refreshFailed) : message)
             case .outdated, .none:
                 EmptyView()
             }

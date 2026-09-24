@@ -1,14 +1,14 @@
 #![cfg(test)]
 
-use std::fs::{self, Permissions};
+use std::fs;
 use std::io::{BufRead, BufReader, Lines};
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use headroom_providers::paths::HeadroomDirs;
+use headroom_providers::test_support::install_script;
 use rustix::process::{Pid, Signal, kill_process};
 use tempfile::TempDir;
 
@@ -33,8 +33,7 @@ impl Sandbox {
             fs::create_dir(sandbox.path(sub)).unwrap();
         }
         let codex = sandbox.path("bin").join("codex");
-        fs::write(&codex, HANGING_CODEX).unwrap();
-        fs::set_permissions(&codex, Permissions::from_mode(0o755)).unwrap();
+        install_script(&codex, HANGING_CODEX).unwrap();
         sandbox
     }
 

@@ -16,6 +16,7 @@ use crate::testing::{CLAUDE, CODEX, catalog};
 use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
+const SNAPSHOT_APP_VERSION: &str = "0.0.0-snapshot";
 
 fn record(provider: ProviderId, name: &str, order: i64) -> AccountRecord {
     AccountRecord {
@@ -144,7 +145,12 @@ fn assemble_sample(model: &Model) -> StatePayload {
 }
 
 fn check_snapshot(name: &str, expected: &str, payload: &StatePayload) {
-    let actual = serde_json::to_string_pretty(payload).unwrap() + "\n";
+    assert_eq!(payload.app_version.as_deref(), Some(payload::APP_VERSION));
+    let release_independent = StatePayload {
+        app_version: Some(SNAPSHOT_APP_VERSION.to_owned()),
+        ..payload.clone()
+    };
+    let actual = serde_json::to_string_pretty(&release_independent).unwrap() + "\n";
     if std::env::var_os("UPDATE_SNAPSHOTS").is_some() {
         let path = format!("{}/src/state/snapshots/{name}", env!("CARGO_MANIFEST_DIR"));
         std::fs::write(path, &actual).unwrap();
@@ -178,6 +184,7 @@ fn payload_parses_back_from_json() {
     let payload = assemble_sample(&sample_model());
     let json = serde_json::to_string(&payload).unwrap();
     let parsed: StatePayload = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.app_version, payload.app_version);
     assert_eq!(parsed.headline, payload.headline);
     assert_eq!(parsed.usage, payload.usage);
     assert_eq!(parsed.accounts.len(), payload.accounts.len());

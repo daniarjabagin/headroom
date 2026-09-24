@@ -7,14 +7,15 @@
     @MainActor
     final class StatusItemController: NSObject {
         var onToggle: (@MainActor (NSStatusBarButton) -> Void)?
-        var onRefresh: (@MainActor () -> Void)?
 
         private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         private let model: AppModel
+        private let menus: AppMenus
         private let renderer = MenuBarImageRenderer()
 
-        init(model: AppModel) {
+        init(model: AppModel, menus: AppMenus) {
             self.model = model
+            self.menus = menus
             super.init()
             configureButton()
             observeModel()
@@ -63,26 +64,8 @@
         }
 
         private func showMenu(from button: NSStatusBarButton) {
-            let strings = model.formatter.strings
-            let menu = NSMenu()
-            menu.addItem(menuItem(strings.text(.refresh), action: #selector(refreshChosen), key: "r"))
-            menu.addItem(.separator())
-            menu.addItem(menuItem(strings.text(.quit), action: #selector(quitChosen), key: "q"))
+            let menu = menus.statusMenu(model.formatter.strings)
             _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
-        }
-
-        private func menuItem(_ title: String, action: Selector, key: String) -> NSMenuItem {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
-            item.target = self
-            return item
-        }
-
-        @objc private func refreshChosen() {
-            onRefresh?()
-        }
-
-        @objc private func quitChosen() {
-            NSApp.terminate(nil)
         }
     }
 

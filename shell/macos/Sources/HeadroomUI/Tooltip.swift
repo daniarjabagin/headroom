@@ -143,7 +143,9 @@
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous))
+            .background(
+                .regularMaterial, in: RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)
                     .strokeBorder(Palette.separator, lineWidth: 0.5)
@@ -161,7 +163,8 @@
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 2) {
                     ForEach(Array(breakdown.rows.enumerated()), id: \.offset) { _, row in
                         GridRow {
-                            Text(row.name).lineLimit(1).truncationMode(.middle).frame(maxWidth: 140, alignment: .leading)
+                            Text(row.name).lineLimit(1).truncationMode(.middle).frame(
+                                maxWidth: 140, alignment: .leading)
                             Text(row.tokens).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
                             Text(row.cost).gridColumnAlignment(.trailing)
                         }

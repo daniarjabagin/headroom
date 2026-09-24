@@ -29,7 +29,8 @@ public struct ModelBreakdown: Sendable, Hashable {
         if let other {
             let name = formatter.strings.fill(.otherModels, ["count": "\(other.count)"])
             entries.append(
-                BreakdownEntry(name: name, tokens: other.totalTokens, cost: other.costUSDMicros, partial: other.partial))
+                BreakdownEntry(name: name, tokens: other.totalTokens, cost: other.costUSDMicros, partial: other.partial)
+            )
         }
         let partial = entries.contains { $0.partial }
         let note = "\(partialMark) \(formatter.strings.text(.partlyUnpriced))"

@@ -10,8 +10,7 @@
         public var openSettings: @MainActor () -> Void
         public var signIn: @MainActor (String) -> Void
         public var setAccountOrder: @MainActor ([String]) -> Void
-        public var updateSettings: @MainActor ([String: JSONValue]) -> Void
-        public var contentSizeChanged: @MainActor () -> Void
+        public var updateSettings: @MainActor (SettingsChange) -> Void
         public var reducedMotion: @MainActor () -> Bool
 
         public init(
@@ -20,8 +19,7 @@
             openSettings: @escaping @MainActor () -> Void,
             signIn: @escaping @MainActor (String) -> Void,
             setAccountOrder: @escaping @MainActor ([String]) -> Void,
-            updateSettings: @escaping @MainActor ([String: JSONValue]) -> Void,
-            contentSizeChanged: @escaping @MainActor () -> Void,
+            updateSettings: @escaping @MainActor (SettingsChange) -> Void,
             reducedMotion: @escaping @MainActor () -> Bool
         ) {
             self.refreshNow = refreshNow
@@ -30,7 +28,6 @@
             self.signIn = signIn
             self.setAccountOrder = setAccountOrder
             self.updateSettings = updateSettings
-            self.contentSizeChanged = contentSizeChanged
             self.reducedMotion = reducedMotion
         }
     }
@@ -40,7 +37,6 @@
     final class PopupUIState {
         var period = SpendPeriod.today
         var expanded: Set<String> = []
-        var localOrder: [String]?
         let tips = TipCenter()
         let refresh = RefreshControl()
         let icons = ProviderIconStore()
@@ -83,10 +79,6 @@
             .onChange(of: model.state.map(PopupScreen.isRefreshing) ?? false, initial: true) { _, busy in
                 ui.refresh.setDaemonBusy(busy)
             }
-            .onChange(of: contentHeight) { actions.contentSizeChanged() }
-            .onChange(of: model.visibleAccounts.map(\.id)) { _, ids in
-                ui.localOrder = AccountOrder.reconcile(local: ui.localOrder, incoming: ids)
-            }
         }
 
         private var maxScrollHeight: CGFloat {
@@ -97,7 +89,8 @@
         @ViewBuilder
         private func scrollArea(_ screen: PopupScreen) -> some View {
             let content = PopupContent(
-                screen: screen, formatter: model.formatter, actions: actions, ui: ui, refresh: { pressRefresh() }
+                screen: screen, accounts: model.orderedAccounts, formatter: model.formatter, actions: actions, ui: ui,
+                refresh: { pressRefresh() }
             )
             .padding(.horizontal, PopupMetrics.padding)
             .padding(.top, PopupMetrics.padding)
@@ -129,6 +122,7 @@
 
     struct PopupContent: View {
         let screen: PopupScreen
+        let accounts: [Account]
         let formatter: DisplayFormatter
         let actions: PopupActions
         @Bindable var ui: PopupUIState
@@ -137,7 +131,8 @@
         var body: some View {
             switch screen {
             case .dashboard(let state):
-                Dashboard(state: state, formatter: formatter, actions: actions, ui: ui, refresh: refresh)
+                Dashboard(
+                    state: state, accounts: accounts, formatter: formatter, actions: actions, ui: ui, refresh: refresh)
             default:
                 StatusScreen(screen: screen, strings: formatter.strings, retry: refresh)
             }
@@ -146,6 +141,7 @@
 
     struct Dashboard: View {
         let state: DaemonState
+        let accounts: [Account]
         let formatter: DisplayFormatter
         let actions: PopupActions
         @Bindable var ui: PopupUIState
@@ -180,12 +176,12 @@
         }
 
         private var sections: [AccountSectionModel] {
-            AccountOrder.apply(ui.localOrder, to: AccountSectionModel.sections(state, formatter: formatter))
+            AccountSectionModel.sections(state, ordered: accounts, formatter: formatter)
         }
 
         private var tickInterval: TimeInterval {
             let now = Timestamp(date: Date())
-            let live = state.accounts.contains { account in
+            let live = accounts.contains { account in
                 !account.hidden
                     && account.windows.contains { QuotaRowModel.needsSecondTicks($0, display: state.display, now: now) }
             }
@@ -203,8 +199,8 @@
         }
 
         private func reorder(_ visibleOrder: [String]) {
-            Motion.perform(Motion.standard, reduced: reducedMotion) { ui.localOrder = visibleOrder }
-            actions.setAccountOrder(AccountOrder.mergeOrder(all: state.accounts.map(\.id), visible: visibleOrder))
+            let order = AccountOrder.mergeOrder(all: accounts.map(\.id), visible: visibleOrder)
+            Motion.perform(Motion.standard, reduced: reducedMotion) { actions.setAccountOrder(order) }
         }
     }
 #endif

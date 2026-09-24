@@ -28,23 +28,6 @@ public enum AccountOrder {
         }
     }
 
-    public static func apply<Item: Identifiable>(_ order: [String]?, to items: [Item]) -> [Item] where Item.ID == String {
-        guard let order else { return items }
-        let rank = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
-        return items.enumerated()
-            .sorted { lhs, rhs in
-                let left = rank[lhs.element.id] ?? order.count + lhs.offset
-                let right = rank[rhs.element.id] ?? order.count + rhs.offset
-                return left < right
-            }
-            .map(\.element)
-    }
-
-    public static func reconcile(local: [String]?, incoming: [String]) -> [String]? {
-        guard let local, local != incoming, Set(local) == Set(incoming) else { return nil }
-        return local
-    }
-
     public static func dropIndex(others: [SectionSpan], pointer: Double) -> Int {
         others.filter { $0.middle < pointer }.count
     }

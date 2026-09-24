@@ -16,13 +16,22 @@ public final class AppModel {
     public private(set) var phase: ConnectionPhase = .starting
     public private(set) var lastError: DaemonError?
     public private(set) var serviceIssue: String?
+    public var settingsPresenter: (@MainActor (SettingsRoute) -> Void)?
 
+    let commands: CommandQueue?
+    var pendingOrder: PendingOrder?
     private let preferredLanguages: [String]
     private let timeZone: TimeZone
+    private let appVersion: String?
 
-    public init(preferredLanguages: [String], timeZone: TimeZone = .current) {
+    public init(
+        preferredLanguages: [String], timeZone: TimeZone = .current, appVersion: String? = nil,
+        commands: CommandQueue? = nil
+    ) {
         self.preferredLanguages = preferredLanguages
         self.timeZone = timeZone
+        self.appVersion = appVersion
+        self.commands = commands
     }
 
     public var formatter: DisplayFormatter {
@@ -36,8 +45,14 @@ public final class AppModel {
         return MenuBarContent.make(state: state, formatter: formatter)
     }
 
+    public var orderedAccounts: [Account] {
+        let accounts = state?.accounts ?? []
+        guard let order = pendingOrder?.accountIDs else { return accounts }
+        return PendingOrder.arrange(accounts, by: order)
+    }
+
     public var visibleAccounts: [Account] {
-        state?.accounts.filter { !$0.hidden } ?? []
+        orderedAccounts.filter { !$0.hidden }
     }
 
     public func apply(_ event: DaemonEvent) {
@@ -53,8 +68,7 @@ public final class AppModel {
             phase = .disconnected
             lastError = error
         case .state(let newState):
-            state = newState
-            phase = .connected
+            receive(newState)
         case .failure(let error):
             record(error)
         case .alert, .openRequested:
@@ -73,11 +87,27 @@ public final class AppModel {
         }
     }
 
+    private func isServiceCompatible(_ candidate: DaemonState) -> Bool {
+        guard let appVersion, let serviceVersion = candidate.appVersion else { return true }
+        return serviceVersion == appVersion
+    }
+
+    private func receive(_ newState: DaemonState) {
+        guard isServiceCompatible(newState) else {
+            state = nil
+            phase = .incompatible(.differentService)
+            return
+        }
+        state = newState
+        phase = .connected
+        if pendingOrder?.settled == true { pendingOrder = nil }
+    }
+
     public func markHelperMismatch() {
         phase = .incompatible(.helperMismatch)
     }
 
-    private func record(_ error: DaemonError) {
+    func record(_ error: DaemonError) {
         lastError = error
         if case .unsupportedSchema = error { phase = .incompatible(.schemaMismatch) }
     }

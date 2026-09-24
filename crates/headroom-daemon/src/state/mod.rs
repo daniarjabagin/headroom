@@ -13,7 +13,7 @@ use jiff::tz::TimeZone;
 use crate::catalog::ProviderCatalog;
 use crate::home::HomeDisplay;
 use crate::model::Model;
-use payload::{STATE_VERSION, StatePayload};
+use payload::{APP_VERSION, STATE_VERSION, StatePayload};
 
 pub struct AssembleContext<'a> {
     pub now: Timestamp,
@@ -42,6 +42,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
     let usage = full_usage.into_iter().map(usage::with_top_models).collect();
     StatePayload {
         version: STATE_VERSION,
+        app_version: Some(APP_VERSION.to_owned()),
         generated_at: ctx.now,
         next_refresh_at: activity::next_refresh_at(model),
         last_success_at: activity::last_success_at(model),

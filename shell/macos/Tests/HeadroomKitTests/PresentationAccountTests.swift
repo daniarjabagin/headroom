@@ -19,6 +19,13 @@ final class PresentationAccountTests: XCTestCase {
         XCTAssertTrue(limits.extrasCollapsible)
     }
 
+    func testSectionsFollowTheOptimisticOrder() throws {
+        let state = try Build.full()
+        let ordered = [state.accounts[1], state.accounts[2], state.accounts[0]]
+        let sections = AccountSectionModel.sections(state, ordered: ordered, formatter: Build.english)
+        XCTAssertEqual(sections.map(\.id), ["claude:main", "codex:work"])
+    }
+
     func testSignedOutAccountShowsOnlyTheSignInNotice() throws {
         let sections = AccountSectionModel.sections(try Build.full(), formatter: Build.english)
         let claude = try XCTUnwrap(sections.last)
@@ -97,7 +104,8 @@ final class PresentationAccountTests: XCTestCase {
             Build.accountJSON(id: "c", status: "fresh"),
         ])
         let statuses = AccountSectionModel.sections(state, formatter: Build.english).map(\.header.status)
-        XCTAssertEqual(statuses, [.refreshing, .outdated(updatedAt: try Fixture.timestamp("2026-09-23T07:00:00Z")), nil])
+        XCTAssertEqual(
+            statuses, [.refreshing, .outdated(updatedAt: try Fixture.timestamp("2026-09-23T07:00:00Z")), nil])
     }
 
     func testFirstRefreshShowsSkeletonRows() throws {
@@ -110,7 +118,8 @@ final class PresentationAccountTests: XCTestCase {
     }
 
     func testDaemonNoticesMapToneAndTranslate() throws {
-        let notices = #"[{"tone":"neutral","text":"Extra usage on, cap $50.00"},{"tone":"critical","text":"No Cline credits left."}]"#
+        let notices =
+            #"[{"tone":"neutral","text":"Extra usage on, cap $50.00"},{"tone":"critical","text":"No Cline credits left."}]"#
         let state = try Build.state(accounts: [Build.accountJSON(id: "a", notices: notices)])
         guard case .limits(let limits) = AccountSectionModel.sections(state, formatter: Build.russian)[0].body else {
             return XCTFail("expected limits")
@@ -136,8 +145,10 @@ final class PresentationAccountTests: XCTestCase {
     }
 
     func testSubscriptionNoteNormalisation() {
-        XCTAssertNil(AccountStatusRules.subscriptionNote(AccountError(kind: "no_subscription", message: "no_subscription")))
-        XCTAssertNil(AccountStatusRules.subscriptionNote(AccountError(kind: "x", message: " No  active subscription! ")))
+        XCTAssertNil(
+            AccountStatusRules.subscriptionNote(AccountError(kind: "no_subscription", message: "no_subscription")))
+        XCTAssertNil(
+            AccountStatusRules.subscriptionNote(AccountError(kind: "x", message: " No  active subscription! ")))
         XCTAssertEqual(AccountStatusRules.normalized("Hello, World — 42"), "hello world 42")
     }
 }

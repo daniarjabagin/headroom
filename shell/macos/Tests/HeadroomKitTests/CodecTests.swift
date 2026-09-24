@@ -93,14 +93,23 @@ final class SocketPathTests: XCTestCase {
         let home = "/Users/" + String(repeating: "a", count: 60)
         let environment = ["TMPDIR": "/var/folders/xy/T/"]
         XCTAssertEqual(
-            SocketPath.resolve(environment: environment, home: home, uid: 501), "/var/folders/xy/T/headroom-501.sock")
-        XCTAssertEqual(SocketPath.resolve(environment: [:], home: home, uid: 7), "/tmp/headroom-7.sock")
+            SocketPath.resolve(environment: environment, home: home, uid: 501),
+            "/var/folders/xy/T/headroom-501/daemon.sock")
+        XCTAssertEqual(SocketPath.resolve(environment: [:], home: home, uid: 7), "/tmp/headroom-7/daemon.sock")
+    }
+
+    func testFallbackNeverCreatesTheDirectory() throws {
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let home = "/Users/" + String(repeating: "a", count: 60)
+        let path = SocketPath.resolve(environment: ["TMPDIR": temporary.path], home: home, uid: 501)
+        XCTAssertEqual(path, temporary.path + "/headroom-501/daemon.sock")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporary.path))
     }
 
     func testBoundaryLengthIs103Bytes() {
         let suffix = "/Library/Application Support/Headroom/daemon.sock"
         let fits = "/" + String(repeating: "h", count: 102 - suffix.utf8.count)
         XCTAssertEqual(SocketPath.resolve(environment: [:], home: fits, uid: 1).utf8.count, 103)
-        XCTAssertEqual(SocketPath.resolve(environment: [:], home: fits + "h", uid: 1), "/tmp/headroom-1.sock")
+        XCTAssertEqual(SocketPath.resolve(environment: [:], home: fits + "h", uid: 1), "/tmp/headroom-1/daemon.sock")
     }
 }

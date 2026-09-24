@@ -6,7 +6,8 @@ import XCTest
 final class PresentationQuotaRowTests: XCTestCase {
     func testHeadlineFillAndTrailingFollowTheValueMode() throws {
         let window = try Build.window(used: 55, tone: "warning", severity: "close", even: "60", spare: "8.3")
-        let left = QuotaRowModel.make(window, display: try Build.display(), now: try Build.now(), formatter: Build.english)
+        let left = QuotaRowModel.make(
+            window, display: try Build.display(), now: try Build.now(), formatter: Build.english)
         XCTAssertEqual(left.headline, "45% left")
         XCTAssertEqual(left.fill, 0.45, accuracy: 1e-9)
         XCTAssertEqual(left.tone, .warning)
@@ -22,7 +23,8 @@ final class PresentationQuotaRowTests: XCTestCase {
         let used = QuotaRowModel.make(
             window, display: try Build.display(valueMode: "used"), now: try Build.now(), formatter: Build.english)
         XCTAssertEqual(used.fill, 1)
-        let left = QuotaRowModel.make(window, display: try Build.display(), now: try Build.now(), formatter: Build.english)
+        let left = QuotaRowModel.make(
+            window, display: try Build.display(), now: try Build.now(), formatter: Build.english)
         XCTAssertEqual(left.fill, 0)
         XCTAssertEqual(left.headline, "0% left")
     }
@@ -30,7 +32,8 @@ final class PresentationQuotaRowTests: XCTestCase {
     func testTickPositionMirrorsInLeftModeAndHidesWhenCalmWithoutForecast() throws {
         let calm = try Build.window(used: 20, even: "30")
         XCTAssertEqual(try QuotaRowModel.tick(calm, display: Build.display()) ?? -1, 0.7, accuracy: 1e-9)
-        XCTAssertEqual(try QuotaRowModel.tick(calm, display: Build.display(valueMode: "used")) ?? -1, 0.3, accuracy: 1e-9)
+        XCTAssertEqual(
+            try QuotaRowModel.tick(calm, display: Build.display(valueMode: "used")) ?? -1, 0.3, accuracy: 1e-9)
         XCTAssertNil(try QuotaRowModel.tick(calm, display: Build.display(showForecast: false)))
         let urgent = try Build.window(used: 80, tone: "warning", severity: "close", even: "50")
         XCTAssertNotNil(try QuotaRowModel.tick(urgent, display: Build.display(showForecast: false)))
@@ -77,12 +80,15 @@ final class PresentationQuotaRowTests: XCTestCase {
             QuotaRowModel.forecast(healthy, now: now, display: display, formatter: Build.english),
             "At this pace: ~48% left at reset")
         XCTAssertEqual(
-            QuotaRowModel.forecast(healthy, now: now, display: try Build.display(valueMode: "used"), formatter: Build.english),
+            QuotaRowModel.forecast(
+                healthy, now: now, display: try Build.display(valueMode: "used"), formatter: Build.english),
             "At this pace: ~53% used at reset")
         XCTAssertEqual(
             QuotaRowModel.forecast(healthy, now: now, display: display, formatter: Build.russian),
             "При текущем темпе к сбросу останется ~48%")
-        XCTAssertNil(QuotaRowModel.forecast(try Build.window(severity: "untracked"), now: now, display: display, formatter: Build.english))
+        XCTAssertNil(
+            QuotaRowModel.forecast(
+                try Build.window(severity: "untracked"), now: now, display: display, formatter: Build.english))
         let hidden = QuotaRowModel.make(
             healthy, display: try Build.display(showForecast: false), now: now, formatter: Build.english)
         XCTAssertNil(hidden.forecast)

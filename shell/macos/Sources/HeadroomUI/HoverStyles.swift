@@ -55,7 +55,8 @@
                 .background(
                     RoundedRectangle(cornerRadius: PopupMetrics.chipRadius, style: .continuous)
                         .fill(hovered ? Palette.hover : .clear)
-                        .padding(EdgeInsets(top: -vertical, leading: -horizontal, bottom: -vertical, trailing: -horizontal))
+                        .padding(
+                            EdgeInsets(top: -vertical, leading: -horizontal, bottom: -vertical, trailing: -horizontal))
                 )
                 .onHover { hovered = $0 }
                 .animation(Motion.animation(Motion.hover, reduced: reducedMotion), value: hovered)
@@ -65,10 +66,6 @@
     extension View {
         func hoverChip(horizontal: CGFloat = 5, vertical: CGFloat = 2) -> some View {
             modifier(HoverChip(horizontal: horizontal, vertical: vertical))
-        }
-
-        func chipInset(horizontal: CGFloat, vertical: CGFloat) -> some View {
-            padding(EdgeInsets(top: -vertical, leading: -horizontal, bottom: -vertical, trailing: -horizontal))
         }
     }
 #endif

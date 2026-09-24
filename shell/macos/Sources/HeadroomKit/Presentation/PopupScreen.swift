@@ -44,7 +44,8 @@ public struct FooterStatus: Sendable, Hashable {
     public static func make(screen: PopupScreen, now: Timestamp, formatter: DisplayFormatter) -> FooterStatus {
         let strings = formatter.strings
         switch screen {
-        case .serviceDown: return FooterStatus(text: strings.text(.serviceNotRunning), isNotice: false, refreshes: false)
+        case .serviceDown:
+            return FooterStatus(text: strings.text(.serviceNotRunning), isNotice: false, refreshes: false)
         case .loading: return FooterStatus(text: strings.text(.connecting), isNotice: false, refreshes: false)
         case .incompatible, .unreadable: return FooterStatus(text: "", isNotice: false, refreshes: false)
         case .empty(let state), .dashboard(let state): return make(state: state, now: now, formatter: formatter)

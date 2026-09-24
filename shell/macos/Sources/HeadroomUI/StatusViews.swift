@@ -123,7 +123,7 @@
             case .loading, .dashboard:
                 LoadingSections()
             case .incompatible(let text):
-                StatusCard(symbol: "exclamationmark.triangle", title: strings.text(text)) { EmptyView() }
+                StatusCard(symbol: "gauge.with.dots.needle.50percent", title: strings.text(text)) { EmptyView() }
             case .serviceDown(let detail):
                 StatusCard(
                     symbol: "gauge.with.dots.needle.50percent", title: strings.text(.serviceDownTitle),

@@ -57,7 +57,8 @@ struct SVGArc {
         let endVector = PlanePoint(x: (-primeX - centerPrime.x) / rx, y: (-primeY - centerPrime.y) / ry)
         let ellipse = Ellipse(center: center, radiusX: rx, radiusY: ry, cosine: cosine, sine: sine)
         return segments(
-            ellipse, start: Self.angle(PlanePoint(x: 1, y: 0), startVector), sweepAngle: sweepAngle(startVector, endVector))
+            ellipse, start: Self.angle(PlanePoint(x: 1, y: 0), startVector),
+            sweepAngle: sweepAngle(startVector, endVector))
     }
 
     private func sweepAngle(_ start: PlanePoint, _ end: PlanePoint) -> Double {

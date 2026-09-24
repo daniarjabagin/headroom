@@ -112,7 +112,8 @@
                     if action.primary {
                         RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Palette.ok)
                     } else {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Palette.separator, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(
+                            Palette.separator, lineWidth: 1)
                     }
                 }
             }

@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "HeadroomKit", targets: ["HeadroomKit"]),
         .library(name: "HeadroomUI", targets: ["HeadroomUI"]),
+        .library(name: "HeadroomSettings", targets: ["HeadroomSettings"]),
         .executable(name: "Headroom", targets: ["Headroom"]),
     ],
     targets: [
@@ -16,7 +17,8 @@ let package = Package(
             dependencies: ["HeadroomKit"],
             resources: [.copy("Resources/ProviderIcons")]
         ),
-        .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI"]),
+        .target(name: "HeadroomSettings", dependencies: ["HeadroomKit"]),
+        .executableTarget(name: "Headroom", dependencies: ["HeadroomKit", "HeadroomUI", "HeadroomSettings"]),
         .testTarget(
             name: "HeadroomKitTests",
             dependencies: ["HeadroomKit"],

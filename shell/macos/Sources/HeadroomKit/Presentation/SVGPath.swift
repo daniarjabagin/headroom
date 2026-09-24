@@ -89,7 +89,8 @@ struct SVGPathBuilder {
         lastQuadControl = nil
     }
 
-    private mutating func quadratic(_ scanner: inout SVGScanner, origin: PlanePoint, smooth: Bool) throws(SVGPathError) {
+    private mutating func quadratic(_ scanner: inout SVGScanner, origin: PlanePoint, smooth: Bool) throws(SVGPathError)
+    {
         let control = smooth ? reflected(lastQuadControl) : origin + (try point(&scanner))
         let end = origin + (try point(&scanner))
         let twoThirds = 2.0 / 3

@@ -58,8 +58,10 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
     public let header: AccountHeaderModel
     public let body: AccountBody
 
-    public static func sections(_ state: DaemonState, formatter: DisplayFormatter) -> [AccountSectionModel] {
-        let visible = state.accounts.filter { !$0.hidden }
+    public static func sections(
+        _ state: DaemonState, ordered accounts: [Account]? = nil, formatter: DisplayFormatter
+    ) -> [AccountSectionModel] {
+        let visible = (accounts ?? state.accounts).filter { !$0.hidden }
         return visible.map { account in
             make(account, siblings: visible, state: state, formatter: formatter)
         }
@@ -80,7 +82,8 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
 
     static func header(_ account: Account, showsName: Bool, offline: Bool) -> AccountHeaderModel {
         let who = account.label ?? account.email
-        let title = showsName ? who.map { "\(account.providerName): \($0)" } ?? account.providerName : account.providerName
+        let title =
+            showsName ? who.map { "\(account.providerName): \($0)" } ?? account.providerName : account.providerName
         let plan = AccountStatusRules.lacksSubscription(account) ? nil : account.plan
         return AccountHeaderModel(
             provider: account.provider, title: title, plan: plan, status: status(account, offline: offline))
@@ -121,7 +124,9 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
         }
         let windows = AccountStatusRules.shownWindows(account)
         let usage = UsageRows.usage(for: account, in: state.usage)
-        let trend = usage.flatMap { state.display.showTrend ? UsageRows.trendBars($0.daily, formatter: formatter) : nil }
+        let trend = usage.flatMap {
+            state.display.showTrend ? UsageRows.trendBars($0.daily, formatter: formatter) : nil
+        }
         let spend = usage.flatMap { usage in
             state.display.showAccountSpend
                 ? UsageRows.spendRows(usage, providerName: account.providerName, formatter: formatter) : nil

@@ -36,7 +36,9 @@
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: row.percent)
         }
 
-        private func toggle(_ text: String, style: HierarchicalShapeStyle, action: @escaping @MainActor () -> Void) -> some View {
+        private func toggle(_ text: String, style: HierarchicalShapeStyle, action: @escaping @MainActor () -> Void)
+            -> some View
+        {
             Button {
                 action()
             } label: {

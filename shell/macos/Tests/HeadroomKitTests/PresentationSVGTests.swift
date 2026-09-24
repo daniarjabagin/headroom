@@ -21,7 +21,8 @@ final class PresentationSVGTests: XCTestCase {
             let points = icon.commands.flatMap(endpoints)
             XCTAssertGreaterThan(points.count, 3, file)
             for point in points {
-                XCTAssertTrue((-0.01...24.01).contains(point.x) && (-0.01...24.01).contains(point.y), "\(file) \(point)")
+                XCTAssertTrue(
+                    (-0.01...24.01).contains(point.x) && (-0.01...24.01).contains(point.y), "\(file) \(point)")
             }
             XCTAssertNotNil(ProviderStyle.iconResource(for: String(file.dropLast(4))))
         }

@@ -66,7 +66,9 @@ struct SVGScanner {
     }
 
     private mutating func consumeSign() {
-        guard index < bytes.count, bytes[index] == UInt8(ascii: "-") || bytes[index] == UInt8(ascii: "+") else { return }
+        guard index < bytes.count, bytes[index] == UInt8(ascii: "-") || bytes[index] == UInt8(ascii: "+") else {
+            return
+        }
         index += 1
     }
 
@@ -77,7 +79,9 @@ struct SVGScanner {
     }
 
     private mutating func consumeExponent() {
-        guard index < bytes.count, bytes[index] == UInt8(ascii: "e") || bytes[index] == UInt8(ascii: "E") else { return }
+        guard index < bytes.count, bytes[index] == UInt8(ascii: "e") || bytes[index] == UInt8(ascii: "E") else {
+            return
+        }
         let mark = index
         index += 1
         consumeSign()

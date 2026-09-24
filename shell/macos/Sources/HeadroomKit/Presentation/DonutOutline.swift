@@ -81,11 +81,14 @@ extension DonutGeometry {
         let outerCorner = { (angle: Double) in polar(outer - corner, angle) }
         let innerCorner = { (angle: Double) in polar(inner + corner, angle) }
         return [
-            DonutArc(center: outerCorner(start + outerOffset), radius: corner, from: start - quarter, to: start + outerOffset),
+            DonutArc(
+                center: outerCorner(start + outerOffset), radius: corner, from: start - quarter, to: start + outerOffset
+            ),
             DonutArc(
                 center: centerPoint, radius: outer, from: start + outerOffset,
                 to: max(end - outerOffset, start + outerOffset)),
-            DonutArc(center: outerCorner(end - outerOffset), radius: corner, from: end - outerOffset, to: end + quarter),
+            DonutArc(
+                center: outerCorner(end - outerOffset), radius: corner, from: end - outerOffset, to: end + quarter),
             DonutArc(
                 center: innerCorner(end - innerOffset), radius: corner, from: end + quarter,
                 to: end - innerOffset + .pi),
