@@ -149,7 +149,7 @@ impl Provider for OllamaProvider {
         let located = locate(&self.keys);
         let path = located.path().ok_or(ProviderError::NotSignedIn)?;
         if let KeyFile::Found { pem, .. } = &located
-            && self.is_unlinked(pem).await
+            && self.is_unlinked(pem.expose()).await
         {
             return Ok(Vec::new());
         }
@@ -162,7 +162,7 @@ impl Provider for OllamaProvider {
 
     async fn fetch_limits(&self, _account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         match locate(&self.keys) {
-            KeyFile::Found { path, pem } => self.fetch_signed(&path, &pem).await,
+            KeyFile::Found { path, pem } => self.fetch_signed(&path, pem.expose()).await,
             KeyFile::Unreadable { path } => Ok(self.unreadable(&path)),
             KeyFile::Missing => Err(ProviderError::NotSignedIn),
         }

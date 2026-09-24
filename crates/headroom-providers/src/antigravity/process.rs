@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use headroom_core::secret::SecretString;
+
 const LANGUAGE_SERVER: &str = "language_server";
 const CLI: &str = "agy";
 const MARKERS: [&str; 2] = ["antigravity", "antigravity-ide"];
@@ -19,7 +21,7 @@ pub(super) enum Rank {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Candidate {
     pub rank: Rank,
-    pub csrf: String,
+    pub csrf: SecretString,
     pub extension_port: Option<u16>,
 }
 
@@ -38,7 +40,7 @@ pub(super) fn candidate(argv: &[String]) -> Option<Candidate> {
     }
     Some(Candidate {
         rank,
-        csrf: csrf.unwrap_or_default().to_owned(),
+        csrf: SecretString::new(csrf.unwrap_or_default().to_owned()),
         extension_port: flag(argv, EXTENSION_PORT_FLAG).and_then(|port| port.parse().ok()),
     })
 }

@@ -3,6 +3,8 @@ use std::fs;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
+use headroom_core::secret::SecretString;
+
 use super::process::{self, Candidate, Rank};
 
 const MAX_SERVERS: usize = 4;
@@ -10,7 +12,7 @@ const MAX_SERVERS: usize = 4;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct LanguageServer {
     pub rank: Rank,
-    pub csrf: String,
+    pub csrf: SecretString,
     pub ports: BTreeSet<u16>,
     pub extension_port: Option<u16>,
 }

@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
+use headroom_core::secret::SecretString;
+
 const KEY_NAME: &str = "id_ed25519";
 const SYSTEM_HOME: &str = "/usr/share/ollama/.ollama";
 const MAX_KEY_BYTES: u64 = 64 * 1024;
@@ -24,7 +26,7 @@ impl KeyPaths {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum KeyFile {
-    Found { path: PathBuf, pem: String },
+    Found { path: PathBuf, pem: SecretString },
     Unreadable { path: PathBuf },
     Missing,
 }
@@ -49,7 +51,7 @@ fn read(path: &Path) -> KeyFile {
     match read_bounded(path) {
         Ok(pem) => KeyFile::Found {
             path: path.to_path_buf(),
-            pem,
+            pem: SecretString::new(pem),
         },
         Err(error) if error.kind() == io::ErrorKind::NotFound => KeyFile::Missing,
         Err(error) => {
@@ -98,9 +100,18 @@ mod tests {
             locate(&paths),
             KeyFile::Found {
                 path: paths.user.clone(),
-                pem: "user".into()
+                pem: SecretString::new("user".into())
             }
         );
+    }
+
+    #[test]
+    fn debug_output_never_shows_the_key() {
+        let found = KeyFile::Found {
+            path: PathBuf::from("/k"),
+            pem: SecretString::new("PRIVATE KEY MATERIAL".into()),
+        };
+        assert!(!format!("{found:?}").contains("PRIVATE"));
     }
 
     #[test]

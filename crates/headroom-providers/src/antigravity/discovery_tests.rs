@@ -31,7 +31,8 @@ fn servers_are_found_with_their_listening_ports_best_first() {
     let servers = language_servers(root.path(), owner(root.path()));
     assert_eq!(servers.len(), 2);
     assert_eq!(servers[0].rank, Rank::NamedApp);
-    assert_eq!(servers[0].csrf, "tok");
+    assert_eq!(servers[0].csrf.expose(), "tok");
+    assert!(!format!("{:?}", servers[0]).contains("tok"));
     assert_eq!(servers[0].ports, BTreeSet::from([50_002, 50_003]));
     assert_eq!(servers[0].extension_port, Some(50_100));
     assert_eq!(servers[1].rank, Rank::Cli);
@@ -63,7 +64,7 @@ fn a_server_without_any_port_is_skipped() {
 fn endpoints_try_https_then_http_then_the_extension_port() {
     let server = LanguageServer {
         rank: Rank::NamedApp,
-        csrf: String::new(),
+        csrf: SecretString::new(String::new()),
         ports: BTreeSet::from([1000]),
         extension_port: Some(2000),
     };
