@@ -45,14 +45,21 @@
     public struct PopupView: View {
         let model: AppModel
         let actions: PopupActions
+        let presentation: Int
+        let onResize: (@MainActor (CGSize) -> Void)?
         @State private var ui = PopupUIState()
         @State private var contentHeight: CGFloat = 0
         @State private var footerHeight: CGFloat = 0
         @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
-        public init(model: AppModel, actions: PopupActions) {
+        public init(
+            model: AppModel, actions: PopupActions, presentation: Int = 0,
+            onResize: (@MainActor (CGSize) -> Void)? = nil
+        ) {
             self.model = model
             self.actions = actions
+            self.presentation = presentation
+            self.onResize = onResize
         }
 
         public var body: some View {
@@ -68,6 +75,7 @@
                 .background { HeightReader(height: $footerHeight) }
             }
             .frame(width: PopupMetrics.width)
+            .background { SizeReader(onChange: onResize) }
             .clipShape(RoundedRectangle(cornerRadius: PopupMetrics.cornerRadius, style: .continuous))
             .popupSurface(translucent: translucent)
             .overlay { TipOverlay(center: ui.tips) }
@@ -100,6 +108,7 @@
                 ScrollView(.vertical) { content }
                     .scrollIndicators(.automatic)
                     .frame(height: maxScrollHeight)
+                    .id(presentation)
             } else {
                 content.fixedSize(horizontal: false, vertical: true)
             }
@@ -116,6 +125,16 @@
         var body: some View {
             GeometryReader { proxy in
                 Color.clear.onChange(of: proxy.size.height, initial: true) { _, new in height = new }
+            }
+        }
+    }
+
+    struct SizeReader: View {
+        let onChange: (@MainActor (CGSize) -> Void)?
+
+        var body: some View {
+            GeometryReader { proxy in
+                Color.clear.onChange(of: proxy.size, initial: true) { _, new in onChange?(new) }
             }
         }
     }
