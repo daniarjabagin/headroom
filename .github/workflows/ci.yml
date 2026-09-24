@@ -176,6 +176,14 @@ jobs:
       - name: cargo test
         run: cargo test --workspace --locked
 
+      - name: swift build
+        working-directory: shell/macos
+        run: swift build
+
+      - name: swift test
+        working-directory: shell/macos
+        run: swift test
+
   gnome-extension:
     name: GNOME Shell extension
     runs-on: ubuntu-latest
@@ -272,4 +280,4 @@ jobs:
           persist-credentials: false
 
       - name: shellcheck
-        run: shellcheck packaging/*.sh packaging/release/*.sh .github/scripts/*.sh
+        run: shellcheck packaging/*.sh packaging/release/*.sh .github/scripts/*.sh shell/macos/script/*.sh

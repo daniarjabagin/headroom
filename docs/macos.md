@@ -9,6 +9,39 @@ Requirements: macOS 14 (Sonoma) or newer. The popup is an opaque surface by defa
 General → Translucent background switches it to a blurred system material (ignored under Reduce
 Transparency). Popup and Settings follow `display.theme`.
 
+## Install from a release (DMG)
+
+Every GitHub release has `Headroom-<version>-universal.dmg` (Apple silicon and Intel) and its
+`.sha256`. The rest of this page (sections 1–3) is only needed to build from source.
+
+1. Optionally check the download: `shasum -a 256 -c Headroom-<version>-universal.dmg.sha256` in the
+   download folder prints `OK`.
+2. Open the DMG and drag **Headroom** onto **Applications**. Eject the DMG.
+3. Allow the first launch. The app is ad-hoc signed and not notarized, so Gatekeeper blocks it the
+   first time. On macOS 15 (Sequoia) and newer, right-click → Open no longer bypasses this:
+   1. Open Headroom from Applications. macOS says it "cannot verify that Headroom is free of
+      malware"; click **Done** (not Move to Trash).
+   2. System Settings → **Privacy & Security**, scroll to Security: "Headroom was blocked to protect
+      your Mac" → **Open Anyway** (shown for about an hour after the blocked launch).
+   3. Confirm with **Open Anyway** again and your password or Touch ID. Headroom starts and later
+      launches open without asking.
+
+   Alternatively, remove the quarantine flag in Terminal, then open the app normally:
+
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/Headroom.app
+   ```
+
+4. Headroom appears in the menu bar (there is no Dock icon). Continue with [First run](#5-first-run).
+
+Why this is needed: notarization requires a paid Apple Developer account, which the project does
+not have yet. The DMG is built by the release workflow from the tagged source, with the same
+`bundle.sh --universal --dmg` described below, and the app signature is only an ad-hoc one. Because
+an ad-hoc signature changes with every build, macOS forgets Keychain "Always Allow" grants after each
+update: expect the "Claude Code-credentials" prompt again once per new version and choose **Always
+Allow** again. Updating means replacing `/Applications/Headroom.app` from the new DMG (quit Headroom
+first); the Gatekeeper step above is repeated for each downloaded version.
+
 ## 1. One-time setup
 
 1. **Xcode** from the App Store (full Xcode, not only the Command Line Tools: `swift test` and
@@ -123,6 +156,12 @@ CODESIGN_IDENTITY="Apple Development: you@example.com (TEAMID1234)" \
   `Cargo.toml`, minimum macOS 14.0),
 - signs the helper (`io.github.headroom.helper`) and then the app with `CODESIGN_IDENTITY`
   (default `-`, ad-hoc) and verifies the signature,
+- `--dmg` then creates `shell/macos/dist/Headroom-<version>-<arch>.dmg` (`arm64` natively,
+  `universal` with `--universal`): volume "Headroom <version>" with the app and an `/Applications`
+  symlink for drag-to-install, compressed UDZO, checked with `hdiutil verify`, signed only when
+  `CODESIGN_IDENTITY` is a real identity, plus `Headroom-<version>-<arch>.dmg.sha256` (the hash is
+  printed). The release workflow runs `bundle.sh --universal --dmg` on `macos-15` after `swift test`
+  and attaches both files to the GitHub release,
 - `--install` quits a running Headroom and copies the app to `/Applications`; `--open` launches it.
 
 Without `--install` run it from `shell/macos/dist/Headroom.app`. There is no Dock icon: Headroom
@@ -230,5 +269,6 @@ HeadroomKit && swift test`); the AppKit targets compile to nothing there.
 | Add account says the helper is missing | The app was started outside the bundle (`swift run`). Account commands need `Contents/Helpers/headroom`; build with `bundle.sh`. |
 | Keychain asks after every rebuild | Sign with an Apple Development identity (§1.3). |
 | Codex/Claude accounts missing | Check that `PATH`/`CODEX_HOME`/`CLAUDE_CONFIG_DIR` are exported by your login shell (`$SHELL -i -l -c env`). Then Refresh. |
-| "Headroom is damaged" / Gatekeeper on a copied build | Only builds from another machine are quarantined: `xattr -d com.apple.quarantine /Applications/Headroom.app`. |
+| "Headroom is damaged" / "cannot verify" on a downloaded or copied build | Downloaded and copied builds are quarantined: use Privacy & Security → Open Anyway ([Install from a release](#install-from-a-release-dmg)) or `xattr -dr com.apple.quarantine /Applications/Headroom.app`. |
+| Keychain asks again after updating from a DMG | Expected: release builds are ad-hoc signed, so each version has a new signature. Choose Always Allow once per version. |
 | Menu bar shows only the gauge glyph | No visible account has a visible window yet, or the daemon is not connected. |

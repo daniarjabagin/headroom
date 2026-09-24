@@ -137,9 +137,55 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  macos:
+    name: Build (macOS universal DMG)
+    needs: [verify, version]
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Install the pinned toolchain and both Apple targets
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: macos-universal
+
+      - name: swift test
+        working-directory: shell/macos
+        run: swift test
+
+      - name: Build the universal app and DMG
+        run: shell/macos/script/bundle.sh --universal --dmg
+
+      - name: Check the DMG version, checksum and architectures
+        run: |
+          dmg="shell/macos/dist/Headroom-${TAG#v}-universal.dmg"
+          test -f "$dmg"
+          (cd shell/macos/dist && shasum -a 256 -c "$(basename "$dmg").sha256")
+          for binary in MacOS/Headroom Helpers/headroom; do
+            lipo "shell/macos/dist/Headroom.app/Contents/$binary" -verify_arch arm64 x86_64
+          done
+
+      - name: Upload the DMG
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-macos
+          path: |
+            shell/macos/dist/*.dmg
+            shell/macos/dist/*.dmg.sha256
+          if-no-files-found: error
+
   release:
     name: Publish the GitHub release
-    needs: build
+    needs: [build, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -155,7 +201,7 @@ jobs:
       - name: Fetch the annotated tag
         run: git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
 
-      - name: Download the binaries and packages
+      - name: Download the binaries, packages and the macOS DMG
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: release-*
