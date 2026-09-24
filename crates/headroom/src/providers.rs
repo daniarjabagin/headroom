@@ -73,7 +73,7 @@ pub fn list(args: &ProvidersArgs) -> Result<()> {
 }
 
 fn secret_store(globals: &Globals) -> Result<SecretStore> {
-    let dir = SecretStore::default_dir().context("no XDG data directory is available")?;
+    let dir = SecretStore::default_dir().context("no home directory is available")?;
     Ok(SecretStore::new(secret_bus(globals), dir))
 }
 

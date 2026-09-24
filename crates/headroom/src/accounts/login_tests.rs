@@ -1,7 +1,9 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
-use super::test_support::{FakeBin, homes, spec};
+use headroom_core::account::{AccountId, AccountRef, CredentialOwner};
+
+use super::test_support::{FakeBin, FixedAccounts, homes, spec};
 use super::*;
 
 #[test]
@@ -66,15 +68,16 @@ fn sign_in_runs_the_cli_and_cleans_up_failures() {
     assert_eq!(homes(root.path(), "claude").len(), 1);
 
     bin.install("codex", "exit 0");
-    let error = sign_in(
+    let unconfirmed = sign_in(
         root.path(),
         spec("codex"),
         &launcher,
         Console::Terminal,
         &Cancel::default(),
     )
-    .unwrap_err();
-    assert!(error.to_string().contains("wrote no auth.json"), "{error}");
+    .unwrap();
+    assert!(!unconfirmed.join("auth.json").exists());
+    discard_home(&unconfirmed);
     assert_eq!(homes(root.path(), "codex").len(), 1);
 
     let empty = FakeBin::new();
@@ -300,4 +303,42 @@ fn cancelling_a_terminal_login_stops_the_cli_and_removes_the_home() {
     let grandchild = wait_for_file(&pids.path().join("grandchild"));
     let pid = rustix::process::Pid::from_raw(grandchild.trim().parse().unwrap()).unwrap();
     rustix::process::kill_process(pid, rustix::process::Signal::KILL).ok();
+}
+
+fn claude_at(home: &Path) -> AccountRef {
+    AccountRef {
+        id: AccountId("claude:0123456789ab".into()),
+        provider: spec("claude").provider.clone(),
+        home: home.to_path_buf(),
+        owner: CredentialOwner::Headroom,
+    }
+}
+
+#[tokio::test]
+async fn sign_ins_are_confirmed_by_the_credentials_file_or_the_provider() {
+    let root = tempfile::tempdir().unwrap();
+    let claude = spec("claude");
+    let with_file = root.path().join("file");
+    fs::create_dir_all(&with_file).unwrap();
+    fs::write(claude.login.credentials_path(&with_file), "{}").unwrap();
+    confirm_sign_in(&FixedAccounts(Vec::new()), &claude, &with_file)
+        .await
+        .unwrap();
+    let in_keychain = root.path().join("keychain");
+    fs::create_dir_all(&in_keychain).unwrap();
+    let provider = FixedAccounts(vec![claude_at(&in_keychain)]);
+    confirm_sign_in(&provider, &claude, &in_keychain)
+        .await
+        .unwrap();
+    assert!(in_keychain.is_dir());
+    let missing = root.path().join("missing");
+    fs::create_dir_all(&missing).unwrap();
+    let error = confirm_sign_in(&provider, &claude, &missing)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("wrote no .credentials.json"),
+        "{error}"
+    );
+    assert!(!missing.exists());
 }

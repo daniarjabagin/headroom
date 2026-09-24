@@ -60,15 +60,17 @@ fn xdg_base_logins_point_the_base_at_the_home_and_wait_for_the_subdir() {
         "XDG_DATA_HOME=/h xdgtool auth login"
     );
     bin.install("xdgtool", r#"echo '{}' > "$XDG_DATA_HOME/auth.json""#);
-    let error = sign_in(
+    let misplaced = sign_in(
         root.path(),
         spec,
         &bin.launcher(),
         Console::Terminal,
         &Cancel::default(),
     )
-    .unwrap_err();
-    assert!(error.to_string().contains("wrote no auth.json"), "{error}");
+    .unwrap();
+    assert!(!spec.login.credentials_path(&misplaced).exists());
+    assert!(misplaced.join("auth.json").is_file());
+    discard_home(&misplaced);
     bin.install(
         "xdgtool",
         r#"PATH=/usr/bin:/bin; mkdir -p "$XDG_DATA_HOME/xdgtool" && echo '{}' > "$XDG_DATA_HOME/xdgtool/auth.json""#,

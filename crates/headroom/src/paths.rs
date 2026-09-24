@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 #[cfg(target_os = "linux")]
 use headroom_daemon::BusTarget;
+use headroom_providers::paths::HeadroomDirs;
 
 pub struct Globals {
     #[cfg(target_os = "linux")]
@@ -21,13 +22,13 @@ impl Globals {
 }
 
 pub fn pricing_cache_dir() -> Result<PathBuf> {
-    let cache = dirs::cache_dir().context("no XDG cache directory is available")?;
+    let cache = dirs::cache_dir().context("no cache directory is available")?;
     Ok(cache.join("headroom").join("pricing"))
 }
 
 pub fn accounts_root() -> Result<PathBuf> {
-    let data = dirs::data_dir().context("no XDG data directory is available")?;
-    Ok(data.join("headroom").join("accounts"))
+    let dirs = HeadroomDirs::from_process().context("no home directory is available")?;
+    Ok(dirs.accounts_root())
 }
 
 #[must_use]
