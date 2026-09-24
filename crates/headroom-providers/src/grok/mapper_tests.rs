@@ -46,7 +46,7 @@ fn the_weekly_pool_becomes_a_weekly_window() {
     );
     assert_eq!(snapshot.identity.plan.as_deref(), Some("SuperGrok"));
     assert_eq!(snapshot.identity.email.as_deref(), Some("ada@example.com"));
-    assert_eq!(snapshot.notices, [notice(Tone::Neutral, "Extra usage off")]);
+    assert!(snapshot.notices.is_empty());
     assert_eq!(snapshot.source, LimitsSource::Live);
     assert_eq!(snapshot.fetched_at, now());
 }
@@ -57,15 +57,37 @@ fn an_omitted_percent_is_zero_and_a_cap_turns_extra_usage_on() {
     assert_eq!(snapshot.windows[0].used, Percent::ZERO);
     assert_eq!(
         snapshot.notices,
-        [notice(Tone::Good, "Extra usage on, cap 2500")]
+        [notice(Tone::Neutral, "Extra usage on, cap $25.00")]
     );
 }
 
 #[test]
-fn fractional_caps_are_shown_exactly() {
-    let text = EXTRA_USAGE.replace("\"val\":2500", "\"val\":12.5");
-    let snapshot = map(&text, &super_grok()).unwrap();
-    assert_eq!(snapshot.notices[0].text, "Extra usage on, cap 12.5");
+fn caps_are_cents_shown_exactly_as_dollars() {
+    for (raw, shown) in [
+        ("1", "$0.01"),
+        ("12.5", "$0.125"),
+        ("99", "$0.99"),
+        ("123456789", "$1,234,567.89"),
+        ("100000", "$1,000.00"),
+        ("1.5e30", "1.5e+30 cents"),
+    ] {
+        let text = EXTRA_USAGE.replace("\"val\":2500", &format!("\"val\":{raw}"));
+        let snapshot = map(&text, &super_grok()).unwrap();
+        assert_eq!(
+            snapshot.notices[0].text,
+            format!("Extra usage on, cap {shown}")
+        );
+    }
+}
+
+#[test]
+fn a_zero_or_missing_cap_emits_no_notice() {
+    for text in [
+        EXTRA_USAGE.replace("\"val\":2500", "\"val\":0"),
+        EXTRA_USAGE.replace("\"onDemandCap\":{\"val\":2500},", ""),
+    ] {
+        assert!(map(&text, &super_grok()).unwrap().notices.is_empty());
+    }
 }
 
 #[test]
@@ -73,13 +95,7 @@ fn legacy_billing_has_no_window_and_says_so() {
     for plan in [super_grok(), PlanLookup::Failed] {
         let snapshot = map(LEGACY, &plan).unwrap();
         assert!(snapshot.windows.is_empty());
-        assert_eq!(
-            snapshot.notices,
-            [
-                notice(Tone::Neutral, LEGACY_BILLING),
-                notice(Tone::Neutral, "Extra usage off")
-            ]
-        );
+        assert_eq!(snapshot.notices, [notice(Tone::Neutral, LEGACY_BILLING)]);
     }
 }
 
