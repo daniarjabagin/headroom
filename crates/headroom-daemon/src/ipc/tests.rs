@@ -90,6 +90,12 @@ async fn requests_without_id_get_no_response() {
     client
         .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":[""]}"#)
         .await;
+    client
+        .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":[5]}"#)
+        .await;
+    client
+        .send(r#"{"jsonrpc":"2.0","method":"Refresh","params":{"a":1}}"#)
+        .await;
     client.send("").await;
     client.request(9, "GetState", json!([])).await;
     assert_eq!(client.next().await.unwrap()["id"], 9);

@@ -52,13 +52,13 @@ pub struct Request {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rejection {
-    pub id: Value,
+    pub id: Option<Value>,
     pub error: RpcError,
 }
 
 pub fn parse_request(line: &[u8]) -> Result<Request, Rejection> {
     let value: Value = serde_json::from_slice(line)
-        .map_err(|error| reject(Value::Null, ErrorCode::Parse, error.to_string()))?;
+        .map_err(|error| reject(Some(Value::Null), ErrorCode::Parse, error.to_string()))?;
     let Value::Object(mut object) = value else {
         return Err(invalid(Value::Null, "a request must be a JSON object"));
     };
@@ -75,7 +75,7 @@ pub fn parse_request(line: &[u8]) -> Result<Request, Rejection> {
         Some(Value::Array(params)) => params,
         Some(_) => {
             return Err(reject(
-                echo,
+                id,
                 ErrorCode::InvalidParams,
                 "params must be an array",
             ));
@@ -96,10 +96,10 @@ fn request_id(object: &mut Map<String, Value>) -> Result<Option<Value>, Rejectio
 }
 
 fn invalid(id: Value, message: &str) -> Rejection {
-    reject(id, ErrorCode::InvalidRequest, message)
+    reject(Some(id), ErrorCode::InvalidRequest, message)
 }
 
-fn reject(id: Value, code: ErrorCode, message: impl Into<String>) -> Rejection {
+fn reject(id: Option<Value>, code: ErrorCode, message: impl Into<String>) -> Rejection {
     Rejection {
         id,
         error: RpcError::new(code, message),

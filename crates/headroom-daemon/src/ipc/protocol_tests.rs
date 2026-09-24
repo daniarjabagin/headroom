@@ -7,7 +7,7 @@ fn parsed(line: &str) -> Value {
     serde_json::from_str(line).unwrap()
 }
 
-fn rejected(line: &str) -> (Value, i32) {
+fn rejected(line: &str) -> (Option<Value>, i32) {
     let rejection = parse_request(line.as_bytes()).unwrap_err();
     (rejection.id, rejection.error.code.code())
 }
@@ -54,8 +54,10 @@ fn malformed_requests_are_rejected_with_json_rpc_codes() {
         ),
     ];
     for (line, id, code) in cases {
-        assert_eq!(rejected(line), (id, code), "{line}");
+        assert_eq!(rejected(line), (Some(id), code), "{line}");
     }
+    let notification = r#"{"jsonrpc":"2.0","method":"Refresh","params":{"a":1}}"#;
+    assert_eq!(rejected(notification), (None, -32_602));
 }
 
 #[test]

@@ -90,11 +90,7 @@ async fn read_requests(read: OwnedReadHalf, context: Context) -> Ended {
         let delivered = match protocol::parse_request(&line) {
             Ok(request) => handle(request, &context, &mut pending, &mut subscription).await,
             Err(rejection) => {
-                send(
-                    &context.outbox,
-                    protocol::error_line(&rejection.id, &rejection.error),
-                )
-                .await
+                reply(&context.outbox, rejection.id.as_ref(), Err(rejection.error)).await
             }
         };
         if !delivered {
