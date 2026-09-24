@@ -9,29 +9,50 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::*;
 use lossy::ClosedPipe;
 use method::{Receipt, ReceiptMethod};
+use signature::testing::TestSigner;
 
 const BUNDLE: &str = "headroom-0.5.0-x86_64-linux-musl";
 const STDERR_BYTES: usize = 262_144;
+const SIGNED_ASSETS: [&str; 3] = ["SHA256SUMS", "SHA256SUMS.sig", "headroom_0.5.0-1_amd64.deb"];
+
+enum Signed {
+    ByReleaseKey,
+    ByAnotherKey,
+    NotServed,
+}
 
 struct Fixture {
     server: MockServer,
     dir: tempfile::TempDir,
     feed: GithubFeed,
+    signer: TestSigner,
+    release_key: signature::PublicKey,
 }
 
 impl Fixture {
     async fn new(tag: &str) -> Fixture {
+        Fixture::with_assets(tag, &SIGNED_ASSETS).await
+    }
+
+    async fn with_assets(tag: &str, assets: &[&str]) -> Fixture {
         let server = MockServer::start().await;
-        let feed = GithubFeed::new(reqwest::Client::new(), format!("{}/latest", server.uri()));
-        let release = release_json(&server.uri(), tag);
+        let feed = GithubFeed::new(
+            format!("{}/latest", server.uri()),
+            Origins::plain_http("127.0.0.1"),
+        )
+        .unwrap();
+        let release = release_json(&server.uri(), tag, assets);
         Mock::given(path("/latest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(release))
             .mount(&server)
             .await;
+        let signer = TestSigner::new(3);
         Fixture {
             server,
             dir: tempfile::tempdir().unwrap(),
             feed,
+            release_key: signer.public_key(),
+            signer,
         }
     }
 
@@ -40,10 +61,26 @@ impl Fixture {
     }
 
     async fn serve_bundle(&self, listed_digest: Option<&str>) {
+        self.serve_signed_bundle(listed_digest, Signed::ByReleaseKey)
+            .await;
+    }
+
+    async fn serve_signed_bundle(&self, listed_digest: Option<&str>, signed: Signed) {
         let archive = self.bundle_archive();
         let digest =
             listed_digest.map_or_else(|| hex::encode(Sha256::digest(&archive)), str::to_owned);
         let sums = format!("{digest}  {BUNDLE}.tar.gz\n");
+        let signature = match signed {
+            Signed::ByReleaseKey => Some(self.signer.sign(sums.as_bytes())),
+            Signed::ByAnotherKey => Some(TestSigner::new(4).sign(sums.as_bytes())),
+            Signed::NotServed => None,
+        };
+        if let Some(signature) = signature {
+            Mock::given(path("/SHA256SUMS.sig"))
+                .respond_with(ResponseTemplate::new(200).set_body_string(signature))
+                .mount(&self.server)
+                .await;
+        }
         Mock::given(path("/SHA256SUMS"))
             .respond_with(ResponseTemplate::new(200).set_body_string(sums))
             .mount(&self.server)
@@ -77,15 +114,17 @@ impl Fixture {
     }
 }
 
-fn release_json(base: &str, tag: &str) -> serde_json::Value {
+fn release_json(base: &str, tag: &str, names: &[&str]) -> serde_json::Value {
     let asset = |name: &str| serde_json::json!({ "name": name, "browser_download_url": format!("{base}/{name}") });
+    let mut assets: Vec<serde_json::Value> = names.iter().map(|name| asset(name)).collect();
+    assets.push(asset(&format!("{BUNDLE}.tar.gz")));
     serde_json::json!({
         "tag_name": tag,
         "html_url": format!("https://github.com/daniarjabagin/headroom/releases/tag/{tag}"),
         "draft": false,
         "prerelease": false,
         "published_at": "2026-10-01T09:20:02Z",
-        "assets": [asset("SHA256SUMS"), asset(&format!("{BUNDLE}.tar.gz")), asset("headroom_0.5.0-1_amd64.deb")]
+        "assets": assets
     })
 }
 
@@ -109,6 +148,7 @@ fn updater<'a>(fixture: &'a Fixture, current: &'a Version, detected: &'a Detecte
         feed: &fixture.feed,
         current,
         arch: "x86_64",
+        release_key: &fixture.release_key,
         detected,
         on_path: &gnome_only,
     }
@@ -158,6 +198,7 @@ async fn a_verified_bundle_runs_its_installer_with_the_receipt_options() {
     let expected = [
         r#"{"event":"step","text":"Checking for a new release…"}"#,
         r#"{"event":"step","text":"Downloading Headroom 0.5.0…"}"#,
+        r#"{"event":"step","text":"Verifying the signature…"}"#,
         r#"{"event":"step","text":"Verifying the checksum…"}"#,
         r#"{"event":"step","text":"Unpacking…"}"#,
         r#"{"event":"step","text":"Installing the binary"}"#,
@@ -206,6 +247,42 @@ async fn a_checksum_mismatch_aborts_before_installing() {
         "{error}"
     );
     assert_eq!(read_args(&fixture.args_file()), None);
+}
+
+#[tokio::test]
+async fn a_signature_by_another_key_aborts_before_downloading_the_bundle() {
+    let fixture = Fixture::new("v0.5.0").await;
+    fixture
+        .serve_signed_bundle(None, Signed::ByAnotherKey)
+        .await;
+    let (outcome, events, _) = run_update(&fixture, &script_install(&[]), true).await;
+    let error = outcome.unwrap_err().to_string();
+    assert!(
+        error.contains("not signed by the Headroom release key"),
+        "{error}"
+    );
+    assert!(!events.contains("Verifying the checksum"));
+    let requested = fixture.server.received_requests().await.unwrap();
+    assert!(requested.iter().all(|r| !r.url.path().ends_with(".tar.gz")));
+    assert_eq!(read_args(&fixture.args_file()), None);
+}
+
+#[tokio::test]
+async fn a_missing_signature_is_a_hard_failure() {
+    let unserved = Fixture::new("v0.5.0").await;
+    unserved.serve_signed_bundle(None, Signed::NotServed).await;
+    let (outcome, _, _) = run_update(&unserved, &script_install(&[]), true).await;
+    let error = format!("{:#}", outcome.unwrap_err());
+    assert!(error.contains("SHA256SUMS.sig"), "{error}");
+    assert_eq!(read_args(&unserved.args_file()), None);
+    let unlisted = Fixture::with_assets("v0.5.0", &["SHA256SUMS"]).await;
+    unlisted.serve_bundle(None).await;
+    let (outcome, _, _) = run_update(&unlisted, &script_install(&[]), true).await;
+    assert_eq!(
+        outcome.unwrap_err().to_string(),
+        "release 0.5.0 has no SHA256SUMS.sig"
+    );
+    assert_eq!(read_args(&unlisted.args_file()), None);
 }
 
 #[tokio::test]

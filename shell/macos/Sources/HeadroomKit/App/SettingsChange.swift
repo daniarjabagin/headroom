@@ -21,6 +21,7 @@ public enum SettingsChange: Sendable, Hashable {
     case resetFormat(ResetFormat)
     case panelLabel(PanelLabel)
     case translucent(Bool)
+    case combineAccounts(Bool)
     case section(DisplaySection, Bool)
     case reducedMotion(Bool)
     case refreshInterval(Int64)
@@ -36,6 +37,7 @@ public enum SettingsChange: Sendable, Hashable {
         case .resetFormat(let value): Self.display("reset_format", .string(value.rawValue))
         case .panelLabel(let value): Self.display("panel_label", .string(value.rawValue))
         case .translucent(let value): Self.display("translucent", .bool(value))
+        case .combineAccounts(let value): Self.display("combine_accounts", .bool(value))
         case .section(let section, let value): Self.display(section.rawValue, .bool(value))
         case .reducedMotion(let value): ["reduced_motion": .bool(value)]
         case .refreshInterval(let seconds): ["refresh_interval_secs": .integer(Self.clampedInterval(seconds))]
@@ -54,6 +56,7 @@ public enum SettingsChange: Sendable, Hashable {
         case .resetFormat(let value): result.display.resetFormat = value
         case .panelLabel(let value): result.display.panelLabel = value
         case .translucent(let value): result.display.translucent = value
+        case .combineAccounts(let value): result.display.combineAccounts = value
         case .section(let section, let value): result.display.set(section, value)
         case .reducedMotion(let value): result.reducedMotion = value
         case .refreshInterval(let seconds): result.refreshIntervalSecs = Self.clampedInterval(seconds)

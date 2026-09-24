@@ -6,7 +6,7 @@ The logos in this directory come from [Simple Icons](https://simpleicons.org) (C
 Simple Icons slug and kept unmodified.
 
 The logos are trademarks of their owners (OpenAI, Anthropic, Anomaly/OpenCode, OpenRouter, Z.ai,
-Moonshot AI, MiniMax, Cline, GitHub, Anysphere, Google, Ollama). Headroom uses them only to identify
+Moonshot AI, MiniMax, Cline, GitHub, Anysphere, Google, Ollama, Warp, Quora/Poe). Headroom uses them only to identify
 the service whose usage is shown, and is not affiliated with or endorsed by any of them.
 
 | provider id | file | color in Headroom |
@@ -23,6 +23,8 @@ the service whose usage is shown, and is not affiliated with or endorsed by any 
 | `cursor` | `cursor.svg` | monochrome |
 | `antigravity` | `google.svg` | monochrome |
 | `ollama` | `ollama.svg` | monochrome |
+| `warp` | `warp.svg` | monochrome |
+| `poe` | `poe.svg` | monochrome |
 
-`grok` (xAI) and `devin` have no Simple Icons entry; shells show a generic provider icon for them
+`grok` (xAI), `devin` and `kilo` (Kilo Code) have no Simple Icons entry; shells show a generic provider icon for them
 and for any other provider without a logo.

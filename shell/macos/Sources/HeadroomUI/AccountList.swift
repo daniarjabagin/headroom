@@ -110,7 +110,7 @@
             let move = target(for: current)
             Motion.perform(Motion.standard, reduced: reducedMotion) { drag = nil }
             guard let move, move.from != move.to else { return }
-            reorder(AccountOrder.moveItem(sections.map(\.id), from: move.from, to: move.to))
+            reorder(AccountOrder.moveItem(sections, from: move.from, to: move.to).flatMap(\.memberIDs))
         }
     }
 #endif

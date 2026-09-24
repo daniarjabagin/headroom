@@ -41,8 +41,11 @@
         }
 
         private var isEmpty: Bool {
-            if case .limits(let limits) = section.body { return limits.isEmpty }
-            return false
+            switch section.body {
+            case .limits(let limits): limits.isEmpty
+            case .combined(let limits): limits.isEmpty
+            case .blocked: false
+            }
         }
 
         @ViewBuilder
@@ -54,6 +57,8 @@
                 LimitsView(
                     accountID: section.id, limits: limits, context: context, now: now, expanded: expanded,
                     toggleExpanded: toggleExpanded)
+            case .combined(let limits):
+                CombinedLimitsView(sectionID: section.id, limits: limits, context: context, now: now)
             }
         }
     }
@@ -93,7 +98,7 @@
         let toggleExpanded: @MainActor () -> Void
 
         var body: some View {
-            ForEach(limits.notices) { notice in noticeView(notice) }
+            ForEach(limits.notices) { notice in NoticeRow(notice: notice, context: context) }
             if let rows = limits.skeletonRows {
                 SkeletonRows(count: rows)
             }
@@ -126,19 +131,23 @@
                 ForEach(limits.extras) { row in ValueRow(accountID: accountID, row: row) }
             }
         }
+    }
 
-        @ViewBuilder
-        private func noticeView(_ notice: NoticeModel) -> some View {
+    struct NoticeRow: View {
+        let notice: NoticeModel
+        let context: PopupContext
+
+        var body: some View {
             if notice.kind == .info {
                 NoticeLine(text: notice.title)
             } else {
                 NoticePlate(
                     kind: notice.kind, title: notice.title, detail: notice.detail, note: nil,
-                    actions: retryActions(notice))
+                    actions: retryActions)
             }
         }
 
-        private func retryActions(_ notice: NoticeModel) -> [NoticeAction] {
+        private var retryActions: [NoticeAction] {
             guard let accountID = notice.retryAccountID else { return [] }
             let actions = context.actions
             return [

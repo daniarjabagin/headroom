@@ -22,6 +22,7 @@ fn defaults_match_the_spec() {
             "show_trend": true,
             "show_forecast": true,
             "translucent": false,
+            "combine_accounts": false,
             "hidden_windows": {}
         },
         "updates": { "check": true }
@@ -42,6 +43,7 @@ fn missing_fields_take_defaults() {
     assert_eq!(display.theme, Theme::Dark);
     assert!(display.show_spend);
     assert!(!display.translucent);
+    assert!(!display.combine_accounts);
 }
 
 #[test]
@@ -58,6 +60,7 @@ fn display_options_round_trip() {
             "show_trend": false,
             "show_forecast": false,
             "translucent": true,
+            "combine_accounts": true,
             "hidden_windows": { "codex:abc": ["weekly", "model:spark"] }
         }
     });
@@ -69,6 +72,7 @@ fn display_options_round_trip() {
     assert_eq!(display.reset_format, ResetFormat::Exact);
     assert_eq!(display.panel_label, PanelLabel::Window);
     assert!(display.translucent);
+    assert!(display.combine_accounts);
     assert!(display.is_hidden("codex:abc", "model:spark"));
     assert!(!display.is_hidden("codex:abc", "session"));
     assert!(!display.is_hidden("claude:x", "weekly"));

@@ -365,4 +365,10 @@ jobs:
           persist-credentials: false
 
       - name: shellcheck
-        run: shellcheck packaging/*.sh packaging/release/*.sh packaging/homebrew/*.sh .github/scripts/*.sh shell/macos/script/*.sh
+        run: shellcheck packaging/*.sh packaging/release/*.sh packaging/homebrew/*.sh packaging/tests/*.sh .github/scripts/*.sh shell/macos/script/*.sh
+
+      - name: Release signing script tests
+        run: bash packaging/tests/release-signing-test.sh
+
+      - name: Install script tests
+        run: bash packaging/tests/install-test.sh

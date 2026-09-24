@@ -1,0 +1,17 @@
+{
+  "data": {
+    "user": {
+      "__typename": "UserOutput",
+      "user": {
+        "requestLimitInfo": {
+          "isUnlimited": true,
+          "nextRefreshTime": null,
+          "requestLimit": 0,
+          "requestsUsedSinceLastRefresh": 87
+        },
+        "bonusGrants": [],
+        "workspaces": []
+      }
+    }
+  }
+}

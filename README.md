@@ -108,6 +108,9 @@ default.</sub>
 | **Cursor** | Total, Auto, API and request usage, on-demand spend | Detected from the Cursor app or `agent login` (one account) |
 | **Antigravity** | Session and weekly limits, Claude model limits | Detected from the running app or `agy` (one account). **Linux only** for now |
 | **Ollama Cloud** | Session, weekly and monthly limits, extra usage | Detected from `~/.ollama/id_ed25519` when linked to ollama.com (one account) |
+| **Kilo Code** | Credit balance in USD (personal or organization), used-up warning | Sign in with `kilo`, paste a Kilo API key, or detected from `kilo auth login` |
+| **Warp** | Monthly credits and reset time, bonus credits | Paste a Warp API key (`wk-…`) |
+| **Poe** | Point balance | Paste a Poe API key |
 
 On macOS, Claude Code and Codex sign-ins are read from the Keychain (read-only, after an "Always
 Allow" prompt), Copilot asks `gh`, which keeps its tokens there too, and API keys you add go into
@@ -148,8 +151,10 @@ The recommended way on every distribution:
 curl -fsSL https://github.com/daniarjabagin/headroom/releases/latest/download/get-headroom.sh | sh
 ```
 
-It downloads the static binary for x86_64 or aarch64, verifies it against the release's
-`SHA256SUMS` and installs into `~/.local`: the binary, the systemd user service, D-Bus activation,
+It downloads the static binary for x86_64 or aarch64, checks the Ed25519 signature of the
+release's `SHA256SUMS` (`SHA256SUMS.sig`, with OpenSSL 1.1.1 or newer; without it the script warns
+and relies on the checksums alone), verifies the binary against `SHA256SUMS` and installs into
+`~/.local`: the binary, the systemd user service, D-Bus activation,
 the GNOME Shell extension and the Plasma widget. No root needed, and Headroom updates itself in one
 click.
 
@@ -184,7 +189,13 @@ gnome-extensions enable headroom@daniarjabagin.github.io   # GNOME; on Plasma, a
 ```
 
 Verify any download with `sha256sum -c SHA256SUMS --ignore-missing` or
-`gh attestation verify <file> --repo daniarjabagin/headroom`.
+`gh attestation verify <file> --repo daniarjabagin/headroom`. `SHA256SUMS` itself is signed with the
+Headroom release key ([`release-signing-key.pub.pem`](packaging/release/release-signing-key.pub.pem)):
+
+```sh
+openssl base64 -d -A -in SHA256SUMS.sig -out SHA256SUMS.sig.raw
+openssl pkeyutl -verify -rawin -pubin -inkey release-signing-key.pub.pem -in SHA256SUMS -sigfile SHA256SUMS.sig.raw
+```
 
 ### Linux: from source
 
@@ -252,7 +263,8 @@ troubleshooting.
 **Headroom X is available**:
 
 - Installed with the one-line installer: press **Update**, or run `headroom update` in a terminal.
-  It downloads the release, verifies it against `SHA256SUMS` and reinstalls with the same options
+  It downloads the release, checks the signature of `SHA256SUMS` against the release key built
+  into Headroom, verifies the download against `SHA256SUMS` and reinstalls with the same options
   you chose the first time.
 - Installed from a package: **How to update** shows what to do; download the new package from the
   [release page](https://github.com/daniarjabagin/headroom/releases/latest) and install it the same

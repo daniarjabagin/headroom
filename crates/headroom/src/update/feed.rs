@@ -7,23 +7,37 @@ use jiff::{SignedDuration, Timestamp};
 use reqwest::header::{ACCEPT, ETAG, HeaderMap, IF_NONE_MATCH, USER_AGENT};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
 
+use super::origins::Origins;
+
 const AGENT: &str = concat!("headroom/", env!("CARGO_PKG_VERSION"));
 const GITHUB_JSON: &str = "application/vnd.github+json";
 const API_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_mins(5);
 const RATE_LIMIT_RESET: &str = "x-ratelimit-reset";
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+const API_BODY_LIMIT: usize = 1024 * 1024;
 
 pub struct GithubFeed {
     client: Client,
     url: String,
+    origins: Origins,
 }
 
 impl GithubFeed {
-    pub fn new(client: Client, url: impl Into<String>) -> GithubFeed {
-        GithubFeed {
+    pub fn new(url: impl Into<String>, origins: Origins) -> Result<GithubFeed> {
+        let client = Client::builder()
+            .user_agent(AGENT)
+            .connect_timeout(CONNECT_TIMEOUT)
+            .https_only(origins.https_only())
+            .redirect(origins.redirect_policy())
+            .build()
+            .map_err(plain)
+            .context("cannot create the HTTP client for updates")?;
+        Ok(GithubFeed {
             client,
             url: url.into(),
-        }
+            origins,
+        })
     }
 
     pub async fn release(&self) -> Result<GithubRelease> {
@@ -32,11 +46,14 @@ impl GithubFeed {
         if !status.is_success() {
             bail!("GitHub answered {status} for the latest release");
         }
-        let body = response.text().await.map_err(plain)?;
+        let body = read_text(response, API_BODY_LIMIT).await?;
         Ok(GithubRelease::parse(&body)?)
     }
 
-    pub async fn download(&self, url: &str) -> Result<Vec<u8>> {
+    pub async fn download(&self, url: &str, limit: usize) -> Result<Vec<u8>> {
+        if !self.origins.allows_text(url) {
+            bail!("refusing to download {url}: it is not a GitHub release address over HTTPS");
+        }
         let response = self
             .client
             .get(url)
@@ -50,7 +67,9 @@ impl GithubFeed {
         if !status.is_success() {
             bail!("could not download {url}: the server answered {status}");
         }
-        Ok(response.bytes().await.map_err(plain)?.to_vec())
+        read_capped(response, limit)
+            .await
+            .with_context(|| format!("could not download {url}"))
     }
 
     fn api(&self, etag: Option<&str>) -> RequestBuilder {
@@ -84,11 +103,34 @@ async fn interpret(response: Response, now: Timestamp) -> Result<FeedResponse, F
         }),
         status if status.is_success() => {
             let etag = header_text(response.headers(), ETAG.as_str());
-            let body = response.text().await.map_err(failed)?;
+            let body = read_text(response, API_BODY_LIMIT)
+                .await
+                .map_err(|error| FeedError::Failed(format!("{error:#}")))?;
             Ok(FeedResponse::Modified { body, etag })
         }
         status => Err(FeedError::Failed(format!("GitHub answered {status}"))),
     }
+}
+
+async fn read_text(response: Response, limit: usize) -> Result<String> {
+    let body = read_capped(response, limit).await?;
+    String::from_utf8(body).context("GitHub answered with text that is not UTF-8")
+}
+
+async fn read_capped(mut response: Response, limit: usize) -> Result<Vec<u8>> {
+    let too_large = || anyhow::anyhow!("the response is larger than {limit} bytes");
+    let declared = response.content_length().unwrap_or(0);
+    if usize::try_from(declared).map_or(true, |declared| declared > limit) {
+        return Err(too_large());
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(plain)? {
+        if body.len() + chunk.len() > limit {
+            return Err(too_large());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
 }
 
 fn rate_limit_wait(headers: &HeaderMap, now: Timestamp) -> Option<SignedDuration> {

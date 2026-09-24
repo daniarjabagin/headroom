@@ -1,0 +1,16 @@
+{
+  "user": {
+    "email": "user@example.com",
+    "name": "Example User",
+    "image": null
+  },
+  "organizations": [
+    {
+      "id": "org-0000-fake",
+      "name": "Example Org",
+      "role": "member"
+    }
+  ],
+  "selectedOrganizationId": null,
+  "hasPersonalAccount": true
+}

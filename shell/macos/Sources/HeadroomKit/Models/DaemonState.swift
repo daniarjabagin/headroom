@@ -12,13 +12,30 @@ public struct DaemonState: Decodable, Sendable, Hashable {
     public let usage: [Usage]
     public let spend: Spend
     public let appVersion: String?
+    public let combined: [CombinedGroup]
 
     enum CodingKeys: String, CodingKey {
-        case version, offline, display, headline, accounts, usage, spend
+        case version, offline, display, headline, accounts, usage, spend, combined
         case appVersion = "app_version"
         case generatedAt = "generated_at"
         case nextRefreshAt = "next_refresh_at"
         case lastSuccessAt = "last_success_at"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        generatedAt = try container.decode(Timestamp.self, forKey: .generatedAt)
+        nextRefreshAt = try container.decodeIfPresent(Timestamp.self, forKey: .nextRefreshAt)
+        lastSuccessAt = try container.decodeIfPresent(Timestamp.self, forKey: .lastSuccessAt)
+        offline = try container.decode(Bool.self, forKey: .offline)
+        display = try container.decode(DisplaySettings.self, forKey: .display)
+        headline = try container.decodeIfPresent(Headline.self, forKey: .headline)
+        accounts = try container.decode([Account].self, forKey: .accounts)
+        usage = try container.decode([Usage].self, forKey: .usage)
+        spend = try container.decode(Spend.self, forKey: .spend)
+        appVersion = try container.decodeIfPresent(String.self, forKey: .appVersion)
+        combined = try container.decodeIfPresent([CombinedGroup].self, forKey: .combined) ?? []
     }
 }
 
@@ -30,21 +47,39 @@ public struct Headline: Decodable, Sendable, Hashable {
     public let accountID: String
     public let provider: String
     public let providerName: String
-    public let accountLabel: String
+    public let accountLabel: String?
     public let window: String
     public let windowLabel: String
     public let usedPercent: Double
     public let remainingPercent: Double
     public let tone: Tone
+    public let combined: Bool
+    public let accountCount: Int?
 
     enum CodingKeys: String, CodingKey {
-        case provider, window, tone
+        case provider, window, tone, combined
         case accountID = "account_id"
         case providerName = "provider_name"
         case accountLabel = "account_label"
         case windowLabel = "window_label"
         case usedPercent = "used_percent"
         case remainingPercent = "remaining_percent"
+        case accountCount = "account_count"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        accountID = try container.decode(String.self, forKey: .accountID)
+        provider = try container.decode(String.self, forKey: .provider)
+        providerName = try container.decode(String.self, forKey: .providerName)
+        accountLabel = try container.decodeIfPresent(String.self, forKey: .accountLabel)
+        window = try container.decode(String.self, forKey: .window)
+        windowLabel = try container.decode(String.self, forKey: .windowLabel)
+        usedPercent = try container.decode(Double.self, forKey: .usedPercent)
+        remainingPercent = try container.decode(Double.self, forKey: .remainingPercent)
+        tone = try container.decode(Tone.self, forKey: .tone)
+        combined = try container.decodeIfPresent(Bool.self, forKey: .combined) ?? false
+        accountCount = try container.decodeIfPresent(Int.self, forKey: .accountCount)
     }
 }
 
