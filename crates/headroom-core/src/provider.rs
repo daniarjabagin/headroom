@@ -70,6 +70,14 @@ pub enum ProviderError {
     Unsupported(String),
 }
 
+impl ProviderError {
+    /// True when discovery found no tool or sign-in, which is not a failure.
+    #[must_use]
+    pub fn is_nothing_to_discover(&self) -> bool {
+        matches!(self, ProviderError::NotSignedIn)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,5 +186,13 @@ mod tests {
             serde_json::from_str::<ProviderError>(&json).unwrap(),
             lapsed
         );
+    }
+
+    #[test]
+    fn only_a_missing_sign_in_means_nothing_to_discover() {
+        assert!(ProviderError::NotSignedIn.is_nothing_to_discover());
+        assert!(!ProviderError::SignInExpired.is_nothing_to_discover());
+        assert!(!ProviderError::Network("down".into()).is_nothing_to_discover());
+        assert!(!ProviderError::LocalData("bad".into()).is_nothing_to_discover());
     }
 }

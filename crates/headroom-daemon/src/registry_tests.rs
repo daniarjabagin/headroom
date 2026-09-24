@@ -129,3 +129,11 @@ async fn rescan_starts_reading_new_usage_homes() {
     .await;
     assert_eq!(run.harness.core.state().spend.today.total_tokens, 33);
 }
+
+#[test]
+fn missing_sign_ins_log_at_debug_and_real_failures_warn() {
+    assert_eq!(failure_level(&ProviderError::NotSignedIn), Level::DEBUG);
+    assert_eq!(failure_level(&ProviderError::SignInExpired), Level::WARN);
+    let broken = ProviderError::LocalData("unreadable".into());
+    assert_eq!(failure_level(&broken), Level::WARN);
+}
