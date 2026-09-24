@@ -10,6 +10,7 @@ mod meter;
 mod motion;
 mod notice;
 pub mod popup;
+pub mod prefs;
 mod quota_row;
 mod spend_card;
 mod status_views;

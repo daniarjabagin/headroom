@@ -1,4 +1,5 @@
 mod ru;
+mod ru_prefs;
 
 use crate::payload::Language;
 

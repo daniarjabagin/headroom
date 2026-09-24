@@ -1,4 +1,5 @@
 mod handlers;
+mod prefs;
 mod render;
 mod runtime;
 mod subprocess;
@@ -13,7 +14,10 @@ use gtk::{gdk, gio, glib};
 use crate::events::{Command, TrayUpdate};
 use crate::icon::{Pixmap, SIZES, pixmap_from_rgba};
 use crate::palette::Palettes;
+use crate::preferences::registry::{ProviderInfo, RegistryError};
+use crate::preferences::sync::SettingsSync;
 use crate::ui::context::{Tick, UiState};
+use crate::ui::prefs::SettingsWindow;
 use crate::ui::style::Styles;
 use crate::ui::svg_texture_at;
 use crate::ui::window::PopupWindow;
@@ -23,12 +27,14 @@ type Running = (Rc<App>, gio::ApplicationHoldGuard);
 
 pub const APP_ID: &str = "io.github.daniarjabagin.HeadroomTray";
 pub const TOGGLE_FLAG: &str = "--toggle";
+pub const SETTINGS_FLAG: &str = "--settings";
 const MARK_COLOR: &str = "#bebebe";
 
 #[derive(Default)]
 struct Model {
     view: View,
-    reduced_motion_setting: bool,
+    settings: SettingsSync,
+    providers: Option<Result<Vec<ProviderInfo>, RegistryError>>,
     sign_in: BTreeSet<String>,
     ui: UiState,
     refresh_pressed: bool,
@@ -46,6 +52,7 @@ pub struct App {
     commands: tokio::sync::mpsc::UnboundedSender<Command>,
     tray: tokio::sync::mpsc::UnboundedSender<TrayUpdate>,
     ticker: RefCell<Option<glib::SourceId>>,
+    prefs: RefCell<Option<Rc<SettingsWindow>>>,
 }
 
 fn mark_pixmaps() -> Vec<Pixmap> {
@@ -86,6 +93,7 @@ impl App {
             commands: channels.commands,
             tray: channels.tray,
             ticker: RefCell::new(None),
+            prefs: RefCell::new(None),
         });
         app.listen(channels.events);
         app.watch_theme();
@@ -167,12 +175,15 @@ pub fn run(args: &[String]) -> glib::ExitCode {
         Err(error) => tracing::error!(%error, "headroom-tray could not start"),
     });
     application.connect_command_line(move |_, line| {
-        let toggle = line
-            .arguments()
-            .iter()
-            .any(|arg| arg.to_str() == Some(TOGGLE_FLAG));
+        let has = |flag: &str| {
+            line.arguments()
+                .iter()
+                .any(|arg| arg.to_str() == Some(flag))
+        };
         if let Some((app, _)) = state.borrow().as_ref() {
-            if toggle {
+            if has(SETTINGS_FLAG) {
+                app.open_settings();
+            } else if has(TOGGLE_FLAG) {
                 app.toggle(None);
             }
             return glib::ExitCode::SUCCESS;

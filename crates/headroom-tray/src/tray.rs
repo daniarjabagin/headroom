@@ -79,6 +79,7 @@ impl ksni::Tray for HeadroomTray {
         vec![
             menu_item(&self.labels.open, MenuAction::Open),
             menu_item(&self.labels.refresh, MenuAction::RefreshNow),
+            menu_item(&self.labels.settings, MenuAction::Settings),
             MenuItem::Separator,
             menu_item(&self.labels.quit, MenuAction::Quit),
         ]

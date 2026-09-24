@@ -8,10 +8,10 @@ use super::subprocess::{launch, run_update};
 use crate::events::{Command, Event, MenuAction};
 use crate::i18n::{Lang, system_locale};
 use crate::payload::parse_state;
+use crate::preferences::change::Change;
+use crate::preferences::registry::parse_providers;
 use crate::providers::{sign_in_command, terminal_sign_in};
-use crate::settings::{
-    reduced_motion_setting, toggled_reset_format_patch, toggled_value_mode_patch,
-};
+use crate::settings::{toggled_reset_format, toggled_value_mode};
 use crate::ui::context::Action;
 use crate::update::UpdateRun;
 use crate::view::View;
@@ -23,15 +23,26 @@ impl App {
         match event {
             Event::State(json) => self.receive_state(&json),
             Event::Settings(json) => self.receive_settings(&json),
-            Event::Providers(json) => self.model.borrow_mut().sign_in = terminal_sign_in(&json),
-            Event::Vanished => self.set_view(View::Unavailable {
-                starting: false,
-                error: None,
-            }),
+            Event::Providers(json) => self.receive_providers(&json),
+            Event::Vanished => {
+                self.model.borrow_mut().settings.forget();
+                self.set_view(View::Unavailable {
+                    starting: false,
+                    error: None,
+                });
+            }
             Event::CallFailed(message) => self.call_failed(message),
             Event::RefreshSettled(succeeded) => self.refresh_settled(succeeded),
             Event::ServiceStarted(result) => self.service_started(result),
+            Event::SettingsWritten(result) => self.settings_written(result),
+            Event::AccountsWritten(result) => {
+                if let Err(message) = result {
+                    self.toast(&message);
+                }
+            }
+            Event::Restored(result) => self.restored(&result),
             Event::OpenRequested | Event::Menu(MenuAction::Open) => self.show(None),
+            Event::Menu(MenuAction::Settings) => self.open_settings(),
             Event::Activate { x, y } => self.toggle(Some((x, y))),
             Event::Menu(MenuAction::RefreshNow) => self.act(Action::RefreshNow),
             Event::Menu(MenuAction::Quit) => self.application.quit(),
@@ -45,6 +56,13 @@ impl App {
         self.model.borrow_mut().view = view;
         self.render(false);
         self.sync_tray();
+        self.sync_prefs();
+    }
+
+    fn receive_providers(&self, json: &str) {
+        let mut model = self.model.borrow_mut();
+        model.sign_in = terminal_sign_in(json);
+        model.providers = Some(parse_providers(json));
     }
 
     fn receive_state(self: &Rc<Self>, json: &str) {
@@ -60,15 +78,14 @@ impl App {
     }
 
     fn receive_settings(self: &Rc<Self>, json: &str) {
-        let reduced = reduced_motion_setting(json);
-        let changed = {
-            let mut model = self.model.borrow_mut();
-            let changed = model.reduced_motion_setting != reduced;
-            model.reduced_motion_setting = reduced;
-            changed
-        };
-        if changed {
-            self.render(false);
+        let received = self.model.borrow_mut().settings.receive(json);
+        match received {
+            Ok(true) => {
+                self.render(false);
+                self.sync_prefs();
+            }
+            Ok(false) => {}
+            Err(error) => tracing::warn!(%error, "ignoring unreadable settings"),
         }
     }
 
@@ -105,9 +122,10 @@ impl App {
             model.ui.service_error = result.err();
         }
         self.render(false);
+        self.sync_prefs();
     }
 
-    fn lang(&self) -> Lang {
+    pub(super) fn lang(&self) -> Lang {
         let language = self
             .model
             .borrow()
@@ -119,15 +137,15 @@ impl App {
         Lang::resolve(language, system_locale().as_deref())
     }
 
-    fn patch(&self, patch: impl Fn(&crate::payload::Display) -> String) {
-        let patch = self
+    fn patch(&self, change: impl Fn(&crate::payload::Display) -> Change) {
+        let change = self
             .model
             .borrow()
             .view
             .state()
-            .map(|state| patch(&state.display));
-        if let Some(patch) = patch {
-            self.send(Command::UpdateSettings(patch));
+            .map(|state| change(&state.display));
+        if let Some(change) = change {
+            self.apply_change(&change);
         }
     }
 
@@ -135,8 +153,9 @@ impl App {
         match action {
             Action::RefreshNow => self.refresh_now(),
             Action::Refresh(id) => self.send(Command::Refresh(id)),
-            Action::ToggleValueMode => self.patch(toggled_value_mode_patch),
-            Action::ToggleResetFormat => self.patch(toggled_reset_format_patch),
+            Action::ToggleValueMode => self.patch(toggled_value_mode),
+            Action::ToggleResetFormat => self.patch(toggled_reset_format),
+            Action::OpenSettings => self.open_settings(),
             Action::SelectPeriod(period) => self.update_ui(|ui| ui.period = period),
             Action::SetExpanded(id, open) => {
                 let expanded = &mut self.model.borrow_mut().ui.expanded;
@@ -165,6 +184,7 @@ impl App {
     fn update_ui(self: &Rc<Self>, change: impl FnOnce(&mut crate::ui::context::UiState)) {
         change(&mut self.model.borrow_mut().ui);
         self.render(false);
+        self.sync_prefs();
     }
 
     fn refresh_now(self: &Rc<Self>) {
@@ -210,6 +230,7 @@ impl App {
                     });
                 }
             },
+            self.lang(),
         );
     }
 }

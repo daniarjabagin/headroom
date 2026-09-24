@@ -225,6 +225,7 @@ const PLURALS: &[(&str, [&str; 3])] = &[
 pub(super) fn lookup(msgid: &str) -> Option<&'static str> {
     CATALOG
         .iter()
+        .chain(super::ru_prefs::CATALOG)
         .find(|(key, _)| *key == msgid)
         .map(|(_, value)| *value)
 }
@@ -232,6 +233,7 @@ pub(super) fn lookup(msgid: &str) -> Option<&'static str> {
 pub(super) fn plural(msgid: &str) -> Option<[&'static str; 3]> {
     PLURALS
         .iter()
+        .chain(super::ru_prefs::PLURALS)
         .find(|(key, _)| *key == msgid)
         .map(|(_, forms)| *forms)
 }

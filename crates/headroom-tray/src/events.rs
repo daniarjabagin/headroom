@@ -4,6 +4,7 @@ use crate::icon::Pixmap;
 pub enum MenuAction {
     Open,
     RefreshNow,
+    Settings,
     Quit,
 }
 
@@ -16,6 +17,9 @@ pub enum Event {
     CallFailed(String),
     RefreshSettled(bool),
     ServiceStarted(Result<(), String>),
+    SettingsWritten(Result<(), String>),
+    AccountsWritten(Result<(), String>),
+    Restored(Result<(), String>),
     OpenRequested,
     Activate { x: i32, y: i32 },
     Menu(MenuAction),
@@ -27,13 +31,24 @@ pub enum Command {
     RefreshNow,
     Refresh(String),
     UpdateSettings(String),
+    ReloadSettings,
+    Account(AccountCommand),
     StartService,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AccountCommand {
+    SetLabel { account_id: String, label: String },
+    SetHidden { account_id: String, hidden: bool },
+    SetOrder(Vec<String>),
+    Restore(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MenuLabels {
     pub open: String,
     pub refresh: String,
+    pub settings: String,
     pub quit: String,
 }
 

@@ -90,6 +90,14 @@ pub fn footer(ctx: &Ctx, view: &View, now: Timestamp) -> gtk::Box {
     texts.append(&label(&ctx.version, &["headroom-footer-text"]));
     texts.append(&status_label(ctx, view, now));
     bar.append(&texts);
+    let settings = button(
+        &icon("emblem-system-symbolic", FOOTER_ICON, &[]),
+        &["headroom-icon-button"],
+        ctx.action(Action::OpenSettings),
+    );
+    settings.set_valign(gtk::Align::Center);
+    settings.set_tooltip_text(Some(ctx.locale.lang.tr("Settings")));
+    bar.append(&settings);
     let quit = button(
         &icon("application-exit-symbolic", FOOTER_ICON, &[]),
         &["headroom-icon-button"],
