@@ -17,10 +17,12 @@
     "show_trend": true,
     "show_forecast": true,
     "translucent": false,
+    "combine_accounts": false,
     "hidden_windows": {}
   },
   "headline": null,
   "accounts": [],
+  "combined": [],
   "usage": [],
   "spend": {
     "today": {

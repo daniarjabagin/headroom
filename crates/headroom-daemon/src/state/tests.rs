@@ -18,7 +18,7 @@ use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_ho
 const NOW: &str = "2026-09-23T10:00:00Z";
 const SNAPSHOT_APP_VERSION: &str = "0.0.0-snapshot";
 
-fn record(provider: ProviderId, name: &str, order: i64) -> AccountRecord {
+pub(super) fn record(provider: ProviderId, name: &str, order: i64) -> AccountRecord {
     AccountRecord {
         reference: account(provider, name),
         label: None,
@@ -87,7 +87,7 @@ fn claude_usage() -> headroom_core::usage::UsageSummary {
     aggregate(&events, &FlatPrices, &TimeZone::UTC, ts(NOW))
 }
 
-fn sample_model() -> Model {
+pub(super) fn sample_model() -> Model {
     let mut work = record(CODEX, "work", 0);
     work.label = Some("Work".into());
     let claude = record(CLAUDE, "main", 1);
@@ -133,7 +133,7 @@ fn sample_model() -> Model {
     model
 }
 
-fn assemble_sample(model: &Model) -> StatePayload {
+pub(super) fn assemble_sample(model: &Model) -> StatePayload {
     let homes = HomeDisplay::new(Some(PathBuf::from("/home/ada")));
     let ctx = AssembleContext {
         now: ts(NOW),
@@ -144,7 +144,7 @@ fn assemble_sample(model: &Model) -> StatePayload {
     assemble(model, &ctx)
 }
 
-fn check_snapshot(name: &str, expected: &str, payload: &StatePayload) {
+pub(super) fn check_snapshot(name: &str, expected: &str, payload: &StatePayload) {
     assert_eq!(payload.app_version.as_deref(), Some(payload::APP_VERSION));
     let release_independent = StatePayload {
         app_version: Some(SNAPSHOT_APP_VERSION.to_owned()),

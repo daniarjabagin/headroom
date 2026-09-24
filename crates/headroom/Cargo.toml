@@ -8,6 +8,8 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+aws-lc-rs.workspace = true
+base64.workspace = true
 clap.workspace = true
 dirs.workspace = true
 headroom-core.workspace = true

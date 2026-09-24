@@ -19,6 +19,10 @@
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .layoutPriority(1)
+                    if let count = header.accountCount {
+                        Text(verbatim: "· \(count)").font(Typeface.titleRegular).foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                     if let plan = header.plan {
                         Text(plan).font(Typeface.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
                     }

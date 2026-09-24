@@ -7,7 +7,11 @@ const FIXTURE: &str =
     include_str!("../../../headroom-daemon/src/update/fixtures/release_latest.json");
 
 fn feed_for(server: &MockServer) -> GithubFeed {
-    GithubFeed::new(Client::new(), format!("{}/releases/latest", server.uri()))
+    GithubFeed::new(
+        format!("{}/releases/latest", server.uri()),
+        Origins::plain_http("127.0.0.1"),
+    )
+    .unwrap()
 }
 
 #[tokio::test]
@@ -98,7 +102,72 @@ async fn the_cli_reads_the_release_and_downloads_assets() {
     let feed = feed_for(&server);
     assert_eq!(feed.release().await.unwrap().tag_name, "v0.5.0");
     let asset = format!("{}/asset", server.uri());
-    assert_eq!(feed.download(&asset).await.unwrap(), b"bytes");
+    assert_eq!(feed.download(&asset, 5).await.unwrap(), b"bytes");
     let missing = format!("{}/missing", server.uri());
-    assert!(feed.download(&missing).await.is_err());
+    assert!(feed.download(&missing, 5).await.is_err());
+}
+
+#[tokio::test]
+async fn downloads_outside_the_allowed_origins_are_refused_without_a_request() {
+    let server = MockServer::start().await;
+    let feed = feed_for(&server);
+    let port = server.address().port();
+    for url in [
+        format!("http://localhost:{port}/asset"),
+        format!("https://127.0.0.1:{port}/asset"),
+        "file:///etc/passwd".to_owned(),
+    ] {
+        let error = feed.download(&url, 64).await.unwrap_err().to_string();
+        assert!(error.starts_with("refusing to download"), "{error}");
+    }
+    assert!(server.received_requests().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn redirects_are_followed_only_to_allowed_origins() {
+    let server = MockServer::start().await;
+    let port = server.address().port();
+    let redirect = |to: String| ResponseTemplate::new(302).insert_header("location", to);
+    Mock::given(path("/inside"))
+        .respond_with(redirect(format!("http://127.0.0.1:{port}/asset")))
+        .mount(&server)
+        .await;
+    Mock::given(path("/outside"))
+        .respond_with(redirect(format!("http://localhost:{port}/asset")))
+        .mount(&server)
+        .await;
+    Mock::given(path("/asset"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(b"bytes".to_vec()))
+        .mount(&server)
+        .await;
+    let feed = feed_for(&server);
+    let inside = format!("{}/inside", server.uri());
+    assert_eq!(feed.download(&inside, 5).await.unwrap(), b"bytes");
+    let outside = format!("{}/outside", server.uri());
+    assert!(feed.download(&outside, 5).await.is_err());
+    let assets = server.received_requests().await.unwrap();
+    assert_eq!(
+        assets.iter().filter(|r| r.url.path() == "/asset").count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn responses_over_the_size_cap_are_refused() {
+    let server = MockServer::start().await;
+    Mock::given(path("/asset"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![b'x'; 6]))
+        .mount(&server)
+        .await;
+    let huge_release = format!("{{\"pad\":\"{}\"}}", "x".repeat(API_BODY_LIMIT));
+    Mock::given(path("/releases/latest"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(huge_release))
+        .mount(&server)
+        .await;
+    let feed = feed_for(&server);
+    let asset = format!("{}/asset", server.uri());
+    let error = format!("{:#}", feed.download(&asset, 5).await.unwrap_err());
+    assert!(error.contains("larger than 5 bytes"), "{error}");
+    assert!(feed.release().await.is_err());
+    assert!(matches!(feed.latest(None).await, Err(FeedError::Failed(_))));
 }

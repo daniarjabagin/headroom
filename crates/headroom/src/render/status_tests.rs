@@ -131,3 +131,43 @@ fn money_balance(currency: &str, micros: i64) -> BalanceView {
         },
     }
 }
+
+const INJECTED: &str = "\x1b]0;owned\x07\x1b[2J\u{9b}31m";
+
+fn injected_state() -> StatePayload {
+    let mut state = full_state();
+    state.update = Some(UpdateView {
+        version: format!("0.5.0{INJECTED}"),
+        url: "https://example.invalid".into(),
+        published_at: "2026-10-01T09:20:02Z".parse().unwrap(),
+        install: InstallKind::SelfInstalled,
+        command: format!("headroom update{INJECTED}"),
+    });
+    let account = &mut state.accounts[0];
+    account.label = Some(format!("Work{INJECTED}"));
+    account.plan = Some(format!("Pro{INJECTED}"));
+    account.notices[0].text = format!("note{INJECTED}");
+    account.windows[0].label = format!("Session{INJECTED}");
+    account.balances[0].label = format!("Credits{INJECTED}");
+    account.error = Some(AccountError {
+        kind: "network".into(),
+        message: format!("failed{INJECTED}"),
+    });
+    state
+}
+
+#[test]
+fn provider_and_label_text_cannot_inject_terminal_control_sequences() {
+    let plain = render_status(&injected_state(), Palette::plain());
+    assert!(
+        !plain.chars().any(|c| c.is_control() && c != '\n'),
+        "{plain:?}"
+    );
+    assert!(plain.contains("Codex · Work]0;owned[2J31m  Pro]0;owned[2J31m"));
+    assert!(plain.contains("  Session]0;owned[2J31m  "));
+    let colored = render_status(&injected_state(), Palette::colored());
+    assert!(!colored.contains("\x1b]"));
+    assert!(!colored.contains("\x1b[2J"));
+    assert!(!colored.contains('\u{9b}'));
+    assert!(!colored.contains('\x07'));
+}

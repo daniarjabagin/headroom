@@ -83,10 +83,25 @@ install_icons() {
 }
 
 json_string() {
-    local text="$1"
-    text="${text//\\/\\\\}"
-    text="${text//\"/\\\"}"
-    printf '"%s"' "$text"
+    local text="$1" out="" char code i
+    for ((i = 0; i < ${#text}; i++)); do
+        char="${text:i:1}"
+        case "$char" in
+            '"') out+='\"' ;;
+            \\) out+="\\\\" ;;
+            [[:cntrl:]])
+                printf -v code '\\u%04x' "'$char"
+                out+="$code"
+                ;;
+            *) out+="$char" ;;
+        esac
+    done
+    printf '"%s"' "$out"
+}
+
+dbus_quoted() {
+    local quote="'\\''"
+    printf "'%s'" "${1//\'/"$quote"}"
 }
 
 write_receipt() {
@@ -96,19 +111,34 @@ write_receipt() {
         list="${list:+$list,}$(json_string "$option")"
     done
     step "Recording this install in $receipt"
-    mkdir -p "$(dirname "$receipt")"
-    printf '{"method":"source","version":%s,"options":[%s],"prefix":%s}\n' \
-        "$(json_string "${version_line##* }")" "$list" "$(json_string "$prefix")" >"$receipt.new"
+    (
+        umask 077
+        mkdir -p "$(dirname "$receipt")"
+        printf '{"method":"source","version":%s,"options":[%s],"prefix":%s}\n' \
+            "$(json_string "${version_line##* }")" "$list" "$(json_string "$prefix")" >"$receipt.new"
+    )
     mv -f "$receipt.new" "$receipt"
+}
+
+write_dbus_service() {
+    local template
+    case "$bin_dir" in
+        *[[:cntrl:]]*)
+            printf 'install.sh: %s contains control characters; D-Bus cannot start it\n' "$bin_dir" >&2
+            exit 1
+            ;;
+    esac
+    template="$(<"$1")"
+    printf '%s\n' "${template//@EXEC@/"$(dbus_quoted "$bin_dir/headroom")"}" >"$2"
+    chmod 0644 "$2"
 }
 
 install_units() {
     step "Installing the systemd user unit and D-Bus activation file"
     mkdir -p "$unit_dir" "$dbus_dir"
     install -m 0644 "$root/packaging/systemd/headroom.service" "$unit_dir/headroom.service"
-    sed "s|@BINDIR@|$bin_dir|g" "$root/packaging/dbus/io.github.daniarjabagin.Headroom.service" \
-        >"$dbus_dir/io.github.daniarjabagin.Headroom.service"
-    chmod 0644 "$dbus_dir/io.github.daniarjabagin.Headroom.service"
+    write_dbus_service "$root/packaging/dbus/io.github.daniarjabagin.Headroom.service" \
+        "$dbus_dir/io.github.daniarjabagin.Headroom.service"
 }
 
 start_service() {

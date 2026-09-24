@@ -21,6 +21,7 @@ pub struct DisplaySettings {
     pub show_trend: bool,
     pub show_forecast: bool,
     pub translucent: bool,
+    pub combine_accounts: bool,
     pub hidden_windows: BTreeMap<String, Vec<String>>,
 }
 
@@ -79,6 +80,7 @@ impl Default for DisplaySettings {
             show_trend: true,
             show_forecast: true,
             translucent: false,
+            combine_accounts: false,
             hidden_windows: BTreeMap::new(),
         }
     }

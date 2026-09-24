@@ -15,7 +15,9 @@
     "window_label": "Session",
     "used_percent": 38.0,
     "remaining_percent": 62.0,
-    "tone": "good"
+    "tone": "good",
+    "combined": false,
+    "account_count": 1
   },
   "display": {
     "theme": "system",
@@ -28,7 +30,8 @@
     "show_trend": true,
     "show_forecast": true,
     "hidden_windows": {},
-    "translucent": false
+    "translucent": false,
+    "combine_accounts": false
   },
   "accounts": [
     {
@@ -368,6 +371,7 @@
       "usage_home": null
     }
   ],
+  "combined": [],
   "usage": [
     {
       "provider": "codex",

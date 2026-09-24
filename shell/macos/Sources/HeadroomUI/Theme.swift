@@ -64,6 +64,7 @@
 
     enum Typeface {
         static let title = Font.system(size: 13, weight: .semibold)
+        static let titleRegular = Font.system(size: 13)
         static let label = Font.system(size: 12, weight: .semibold)
         static let body = Font.system(size: 12)
         static let bodyMedium = Font.system(size: 12, weight: .medium)

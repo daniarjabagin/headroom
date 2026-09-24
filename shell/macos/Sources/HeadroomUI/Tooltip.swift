@@ -138,6 +138,13 @@
                     }
                 case .breakdown(let breakdown):
                     BreakdownTip(breakdown: breakdown)
+                case .lines(let title, let lines):
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).font(Typeface.captionStrong)
+                        ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                            Text(line).font(Typeface.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .monospacedDigit()

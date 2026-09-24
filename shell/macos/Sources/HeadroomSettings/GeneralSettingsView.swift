@@ -70,6 +70,9 @@
                         detail: strings.text(AppearanceText.resetFormatDetail))
                 }
                 .pickerStyle(.segmented)
+                toggle(CombinedText.combineAccounts, CombinedText.combineAccountsDetail, display.combineAccounts) {
+                    .combineAccounts($0)
+                }
             }
         }
 
