@@ -17,8 +17,9 @@ brew install --cask daniarjabagin/tap/headroom
 
 The cask lives in the tap [`daniarjabagin/homebrew-tap`](https://github.com/daniarjabagin/homebrew-tap)
 (`Casks/headroom.rb`). It installs the same universal DMG as the release page, checks its SHA-256
-and needs macOS 14 or newer. Headroom then appears in the menu bar; continue with
-[First run](#5-first-run).
+and needs macOS 14 or newer. Homebrew does not launch apps, so start it once with
+`open -a Headroom` (or from Launchpad); the welcome window offers to open it at login from then on.
+Continue with [First run](#5-first-run).
 
 - **Gatekeeper.** The app is ad-hoc signed and not notarized, so the cask removes the
   `com.apple.quarantine` attribute from `/Applications/Headroom.app` after installing (a
@@ -248,9 +249,10 @@ Without `--install` run it from `shell/macos/dist/Headroom.app`. There is no Doc
 lives in the menu bar. Click the item for the popup, right-click for **Refresh Now** (⌘R),
 **Settings…** (⌘,), **Check for Updates…** (bundled app only) and **Quit Headroom** (⌘Q).
 
-Launch at login is off by default; turn it on in Settings → Service (it uses `SMAppService.mainApp`,
-so install the app to `/Applications` first). If macOS asks for approval, the Service tab links to
-System Settings → General → Login Items.
+Launch at login is offered once by the [welcome window](#welcome-window) (switched on by default) and
+can be changed any time in Settings → Service (it uses `SMAppService.mainApp`, so install the app to
+`/Applications` first). If macOS asks for approval, the Service tab links to System Settings →
+General → Login Items.
 
 ## 4. Settings
 
@@ -275,6 +277,29 @@ daemon (login-shell `PATH`, `CODEX_HOME`, …) plus `HEADROOM_SOCKET` set to the
 CLI and the app always talk to the same daemon.
 
 ## 5. First run
+
+### Welcome window
+
+The very first launch opens a small welcome window, because a menu-bar app without a Dock icon is
+easy to miss. It points at the Headroom item at the top right of the screen, says what the popup
+shows, and has:
+
+- **Open at login**, a switch that is on by default. It is applied with
+  `SMAppService.mainApp.register()` only when you press one of the buttons below; if macOS refuses
+  (for example because the app is not in `/Applications`) the error appears under the switch and the
+  window stays open, so you can try again or switch it off.
+- a note that accounts from the Claude Code and Codex CLIs are detected automatically and that
+  others are added in Settings → Accounts.
+- **Open Headroom** (the default button) closes the window and opens the popup under the menu-bar
+  item; **Settings…** closes it and opens Settings.
+
+Closing the window with its close button skips the login item. Either way the window never comes
+back: the app stores `firstRunCompleted` in its preferences
+(`defaults read io.github.daniarjabagin.headroom firstRunCompleted`; `defaults delete` it to see the
+window again). Texts follow the app language (English or Russian) and the entrance
+animation is skipped under Reduce motion.
+
+### Permissions and environment
 
 - **Keychain prompts.** Claude Code keeps its sign-in in the Keychain, so the daemon asks
   "headroom wants to use your confidential information stored in "Claude Code-credentials"".
@@ -323,8 +348,8 @@ Package layout:
 
 | target | contents |
 | --- | --- |
-| `HeadroomKit` | platform-independent: Codable payload models, JSON-RPC line codec, `DaemonClient` actor over a Unix socket, `DaemonSupervisor` with restart backoff, login-shell environment, the `headroom accounts` progress runner, display formatting and every app string (en/ru), `AppModel`, `SettingsStore`, the add-account session. Builds and tests on Linux too. |
-| `HeadroomUI` | SwiftUI views (popup, menu-bar label, opaque and blurred surfaces, thin scroll indicator). macOS only. |
+| `HeadroomKit` | platform-independent: Codable payload models, JSON-RPC line codec, `DaemonClient` actor over a Unix socket, `DaemonSupervisor` with restart backoff, login-shell environment, the `headroom accounts` progress runner, display formatting and every app string (en/ru), `AppModel`, `SettingsStore`, the add-account session, the first-run flag and welcome flow. Builds and tests on Linux too. |
+| `HeadroomUI` | SwiftUI views (popup, menu-bar label, opaque and blurred surfaces, thin scroll indicator, welcome window content). macOS only. |
 | `HeadroomSettings` | the Settings window (toolbar-style `NSTabViewController`, one SwiftUI form per tab), add-account flows, notification permission, launch at login. macOS only. |
 | `Headroom` | the AppKit app: `NSStatusItem`, key-capable non-activating `NSPanel`, menus, notifications, theme, Sparkle updater (`SparkleUpdates`, feeding `UpdatesModel` in HeadroomKit), wiring. macOS only; Sparkle is a macOS-only dependency of this target and is imported behind `#if canImport(Sparkle)`. |
 

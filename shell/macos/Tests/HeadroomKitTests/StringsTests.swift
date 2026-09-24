@@ -18,6 +18,7 @@ final class StringsTests: XCTestCase {
         check(AddAccountText.self)
         check(SignInText.self)
         check(UpdateText.self)
+        check(WelcomeText.self)
         for key in UIText.allCases {
             assertTranslated(String(describing: key), english: key.english, russian: key.russian)
         }

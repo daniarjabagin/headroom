@@ -6,6 +6,14 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Welcome window on the first launch on macOS.** It shows where Headroom lives in the menu bar and
+  what it shows, offers **Open at login** (on by default, applied when you continue; errors appear in
+  place), explains that Claude Code and Codex CLI accounts are found automatically and others are
+  added in Settings → Accounts, and leads to the popup or to Settings. It appears only once. The
+  Homebrew cask's caveats now say to start the app with `open -a Headroom`.
+
 ## [0.4.1] - 2026-09-24
 
 ### Added
