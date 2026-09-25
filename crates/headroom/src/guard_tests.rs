@@ -1,9 +1,16 @@
 use clap::Parser;
-use headroom_daemon::state::payload::WindowView;
+use headroom_daemon::state::payload::{AccountStatus, WindowView};
 
 use super::*;
 use crate::cli::{Cli, Command};
 use crate::render::fixtures::full_state;
+
+fn live_state() -> StatePayload {
+    let mut state = full_state();
+    state.accounts[1].status = AccountStatus::Fresh;
+    state.accounts[1].error = None;
+    state
+}
 
 fn plain() -> Palettes {
     Palettes {
@@ -21,7 +28,7 @@ fn args(flags: &[&str]) -> GuardArgs {
 }
 
 fn weekly(remaining: f64, resets_at: &str) -> WindowView {
-    let state = full_state();
+    let state = live_state();
     WindowView {
         id: "weekly".into(),
         label: "Weekly".into(),
@@ -34,7 +41,7 @@ fn weekly(remaining: f64, resets_at: &str) -> WindowView {
 }
 
 fn weekly_state() -> StatePayload {
-    let mut state = full_state();
+    let mut state = live_state();
     state.accounts[0].windows[1].hidden = false;
     state.accounts[1]
         .windows
@@ -66,7 +73,7 @@ fn checked_ids(state: &StatePayload, flags: &[&str]) -> Vec<(String, String)> {
 
 #[test]
 fn verdicts_over_fixture_states() {
-    let full = full_state();
+    let full = live_state();
     let weekly = weekly_state();
     let cases: [(&StatePayload, &[&str], Printed, u8); 7] = [
         (
@@ -132,7 +139,7 @@ fn weekly_skips_accounts_and_windows_without_a_visible_weekly_limit() {
             ("claude:main".to_owned(), "weekly".to_owned()),
         ]
     );
-    let hidden_weekly = full_state();
+    let hidden_weekly = live_state();
     let outcome = evaluate(&hidden_weekly, &args(&["--min", "1", "--window", "weekly"]));
     assert_eq!(outcome, Outcome::NoData(NoData::NoMatchingLimits));
     assert_eq!(outcome.exit_status(), 2);
@@ -140,7 +147,7 @@ fn weekly_skips_accounts_and_windows_without_a_visible_weekly_limit() {
 
 #[test]
 fn hidden_accounts_are_never_checked() {
-    let mut state = full_state();
+    let mut state = live_state();
     state.accounts[2]
         .windows
         .push(weekly(1.0, "2026-09-24T14:00:00Z"));
@@ -152,7 +159,7 @@ fn hidden_accounts_are_never_checked() {
 
 #[test]
 fn balances_are_not_limits() {
-    let state = full_state();
+    let state = live_state();
     assert!(!state.accounts[0].balances.is_empty());
     assert_eq!(
         checked_ids(&state, &["--min", "1"]),
@@ -165,13 +172,13 @@ fn balances_are_not_limits() {
 
 #[test]
 fn unknown_providers_have_no_data() {
-    let outcome = evaluate(&full_state(), &args(&["--min", "1", "--provider", "grok"]));
+    let outcome = evaluate(&live_state(), &args(&["--min", "1", "--provider", "grok"]));
     assert_eq!(outcome, Outcome::NoData(NoData::NoMatchingLimits));
 }
 
 #[test]
 fn accounts_of_one_provider_are_told_apart() {
-    let mut state = full_state();
+    let mut state = live_state();
     let mut second = state.accounts[0].clone();
     second.id = "codex:home".into();
     second.label = Some("Home".into());
@@ -228,7 +235,7 @@ fn json_lists_the_verdict_and_every_checked_limit() {
 
 #[test]
 fn json_keeps_the_mockup_field_order() {
-    let (printed, _) = output(&full_state(), &["--min", "1", "--json"]);
+    let (printed, _) = output(&live_state(), &["--min", "1", "--json"]);
     let Printed::Stdout(text) = printed else {
         panic!("{printed:?}");
     };
@@ -246,7 +253,7 @@ fn json_keeps_the_mockup_field_order() {
 #[test]
 fn no_data_goes_to_stderr_unless_quiet() {
     let outcome = Outcome::NoData(NoData::DaemonNotRunning);
-    let now = full_state().generated_at;
+    let now = live_state().generated_at;
     let loud = printed(&outcome, &args(&["--min", "20"]), now, plain()).unwrap();
     let Printed::Stderr(text) = loud else {
         panic!("{loud:?}");
@@ -258,17 +265,89 @@ fn no_data_goes_to_stderr_unless_quiet() {
 
 #[test]
 fn exit_status_maps_the_outcome() {
-    let pass = evaluate(&full_state(), &args(&["--min", "0"]));
-    let below = evaluate(&full_state(), &args(&["--min", "100"]));
+    let pass = evaluate(&live_state(), &args(&["--min", "0"]));
+    let below = evaluate(&live_state(), &args(&["--min", "100"]));
     assert_eq!(pass.exit_status(), 0);
     assert_eq!(below.exit_status(), 1);
     for reason in [
         NoData::DaemonNotRunning,
         NoData::Unreadable("broken".into()),
         NoData::NoMatchingLimits,
+        NoData::NoFreshLimits(vec!["Codex: data is outdated".into()]),
     ] {
         assert_eq!(Outcome::NoData(reason).exit_status(), 2);
     }
+}
+
+fn codex_with(status: AccountStatus) -> StatePayload {
+    let mut state = live_state();
+    state.accounts[0].status = status;
+    state
+}
+
+#[test]
+fn only_fresh_or_refreshing_accounts_are_checked() {
+    for status in [AccountStatus::Fresh, AccountStatus::Refreshing] {
+        assert_eq!(
+            checked_ids(&codex_with(status), &["--min", "1", "--provider", "codex"]),
+            [("codex:work".to_owned(), "session".to_owned())],
+            "{status:?}"
+        );
+    }
+    let excluded = [
+        (AccountStatus::Stale, "Codex: data is outdated"),
+        (AccountStatus::Error, "Codex: couldn't refresh"),
+        (AccountStatus::SignedOut, "Codex: signed out"),
+        (
+            AccountStatus::NoSubscription,
+            "Codex: no active subscription",
+        ),
+    ];
+    for (status, reason) in excluded {
+        let outcome = evaluate(
+            &codex_with(status),
+            &args(&["--min", "1", "--provider", "codex"]),
+        );
+        assert_eq!(
+            outcome,
+            Outcome::NoData(NoData::NoFreshLimits(vec![reason.to_owned()])),
+            "{status:?}"
+        );
+        assert_eq!(outcome.exit_status(), 2);
+    }
+}
+
+#[test]
+fn a_signed_out_account_does_not_pass_the_guard() {
+    let state = full_state();
+    assert_eq!(
+        checked_ids(&state, &["--min", "1"]),
+        [("codex:work".to_owned(), "session".to_owned())]
+    );
+    let (printed, status) = output(&state, &["--min", "50", "--provider", "claude"]);
+    assert_eq!(status, 2);
+    assert_eq!(
+        printed,
+        Printed::Stderr(
+            "headroom: no limit data · no fresh limit data · Claude: sign-in expired, open the CLI \
+             to sign in again\n"
+                .to_owned()
+        )
+    );
+}
+
+#[test]
+fn every_excluded_account_is_named() {
+    let mut state = codex_with(AccountStatus::Stale);
+    state.accounts[1].status = AccountStatus::Error;
+    let outcome = evaluate(&state, &args(&["--min", "1"]));
+    assert_eq!(
+        outcome,
+        Outcome::NoData(NoData::NoFreshLimits(vec![
+            "Codex: data is outdated".to_owned(),
+            "Claude: couldn't refresh".to_owned(),
+        ]))
+    );
 }
 
 #[tokio::test]

@@ -128,7 +128,9 @@ impl ClaudeProvider {
         now: Timestamp,
     ) -> (Credentials, Result<RawUsage, ProviderError>) {
         match self.fetch_usage(&credentials, now).await {
-            Err(ProviderError::SignInExpired) if self.refreshable(account) => {
+            Err(ProviderError::SignInExpired)
+                if self.refreshable(account) && credentials.has_profile_scope() =>
+            {
                 match refresh::refresh(&self.tokens, &account.home, &credentials, now).await {
                     Ok(fresh) => {
                         let fetched = self.fetch_usage(&fresh, now).await;

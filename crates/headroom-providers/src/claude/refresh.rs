@@ -58,10 +58,19 @@ async fn refresh_locked(
     let tokens = client.refresh(&request, now).await?;
     let patched = patch(document, &tokens, now)?;
     let refreshed = parse_credentials(&patched.to_string())?;
-    if let Err(error) = store(&path, &bytes, &patched) {
-        tracing::error!(home = %home.display(), %error, "refreshed claude sign-in not saved");
+    match store(&path, &bytes, &patched, now) {
+        Ok(Stored::Written) => Ok(refreshed),
+        Ok(Stored::Adopted(current)) => Ok(current),
+        Err(error) => {
+            tracing::error!(home = %home.display(), %error, "refreshed claude sign-in not saved");
+            Ok(refreshed)
+        }
     }
-    Ok(refreshed)
+}
+
+enum Stored {
+    Written,
+    Adopted(Credentials),
 }
 
 fn lock_credentials(home: &Path) -> Result<File, ProviderError> {
@@ -147,14 +156,30 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|text| !text.is_empty())
 }
 
-fn store(path: &Path, read: &[u8], document: &Value) -> Result<(), ProviderError> {
+fn store(
+    path: &Path,
+    read: &[u8],
+    document: &Value,
+    now: Timestamp,
+) -> Result<Stored, ProviderError> {
     let on_disk = fs::read(path).map_err(|error| local_error(path, &error.to_string()))?;
     if on_disk != read {
-        return Err(local_error(path, "changed during the refresh"));
+        if let Some(current) = unexpired(&on_disk, now) {
+            return Ok(Stored::Adopted(current));
+        }
+        tracing::warn!(path = %path.display(), "claude sign-in changed during the refresh, keeping the rotated tokens");
     }
     let bytes = serde_json::to_vec_pretty(document)
         .map_err(|error| local_error(path, &error.to_string()))?;
-    write_private(path, &bytes).map_err(|error| local_error(path, &error.to_string()))
+    write_private(path, &bytes).map_err(|error| local_error(path, &error.to_string()))?;
+    Ok(Stored::Written)
+}
+
+fn unexpired(bytes: &[u8], now: Timestamp) -> Option<Credentials> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    parse_credentials(text)
+        .ok()
+        .filter(|credentials| !credentials.is_expired(now))
 }
 
 fn local_error(path: &Path, problem: &str) -> ProviderError {

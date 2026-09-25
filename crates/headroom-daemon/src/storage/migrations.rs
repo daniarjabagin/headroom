@@ -11,9 +11,14 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/006_project.sql"),
     include_str!("migrations/007_held_alerts.sql"),
     include_str!("migrations/008_status_cache.sql"),
+    include_str!("migrations/009_onboarding_existing.sql"),
 ];
 
 pub fn migrate(conn: &mut Connection) -> Result<(), StorageError> {
+    migrate_through(conn, MIGRATIONS.len())
+}
+
+fn migrate_through(conn: &mut Connection, target: usize) -> Result<(), StorageError> {
     let current = user_version(conn)?;
     if current > MIGRATIONS.len() {
         return Err(StorageError::FutureSchema {
@@ -21,7 +26,7 @@ pub fn migrate(conn: &mut Connection) -> Result<(), StorageError> {
             supported: MIGRATIONS.len(),
         });
     }
-    for (index, sql) in MIGRATIONS.iter().enumerate().skip(current) {
+    for (index, sql) in MIGRATIONS.iter().enumerate().take(target).skip(current) {
         apply(conn, index + 1, sql)?;
     }
     Ok(())
@@ -45,3 +50,7 @@ fn apply(conn: &mut Connection, version: usize, sql: &str) -> Result<(), Storage
 pub fn latest() -> usize {
     MIGRATIONS.len()
 }
+
+#[cfg(test)]
+#[path = "migrations_tests.rs"]
+mod tests;

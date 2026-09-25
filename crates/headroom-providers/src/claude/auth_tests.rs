@@ -43,6 +43,17 @@ fn expired_token_is_sign_in_expired() {
 }
 
 #[test]
+fn expiry_is_told_apart_from_a_missing_scope() {
+    let at_now = parse_credentials(&credentials_text(&oauth(now().as_millisecond()))).unwrap();
+    assert!(at_now.is_expired(now()));
+    let mut narrow = oauth(future_millis());
+    narrow["scopes"] = json!(["user:inference"]);
+    let narrow = parse_credentials(&credentials_text(&narrow)).unwrap();
+    assert!(!narrow.is_expired(now()));
+    assert!(!narrow.has_profile_scope());
+}
+
+#[test]
 fn float_expiry_is_accepted() {
     let mut raw = oauth(0);
     raw["expiresAt"] = json!(1_000.0);

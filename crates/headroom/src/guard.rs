@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use headroom_core::pace::Tone;
-use headroom_daemon::state::payload::{AccountView, StatePayload, WindowView};
+use headroom_daemon::state::payload::{AccountStatus, AccountView, StatePayload, WindowView};
 use jiff::Timestamp;
 use serde::Serialize;
 
@@ -56,6 +56,7 @@ pub enum NoData {
     DaemonNotRunning,
     Unreadable(String),
     NoMatchingLimits,
+    NoFreshLimits(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -141,9 +142,10 @@ pub fn printed(
 }
 
 pub fn evaluate(state: &StatePayload, args: &GuardArgs) -> Outcome {
-    let checked = checked_limits(state, args);
+    let accounts = selected_accounts(state, args);
+    let checked = checked_limits(&accounts, args);
     if checked.is_empty() {
-        return Outcome::NoData(NoData::NoMatchingLimits);
+        return Outcome::NoData(missing_reason(&accounts));
     }
     let min = f64::from(args.min);
     let failing = checked
@@ -159,21 +161,64 @@ pub fn evaluate(state: &StatePayload, args: &GuardArgs) -> Outcome {
     })
 }
 
-fn checked_limits(state: &StatePayload, args: &GuardArgs) -> Vec<CheckedLimit> {
-    let accounts: Vec<&AccountView> = state
+fn selected_accounts<'a>(state: &'a StatePayload, args: &GuardArgs) -> Vec<&'a AccountView> {
+    state
         .accounts
         .iter()
         .filter(|account| selected(account, args))
-        .collect();
+        .collect()
+}
+
+fn checked_limits(accounts: &[&AccountView], args: &GuardArgs) -> Vec<CheckedLimit> {
     accounts
         .iter()
+        .filter(|account| has_fresh_data(account))
         .flat_map(|account| {
-            let name = limit_name(account, &accounts);
+            let name = limit_name(account, accounts);
             shown_windows(account)
                 .filter(|window| args.window.includes(&window.id))
                 .map(move |window| checked_limit(account, window, name.clone()))
         })
         .collect()
+}
+
+fn missing_reason(accounts: &[&AccountView]) -> NoData {
+    let excluded: Vec<String> = accounts
+        .iter()
+        .filter_map(|account| {
+            let reason = exclusion_reason(account)?;
+            Some(format!("{}: {reason}", limit_name(account, accounts)))
+        })
+        .collect();
+    if excluded.is_empty() {
+        NoData::NoMatchingLimits
+    } else {
+        NoData::NoFreshLimits(excluded)
+    }
+}
+
+fn has_fresh_data(account: &AccountView) -> bool {
+    status_problem(account.status).is_none()
+}
+
+fn exclusion_reason(account: &AccountView) -> Option<String> {
+    let problem = status_problem(account.status)?;
+    Some(
+        account
+            .error
+            .as_ref()
+            .map_or_else(|| problem.to_owned(), |error| error.message.clone()),
+    )
+}
+
+fn status_problem(status: AccountStatus) -> Option<&'static str> {
+    match status {
+        AccountStatus::Fresh | AccountStatus::Refreshing => None,
+        AccountStatus::Stale => Some("data is outdated"),
+        AccountStatus::Error => Some("couldn't refresh"),
+        AccountStatus::SignedOut => Some("signed out"),
+        AccountStatus::NoSubscription => Some("no active subscription"),
+    }
 }
 
 fn selected(account: &AccountView, args: &GuardArgs) -> bool {

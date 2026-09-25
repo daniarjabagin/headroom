@@ -18,6 +18,16 @@ fn write_json(path: &Path, value: &Value) {
 }
 
 fn sign_in(dir: &Path, identity_file: &Path) {
+    sign_in_with(
+        dir,
+        identity_file,
+        "expired-token",
+        fixed_now().as_millisecond() - 1,
+        &["user:inference", "user:profile"],
+    );
+}
+
+fn sign_in_with(dir: &Path, identity_file: &Path, token: &str, expires_at: i64, scopes: &[&str]) {
     write_json(
         identity_file,
         &json!({ "oauthAccount": { "accountUuid": "acc-1", "organizationUuid": "org-1" } }),
@@ -25,11 +35,11 @@ fn sign_in(dir: &Path, identity_file: &Path) {
     write_json(
         &dir.join(".credentials.json"),
         &json!({ "claudeAiOauth": {
-            "accessToken": "expired-token",
+            "accessToken": token,
             "refreshToken": "fake-refresh",
-            "expiresAt": fixed_now().as_millisecond() - 1,
+            "expiresAt": expires_at,
             "subscriptionType": "max",
-            "scopes": ["user:inference", "user:profile"]
+            "scopes": scopes
         }}),
     );
 }
@@ -95,4 +105,50 @@ async fn an_expired_cli_sign_in_is_never_refreshed_or_rewritten() {
     assert_eq!(result.unwrap_err(), ProviderError::SignInExpired);
     assert_eq!(fs::read(&file).unwrap(), before);
     assert!(!cli.join(".credentials.json.lock").exists());
+}
+
+async fn headroom_fetch(
+    provider: &ClaudeProvider,
+    token: &str,
+    expires_at: i64,
+    scopes: &[&str],
+) -> Result<LimitsSnapshot, ProviderError> {
+    let home = provider.config.headroom_accounts_dir().join("h1");
+    sign_in_with(&home, &home.join(".claude.json"), token, expires_at, scopes);
+    let account = provider.account_at(&home).await.unwrap().unwrap();
+    provider.fetch_limits(&account).await
+}
+
+fn one_hour_later() -> i64 {
+    fixed_now().as_millisecond() + 3_600_000
+}
+
+#[tokio::test]
+async fn a_sign_in_without_the_profile_scope_is_never_refreshed() {
+    let root = tempfile::tempdir().unwrap();
+    let server = server(0).await;
+    let provider = provider(root.path(), &server);
+    for expires_at in [one_hour_later(), fixed_now().as_millisecond() - 1] {
+        let result = headroom_fetch(&provider, "live-token", expires_at, &["user:inference"]).await;
+        assert_eq!(result.unwrap_err(), ProviderError::SignInExpired);
+    }
+}
+
+#[tokio::test]
+async fn a_rejected_unexpired_token_is_refreshed() {
+    let root = tempfile::tempdir().unwrap();
+    let server = server(1).await;
+    Mock::given(method("GET"))
+        .and(path("/api/oauth/usage"))
+        .and(header("authorization", "Bearer revoked-token"))
+        .respond_with(ResponseTemplate::new(401))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let provider = provider(root.path(), &server);
+    let scopes = ["user:inference", "user:profile"];
+    let snapshot = headroom_fetch(&provider, "revoked-token", one_hour_later(), &scopes)
+        .await
+        .unwrap();
+    assert_eq!(snapshot.source, LimitsSource::Live);
 }

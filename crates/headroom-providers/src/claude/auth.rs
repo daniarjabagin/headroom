@@ -41,9 +41,16 @@ impl Credentials {
         self.access_token.secret()
     }
 
+    pub(super) fn is_expired(&self, now: Timestamp) -> bool {
+        self.expires_at.is_some_and(|at| at <= now)
+    }
+
+    pub(super) fn has_profile_scope(&self) -> bool {
+        self.has_profile_scope
+    }
+
     pub(super) fn usable_token(&self, now: Timestamp) -> Result<&AccessToken, ProviderError> {
-        let expired = self.expires_at.is_some_and(|at| at <= now);
-        if expired || !self.has_profile_scope {
+        if self.is_expired(now) || !self.has_profile_scope {
             return Err(ProviderError::SignInExpired);
         }
         Ok(&self.access_token)
