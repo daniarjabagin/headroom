@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use jiff::civil::Date;
 use serde::Serialize;
+
+use crate::spend::{Since, parse_since};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -53,6 +56,7 @@ const SPEND_EXAMPLES: &str = "\
 Examples:
   headroom spend                          models of the last 7 days
   headroom spend --by project --since 30d
+  headroom spend --by provider --since 14d
   headroom spend --by day --since 2026-09-01 --until 2026-09-15
   headroom spend --provider claude --json
 
@@ -64,17 +68,18 @@ pub struct SpendArgs {
     pub by: SpendBy,
     #[arg(
         long,
-        value_name = "7d|30d|YYYY-MM-DD",
+        value_name = "Nd|YYYY-MM-DD",
         default_value = "7d",
-        help = "The last 7 or 30 days, today or yesterday, or a first day"
+        value_parser = parse_since,
+        help = "The last N days (7d, 14d, 30d), today or yesterday, or a first day"
     )]
-    pub since: String,
+    pub since: Since,
     #[arg(
         long,
         value_name = "YYYY-MM-DD",
         help = "Last day, with a --since date; default today"
     )]
-    pub until: Option<String>,
+    pub until: Option<Date>,
     #[arg(
         long,
         value_name = "PROVIDER",

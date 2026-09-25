@@ -584,8 +584,8 @@ Totals:
 | `partial` | bool | Some events had no known price; `cost_usd_micros` excludes them. |
 | `unpriced_tokens` | integer | Tokens of unpriced events. |
 | `unpriced_models` | string[] | Models without a price, sorted. |
-| `models` | ModelUsage[] | The top 5 models of this period, sorted as below. Empty when the period has no usage. |
-| `models_other` | OtherModels \| null | The models after the top 5 added together; `null` when the period has 5 models or fewer. |
+| `models` | ModelUsage[] | The top 5 models of this period, sorted as below; all 6 when the period has exactly 6, so a single model is never folded. Empty when the period has no usage. |
+| `models_other` | OtherModels \| null | The models after the top 5 added together; `null` when the period has 6 models or fewer. |
 
 Daily: `date` (`YYYY-MM-DD`), `total_tokens`, `cost_usd_micros`, `partial`.
 
@@ -593,7 +593,7 @@ ModelUsage: `model` (as logged), `total_tokens`, `cost_usd_micros`, `partial` (t
 price; its cost is excluded). Sorted by `cost_usd_micros` descending, then `total_tokens` descending,
 then `model` ascending. `models` plus `models_other` add up exactly to the period's totals.
 
-OtherModels: `count` (number of models folded in, at least 1), `total_tokens`, `cost_usd_micros`
+OtherModels: `count` (number of models folded in, at least 2), `total_tokens`, `cost_usd_micros`
 (integer sums of those models), `partial` (any of them is `partial`). Shells show it as one
 "N other models" row and never compute it themselves.
 
@@ -615,7 +615,7 @@ PeriodSpend:
 | `partial` | bool | Any provider in the period is `partial`. |
 | `by_provider` | ProviderSpend[] | One entry per provider with tokens or cost in the period (homes of one provider are added together), highest cost first, then by provider name. Empty when the period has no usage. |
 
-ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 5 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
+ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5, or all 6 when there are exactly 6), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 6 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
 
 Since 0.6.0 PeriodSpend, ProviderSpend and ModelUsage also carry `cost_per_mtok_usd_micros`, and
 PeriodSpend carries `projects` and `projects_other`; see [Spend additions](#spend-additions).
@@ -1174,7 +1174,9 @@ Turning the setting on polls at once; a newly added provider is picked up by the
   event was logged in (Claude and Codex logs), `~`-relative when under the user's home; events without
   one form the project `null` ("No project"). Projects are sorted like models (cost descending, then
   tokens descending, then name). Listed are the projects whose share is at least 50 ‰, at most 5; the
-  rest are added together in `projects_other` (`null` when nothing was folded). `projects` plus
+  rest are added together in `projects_other` (`null` when nothing was folded). When that would fold
+  exactly one project, it is listed as a normal row instead, whatever its share, so `projects_other`
+  always holds at least 2 projects. `projects` plus
   `projects_other` add up exactly to the period's totals. Missing: hide the projects breakdown.
 - `cost_per_mtok_usd_micros` (integer | null) on PeriodSpend, ProviderSpend and ModelUsage: the priced
   cost per million priced tokens, `cost_usd_micros × 1 000 000 / priced total tokens`, rounded half up
@@ -1192,7 +1194,7 @@ ProjectSpend:
 | `share_permille` | integer | Share of the period's `cost_usd_micros`, `cost × 1000 / period cost` rounded down; by `total_tokens` instead when the period's cost is `0`. |
 | `by_provider` | object[] | `{provider, provider_name, cost_usd_micros, total_tokens}` per provider that logged in this project, sorted like `by_provider`, for the provider-coloured bar. |
 
-OtherProjects: `count` (projects folded in, at least 1), `cost_usd_micros`, `total_tokens`,
+OtherProjects: `count` (projects folded in, at least 2), `cost_usd_micros`, `total_tokens`,
 `partial`, `share_permille` (computed like ProjectSpend).
 
 ```json

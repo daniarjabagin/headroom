@@ -51,7 +51,7 @@ impl ModelMerge {
 
 #[must_use]
 pub fn top_models(mut ranked: Vec<ModelView>) -> (Vec<ModelView>, Option<OtherModelsView>) {
-    if ranked.len() <= TOP_MODELS {
+    if ranked.len() <= TOP_MODELS + 1 {
         return (ranked, None);
     }
     let rest = ranked.split_off(TOP_MODELS);

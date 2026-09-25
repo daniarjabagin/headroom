@@ -184,3 +184,24 @@ fn release_checks_finish_before_a_d_bus_call_times_out() {
     assert!(API_TIMEOUT <= Duration::from_secs(20));
     assert!(CONNECT_TIMEOUT < API_TIMEOUT);
 }
+
+#[tokio::test]
+async fn an_unreachable_github_is_explained_with_the_cause() {
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = closed.local_addr().unwrap().port();
+    drop(closed);
+    let feed = GithubFeed::new(
+        format!("http://127.0.0.1:{port}/releases/latest"),
+        Origins::plain_http("127.0.0.1"),
+    )
+    .unwrap();
+    let error = format!("{:#}", feed.release().await.unwrap_err());
+    assert!(
+        error.starts_with("couldn't reach GitHub to check for updates: error sending request"),
+        "{error}"
+    );
+    assert!(error.ends_with("; check your connection"), "{error}");
+    let cause = error.trim_end_matches("; check your connection");
+    assert!(cause.matches(": ").count() >= 2, "{error}");
+    assert!(!error.contains(&port.to_string()), "{error}");
+}

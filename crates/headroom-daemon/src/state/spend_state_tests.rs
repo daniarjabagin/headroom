@@ -142,6 +142,36 @@ fn at_most_five_projects_are_listed() {
 }
 
 #[test]
+fn a_single_small_project_is_listed_instead_of_folded() {
+    let events = vec![
+        placed("e1", Some("/home/ada/big"), 980),
+        placed("e2", Some("/home/ada/tiny"), 20),
+    ];
+    let period = today(&model_with(vec![(CODEX, "/home/ada/.codex", events)]));
+    assert_eq!(
+        listed(&period),
+        [
+            (Some("~/big"), 1_960, 980, 980),
+            (Some("~/tiny"), 40, 20, 20),
+        ]
+    );
+    assert_eq!(period.projects_other, None);
+}
+
+#[test]
+fn a_sixth_project_is_listed_instead_of_folded() {
+    let events: Vec<UsageEvent> = (0..6)
+        .map(|n| {
+            let dir = format!("/home/ada/p{n}");
+            placed(&format!("e{n}"), Some(&dir), 100 - n)
+        })
+        .collect();
+    let period = today(&model_with(vec![(CODEX, "/home/ada/.codex", events)]));
+    assert_eq!(period.projects.len(), 6);
+    assert_eq!(period.projects_other, None);
+}
+
+#[test]
 fn unpriced_projects_are_partial_and_empty_periods_have_no_projects() {
     let events = vec![
         placed("a", Some("/home/ada/app"), 100),

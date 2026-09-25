@@ -392,7 +392,7 @@ headroom accounts login ID           # sign an account Headroom added in again, 
 headroom accounts remove ID          # delete an account Headroom added (never ~/.codex or ~/.claude)
 headroom update                      # install the latest release (script installs)
 headroom spend                       # spend of the last 7 days by model, from local logs
-headroom spend --by project --since 30d   # also --by provider|day, --since YYYY-MM-DD --until …, --provider, --json
+headroom spend --by project --since 30d   # also --by provider|day, --since 14d or YYYY-MM-DD --until …, --provider, --json
 headroom guard --min 20              # exit 1 when a visible limit has less than 20% left, see Scripting
 headroom diagnostics                 # versions, platform and account health for a bug report, no secrets
 ```

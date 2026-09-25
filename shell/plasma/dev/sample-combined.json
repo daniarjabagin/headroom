@@ -522,14 +522,15 @@
             "total_tokens": 114253,
             "cost_usd_micros": 224800,
             "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 95211,
+            "cost_usd_micros": 112400,
+            "partial": false
           }
         ],
-        "models_other": {
-          "count": 1,
-          "total_tokens": 95211,
-          "cost_usd_micros": 112400,
-          "partial": false
-        }
+        "models_other": null
       },
       "yesterday": {
         "tokens": {
@@ -574,14 +575,15 @@
             "total_tokens": 186720,
             "cost_usd_micros": 357200,
             "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 155600,
+            "cost_usd_micros": 178600,
+            "partial": false
           }
         ],
-        "models_other": {
-          "count": 1,
-          "total_tokens": 155600,
-          "cost_usd_micros": 178600,
-          "partial": false
-        }
+        "models_other": null
       },
       "last_30_days": {
         "tokens": {
@@ -626,14 +628,15 @@
             "total_tokens": 2898630,
             "cost_usd_micros": 5248000,
             "partial": false
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 2415525,
+            "cost_usd_micros": 2624000,
+            "partial": false
           }
         ],
-        "models_other": {
-          "count": 1,
-          "total_tokens": 2415525,
-          "cost_usd_micros": 2624000,
-          "partial": false
-        }
+        "models_other": null
       },
       "daily": [
         {
@@ -1529,14 +1532,16 @@
               "cost_usd_micros": 224800,
               "partial": false,
               "cost_per_mtok_usd_micros": 1967563
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 95211,
+              "cost_usd_micros": 112400,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1180536
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 95211,
-            "cost_usd_micros": 112400,
-            "partial": false
-          },
+          "models_other": null,
           "cost_per_mtok_usd_micros": 5902679
         },
         {
@@ -1682,14 +1687,16 @@
               "cost_usd_micros": 357200,
               "partial": false,
               "cost_per_mtok_usd_micros": 1913025
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 155600,
+              "cost_usd_micros": 178600,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1147815
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 155600,
-            "cost_usd_micros": 178600,
-            "partial": false
-          },
+          "models_other": null,
           "cost_per_mtok_usd_micros": 5739075
         },
         {
@@ -1835,14 +1842,16 @@
               "cost_usd_micros": 5248000,
               "partial": false,
               "cost_per_mtok_usd_micros": 1810510
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 2415525,
+              "cost_usd_micros": 2624000,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1086306
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 2415525,
-            "cost_usd_micros": 2624000,
-            "partial": false
-          },
+          "models_other": null,
           "cost_per_mtok_usd_micros": 5431531
         },
         {
@@ -1988,14 +1997,16 @@
               "cost_usd_micros": 5248000,
               "partial": false,
               "cost_per_mtok_usd_micros": 1810510
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 2415525,
+              "cost_usd_micros": 2624000,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1086306
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 2415525,
-            "cost_usd_micros": 2624000,
-            "partial": false
-          },
+          "models_other": null,
           "cost_per_mtok_usd_micros": 5431531
         },
         {

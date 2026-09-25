@@ -62,7 +62,7 @@ fn spend_args(args: &[&str]) -> Result<SpendArgs, clap::Error> {
 fn spend_defaults_to_models_of_the_last_week() {
     let defaults = spend_args(&[]).unwrap();
     assert_eq!(defaults.by, SpendBy::Model);
-    assert_eq!(defaults.since, "7d");
+    assert_eq!(defaults.since, Since::Days(7));
     assert!(defaults.until.is_none() && defaults.provider.is_none() && !defaults.json);
     let day = spend_args(&[
         "--by",
@@ -74,6 +74,29 @@ fn spend_defaults_to_models_of_the_last_week() {
     ]);
     assert_eq!(day.unwrap().by, SpendBy::Day);
     assert!(spend_args(&["--by", "week"]).is_err());
+}
+
+#[test]
+fn spend_since_takes_any_number_of_days_and_rejects_garbage_clearly() {
+    assert_eq!(
+        spend_args(&["--since", "60d"]).unwrap().since,
+        Since::Days(60)
+    );
+    assert_eq!(
+        spend_args(&["--since", "14d"]).unwrap().since,
+        Since::Days(14)
+    );
+    for bad in ["soon", "0d", "2026-02-30"] {
+        let error = spend_args(&["--since", bad]).unwrap_err();
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::ValueValidation,
+            "{bad}"
+        );
+        assert!(error.to_string().contains("--since"), "{error}");
+    }
+    let until = spend_args(&["--since", "2026-09-01", "--until", "2026-09-31"]);
+    assert!(until.is_err());
 }
 
 #[test]
