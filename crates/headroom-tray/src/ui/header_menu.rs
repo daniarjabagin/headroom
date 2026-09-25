@@ -9,7 +9,7 @@ use crate::ui::context::{Action, Ctx, ShareTarget};
 use crate::ui::link_icons::link_icon;
 use crate::ui::motion::{FAST_MS, fade};
 use crate::ui::popover::{point_at, transient};
-use crate::ui::widgets::{column, icon, label, row};
+use crate::ui::widgets::{Textures, column, icon, label, row};
 
 const ITEM_ICON: i32 = 14;
 
@@ -20,6 +20,7 @@ pub struct MenuContext {
     pub motion: bool,
     pub icon_color: String,
     pub act: Rc<dyn Fn(Action)>,
+    pub textures: Rc<Textures>,
 }
 
 impl MenuContext {
@@ -30,6 +31,7 @@ impl MenuContext {
             motion: ctx.motion,
             icon_color: ctx.css("text-secondary"),
             act: Rc::clone(&ctx.act),
+            textures: Rc::clone(&ctx.textures),
         }
     }
 }
@@ -96,7 +98,7 @@ fn link_entries(ctx: &MenuContext, links: &[QuickLink]) -> Vec<Entry> {
         .iter()
         .filter_map(|kind| links.iter().find(|link| link.kind == *kind))
         .map(|link| Entry {
-            icon: link_icon(&ctx.icon_color, link.kind, ITEM_ICON).upcast(),
+            icon: link_icon(&ctx.textures, &ctx.icon_color, link.kind, ITEM_ICON).upcast(),
             title: link.kind.title(ctx.lang).to_owned(),
             detail: Some(link.host.clone()),
             actions: vec![Action::OpenUrl(link.url.clone())],

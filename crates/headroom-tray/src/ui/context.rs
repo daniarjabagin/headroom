@@ -9,6 +9,7 @@ use crate::palette::{Palette, Rgba};
 use crate::payload::{Density, Display, SpendBreakdown, SpendPeriod, SpendUnit, Tone};
 use crate::popup_model::spend_view::{SpendChoice, SpendOverride};
 use crate::preferences::registry::ProviderLinks;
+use crate::ui::widgets::Textures;
 use crate::update::UpdateRun;
 use crate::update_check::CheckRun;
 
@@ -98,6 +99,7 @@ pub struct Ctx {
     pub links: Rc<BTreeMap<String, ProviderLinks>>,
     pub spend: Option<SpendChoice>,
     pub recent: bool,
+    pub textures: Rc<Textures>,
 }
 
 impl Ctx {
@@ -125,6 +127,16 @@ impl Ctx {
     #[must_use]
     pub fn compact(&self) -> bool {
         self.display.density == Density::Compact
+    }
+
+    pub fn svg_image(
+        &self,
+        svg: &'static str,
+        color: &str,
+        size: i32,
+        classes: &[&str],
+    ) -> gtk::Image {
+        self.textures.image(svg, color, size, classes)
     }
 
     pub fn css(&self, token: &str) -> String {

@@ -139,6 +139,7 @@ fn context(options: &Options, palette: Palette, view: &View) -> Result<Ctx> {
         links: links(options)?,
         spend,
         recent,
+        textures: Rc::default(),
     })
 }
 

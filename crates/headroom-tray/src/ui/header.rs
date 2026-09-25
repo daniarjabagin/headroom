@@ -5,7 +5,7 @@ use crate::popup_model::links::{QuickLink, quick_links};
 use crate::ui::context::{Action, Ctx};
 use crate::ui::header_menu::{MenuContext, MenuInput, open_menu};
 use crate::ui::link_icons::link_icon;
-use crate::ui::widgets::{button, label, row, spacer, svg_image};
+use crate::ui::widgets::{button, label, row, spacer};
 
 const PROVIDER_ICON: i32 = 16;
 const COMPACT_PROVIDER_ICON: i32 = 14;
@@ -25,7 +25,7 @@ pub fn provider_icon_sized(ctx: &Ctx, provider: &str, size: i32) -> gtk::Image {
         Tint::Brand => CLAUDE_COLOR.to_owned(),
         Tint::Text => ctx.css("text-secondary"),
     };
-    svg_image(svg, &color, size, &["headroom-provider-icon"])
+    ctx.svg_image(svg, &color, size, &["headroom-provider-icon"])
 }
 
 pub fn provider_icon(ctx: &Ctx, provider: &str) -> gtk::Image {
@@ -45,7 +45,7 @@ fn link_buttons(ctx: &Ctx, links: &[QuickLink]) -> gtk::Box {
     let icons = row(2, &["headroom-link-icons"]);
     let color = ctx.css("text-secondary");
     for link in links {
-        let glyph = link_icon(&color, link.kind, LINK_ICON);
+        let glyph = link_icon(&ctx.textures, &color, link.kind, LINK_ICON);
         let open = button(
             &glyph,
             &["headroom-icon-button", "headroom-link-button"],

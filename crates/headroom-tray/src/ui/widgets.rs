@@ -1,9 +1,13 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use gtk::prelude::*;
 use gtk::{gdk, glib};
 
 use crate::assets::tinted_svg;
 
 const SVG_RENDER_SCALE: i32 = 3;
+const TEXTURE_CAPACITY: usize = 64;
 
 pub fn label(text: &str, classes: &[&str]) -> gtk::Label {
     let label = gtk::Label::new(Some(text));
@@ -88,14 +92,79 @@ pub fn svg_texture_at(svg: &str, color: &str, pixels: u32) -> Option<gdk::Textur
     }
 }
 
-pub fn svg_image(svg: &str, color: &str, size: i32, classes: &[&str]) -> gtk::Image {
+fn picture(texture: Option<&gdk::Texture>, size: i32, classes: &[&str]) -> gtk::Image {
     let image = gtk::Image::new();
-    if let Some(texture) = svg_texture(svg, color, size) {
-        image.set_paintable(Some(&texture));
+    if let Some(texture) = texture {
+        image.set_paintable(Some(texture));
     }
     image.set_pixel_size(size);
     for class in classes {
         image.add_css_class(class);
     }
     image
+}
+
+pub fn svg_image(svg: &str, color: &str, size: i32, classes: &[&str]) -> gtk::Image {
+    picture(svg_texture(svg, color, size).as_ref(), size, classes)
+}
+
+type TextureKey = (usize, usize, String, i32);
+
+#[derive(Default)]
+pub struct Textures {
+    cache: RefCell<HashMap<TextureKey, Option<gdk::Texture>>>,
+}
+
+impl Textures {
+    fn texture(&self, svg: &'static str, color: &str, size: i32) -> Option<gdk::Texture> {
+        let key = (svg.as_ptr() as usize, svg.len(), color.to_owned(), size);
+        if let Some(found) = self.cache.borrow().get(&key) {
+            return found.clone();
+        }
+        let texture = svg_texture(svg, color, size);
+        let mut cache = self.cache.borrow_mut();
+        if cache.len() >= TEXTURE_CAPACITY {
+            cache.clear();
+        }
+        cache.insert(key, texture.clone());
+        texture
+    }
+
+    pub fn image(&self, svg: &'static str, color: &str, size: i32, classes: &[&str]) -> gtk::Image {
+        picture(self.texture(svg, color, size).as_ref(), size, classes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DOT: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="#bebebe"/></svg>"##;
+
+    impl Textures {
+        fn len(&self) -> usize {
+            self.cache.borrow().len()
+        }
+    }
+
+    #[test]
+    fn textures_are_rendered_once_per_icon_color_and_size() {
+        let textures = Textures::default();
+        let first = textures.texture(DOT, "#ff0000", 4);
+        let second = textures.texture(DOT, "#ff0000", 4);
+        assert!(first.is_some());
+        assert_eq!(first, second);
+        textures.texture(DOT, "#00ff00", 4);
+        textures.texture(DOT, "#00ff00", 8);
+        assert_eq!(textures.len(), 3);
+    }
+
+    #[test]
+    fn the_cache_stays_bounded() {
+        let textures = Textures::default();
+        for size in 1..100 {
+            textures.texture(DOT, "#ff0000", size);
+        }
+        assert!(textures.len() <= TEXTURE_CAPACITY);
+    }
 }

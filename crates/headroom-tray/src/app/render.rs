@@ -160,17 +160,17 @@ impl App {
             links,
             spend,
             recent,
+            textures: Rc::clone(&self.textures),
             display,
         }
     }
 
     pub(super) fn render(self: &Rc<Self>, entrance: bool) {
-        let display = self.display();
-        let ctx = self.context(display);
-        let visible = self.window.borrow().is_visible();
-        if !visible && !entrance {
+        if !entrance && !self.window.borrow().is_visible() {
             return;
         }
+        let display = self.display();
+        let ctx = self.context(display);
         let frame = Frame {
             now: Timestamp::now(),
             max_height: self.window.borrow().max_height(),

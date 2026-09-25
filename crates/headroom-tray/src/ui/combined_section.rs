@@ -1,24 +1,17 @@
 use gtk::prelude::*;
 use jiff::Timestamp;
 
-use crate::assets::FLAME;
-use crate::combined::{
-    CombinedGroup, CombinedRow, CombinedWindow, combined_row, group_plans, group_title,
-};
-use crate::dates::Locale;
-use crate::payload::{Account, Display, ProviderStatus};
-use crate::popup_model::compact::compact_reset;
-use crate::popup_model::status::status_view;
+use crate::combined::{CombinedGroup, group_plans, group_title};
+use crate::payload::{Account, ProviderStatus};
+use crate::popup_model::status::{StatusView, status_view};
+use crate::preferences::registry::ProviderLinks;
+use crate::ui::combined_row::MountedWindowRow;
 use crate::ui::context::{Ctx, ShareTarget};
 use crate::ui::header::{HeaderInput, links_of, section_header};
 use crate::ui::header_menu::MenuInput;
-use crate::ui::meter::{MeterColors, MeterPart, meter_size, segmented_meter};
-use crate::ui::quota_row::{reset_toggle, value_toggle};
+use crate::ui::keyed::{Keyed, LookKey, SharedTick, arrange};
 use crate::ui::status_notice::{status_mark, status_notice};
-use crate::ui::widgets::{column, label, row, spacer, svg_image, wrapping_label};
-
-const FLAME_SIZE: i32 = 11;
-const COMPACT_FLAME_SIZE: i32 = 10;
+use crate::ui::widgets::column;
 
 pub struct GroupInput<'a> {
     pub group: &'a CombinedGroup,
@@ -27,177 +20,199 @@ pub struct GroupInput<'a> {
     pub now: Timestamp,
 }
 
-fn meter_parts(ctx: &Ctx, row: &CombinedRow) -> Vec<MeterPart> {
-    let (track, tick) = (ctx.color("track"), ctx.color("tick"));
-    row.segments
-        .iter()
-        .map(|segment| MeterPart {
-            fraction: segment.fraction,
-            tick: segment.tick,
-            colors: MeterColors {
-                track,
-                fill: ctx.tone_color(segment.tone),
-                tick,
+#[derive(PartialEq)]
+struct HeaderKey {
+    provider: String,
+    title: String,
+    plan: Option<String>,
+    incident: Option<StatusView>,
+    menu: MenuInput,
+}
+
+impl HeaderKey {
+    fn of(ctx: &Ctx, input: &GroupInput) -> Self {
+        let group = input.group;
+        let starred = group
+            .account_ids
+            .iter()
+            .any(|id| ctx.display.is_starred(id));
+        Self {
+            provider: group.provider.clone(),
+            title: group_title(ctx.locale.lang, group),
+            plan: group_plans(group),
+            incident: incident(ctx, input),
+            menu: MenuInput {
+                provider_name: group.provider_name.clone(),
+                account_ids: group.account_ids.clone(),
+                starred,
+                target: ShareTarget::Combined(group.provider.clone()),
+                links: links_of(ctx, &group.provider),
             },
-        })
-        .collect()
-}
-
-fn top_line(ctx: &Ctx, row_view: &CombinedRow) -> gtk::Box {
-    let top = row(8, &["headroom-row-line"]);
-    let title = label(&row_view.label, &["headroom-metric-label"]);
-    title.set_hexpand(true);
-    top.append(&title);
-    if let Some(note) = &row_view.note {
-        let notes = row(4, &[]);
-        if note.flame {
-            notes.append(&svg_image(
-                FLAME,
-                &ctx.css("crit"),
-                FLAME_SIZE,
-                &["headroom-flame"],
-            ));
         }
-        notes.append(&label(&note.text, &["headroom-reading", "dim"]));
-        top.append(&notes);
-    }
-    top
-}
-
-fn bottom_line(ctx: &Ctx, row_view: &CombinedRow) -> (gtk::Box, gtk::Label) {
-    let bottom = row(8, &[]);
-    let headline = label(&row_view.headline, &["headroom-reading"]);
-    bottom.append(&value_toggle(ctx, &headline));
-    bottom.append(&spacer());
-    let trailing = label(&row_view.trailing, &["headroom-reading", "dim"]);
-    bottom.append(&reset_toggle(ctx, &trailing));
-    (bottom, trailing)
-}
-
-fn meter_tip(row_view: &CombinedRow) -> String {
-    std::iter::once(row_view.trailing.as_str())
-        .chain(row_view.forecast.as_deref())
-        .chain(std::iter::once(row_view.breakdown.as_str()))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-struct CompactParts {
-    trailing: gtk::Label,
-    meter: gtk::DrawingArea,
-}
-
-impl CompactParts {
-    fn show(&self, locale: &Locale, window: &CombinedWindow, display: &Display, now: Timestamp) {
-        let text = compact_reset(locale, window.resets_at, now, display.reset_format);
-        self.trailing.set_text(&text);
-        let row_view = combined_row(locale, window, &[], display, now);
-        self.meter.set_tooltip_text(Some(&meter_tip(&row_view)));
     }
 }
 
-fn compact_window_row(
-    ctx: &Ctx,
-    window: &CombinedWindow,
-    members: &[Account],
-    now: Timestamp,
-) -> gtk::Box {
-    let row_view = combined_row(&ctx.locale, window, members, &ctx.display, now);
-    let line = row(6, &["headroom-row-line", "headroom-compact-line"]);
-    let title = label(&row_view.label, &["headroom-metric-label"]);
-    title.set_hexpand(true);
-    title.set_ellipsize(gtk::pango::EllipsizeMode::End);
-    line.append(&title);
-    if row_view.note.as_ref().is_some_and(|note| note.flame) {
-        let flame = svg_image(
-            FLAME,
-            &ctx.css("crit"),
-            COMPACT_FLAME_SIZE,
-            &["headroom-flame"],
-        );
-        flame.set_valign(gtk::Align::Center);
-        line.append(&flame);
-    }
-    let headline = label(&row_view.headline, &["headroom-reading"]);
-    line.append(&value_toggle(ctx, &headline));
-    let parts = CompactParts {
-        trailing: label("", &["headroom-reading", "dim"]),
-        meter: segmented_meter(meter_parts(ctx, &row_view), meter_size(true)),
-    };
-    line.append(&reset_toggle(ctx, &parts.trailing));
-    let body = column(3, &["headroom-quota-row"]);
-    body.append(&line);
-    body.append(&parts.meter);
-    parts.show(&ctx.locale, window, &ctx.display, now);
-    let (locale, display, window) = (ctx.locale.clone(), ctx.display.clone(), window.clone());
-    ctx.on_tick(move |now| parts.show(&locale, &window, &display, now));
-    body
+fn incident(ctx: &Ctx, input: &GroupInput) -> Option<StatusView> {
+    input
+        .status
+        .and_then(|status| status_view(ctx.locale.lang, status))
 }
 
-fn window_row(ctx: &Ctx, window: &CombinedWindow, members: &[Account], now: Timestamp) -> gtk::Box {
-    if ctx.compact() {
-        return compact_window_row(ctx, window, members, now);
-    }
-    let row_view = combined_row(&ctx.locale, window, members, &ctx.display, now);
-    let body = column(2, &["headroom-quota-row"]);
-    body.append(&top_line(ctx, &row_view));
-    body.append(&segmented_meter(
-        meter_parts(ctx, &row_view),
-        meter_size(false),
-    ));
-    let (bottom, trailing) = bottom_line(ctx, &row_view);
-    body.append(&bottom);
-    let (locale, display, window) = (ctx.locale.clone(), ctx.display.clone(), window.clone());
-    ctx.on_tick(move |now| {
-        trailing.set_text(&combined_row(&locale, &window, &[], &display, now).trailing);
-    });
-    if let Some(forecast) = &row_view.forecast {
-        body.append(&wrapping_label(forecast, &["headroom-forecast"]));
-    }
-    body.set_tooltip_text(Some(&row_view.breakdown));
-    body
-}
-
-fn header(ctx: &Ctx, group: &CombinedGroup, status: Option<&ProviderStatus>) -> gtk::Box {
-    let incident = status.and_then(|status| status_view(ctx.locale.lang, status));
-    let starred = group
-        .account_ids
-        .iter()
-        .any(|id| ctx.display.is_starred(id));
-    let menu = MenuInput {
-        provider_name: group.provider_name.clone(),
-        account_ids: group.account_ids.clone(),
-        starred,
-        target: ShareTarget::Combined(group.provider.clone()),
-        links: links_of(ctx, &group.provider),
-    };
+fn header(ctx: &Ctx, key: &HeaderKey) -> gtk::Widget {
     let input = HeaderInput {
-        title: group_title(ctx.locale.lang, group),
-        plan: group_plans(group),
-        status: incident
+        title: key.title.clone(),
+        plan: key.plan.clone(),
+        status: key
+            .incident
             .iter()
             .map(|view| status_mark(view).upcast())
             .collect(),
-        menu,
+        menu: key.menu.clone(),
     };
-    section_header(ctx, &group.provider, input)
+    section_header(ctx, &key.provider, input).upcast()
 }
 
-pub fn combined_section(ctx: &Ctx, input: &GroupInput) -> gtk::Box {
-    let group = input.group;
-    let section = column(if ctx.compact() { 2 } else { 4 }, &[]);
-    section.append(&header(ctx, group, input.status));
-    let card = column(0, &["headroom-card"]);
-    let incident = input
-        .status
-        .and_then(|status| status_view(ctx.locale.lang, status));
-    if let Some(view) = incident {
-        card.append(&status_notice(ctx, &view, input.now, false));
+fn members(input: &GroupInput) -> Vec<Account> {
+    input
+        .members
+        .iter()
+        .filter(|account| input.group.account_ids.contains(&account.id))
+        .cloned()
+        .collect()
+}
+
+#[derive(PartialEq)]
+struct GroupKey {
+    look: LookKey,
+    group: CombinedGroup,
+    members: Vec<Account>,
+    status: Option<ProviderStatus>,
+    links: Option<ProviderLinks>,
+}
+
+impl GroupKey {
+    fn of(ctx: &Ctx, input: &GroupInput) -> Self {
+        Self {
+            look: LookKey::of(ctx),
+            group: input.group.clone(),
+            members: members(input),
+            status: input.status.cloned(),
+            links: ctx.links.get(&input.group.provider).cloned(),
+        }
     }
-    for window in &group.windows {
-        card.append(&window_row(ctx, window, input.members, input.now));
+}
+
+pub struct MountedGroup {
+    pub widget: gtk::Box,
+    pub ticks: Vec<SharedTick>,
+    key: Option<GroupKey>,
+    header: Option<Keyed<HeaderKey>>,
+    card: gtk::Box,
+    incident: Option<Keyed<StatusView>>,
+    rows: Vec<(String, MountedWindowRow)>,
+}
+
+impl MountedGroup {
+    pub fn new(ctx: &Ctx, input: &GroupInput) -> Self {
+        let widget = column(0, &[]);
+        let card = column(0, &["headroom-card"]);
+        widget.append(&card);
+        let mut group = Self {
+            widget,
+            ticks: Vec::new(),
+            key: None,
+            header: None,
+            card,
+            incident: None,
+            rows: Vec::new(),
+        };
+        group.update(ctx, input);
+        group
     }
-    card.set_visible(card.first_child().is_some());
-    section.append(&card);
-    section
+
+    pub fn update(&mut self, ctx: &Ctx, input: &GroupInput) {
+        let key = GroupKey::of(ctx, input);
+        match self.key.take() {
+            Some(old) if old == key => {
+                self.key = Some(old);
+                return;
+            }
+            Some(old) if old.look != key.look => self.reset(),
+            _ => {}
+        }
+        self.key = Some(key);
+        self.widget.set_spacing(if ctx.compact() { 2 } else { 4 });
+        self.header(ctx, input);
+        let mut order: Vec<gtk::Widget> = self.incident(ctx, input).into_iter().collect();
+        self.rows(ctx, input, &mut order);
+        arrange(&self.card, &order, None);
+        self.card.set_visible(!order.is_empty());
+        let incident = self
+            .incident
+            .iter()
+            .flat_map(|slot| slot.ticks.iter().cloned());
+        let rows = self
+            .rows
+            .iter()
+            .map(|(_, row)| std::rc::Rc::clone(&row.tick));
+        self.ticks = incident.chain(rows).collect();
+    }
+
+    fn reset(&mut self) {
+        if let Some(header) = self.header.take() {
+            self.widget.remove(&header.widget);
+        }
+        self.incident = None;
+        self.rows.clear();
+        self.widget.remove(&self.card);
+        self.card = column(0, &["headroom-card"]);
+        self.widget.append(&self.card);
+    }
+
+    fn header(&mut self, ctx: &Ctx, input: &GroupInput) {
+        let previous = self.header.take();
+        let old = previous.as_ref().map(|kept| kept.widget.clone());
+        let key = HeaderKey::of(ctx, input);
+        let (kept, built) = Keyed::reuse(previous, key, ctx, |key| header(ctx, key));
+        if built {
+            if let Some(old) = old {
+                self.widget.remove(&old);
+            }
+            self.widget.prepend(&kept.widget);
+        }
+        self.header = Some(kept);
+    }
+
+    fn incident(&mut self, ctx: &Ctx, input: &GroupInput) -> Option<gtk::Widget> {
+        let Some(view) = incident(ctx, input) else {
+            self.incident = None;
+            return None;
+        };
+        let (kept, _) = Keyed::reuse(self.incident.take(), view, ctx, |view| {
+            status_notice(ctx, view, input.now, false).upcast()
+        });
+        let widget = kept.widget.clone();
+        self.incident = Some(kept);
+        Some(widget)
+    }
+
+    fn rows(&mut self, ctx: &Ctx, input: &GroupInput, order: &mut Vec<gtk::Widget>) {
+        let members = members(input);
+        let mut previous = std::mem::take(&mut self.rows);
+        for window in &input.group.windows {
+            let row = match previous.iter().position(|(id, _)| id == &window.id) {
+                Some(index) => {
+                    let (id, row) = previous.swap_remove(index);
+                    row.update(ctx, window, &members, input.now);
+                    (id, row)
+                }
+                None => (
+                    window.id.clone(),
+                    MountedWindowRow::new(ctx, window, &members, input.now),
+                ),
+            };
+            order.push(row.1.widget.clone().upcast());
+            self.rows.push(row);
+        }
+    }
 }

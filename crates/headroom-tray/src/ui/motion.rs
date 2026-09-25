@@ -1,27 +1,45 @@
+use std::cell::Cell;
+use std::rc::Rc;
+
 use adw::prelude::*;
 
-const STANDARD_MS: u32 = 200;
+pub const STANDARD_MS: u32 = 200;
 pub const FAST_MS: u32 = 120;
 pub const SLIDE_MS: u32 = 200;
 
-pub fn grow(widget: &impl IsA<gtk::Widget>, set_progress: impl Fn(f64) + 'static) {
-    let target_widget = widget.clone().upcast::<gtk::Widget>();
-    let redraw = target_widget.downgrade();
+pub fn progress_animation(
+    widget: &impl IsA<gtk::Widget>,
+    set_progress: impl Fn(f64) + 'static,
+) -> adw::TimedAnimation {
+    let redraw = widget.upcast_ref::<gtk::Widget>().downgrade();
     let target = adw::CallbackAnimationTarget::new(move |progress| {
         set_progress(progress);
         if let Some(widget) = redraw.upgrade() {
             widget.queue_draw();
         }
     });
-    let animation = adw::TimedAnimation::builder()
-        .widget(&target_widget)
+    adw::TimedAnimation::builder()
+        .widget(widget)
         .value_from(0.0)
         .value_to(1.0)
         .duration(STANDARD_MS)
         .easing(adw::Easing::EaseOutCubic)
         .target(&target)
-        .build();
-    widget.connect_map(move |_| animation.play());
+        .build()
+}
+
+pub fn on_first_map(widget: &impl IsA<gtk::Widget>, run: impl Fn() + 'static) {
+    let done = Rc::new(Cell::new(false));
+    widget.connect_map(move |_| {
+        if !done.replace(true) {
+            run();
+        }
+    });
+}
+
+pub fn grow(widget: &impl IsA<gtk::Widget>, set_progress: impl Fn(f64) + 'static) {
+    let animation = progress_animation(widget, set_progress);
+    on_first_map(widget, move || animation.play());
 }
 
 pub fn fade(widget: &impl IsA<gtk::Widget>, from: f64, to: f64, duration: u32, motion: bool) {

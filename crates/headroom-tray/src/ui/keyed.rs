@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use gtk::prelude::*;
 use jiff::Timestamp;
 
 use crate::dates::Clock;
@@ -68,14 +69,47 @@ impl<K: PartialEq> Keyed<K> {
         previous: Option<Self>,
         key: K,
         ctx: &Ctx,
-        build: impl FnOnce() -> gtk::Widget,
+        build: impl FnOnce(&K) -> gtk::Widget,
     ) -> (Self, bool) {
         match previous {
             Some(kept) if kept.key == key => (kept, false),
             _ => {
-                let (widget, ticks) = capture(ctx, build);
+                let (widget, ticks) = capture(ctx, || build(&key));
                 (Self { key, widget, ticks }, true)
             }
         }
+    }
+
+    pub fn reuse_optional(
+        previous: Option<Self>,
+        key: K,
+        ctx: &Ctx,
+        build: impl FnOnce() -> Option<gtk::Widget>,
+    ) -> Option<Self> {
+        match previous {
+            Some(kept) if kept.key == key => Some(kept),
+            _ => {
+                let (widget, ticks) = capture(ctx, build);
+                widget.map(|widget| Self { key, widget, ticks })
+            }
+        }
+    }
+}
+
+pub fn arrange(container: &gtk::Box, order: &[gtk::Widget], after: Option<&gtk::Widget>) {
+    let mut child = after.map_or_else(|| container.first_child(), WidgetExt::next_sibling);
+    while let Some(current) = child {
+        child = current.next_sibling();
+        if !order.contains(&current) {
+            container.remove(&current);
+        }
+    }
+    let mut previous: Option<&gtk::Widget> = after;
+    for widget in order {
+        if widget.parent().is_none() {
+            container.append(widget);
+        }
+        container.reorder_child_after(widget, previous);
+        previous = Some(widget);
     }
 }

@@ -2,17 +2,15 @@ use std::collections::HashMap;
 
 use gtk::prelude::*;
 
-use crate::combined::CombinedGroup;
-use crate::payload::{Account, ProviderStatus, Spend, State, Update};
+use crate::payload::{Spend, State, Update};
 use crate::popup_model::collapse::MoreSummary;
 use crate::popup_model::spend_view::SpendChoice;
-use crate::preferences::registry::ProviderLinks;
 use crate::ui::account_section::{MountedSection, SectionInput};
 use crate::ui::collapsed::{less_divider, more_row};
-use crate::ui::combined_section::{GroupInput, combined_section};
+use crate::ui::combined_section::{GroupInput, MountedGroup};
 use crate::ui::context::{Ctx, Tick};
 use crate::ui::footer::{MountedFooter, RefreshButton, top_bar};
-use crate::ui::keyed::{Keyed, LookKey, SharedTick, boxed};
+use crate::ui::keyed::{Keyed, LookKey, SharedTick, arrange, boxed};
 use crate::ui::motion::{SLIDE_MS, fade};
 use crate::ui::popup::{
     Entry, Frame, apply_root_classes, content_column, ready_entries, root_column, scroller,
@@ -33,15 +31,6 @@ enum LeadingKey {
         spend: Box<Spend>,
         choice: Option<SpendChoice>,
     },
-}
-
-#[derive(PartialEq)]
-struct GroupKey {
-    look: LookKey,
-    group: CombinedGroup,
-    members: Vec<Account>,
-    status: Option<ProviderStatus>,
-    links: Option<ProviderLinks>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -69,8 +58,9 @@ struct Mounted {
     toast: Toast,
     leading: Option<Keyed<LeadingKey>>,
     sections: HashMap<String, MountedSection>,
-    groups: HashMap<String, Keyed<GroupKey>>,
+    groups: HashMap<String, MountedGroup>,
     more: Option<Keyed<MoreKey>>,
+    empty: Option<Keyed<LookKey>>,
     update: Option<Keyed<UpdateKey>>,
     footer: (LookKey, MountedFooter),
     ticks: Vec<SharedTick>,
@@ -81,40 +71,6 @@ pub struct PopupTree {
     mounted: Option<Mounted>,
 }
 
-fn arrange(container: &gtk::Box, order: &[gtk::Widget], after: Option<&gtk::Widget>) {
-    let mut child = after.map_or_else(|| container.first_child(), WidgetExt::next_sibling);
-    while let Some(current) = child {
-        child = current.next_sibling();
-        if !order.contains(&current) {
-            container.remove(&current);
-        }
-    }
-    let mut previous: Option<&gtk::Widget> = after;
-    for widget in order {
-        if widget.parent().is_none() {
-            container.append(widget);
-        }
-        container.reorder_child_after(widget, previous);
-        previous = Some(widget);
-    }
-}
-
-fn group_key(ctx: &Ctx, input: &GroupInput) -> GroupKey {
-    let group = input.group;
-    GroupKey {
-        look: LookKey::of(ctx),
-        group: group.clone(),
-        members: input
-            .members
-            .iter()
-            .filter(|account| group.account_ids.contains(&account.id))
-            .cloned()
-            .collect(),
-        status: input.status.cloned(),
-        links: ctx.links.get(&group.provider).cloned(),
-    }
-}
-
 fn entrance(widget: &gtk::Widget, built: bool, ctx: &Ctx, frame: &Frame) {
     if built && !frame.animate {
         fade(widget, 0.0, 1.0, SLIDE_MS, ctx.motion);
@@ -123,7 +79,7 @@ fn entrance(widget: &gtk::Widget, built: bool, ctx: &Ctx, frame: &Frame) {
 
 struct Pass<'m> {
     sections: HashMap<String, MountedSection>,
-    groups: HashMap<String, Keyed<GroupKey>>,
+    groups: HashMap<String, MountedGroup>,
     ticks: &'m mut Vec<SharedTick>,
 }
 
@@ -135,7 +91,7 @@ impl Mounted {
             choice: ctx.spend,
         });
         let refresh: gtk::Widget = self.refresh.widget.clone().upcast();
-        let (kept, _) = Keyed::reuse(self.leading.take(), key, ctx, || match spend {
+        let (kept, _) = Keyed::reuse(self.leading.take(), key, ctx, |_| match spend {
             Some(spend) => spend_section(ctx, spend, &refresh, frame.animate).upcast(),
             None => top_bar(&refresh).upcast(),
         });
@@ -174,20 +130,32 @@ impl Mounted {
         pass: &mut Pass,
     ) -> gtk::Widget {
         let id = input.group.provider.clone();
-        let key = group_key(ctx, input);
-        let (kept, built) = Keyed::reuse(pass.groups.remove(&id), key, ctx, || {
-            combined_section(ctx, input).upcast()
+        let (group, built) = match pass.groups.remove(&id) {
+            Some(mut group) => {
+                group.update(ctx, input);
+                (group, false)
+            }
+            None => (MountedGroup::new(ctx, input), true),
+        };
+        let widget: gtk::Widget = group.widget.clone().upcast();
+        entrance(&widget, built, ctx, frame);
+        pass.ticks.extend(group.ticks.iter().cloned());
+        self.groups.insert(id, group);
+        widget
+    }
+
+    fn empty(&mut self, ctx: &Ctx) -> gtk::Widget {
+        let (kept, _) = Keyed::reuse(self.empty.take(), LookKey::of(ctx), ctx, |_| {
+            empty_view(ctx).upcast()
         });
         let widget = kept.widget.clone();
-        entrance(&widget, built, ctx, frame);
-        pass.ticks.extend(kept.ticks.iter().cloned());
-        self.groups.insert(id, kept);
+        self.empty = Some(kept);
         widget
     }
 
     fn more(&mut self, ctx: &Ctx, key: MoreKey) -> gtk::Widget {
         let shown = key.clone();
-        let (kept, _) = Keyed::reuse(self.more.take(), key, ctx, || match &shown {
+        let (kept, _) = Keyed::reuse(self.more.take(), key, ctx, |_| match &shown {
             MoreKey::More(_, summary) => more_row(ctx, summary).upcast(),
             MoreKey::Less(_) => less_divider(ctx).upcast(),
         });
@@ -208,7 +176,7 @@ impl Mounted {
         let mut order = Vec::new();
         for entry in ready_entries(ctx, state, frame) {
             order.push(match entry {
-                Entry::Empty => empty_view(ctx).upcast(),
+                Entry::Empty => self.empty(ctx),
                 Entry::Leading(spend) => self.leading(ctx, spend, frame),
                 Entry::Account(input) => self.section(ctx, &input, frame, &mut pass),
                 Entry::Group(input) => self.group(ctx, &input, frame, &mut pass),
@@ -232,7 +200,7 @@ impl Mounted {
             open: ctx.ui.update_command_open,
             copied: ctx.ui.copied,
         };
-        let (kept, _) = Keyed::reuse(self.update.take(), key, ctx, || {
+        let (kept, _) = Keyed::reuse(self.update.take(), key, ctx, |_| {
             update_row(ctx, update).upcast()
         });
         let widget = kept.widget.clone();
@@ -294,6 +262,7 @@ impl PopupTree {
             sections: HashMap::new(),
             groups: HashMap::new(),
             more: None,
+            empty: None,
             update: None,
             footer: (LookKey::of(ctx), MountedFooter::new(ctx, view, frame.now)),
             ticks: Vec::new(),

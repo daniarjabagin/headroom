@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ksni::menu::StandardItem;
 use ksni::{Icon, MenuItem, OfflineReason, ToolTip, TrayMethods};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -105,6 +107,22 @@ impl ksni::Tray for HeadroomTray {
     }
 }
 
+fn same_pixmaps(previous: Option<&Pixmaps>, next: Option<&Pixmaps>) -> bool {
+    match (previous, next) {
+        (Some(previous), Some(next)) => Arc::ptr_eq(previous, next),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn replace_changed(current: &mut TrayUpdate, update: TrayUpdate) -> bool {
+    if *current == update {
+        return false;
+    }
+    *current = update;
+    true
+}
+
 #[derive(Default)]
 struct Pulse {
     ticker: Option<Interval>,
@@ -153,9 +171,10 @@ pub async fn serve(
     let mut painter = Painter::default();
     let mut pulse = Pulse::default();
     pulse.follow(first.icon.pulses());
+    let mut drawn = painter.paint(&first.icon, pulse.opacity());
     let tray = HeadroomTray {
         events: events.clone(),
-        drawn: painter.paint(&first.icon, pulse.opacity()),
+        drawn: drawn.clone(),
         mark,
         text: first.text.clone(),
         tooltip: first.tooltip.clone(),
@@ -170,18 +189,22 @@ pub async fn serve(
     };
     let mut current = first;
     loop {
-        tokio::select! {
+        let changed = tokio::select! {
             update = updates.recv() => match update {
-                Some(update) => current = update,
+                Some(update) => replace_changed(&mut current, update),
                 None => return,
             },
-            () = pulse.next_frame() => {}
-        }
+            () = pulse.next_frame() => false,
+        };
         pulse.follow(current.icon.pulses());
-        let drawn = painter.paint(&current.icon, pulse.opacity());
+        let next = painter.paint(&current.icon, pulse.opacity());
+        if !changed && same_pixmaps(drawn.as_ref(), next.as_ref()) {
+            continue;
+        }
+        drawn.clone_from(&next);
         let update = current.clone();
         if handle
-            .update(move |tray| tray.apply(update, drawn))
+            .update(move |tray| tray.apply(update, next))
             .await
             .is_none()
         {
@@ -193,6 +216,20 @@ pub async fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unchanged_pixmaps_are_recognised_by_identity() {
+        let pixmaps: Pixmaps = vec![Pixmap {
+            size: 1,
+            argb: vec![0; 4],
+        }]
+        .into();
+        let copy: Pixmaps = pixmaps.to_vec().into();
+        assert!(same_pixmaps(Some(&pixmaps), Some(&Arc::clone(&pixmaps))));
+        assert!(!same_pixmaps(Some(&pixmaps), Some(&copy)));
+        assert!(same_pixmaps(None, None));
+        assert!(!same_pixmaps(Some(&pixmaps), None));
+    }
 
     #[tokio::test]
     async fn the_pulse_timer_runs_only_while_critical() {

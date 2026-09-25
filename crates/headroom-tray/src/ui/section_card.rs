@@ -7,10 +7,17 @@ use crate::recovery::{ButtonState, NoticeButton};
 use crate::ui::context::{Action, Ctx};
 use crate::ui::notice::{MountedNotice, notice_line, notice_row};
 use crate::ui::status_views::skeleton_rows;
+use crate::ui::widgets::column;
+
+#[derive(Debug, PartialEq)]
+pub enum RestKey {
+    Skeleton(usize),
+    Notices(Vec<NoticeView>, ButtonState),
+}
 
 pub struct Card<'a> {
     pub alert: Option<NoticeView>,
-    pub rest: Vec<gtk::Widget>,
+    pub rest: Option<RestKey>,
     pub windows: Option<Vec<&'a Window>>,
 }
 
@@ -49,17 +56,30 @@ fn notice_widget(ctx: &Ctx, account: &Account, notice: &NoticeView) -> gtk::Widg
     mount_notice(ctx, account, notice).widget.upcast()
 }
 
+pub fn rest_widget(ctx: &Ctx, account: &Account, rest: &RestKey) -> gtk::Widget {
+    match rest {
+        RestKey::Skeleton(rows) => skeleton_rows(*rows).upcast(),
+        RestKey::Notices(notices, _) => {
+            let body = column(0, &[]);
+            for notice in notices {
+                body.append(&notice_widget(ctx, account, notice));
+            }
+            body.upcast()
+        }
+    }
+}
+
 pub fn card<'a>(ctx: &Ctx, account: &'a Account) -> Card<'a> {
     let terminal_sign_in = ctx.sign_in.contains(&account.provider);
     match card_body(ctx.locale.lang, account, ctx.offline, terminal_sign_in) {
         CardBody::Blocked(notice) => Card {
             alert: Some(notice),
-            rest: Vec::new(),
+            rest: None,
             windows: None,
         },
         CardBody::Skeleton(rows) => Card {
             alert: None,
-            rest: vec![skeleton_rows(rows).upcast()],
+            rest: Some(RestKey::Skeleton(rows)),
             windows: None,
         },
         CardBody::Limits {
@@ -68,21 +88,9 @@ pub fn card<'a>(ctx: &Ctx, account: &'a Account) -> Card<'a> {
             windows,
         } => Card {
             alert,
-            rest: notices
-                .iter()
-                .map(|notice| notice_widget(ctx, account, notice))
-                .collect(),
+            rest: (!notices.is_empty())
+                .then(|| RestKey::Notices(notices, button_state(ctx, account))),
             windows: Some(windows),
         },
-    }
-}
-
-pub fn clear_except(container: &gtk::Box, kept: Option<&gtk::Box>) {
-    let mut child = container.first_child();
-    while let Some(current) = child {
-        child = current.next_sibling();
-        if kept.is_none_or(|kept| kept.upcast_ref::<gtk::Widget>() != &current) {
-            container.remove(&current);
-        }
     }
 }
