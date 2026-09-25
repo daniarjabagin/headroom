@@ -55,7 +55,6 @@ export class PopupView {
         this._pendingView = null;
         this._scrollbarTimeoutId = 0;
         this._requestedMask = false;
-        this._revealed = false;
         this._links = new Map();
         this._linksRequested = false;
         this._tooltips = new Tooltips();
@@ -117,7 +116,7 @@ export class PopupView {
         });
         this._scroll.child = this._content;
         this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
-        this._banner = new MaskBanner(() => this._reveal());
+        this._banner = new MaskBanner(() => this._ctx.actions.showNumbersAnyway());
         this._footer = new Footer(this._ctx, versionText);
         this._updateRow = new UpdateRow(this._ctx);
         for (const actor of [this._banner.actor, this._scroll, this._updateRow.actor, this._footer.actor])
@@ -164,7 +163,6 @@ export class PopupView {
 
     render(view, { masked = false } = {}) {
         this._requestedMask = masked;
-        if (!masked) this._revealed = false;
         if (this._reorderer.dragging) {
             this._pendingView = view;
             return;
@@ -181,9 +179,8 @@ export class PopupView {
     }
 
     _syncContext(view) {
-        const masked = this._requestedMask && !this._revealed;
-        this._ctx.masked = masked;
-        this._banner.show(masked);
+        this._ctx.masked = this._requestedMask;
+        this._banner.show(this._requestedMask);
         if (view.kind !== 'ready') {
             if (view.kind === 'unavailable') this._linksRequested = false;
             return;
@@ -207,11 +204,6 @@ export class PopupView {
 
     _rerender() {
         this.render(this._view, { masked: this._requestedMask });
-    }
-
-    _reveal() {
-        this._revealed = true;
-        this._rerender();
     }
 
     async _requestLinks() {
