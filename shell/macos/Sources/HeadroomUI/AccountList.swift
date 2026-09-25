@@ -23,9 +23,10 @@
         @State private var drag: DragState?
         @State private var frames: [String: CGRect] = [:]
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
-            VStack(alignment: .leading, spacing: PopupMetrics.sectionGap) {
+            VStack(alignment: .leading, spacing: layout.cg.sectionGap) {
                 ForEach(sections) { section in
                     sectionView(section)
                 }
@@ -101,7 +102,7 @@
             guard let move = target(for: drag) else { return nil }
             return AccountOrder.indicatorPosition(
                 others: others(excluding: drag.id), target: move.to, from: move.from,
-                gap: Double(PopupMetrics.sectionGap)
+                gap: layout.sectionGap
             ).map { CGFloat($0) }
         }
 

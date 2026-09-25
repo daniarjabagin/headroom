@@ -39,38 +39,3 @@ public enum PopupScreen: Sendable, Hashable {
         }
     }
 }
-
-public struct FooterStatus: Sendable, Hashable {
-    public let text: String
-    public let isNotice: Bool
-    public let refreshes: Bool
-
-    public static func make(screen: PopupScreen, now: Timestamp, formatter: DisplayFormatter) -> FooterStatus {
-        let strings = formatter.strings
-        switch screen {
-        case .serviceDown:
-            return FooterStatus(text: strings.text(.serviceNotRunning), isNotice: false, refreshes: false)
-        case .loading: return FooterStatus(text: strings.text(.connecting), isNotice: false, refreshes: false)
-        case .incompatible, .unreadable: return FooterStatus(text: "", isNotice: false, refreshes: false)
-        case .empty(let state), .dashboard(let state): return make(state: state, now: now, formatter: formatter)
-        }
-    }
-
-    static func make(state: DaemonState, now: Timestamp, formatter: DisplayFormatter) -> FooterStatus {
-        let strings = formatter.strings
-        if state.offline {
-            let text =
-                state.lastSuccessAt.map { strings.fill(.offlineSince, ["time": formatter.clockTime($0.date)]) }
-                ?? strings.text(.offline)
-            return FooterStatus(text: text, isNotice: true, refreshes: true)
-        }
-        if PopupScreen.isRefreshing(state) {
-            return FooterStatus(text: strings.text(.updating), isNotice: false, refreshes: true)
-        }
-        if let next = state.nextRefreshAt {
-            return FooterStatus(text: formatter.nextUpdateText(next, now: now), isNotice: false, refreshes: true)
-        }
-        let updated = state.lastSuccessAt.map { strings.fill(.updatedAt, ["time": formatter.clockTime($0.date)]) }
-        return FooterStatus(text: updated ?? "", isNotice: false, refreshes: true)
-    }
-}

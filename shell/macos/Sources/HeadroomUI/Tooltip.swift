@@ -138,6 +138,8 @@
                     }
                 case .breakdown(let breakdown):
                     BreakdownTip(breakdown: breakdown)
+                case .models(let popover):
+                    ModelPopoverView(popover: popover)
                 case .lines(let title, let lines):
                     VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(Typeface.captionStrong)
@@ -183,6 +185,48 @@
                 Text(breakdown.total).font(Typeface.captionMedium)
                 if let note = breakdown.partialNote {
                     Text(note).font(Typeface.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    struct ModelPopoverView: View {
+        static let width: CGFloat = 228
+
+        let popover: ModelPopover
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text(popover.title).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(popover.total)
+                }
+                .font(Typeface.captionStrong)
+                Rectangle().fill(Palette.separator).frame(height: 1)
+                ForEach(popover.rows) { row in rowView(row) }
+                Rectangle().fill(Palette.separator).frame(height: 1)
+                ForEach(popover.footnotes, id: \.self) { note in
+                    Text(note).font(Typeface.caption2).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(width: Self.width, alignment: .leading)
+        }
+
+        private func rowView(_ row: ModelPopoverRow) -> some View {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Text(row.name).lineLimit(1).truncationMode(.middle)
+                    if let detail = row.detail { Text(detail).foregroundStyle(.secondary).lineLimit(1) }
+                    Spacer(minLength: 6)
+                    Text(row.cost).fontWeight(.semibold)
+                }
+                .font(Typeface.caption)
+                HStack(spacing: 8) {
+                    SplitBar(segments: [BarSegment(id: row.id, color: popover.color, fraction: row.fill)])
+                    Text(row.figures).font(Typeface.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .fixedSize()
                 }
             }
         }

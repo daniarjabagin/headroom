@@ -1,5 +1,5 @@
 public enum PopupText: Sendable, CaseIterable {
-    case totalSpend, today, yesterday, thirtyDays, last30Days, noUsageInPeriod
+    case today, yesterday, last30Days, noUsageInPeriod
     case spendEstimate, spendUnpricedModels, usageTrend, noUsage, someModelsUnpriced, unpriced, partlyUnpriced
     case outdated, refreshFailed, retry, retrying, signInAgain, signedOutDetail, signInThenRetry
     case copyCommand, copied, accountChangedDetail
@@ -8,10 +8,8 @@ public enum PopupText: Sendable, CaseIterable {
 
     var english: String {
         switch self {
-        case .totalSpend: "Total Spend"
         case .today: "Today"
         case .yesterday: "Yesterday"
-        case .thirtyDays: "30 Days"
         case .last30Days: "Last 30 Days"
         case .noUsageInPeriod: "No usage in this period"
         case .spendEstimate: "Estimated from local logs and public pricing."
@@ -49,10 +47,8 @@ public enum PopupText: Sendable, CaseIterable {
 
     var russian: String {
         switch self {
-        case .totalSpend: "Всего потрачено"
         case .today: "Сегодня"
         case .yesterday: "Вчера"
-        case .thirtyDays: "30 дней"
         case .last30Days: "За 30 дней"
         case .noUsageInPeriod: "За этот период расходов нет"
         case .spendEstimate: "Оценка по локальным журналам и публичным ценам."
@@ -90,7 +86,7 @@ public enum PopupText: Sendable, CaseIterable {
 
 public enum PopupTemplate: Sendable, CaseIterable {
     case spare, limitIn, runsOutIn, paceRunsOut, paceRunsOutResets, paceUsedAtReset, paceLeftAtReset
-    case offlineSince, lastUpdated, signedOutOf, couldNotRefresh, otherModels, dayTitle, version
+    case lastUpdated, signedOutOf, couldNotRefresh, otherModels, dayTitle, version
     case accountChanged, runInTerminal
 
     var english: String {
@@ -102,7 +98,6 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .paceRunsOutResets: "At this pace: {runsOut} · {resets}"
         case .paceUsedAtReset: "At this pace: ~{percent}% used at reset"
         case .paceLeftAtReset: "At this pace: ~{percent}% left at reset"
-        case .offlineSince: "Offline — last update {time}"
         case .lastUpdated: "Last updated {ago}"
         case .signedOutOf: "Signed out of {provider}"
         case .couldNotRefresh: "Couldn't refresh {provider}"
@@ -123,7 +118,6 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .paceRunsOutResets: "При текущем темпе: {runsOut} · {resets}"
         case .paceUsedAtReset: "При текущем темпе к сбросу будет использовано ~{percent}%"
         case .paceLeftAtReset: "При текущем темпе к сбросу останется ~{percent}%"
-        case .offlineSince: "Нет сети — обновлено в {time}"
         case .lastUpdated: "Обновлено {ago}"
         case .signedOutOf: "Выполнен выход из {provider}"
         case .couldNotRefresh: "Не удалось обновить {provider}"

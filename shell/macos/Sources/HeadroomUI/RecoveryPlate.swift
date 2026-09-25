@@ -26,7 +26,9 @@
 
         private var actions: [NoticeAction] {
             guard let recovery else { return [] }
-            return [primaryAction(recovery.primary), retryAction(recovery)].compactMap { $0 }
+            return [primaryAction(recovery.primary, accountID: recovery.accountID), retryAction(recovery)].compactMap {
+                $0
+            }
         }
 
         private func retryAction(_ recovery: NoticeRecovery) -> NoticeAction {
@@ -39,13 +41,13 @@
                 run: { retries.press(accountID, refresh) })
         }
 
-        private func primaryAction(_ primary: RecoveryPrimary?) -> NoticeAction? {
+        private func primaryAction(_ primary: RecoveryPrimary?, accountID: String) -> NoticeAction? {
             switch primary {
             case .signIn(let provider):
-                let signIn = context.actions.signIn
+                let signInAgain = context.sections.signInAgain
                 return NoticeAction(
                     id: "signin", title: context.strings.text(.signInAgain), primary: true, busy: false,
-                    run: { signIn(provider) })
+                    run: { signInAgain(accountID, provider) })
             case .copyCommand(let command):
                 return NoticeAction(
                     id: "copy", title: context.strings.text(copied ? .copied : .copyCommand), primary: true,

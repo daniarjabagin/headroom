@@ -4,8 +4,13 @@ import XCTest
 @testable import HeadroomKit
 
 final class PresentationSpendTests: XCTestCase {
+    private static func selection(_ period: SpendPeriodPreference) -> SpendSelection {
+        SpendSelection(period: period, unit: .cost, breakdown: .models)
+    }
+
     func testLegendKeepsDaemonOrderAndRingFractions() throws {
-        let card = SpendCardModel.make(spend: try Build.full().spend, period: .today, formatter: Build.english)
+        let card = SpendCardModel.make(
+            spend: try Build.full().spend, selection: Self.selection(.today), formatter: Build.english)
         XCTAssertEqual(card.entries.map(\.name), ["Claude", "Codex"])
         XCTAssertEqual(card.entries.map(\.amount), ["$0.01", "$0.00"])
         XCTAssertEqual(card.centerAmount, "$0.01")
@@ -18,29 +23,28 @@ final class PresentationSpendTests: XCTestCase {
     }
 
     func testSingleProviderAddsExactTokensAndPartialBreakdown() throws {
-        let card = SpendCardModel.make(spend: try Build.full().spend, period: .yesterday, formatter: Build.english)
+        let card = SpendCardModel.make(
+            spend: try Build.full().spend, selection: Self.selection(.yesterday), formatter: Build.english)
         XCTAssertEqual(card.fractions, [1])
         XCTAssertEqual(card.entries.first?.tokensLine, "615 tokens")
         XCTAssertEqual(card.info, "Estimated from local logs and public pricing. Some models have no public price yet.")
-        guard case .breakdown(let breakdown) = card.entries.first?.tip else { return XCTFail("expected breakdown") }
-        XCTAssertEqual(breakdown.title, "Yesterday · Codex")
+        guard case .models(let popover) = card.entries.first?.tip else { return XCTFail("expected popover") }
+        XCTAssertEqual(popover.title, "Codex · Yesterday")
+        XCTAssertEqual(popover.rows.map(\.name), ["gpt-5.5", "unknown"])
+        XCTAssertEqual(popover.rows.map(\.cost), ["$0.00", "unpriced"])
+        XCTAssertEqual(popover.total, "$0.00")
         XCTAssertEqual(
-            breakdown.rows,
-            [
-                ModelBreakdownRow(name: "gpt-5.5", tokens: "600", cost: "$0.00"),
-                ModelBreakdownRow(name: "unknown *", tokens: "15", cost: "unpriced"),
-            ])
-        XCTAssertEqual(breakdown.total, "$0.00 · 615 tokens")
-        XCTAssertEqual(breakdown.partialNote, "* Partly unpriced, cost leaves it out")
+            popover.footnotes,
+            ["Estimated from local logs and public pricing.", "Some models have no public price yet."])
     }
 
     func testEmptyPeriodAndVisibility() throws {
         let empty = try Fixture.decode(DaemonState.self, "state_empty")
-        let card = SpendCardModel.make(spend: empty.spend, period: .last30Days, formatter: Build.english)
+        let card = SpendCardModel.make(
+            spend: empty.spend, selection: Self.selection(.last30Days), formatter: Build.english)
         XCTAssertTrue(card.isEmpty)
         XCTAssertFalse(SpendCardModel.shows(empty))
         XCTAssertTrue(SpendCardModel.shows(try Build.full()))
-        XCTAssertEqual(SpendPeriod.allCases.map { $0.title(Build.russian.strings) }, ["Сегодня", "Вчера", "30 дней"])
     }
 
     func testOtherModelsRowComesLast() {

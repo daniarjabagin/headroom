@@ -63,8 +63,6 @@
     }
 
     enum Typeface {
-        static let title = Font.system(size: 13, weight: .semibold)
-        static let titleRegular = Font.system(size: 13)
         static let label = Font.system(size: 12, weight: .semibold)
         static let body = Font.system(size: 12)
         static let bodyMedium = Font.system(size: 12, weight: .medium)
@@ -73,7 +71,6 @@
         static let captionMedium = Font.system(size: 11, weight: .medium)
         static let captionStrong = Font.system(size: 11, weight: .semibold)
         static let caption2 = Font.system(size: 10)
-        static let ring = Font.system(size: 13, weight: .semibold, design: .rounded)
     }
 
     enum PopupMetrics {
@@ -83,27 +80,19 @@
         static let noticeRadius: CGFloat = 9
         static let chipRadius: CGFloat = 6
         static let padding: CGFloat = 12
-        static let bottomPadding: CGFloat = 10
         static let sectionGap: CGFloat = 10
         static let headerGap: CGFloat = 3
         static let cardGutter: CGFloat = 3
         static let cardPaddingX: CGFloat = 12
-        static let cardPaddingY: CGFloat = 10
         static let rowInset: CGFloat = 12
         static let barRowPadding: CGFloat = 7
-        static let textRowPadding: CGFloat = 5
         static let rowSpacing: CGFloat = 3
         static let headerLeading: CGFloat = 8
         static let headerTrailing: CGFloat = 2
         static let meterHeight: CGFloat = 5
         static let tickWidth: CGFloat = 2
-        static let tickHeight: CGFloat = 9
-        static let donutSize: CGFloat = 76
-        static let legendGap: CGFloat = 14
         static let legendRowGap: CGFloat = 6
         static let refreshSize: CGFloat = 22
-        static let gearSize: CGFloat = 24
-        static let footerPaddingY: CGFloat = 8
         static let minScrollHeight: CGFloat = 160
         static let tipDelay: Duration = .milliseconds(400)
     }
