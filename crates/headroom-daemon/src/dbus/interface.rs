@@ -62,6 +62,15 @@ impl DaemonInterface {
             .map_err(|error| fdo::Error::Failed(error.to_string()))
     }
 
+    async fn get_spend(&self, query: &str) -> fdo::Result<String> {
+        let report = self
+            .core()
+            .get_spend(query)
+            .await
+            .map_err(|error| to_fdo(&error))?;
+        serde_json::to_string(&report).map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
     fn get_settings(&self) -> fdo::Result<String> {
         self.core().settings_json().map_err(|error| to_fdo(&error))
     }

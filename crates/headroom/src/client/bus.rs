@@ -14,6 +14,8 @@ use zbus::names::BusName;
 pub trait Daemon {
     fn get_state(&self) -> zbus::Result<String>;
 
+    fn get_spend(&self, query: &str) -> zbus::Result<String>;
+
     fn refresh(&self, account_id: &str) -> zbus::Result<()>;
 
     fn refresh_now(&self) -> zbus::Result<()>;

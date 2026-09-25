@@ -67,6 +67,31 @@ pub enum SettingsError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum SpendQueryError {
+    #[error("spend query is invalid: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("a spend query needs either a period or a since date")]
+    MissingRange,
+    #[error("a spend query takes a period or a since date, not both")]
+    PeriodAndSince,
+    #[error("until needs a since date")]
+    UntilWithoutSince,
+    #[error("until {until} is before since {since}")]
+    UntilBeforeSince {
+        since: jiff::civil::Date,
+        until: jiff::civil::Date,
+    },
+    #[error("{0} is in the future")]
+    Future(jiff::civil::Date),
+    #[error("Headroom keeps usage for recent days only; the earliest since date is {0}")]
+    BeyondRetention(jiff::civil::Date),
+    #[error("date range is out of bounds: {0}")]
+    Range(#[from] jiff::Error),
+    #[error("unknown provider: {0}")]
+    UnknownProvider(String),
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum CommandError {
     #[error("unknown account: {0}")]
     UnknownAccount(String),
@@ -90,6 +115,8 @@ pub enum CommandError {
     Stopping,
     #[error("update checks are turned off for this daemon (--no-update-check)")]
     UpdateChecksUnavailable,
+    #[error(transparent)]
+    SpendQuery(#[from] SpendQueryError),
 }
 
 impl CommandError {
@@ -102,7 +129,8 @@ impl CommandError {
             | CommandError::NotDismissable(_)
             | CommandError::LabelTooLong(_)
             | CommandError::LabelControlCharacters
-            | CommandError::Settings(_) => true,
+            | CommandError::Settings(_)
+            | CommandError::SpendQuery(_) => true,
             CommandError::Storage(_)
             | CommandError::Encode(_)
             | CommandError::Stopping

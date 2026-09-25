@@ -6,6 +6,7 @@ pub mod pango;
 pub mod printable;
 pub mod providers;
 pub mod spend;
+pub mod spend_breakdown;
 pub mod status;
 pub mod style;
 pub mod table;

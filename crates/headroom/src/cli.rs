@@ -42,6 +42,58 @@ pub enum Command {
     Update(UpdateArgs),
     #[command(about = "Print a diagnostics report for bug reports, without secrets or emails")]
     Diagnostics,
+    #[command(
+        about = "Break down local spend by model, project, provider or day",
+        after_help = SPEND_EXAMPLES
+    )]
+    Spend(SpendArgs),
+}
+
+const SPEND_EXAMPLES: &str = "\
+Examples:
+  headroom spend                          models of the last 7 days
+  headroom spend --by project --since 30d
+  headroom spend --by day --since 2026-09-01 --until 2026-09-15
+  headroom spend --provider claude --json
+
+Without a running daemon the numbers are read from its database directly.";
+
+#[derive(Debug, Args)]
+pub struct SpendArgs {
+    #[arg(long, value_enum, default_value_t = SpendBy::Model, help = "How to group the spend")]
+    pub by: SpendBy,
+    #[arg(
+        long,
+        value_name = "7d|30d|YYYY-MM-DD",
+        default_value = "7d",
+        help = "The last 7 or 30 days, today or yesterday, or a first day"
+    )]
+    pub since: String,
+    #[arg(
+        long,
+        value_name = "YYYY-MM-DD",
+        help = "Last day, with a --since date; default today"
+    )]
+    pub until: Option<String>,
+    #[arg(
+        long,
+        value_name = "PROVIDER",
+        help = "Only this provider, see `headroom providers`"
+    )]
+    pub provider: Option<String>,
+    #[arg(
+        long,
+        help = "Print the breakdown as JSON, as the daemon's GetSpend returns it"
+    )]
+    pub json: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SpendBy {
+    Model,
+    Project,
+    Provider,
+    Day,
 }
 
 #[derive(Debug, Args)]
@@ -343,6 +395,32 @@ mod tests {
     fn update_checks_can_be_turned_off_for_the_daemon() {
         assert!(!daemon_args(&[]).no_update_check);
         assert!(daemon_args(&["--no-update-check"]).no_update_check);
+    }
+
+    fn spend_args(args: &[&str]) -> Result<SpendArgs, clap::Error> {
+        let parsed = Cli::try_parse_from([&["headroom", "spend"], args].concat())?;
+        match parsed.command {
+            Command::Spend(spend) => Ok(spend),
+            other => panic!("parsed {other:?}"),
+        }
+    }
+
+    #[test]
+    fn spend_defaults_to_models_of_the_last_week() {
+        let defaults = spend_args(&[]).unwrap();
+        assert_eq!(defaults.by, SpendBy::Model);
+        assert_eq!(defaults.since, "7d");
+        assert!(defaults.until.is_none() && defaults.provider.is_none() && !defaults.json);
+        let day = spend_args(&[
+            "--by",
+            "day",
+            "--since",
+            "2026-09-01",
+            "--until",
+            "2026-09-02",
+        ]);
+        assert_eq!(day.unwrap().by, SpendBy::Day);
+        assert!(spend_args(&["--by", "week"]).is_err());
     }
 
     #[test]

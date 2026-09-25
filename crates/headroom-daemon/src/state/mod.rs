@@ -8,6 +8,7 @@ mod headline;
 mod models;
 mod panel_items;
 pub mod payload;
+mod projects;
 mod refresh;
 mod spend;
 pub mod status;
@@ -44,18 +45,17 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .filter(|(home, _)| model.usage_homes.contains(home))
         .collect();
     listed.sort_by_key(|(home, _)| (ctx.catalog.rank(&home.provider), &home.home));
-    let full_usage: Vec<_> = listed
-        .into_iter()
-        .map(|(home, summary)| usage::usage_view(home, summary, ctx))
-        .collect();
     let display = &model.settings.display;
     let combined = account_collapse::with_group_collapse(
         combined::combined(&accounts, display.combine_accounts),
         &accounts,
         display,
     );
-    let spend = spend::spend(&full_usage);
-    let usage = full_usage.into_iter().map(usage::with_top_models).collect();
+    let spend = spend::spend(&listed, ctx);
+    let usage = listed
+        .into_iter()
+        .map(|(home, summary)| usage::with_top_models(usage::usage_view(home, summary, ctx)))
+        .collect();
     StatePayload {
         version: STATE_VERSION,
         app_version: Some(APP_VERSION.to_owned()),
@@ -90,3 +90,6 @@ mod panel_state_tests;
 
 #[cfg(test)]
 mod recovery_tests;
+
+#[cfg(test)]
+mod spend_state_tests;

@@ -10,6 +10,7 @@ mod paths;
 mod pricing;
 mod providers;
 mod render;
+mod spend;
 mod state;
 mod update;
 mod waybar;
@@ -80,6 +81,7 @@ async fn dispatch(
         Command::Providers(args) => providers::list(&args)?,
         Command::Update(args) => update::run(&args).await?,
         Command::Diagnostics => diagnostics::print(globals).await?,
+        Command::Spend(args) => spend::run(globals, &args).await?,
     }
     Ok(ExitCode::SUCCESS)
 }

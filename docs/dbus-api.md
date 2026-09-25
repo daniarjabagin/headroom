@@ -1160,8 +1160,13 @@ Query (JSON object, unknown fields rejected):
 | `period` | string | `today`, `yesterday`, `7d` or `30d`. Either `period` or `since` is required, not both. |
 | `since` | string | `YYYY-MM-DD`, first day. |
 | `until` | string | `YYYY-MM-DD`, last day, only with `since`; default today. Must not be before `since`. |
-| `by` | string | `model`, `project`, `provider` or `day`. |
-| `provider` | string | Optional provider id filter; an unknown id is invalid. |
+| `by` | string | Required: `model`, `project`, `provider` or `day`. |
+| `provider` | string | Optional provider id filter; an id `ListProviders` does not list is invalid. |
+
+Neither `since` nor `until` may be after today. The daemon keeps usage events for 35 days, so
+`since` may be at most 33 days before today (one day of margin for DST changes); an earlier date is
+invalid rather than silently incomplete. Invalid queries fail with `InvalidArgs` (socket: `-32602`)
+and a message naming the problem.
 
 Result:
 
@@ -1169,14 +1174,15 @@ Result:
 | --- | --- | --- |
 | `since`, `until` | string | The resolved inclusive date range. |
 | `by` | string | As requested. |
-| `rows` | SpendRow[] | One row per group, sorted by cost descending, then tokens descending, then key; `day` rows are sorted by date ascending and include days without usage. Not cut to a top N. |
+| `rows` | SpendRow[] | One row per group (for `model`, per provider and model, so a model logged by two tools gives two rows), sorted by cost descending, then tokens descending, then key; `day` rows are sorted by date ascending and include days without usage. Not cut to a top N. |
 | `total` | SpendRow | The sum of all rows, with `key` `null`. |
 
 SpendRow: `key` (model name, project path or `null`, provider id, or date), `provider` (the
 provider id for `model` and `provider` rows, else `null`), `tokens` (the Totals `tokens` object:
 `input`, `cache_read`, `cache_write`, `output`, `reasoning`, `total`), `cost_usd_micros`, `partial`,
-`unpriced_tokens`, `cost_per_mtok_usd_micros` (as above), `sessions` (distinct logged sessions),
-`share_permille` (of the result's total cost, as for projects).
+`unpriced_tokens`, `cost_per_mtok_usd_micros` (as above), `share_permille` (of the result's total
+cost, as for projects). Project paths are `~`-relative like `projects[].project`. There is no session
+count: stored usage events carry no session id.
 
 ```
 GetSpend('{"since":"2026-09-17","by":"model","provider":"claude"}')
@@ -1189,7 +1195,7 @@ GetSpend('{"since":"2026-09-17","by":"model","provider":"claude"}')
     { "key": "claude-opus-4-5", "provider": "claude",
       "tokens": { "input": 1200000, "cache_read": 180000000, "cache_write": 9000000, "output": 2100000, "reasoning": 0, "total": 192300000 },
       "cost_usd_micros": 151200000, "partial": false, "unpriced_tokens": 0, "cost_per_mtok_usd_micros": 786271,
-      "sessions": 41, "share_permille": 767 }
+      "share_permille": 767 }
   ],
   "total": { "key": null, "provider": null, "…": "same fields, summed" }
 }

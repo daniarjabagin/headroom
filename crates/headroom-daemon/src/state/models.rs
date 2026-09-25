@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use headroom_core::usage::ModelUsage;
+use headroom_core::usage::{ModelUsage, UsageTotals};
 
 use super::payload::{ModelView, OtherModelsView};
 
@@ -13,30 +13,32 @@ pub fn model_view(usage: &ModelUsage) -> ModelView {
         total_tokens: usage.totals.tokens.total().0,
         cost_usd_micros: usage.totals.cost.0,
         partial: usage.totals.is_partial(),
+        cost_per_mtok_usd_micros: usage.totals.cost_per_mtok().map(|cost| cost.0),
     }
 }
 
 #[derive(Debug, Default)]
 pub struct ModelMerge {
-    by_name: BTreeMap<String, ModelView>,
+    by_name: BTreeMap<String, UsageTotals>,
 }
 
 impl ModelMerge {
-    pub fn add(&mut self, rows: &[ModelView]) {
-        for row in rows {
-            let slot = self
-                .by_name
-                .entry(row.model.clone())
-                .or_insert_with(|| empty(&row.model));
-            slot.total_tokens = slot.total_tokens.saturating_add(row.total_tokens);
-            slot.cost_usd_micros = slot.cost_usd_micros.saturating_add(row.cost_usd_micros);
-            slot.partial |= row.partial;
+    pub fn add(&mut self, models: &[ModelUsage]) {
+        for usage in models {
+            self.by_name
+                .entry(usage.model.clone())
+                .or_default()
+                .absorb(&usage.totals);
         }
     }
 
     #[must_use]
     pub fn ranked(self) -> Vec<ModelView> {
-        let mut models: Vec<ModelView> = self.by_name.into_values().collect();
+        let mut models: Vec<ModelView> = self
+            .by_name
+            .into_iter()
+            .map(|(model, totals)| model_view(&ModelUsage { model, totals }))
+            .collect();
         models.sort_by(|a, b| {
             b.cost_usd_micros
                 .cmp(&a.cost_usd_micros)
@@ -67,15 +69,6 @@ fn other_models(rest: &[ModelView]) -> OtherModelsView {
         other.partial |= row.partial;
         other
     })
-}
-
-fn empty(model: &str) -> ModelView {
-    ModelView {
-        model: model.to_owned(),
-        total_tokens: 0,
-        cost_usd_micros: 0,
-        partial: false,
-    }
 }
 
 #[cfg(test)]

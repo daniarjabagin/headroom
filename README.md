@@ -366,9 +366,12 @@ headroom accounts                    # list accounts with their ids
 headroom accounts label ID "Work"    # rename; also: hide, show, order ID1 ID2 …
 headroom accounts remove ID          # delete an account Headroom added (never ~/.codex or ~/.claude)
 headroom update                      # install the latest release (script installs)
+headroom spend                       # spend of the last 7 days by model, from local logs
+headroom spend --by project --since 30d   # also --by provider|day, --since YYYY-MM-DD --until …, --provider, --json
 ```
 
-Without a running daemon, `status` shows the last cached data.
+Without a running daemon, `status` shows the last cached data and `spend` reads the daemon's
+database directly.
 
 ### Waybar
 

@@ -30,6 +30,11 @@ fn every_method_takes_its_d_bus_arguments_in_order() {
         ("ListProviders", json!([]), Command::ListProviders),
         ("GetSettings", json!([]), Command::GetSettings),
         (
+            "GetSpend",
+            json!([r#"{"period":"7d","by":"model"}"#]),
+            Command::GetSpend(r#"{"period":"7d","by":"model"}"#.into()),
+        ),
+        (
             "Refresh",
             json!(["codex:a"]),
             Command::Refresh("codex:a".into()),
@@ -117,6 +122,8 @@ fn wrong_arguments_are_invalid_params() {
         ("SetAccountOrder", json!(["codex:a"])),
         ("SetAccountOrder", json!([["codex:a", 2]])),
         ("SetAccountLabel", json!(["codex:a"])),
+        ("GetSpend", json!([])),
+        ("GetSpend", json!([{"period": "7d"}])),
     ];
     for (method, params) in cases {
         assert_eq!(
@@ -180,4 +187,30 @@ async fn diagnostics_return_the_report_as_an_object() {
     assert_eq!(report["log_level"], "info");
     assert_eq!(report["log_level_source"], "settings");
     assert!(report["text"].as_str().unwrap().starts_with("Headroom "));
+}
+
+#[tokio::test]
+async fn spend_returns_an_object_and_rejects_bad_queries_as_invalid_params() {
+    let harness = harness(Vec::new()).await;
+    let (rescans, _rescan_requests) = rescan::channel();
+    let service = Service::new(harness.core.clone(), rescans);
+    let query = r#"{"period":"today","by":"provider"}"#.to_owned();
+    let result = execute(&service, Command::GetSpend(query)).await.unwrap();
+    let report = serde_json::from_str::<Value>(result.get()).unwrap();
+    assert_eq!(report["since"], "2026-09-23");
+    assert_eq!(report["rows"], json!([]));
+    assert_eq!(report["total"]["key"], Value::Null);
+    let bad = [
+        r#"{"period":"week","by":"model"}"#,
+        r#"{"period":"7d"}"#,
+        r#"{"period":"7d","by":"model","extra":1}"#,
+        r#"{"since":"2026-09-20","until":"2026-09-19","by":"day"}"#,
+        r#"{"period":"7d","by":"model","provider":"nope"}"#,
+    ];
+    for query in bad {
+        let error = execute(&service, Command::GetSpend(query.into()))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidParams, "{query}");
+    }
 }
