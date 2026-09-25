@@ -1,5 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import { OptionModel } from './optionModel.js';
 
 function guarded(apply) {
     const state = { syncing: false };
@@ -28,18 +29,23 @@ function toggleGroupRow({ title, subtitle, options, onChange }) {
 export function comboRow({ title, subtitle, options, onChange }) {
     const row = new Adw.ComboRow({ title, subtitle: subtitle ?? '' });
     const guard = guarded(onChange);
-    let values = [];
+    const model = new OptionModel();
+    const select = value => {
+        const index = model.indexOf(value);
+        if (row.selected !== index) guard.sync(() => (row.selected = index));
+    };
     const setOptions = entries => {
-        values = entries.map(entry => entry.value);
-        guard.sync(() => (row.model = Gtk.StringList.new(entries.map(entry => entry.label))));
+        const current = model.valueAt(row.selected);
+        if (!model.setOptions(entries)) return;
+        guard.sync(() => (row.model = Gtk.StringList.new(model.labels)));
+        select(current);
     };
     setOptions(options);
-    row.connect('notify::selected', () => guard.emit(values[row.selected]));
-    return {
-        row,
-        setOptions,
-        set: value => guard.sync(() => (row.selected = Math.max(0, values.indexOf(value)))),
-    };
+    row.connect('notify::selected', () => {
+        const value = model.valueAt(row.selected);
+        if (value !== null) guard.emit(value);
+    });
+    return { row, setOptions, set: select };
 }
 
 export function segmentedRow(params) {

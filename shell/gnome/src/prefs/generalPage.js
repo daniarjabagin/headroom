@@ -60,7 +60,6 @@ function headlineFor(value) {
 export class GeneralPage {
     constructor(client, runner) {
         this._client = client;
-        this._limitKey = null;
         this._updates = new UpdateRows(client, runner);
         this.page = new Adw.PreferencesPage({ title: _('General'), icon_name: 'preferences-system-symbolic' });
         this._rows = this._buildRows();
@@ -102,10 +101,7 @@ export class GeneralPage {
     }
 
     _updateLimit(headline, state) {
-        const options = limitOptions(state, headline);
-        const key = JSON.stringify(options);
-        if (key !== this._limitKey) this._rows.limit.setOptions(options);
-        this._limitKey = key;
+        this._rows.limit.setOptions(limitOptions(state, headline));
         this._rows.limit.set(headline.mode === 'pinned' ? pinKey(headline.accountId, headline.window) : AUTO);
     }
 

@@ -1,19 +1,23 @@
+import GLib from 'gi://GLib';
 import { DaemonConnection } from '../daemonConnection.js';
 import { remoteMessage } from '../daemonInterface.js';
 import { decodeSettings, mergePatch, settingsFrom } from '../settings.js';
 import { parseState } from '../state.js';
 import { parseProviders, RegistryError } from './registry.js';
 
+const openConnection = options => new DaemonConnection(options);
+
 export class PrefsClient {
-    constructor({ onAvailable, onUnavailable, onState, onSettings, onError }) {
+    constructor({ onAvailable, onUnavailable, onState, onSettings, onError, connect = openConnection }) {
         this._handlers = { onAvailable, onUnavailable, onState, onSettings, onError };
         this._rawSettings = null;
         this._patchSequence = 0;
+        this._deliveryId = 0;
         this.state = null;
         this.settings = null;
         this.providers = null;
         this.providersError = null;
-        this._connection = new DaemonConnection({
+        this._connection = connect({
             signals: { StateChanged: json => this._acceptState(json) },
             onReady: proxy => this._onReady(proxy),
             onVanished: () => this._onVanished(),
@@ -22,12 +26,13 @@ export class PrefsClient {
     }
 
     destroy() {
+        this._cancelDelivery();
         this._connection.destroy();
         this._handlers = null;
     }
 
     updateSettings(patch) {
-        if (this._rawSettings) this._acceptSettings(mergePatch(this._rawSettings, patch));
+        if (this._rawSettings) this._acceptOptimistic(mergePatch(this._rawSettings, patch));
         const sequence = ++this._patchSequence;
         this._connection.enqueue(proxy => this._sendPatch(proxy, patch, sequence));
     }
@@ -88,9 +93,30 @@ export class PrefsClient {
     }
 
     _acceptSettings(raw) {
+        this._cancelDelivery();
+        this._storeSettings(raw);
+        this._handlers?.onSettings(this.settings);
+    }
+
+    _acceptOptimistic(raw) {
+        this._storeSettings(raw);
+        if (this._deliveryId) return;
+        this._deliveryId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._deliveryId = 0;
+            if (this.settings) this._handlers?.onSettings(this.settings);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _storeSettings(raw) {
         this._rawSettings = raw;
         this.settings = settingsFrom(raw);
-        this._handlers?.onSettings(this.settings);
+    }
+
+    _cancelDelivery() {
+        if (!this._deliveryId) return;
+        GLib.source_remove(this._deliveryId);
+        this._deliveryId = 0;
     }
 
     _acceptState(json) {
@@ -105,6 +131,7 @@ export class PrefsClient {
     }
 
     _onVanished() {
+        this._cancelDelivery();
         this._rawSettings = null;
         this.state = null;
         this.settings = null;
