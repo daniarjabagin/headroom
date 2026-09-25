@@ -11,7 +11,7 @@ final class AppModelTests: XCTestCase {
         model.apply(.connected)
         model.apply(.state(try Fixture.decode(DaemonState.self, "state_full")))
         XCTAssertEqual(model.phase, .connected)
-        XCTAssertEqual(model.menuBarContent, .reading(text: "8%", fraction: 0.08))
+        XCTAssertEqual(model.menuBarContent.slots.map(\.tone), [.critical])
         XCTAssertEqual(model.visibleAccounts.map(\.id), ["codex:work", "claude:main"])
     }
 
@@ -102,22 +102,5 @@ final class AppModelTests: XCTestCase {
         XCTAssertNotNil(model.serviceIssue)
         model.apply(SupervisorEvent.started)
         XCTAssertNil(model.serviceIssue)
-    }
-}
-
-final class MenuBarContentTests: XCTestCase {
-    func testUsedModeAndWindowLabel() throws {
-        let json = try Fixture.text("state_full")
-            .replacingOccurrences(of: #""value_mode": "left""#, with: #""value_mode": "used""#)
-            .replacingOccurrences(of: #""panel_label": "percent""#, with: #""panel_label": "window""#)
-        let state = try Fixture.decode(DaemonState.self, json: json)
-        XCTAssertEqual(state.display.valueMode, .used)
-        let content = MenuBarContent.make(state: state, formatter: DisplayFormatter(language: .ru))
-        XCTAssertEqual(content, .reading(text: "Сессия", fraction: 0.92))
-    }
-
-    func testNoHeadlineShowsGlyph() throws {
-        let state = try Fixture.decode(DaemonState.self, "state_empty")
-        XCTAssertEqual(MenuBarContent.make(state: state, formatter: DisplayFormatter(language: .en)), .glyph)
     }
 }

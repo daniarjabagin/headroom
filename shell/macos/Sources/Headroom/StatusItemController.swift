@@ -3,57 +3,73 @@
     import HeadroomKit
     import HeadroomUI
     import Observation
-    import SwiftUI
 
     @MainActor
     final class StatusItemController: NSObject {
         var onToggle: (@MainActor (NSStatusBarButton) -> Void)?
+        var onRebuild: (@MainActor () -> Void)?
 
-        private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         private let model: AppModel
         private let menus: AppMenus
-        private let renderer = MenuBarImageRenderer()
+        private let reducedMotion: @MainActor () -> Bool
+        private let logos = MenuBarLogos()
+        private var slots: [StatusSlot] = []
+        private var content: [MenuBarSlot] = []
+        private var hiddenFromCapture = true
+        private var motionObserver: NSObjectProtocol?
 
-        init(model: AppModel, menus: AppMenus) {
+        init(model: AppModel, menus: AppMenus, reducedMotion: @escaping @MainActor () -> Bool) {
             self.model = model
             self.menus = menus
+            self.reducedMotion = reducedMotion
             super.init()
-            configureButton()
             observeModel()
+            observeSystemMotion()
         }
 
-        var button: NSStatusBarButton? { item.button }
+        var button: NSStatusBarButton? { slots.first?.button }
 
-        private func configureButton() {
-            guard let button = item.button else { return }
-            button.target = self
-            button.action = #selector(buttonClicked(_:))
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.imagePosition = .imageOnly
-            button.setAccessibilityTitle("Headroom")
+        func setHiddenFromCapture(_ hidden: Bool) {
+            hiddenFromCapture = hidden
+            slots.forEach { $0.setHiddenFromCapture(hidden) }
         }
 
         private func observeModel() {
-            let content = withObservationTracking {
-                model.menuBarContent
+            let (wanted, reduced) = withObservationTracking {
+                (model.menuBarContent.slots, reducedMotion())
             } onChange: { [weak self] in
                 Task { @MainActor in self?.observeModel() }
             }
-            render(content)
+            content = wanted
+            render(reducedMotion: reduced)
         }
 
-        private func render(_ content: MenuBarContent) {
-            guard let button = item.button else { return }
-            let scale = button.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-            button.image = renderer.image(for: content, scale: scale)
-            button.toolTip = tooltip(for: content)
-        }
-
-        private func tooltip(for content: MenuBarContent) -> String {
-            guard case .reading(let text, _) = content, let headline = model.state?.headline else {
-                return "Headroom"
+        private func observeSystemMotion() {
+            motionObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.render(reducedMotion: self.reducedMotion())
+                }
             }
-            return "\(MenuBarContent.subject(headline)) · \(headline.windowLabel): \(text)"
+        }
+
+        private func render(reducedMotion: Bool) {
+            if content.count != slots.count { rebuild(count: content.count) }
+            for (slot, wanted) in zip(slots, content) {
+                slot.render(wanted, reducedMotion: reducedMotion)
+                slot.setHiddenFromCapture(hiddenFromCapture)
+            }
+        }
+
+        private func rebuild(count: Int) {
+            slots.forEach { $0.remove() }
+            let created = (0..<count).reversed().map { index in
+                StatusSlot(index: index, logos: logos, target: self, action: #selector(buttonClicked(_:)))
+            }
+            slots = created.reversed()
+            onRebuild?()
         }
 
         @objc private func buttonClicked(_ sender: NSStatusBarButton) {
@@ -67,36 +83,6 @@
         private func showMenu(from button: NSStatusBarButton) {
             let menu = menus.statusMenu(model.formatter.strings)
             _ = menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
-        }
-    }
-
-    @MainActor
-    final class MenuBarImageRenderer {
-        private var cached: (content: MenuBarContent, scale: CGFloat, image: NSImage?)?
-
-        func image(for content: MenuBarContent, scale: CGFloat) -> NSImage? {
-            if let cached, cached.content == content, cached.scale == scale { return cached.image }
-            let image = draw(content, scale: scale)
-            cached = (content, scale, image)
-            return image
-        }
-
-        private func draw(_ content: MenuBarContent, scale: CGFloat) -> NSImage? {
-            switch content {
-            case .glyph:
-                return template(MenuBarMark(), scale: scale)
-            case .reading(let text, let fraction):
-                return template(MenuBarLabel(text: text, fraction: fraction), scale: scale)
-            }
-        }
-
-        private func template(_ content: some View, scale: CGFloat) -> NSImage? {
-            let renderer = ImageRenderer(content: content)
-            renderer.scale = scale
-            let image = renderer.nsImage
-            image?.isTemplate = true
-            image?.accessibilityDescription = "Headroom"
-            return image
         }
     }
 #endif
