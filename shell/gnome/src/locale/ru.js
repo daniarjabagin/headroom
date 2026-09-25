@@ -135,6 +135,8 @@ export const RU = {
     "Couldn't read Headroom's state": 'Не удалось прочитать состояние Headroom',
     'Check again': 'Проверить снова',
     'No AI coding tools found.': 'ИИ-инструменты для программирования не найдены.',
+    'Sign in with a supported CLI to see your limits here.':
+        'Войдите через поддерживаемый CLI, чтобы видеть здесь свои лимиты.',
     'added in Headroom': 'добавлен в Headroom',
     'Show in the panel and popup': 'Показывать на панели и во всплывающем окне',
     'No data yet': 'Пока нет данных',

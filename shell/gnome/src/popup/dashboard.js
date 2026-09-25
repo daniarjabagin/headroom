@@ -6,14 +6,12 @@ import { row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
 import { collapsedNames, collapsedRow } from './collapsedRow.js';
 import { CombinedSection } from './combinedSection.js';
+import { isEmptyState, needsToolsHint, shownSpend, visibleAccounts } from './dashboardPlan.js';
 import { cardShapeKey, planSections } from './sectionShape.js';
 import { SpendSection } from './spendCard.js';
+import { emptyView } from './statusViews.js';
 
 const LEADING_ACTORS = 1;
-
-function visibleAccounts(state) {
-    return state.accounts.filter(account => !account.hidden);
-}
 
 function isCollapsed(card) {
     return card.kind === 'combined' ? card.group.collapsed : card.account.collapsed;
@@ -39,10 +37,6 @@ function topBar(trailing) {
     return actor;
 }
 
-export function shownSpend(state) {
-    return state.display.showSpend ? state.spend : null;
-}
-
 export class Dashboard {
     constructor(ctx, content, reorderer, refreshActor) {
         this._ctx = ctx;
@@ -59,7 +53,7 @@ export class Dashboard {
     }
 
     isEmpty(state) {
-        return visibleAccounts(state).length === 0 && !shownSpend(state);
+        return isEmptyState(state);
     }
 
     renderState(state, layoutKey) {
@@ -73,6 +67,7 @@ export class Dashboard {
         this._syncHead(state, JSON.stringify(layoutKey));
         const changed = this._syncSections(shown, accounts);
         this._syncMore(folded);
+        this._syncHint(needsToolsHint(state));
         this._arrange(pinned.length);
         if (changed || this._pinnedCount !== pinned.length) this._setPinned(pinned.length);
     }
@@ -126,10 +121,18 @@ export class Dashboard {
         if (this._more) this._fresh.add(this._more);
     }
 
+    _syncHint(needed) {
+        if (needed === Boolean(this._hint)) return;
+        this._hint?.destroy();
+        this._hint = needed ? emptyView(this._ctx) : null;
+        if (this._hint) this._fresh.add(this._hint);
+    }
+
     _arrange(pinnedCount) {
         const actors = this._sections.map(section => section.actor);
         const more = this._more ? [this._more] : [];
-        const order = [this._head, ...actors.slice(0, pinnedCount), ...more, ...actors.slice(pinnedCount)];
+        const hint = this._hint ? [this._hint] : [];
+        const order = [this._head, ...hint, ...actors.slice(0, pinnedCount), ...more, ...actors.slice(pinnedCount)];
         order.forEach((actor, index) => {
             if (actor.get_parent() !== this._content) this._content.insert_child_at_index(actor, index);
             else if (this._content.get_child_at_index(index) !== actor) this._content.set_child_at_index(actor, index);
@@ -162,6 +165,7 @@ export class Dashboard {
         this._sections = [];
         this._more = null;
         this._moreKey = null;
+        this._hint = null;
         this._pinnedCount = 0;
         this._layoutKey = null;
     }

@@ -38,6 +38,16 @@
     spacing: 6px;
 }
 
+.headroom-header-lead {
+    spacing: 6px;
+}
+
+.headroom-header-trail {
+    spacing: 6px;
+    padding-left: 6px;
+    background-color: var(--tray);
+}
+
 .headroom-provider-icon {
     icon-size: 16px;
 }

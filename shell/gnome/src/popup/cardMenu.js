@@ -26,7 +26,11 @@ function accountItems({ providerName, canHide, canStar, starred }) {
     ];
     if (canHide) items.push({ id: 'hide', icon: 'view-conceal', label: _('Hide from popup') });
     if (canStar)
-        items.push({ id: 'star', icon: starred ? 'non-starred' : 'starred', label: starred ? _('Unstar') : _('Star') });
+        items.push({
+            id: 'star',
+            icon: starred ? 'non-starred' : 'starred',
+            label: starred ? _('Show on demand') : _('Always show'),
+        });
     return items;
 }
 

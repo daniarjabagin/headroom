@@ -1,9 +1,11 @@
-import { _, fill, n_ } from './i18n.js';
+import { _, currentLanguage, fill, n_ } from './i18n.js';
 import { compactTokens, compactTokensText, exactTokens, usd } from './numbers.js';
 import { seriesKey } from './providers.js';
 
 const PERMILLE = 1000;
 const TOP_MODELS = 5;
+const MICROS_PER_MTOK = 1_000_000n;
+const DASH = '—';
 
 function costText(model) {
     if (model.partial && model.costMicros === 0) return _('unpriced');
@@ -25,7 +27,8 @@ export function wholeShareText(permille) {
 }
 
 export function preciseShareText(permille) {
-    return `${Math.floor(permille / 10)}.${permille % 10}%`;
+    const text = `${Math.floor(permille / 10)}.${permille % 10}%`;
+    return currentLanguage() === 'ru' ? text.replace('.', ',') : text;
 }
 
 export function otherModelsText(count) {
@@ -63,8 +66,19 @@ export function modelBreakdown(models, other, totals = null) {
     return { rows, partial: rows.some(entry => entry.partial) };
 }
 
-function byCost(a, b) {
-    return b.costMicros - a.costMicros || b.totalTokens - a.totalTokens || a.name.localeCompare(b.name);
+export function shareMeasure(period, unit) {
+    return unit === 'cost' && period.costMicros > 0 ? 'costMicros' : 'totalTokens';
+}
+
+export function perMtokMicros(costMicros, totalTokens, partial) {
+    if (partial || totalTokens <= 0 || costMicros < 0) return null;
+    const tokens = BigInt(totalTokens);
+    return Number((BigInt(costMicros) * MICROS_PER_MTOK * 2n + tokens) / (tokens * 2n));
+}
+
+function byMeasure(measure) {
+    return (a, b) =>
+        b[measure] - a[measure] || b.totalTokens - a.totalTokens || (a.name ?? '').localeCompare(b.name ?? '');
 }
 
 function flatModels(period) {
@@ -73,6 +87,8 @@ function flatModels(period) {
             name: model.model,
             costMicros: model.costMicros,
             totalTokens: model.totalTokens,
+            partial: model.partial,
+            costPerMtokMicros: model.costPerMtokMicros ?? null,
             parts: [
                 { series: seriesKey(spend.provider), costMicros: model.costMicros, totalTokens: model.totalTokens },
             ],
@@ -101,23 +117,29 @@ function addPart(parts, part) {
 }
 
 function foldedModels(rest, others) {
-    const pieces = [...rest.map(model => ({ ...model.parts[0], count: 1 })), ...others];
+    const pieces = [...rest.map(model => ({ ...model.parts[0], count: 1, partial: model.partial })), ...others];
     if (pieces.length === 0) return null;
+    const costMicros = pieces.reduce((sum, piece) => sum + piece.costMicros, 0);
+    const totalTokens = pieces.reduce((sum, piece) => sum + piece.totalTokens, 0);
+    const partial = pieces.some(piece => piece.partial);
     return {
         count: pieces.reduce((sum, piece) => sum + piece.count, 0),
-        costMicros: pieces.reduce((sum, piece) => sum + piece.costMicros, 0),
-        totalTokens: pieces.reduce((sum, piece) => sum + piece.totalTokens, 0),
+        costMicros,
+        totalTokens,
+        partial,
+        costPerMtokMicros: perMtokMicros(costMicros, totalTokens, partial),
         parts: pieces.reduce(addPart, []),
     };
 }
 
-export function modelsTable(period) {
-    const sorted = flatModels(period).sort(byCost);
-    const others = providerOthers(period);
-    const other = foldedModels(sorted.slice(TOP_MODELS), others);
+export function modelsTable(period, unit) {
+    const measure = shareMeasure(period, unit);
+    const shareOfPeriod = entry => sharePermille(entry[measure], period[measure]);
+    const sorted = flatModels(period).sort(byMeasure(measure));
+    const other = foldedModels(sorted.slice(TOP_MODELS), providerOthers(period));
     const listed = sorted.slice(0, TOP_MODELS);
-    const rows = listed.map(model => ({ ...model, sharePermille: shareOf(model, period), other: null }));
-    if (other) rows.push({ ...other, name: _('Other'), sharePermille: shareOf(other, period), other: other.count });
+    const rows = listed.map(model => ({ ...model, sharePermille: shareOfPeriod(model), other: null }));
+    if (other) rows.push({ ...other, name: _('Other'), sharePermille: shareOfPeriod(other), other: other.count });
     return { rows, count: listed.length + (other?.count ?? 0) };
 }
 
@@ -129,33 +151,45 @@ function projectParts(project) {
     }));
 }
 
-export function projectsTable(period) {
-    if (!Array.isArray(period.projects)) return null;
-    const rows = period.projects.map(project => ({
-        name: project.project,
-        costMicros: project.costMicros,
-        totalTokens: project.totalTokens,
-        sharePermille: project.sharePermille,
-        parts: projectParts(project),
-        other: null,
-    }));
-    const other = period.projectsOther;
-    if (other) rows.push({ ...foldedProjects(other), name: _('Other'), other: other.count });
-    return { rows, count: period.projects.length + (other?.count ?? 0) };
-}
-
-function foldedProjects(other) {
+function projectFigures(entry, shareOf) {
     return {
-        costMicros: other.costMicros,
-        totalTokens: other.totalTokens,
-        sharePermille: other.sharePermille,
-        parts: [],
+        costMicros: entry.costMicros,
+        totalTokens: entry.totalTokens,
+        costPerMtokMicros: perMtokMicros(entry.costMicros, entry.totalTokens, entry.partial),
+        sharePermille: shareOf(entry),
     };
 }
 
-export function barParts(row, period) {
-    const measure = period.costMicros > 0 ? 'costMicros' : 'totalTokens';
+function projectShares(period, measure) {
+    if (measure === 'costMicros') return entry => entry.sharePermille;
+    return entry => sharePermille(entry.totalTokens, period.totalTokens);
+}
+
+export function projectsTable(period, unit) {
+    if (!Array.isArray(period.projects)) return null;
+    const measure = shareMeasure(period, unit);
+    const shareOf = projectShares(period, measure);
+    const rows = period.projects.map(project => ({
+        name: project.project,
+        ...projectFigures(project, shareOf),
+        parts: projectParts(project),
+        other: null,
+    }));
+    if (measure === 'totalTokens') rows.sort(byMeasure(measure));
+    const other = period.projectsOther;
+    if (other) rows.push({ ...projectFigures(other, shareOf), parts: [], name: _('Other'), other: other.count });
+    return { rows, count: period.projects.length + (other?.count ?? 0) };
+}
+
+export function barParts(row, period, unit) {
+    const measure = shareMeasure(period, unit);
     const total = period[measure];
     if (row.parts.length === 0) return [{ series: null, permille: row.sharePermille }];
     return row.parts.map(part => ({ series: part.series, permille: sharePermille(part[measure], total) }));
+}
+
+export function breakdownValue(entry, unit) {
+    if (unit === 'tokens') return compactTokens(entry.totalTokens);
+    if (unit === 'cost_per_mtok') return entry.costPerMtokMicros === null ? DASH : usd(entry.costPerMtokMicros);
+    return usd(entry.costMicros);
 }

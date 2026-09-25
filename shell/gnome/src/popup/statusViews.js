@@ -40,5 +40,9 @@ export function errorView(ctx, message) {
 export function emptyView(ctx) {
     const retry = textButton(_('Check again'), 'headroom-small-button', () => ctx.actions.refresh(''));
     retry.x_align = Clutter.ActorAlign.CENTER;
-    return centeredCard([centered(_('No AI coding tools found.'), 'headroom-status-detail'), retry]);
+    return centeredCard([
+        centered(_('No AI coding tools found.'), 'headroom-status-detail'),
+        centered(_('Sign in with a supported CLI to see your limits here.'), 'headroom-status-detail'),
+        retry,
+    ]);
 }

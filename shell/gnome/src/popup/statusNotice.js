@@ -41,10 +41,11 @@ class FullNotice {
         this._title = wrappingLabel('', 'headroom-notice-title');
         this._detail = wrappingLabel('', 'headroom-notice-detail');
         const meta = row({ style_class: 'headroom-notice-meta' });
-        this._started = label('', 'headroom-notice-detail');
+        this._started = wrappingLabel('', 'headroom-notice-detail');
+        const link = statusLink(ctx, urlOf);
+        link.y_align = Clutter.ActorAlign.START;
         meta.add_child(this._started);
-        meta.add_child(spacer());
-        meta.add_child(statusLink(ctx, urlOf));
+        meta.add_child(link);
         for (const actor of [this._title, this._detail, meta]) texts.add_child(actor);
         this.actor.add_child(iconTile(status));
         this.actor.add_child(texts);

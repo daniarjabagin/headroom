@@ -26,6 +26,7 @@ export class Tooltips {
         this._target = null;
         this._hiddenAt = 0;
         this._sideAnchor = null;
+        this._current = null;
     }
 
     setSideAnchor(actor) {
@@ -49,6 +50,17 @@ export class Tooltips {
         this._hide(this._target);
     }
 
+    refresh(actor) {
+        if (actor !== this._target || !this._bin?.visible || !this._current) return;
+        const content = this._current.contentFor();
+        if (!content) {
+            this._hide(actor);
+            return;
+        }
+        this._fill(content);
+        this._position(actor, this._current.side);
+    }
+
     destroy() {
         this._clearTimeout();
         this._bin.destroy();
@@ -58,6 +70,7 @@ export class Tooltips {
     _schedule(actor, contentFor, side) {
         this._clearTimeout();
         this._target = actor;
+        this._current = { contentFor, side };
         if (Date.now() - this._hiddenAt < WARM_MS) {
             this._show(actor, contentFor(), side, false);
             return;
@@ -71,16 +84,24 @@ export class Tooltips {
 
     _show(actor, content, side, fade = true) {
         if (!content || !actor.mapped) return;
-        this._bin.child?.destroy();
-        this._bin.set_child(contentActor(content));
+        this._fill(content);
         this._bin.show();
         Main.layoutManager.uiGroup.set_child_above_sibling(this._bin, null);
-        if (side && this._sideAnchor?.mapped) this._placeBeside(actor);
-        else this._place(actor);
+        this._position(actor, side);
         this._bin.remove_all_transitions();
         if (fade && this._motion.enabled)
             this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
         else this._bin.opacity = 255;
+    }
+
+    _fill(content) {
+        this._bin.child?.destroy();
+        this._bin.set_child(contentActor(content));
+    }
+
+    _position(actor, side) {
+        if (side && this._sideAnchor?.mapped) this._placeBeside(actor);
+        else this._place(actor);
     }
 
     _place(actor) {
@@ -113,6 +134,7 @@ export class Tooltips {
         if (actor !== this._target) return;
         this._clearTimeout();
         this._target = null;
+        this._current = null;
         if (!this._bin) return;
         if (this._bin.visible) this._hiddenAt = Date.now();
         this._bin.remove_all_transitions();

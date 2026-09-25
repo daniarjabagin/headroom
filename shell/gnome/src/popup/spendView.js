@@ -51,6 +51,10 @@ export function periodSpan(period) {
     return (PERIOD_SPANS[period] ?? PERIOD_SPANS['30d'])();
 }
 
+export function legendTitle(spend, period) {
+    return `${spend.providerName} · ${periodSpan(period)}`;
+}
+
 export function periodData(spend, period) {
     return spendPeriod(spend, shownPeriod(spend, period));
 }

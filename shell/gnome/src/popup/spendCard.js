@@ -3,9 +3,9 @@ import { button, column, label, row, spacer, textButton, themeIcon } from '../wi
 import { createBody } from './spendBody.js';
 import { SpendBreakdown } from './spendBreakdown.js';
 import {
+    legendTitle,
     periodChoices,
     periodData,
-    periodSpan,
     periodTitle,
     shownPeriod,
     spendBodyKey,
@@ -132,7 +132,7 @@ export class SpendSection {
         const morph = animate && this._ctx.motion.enabled && key === this._bodyKey;
         if (key !== this._bodyKey) {
             this._body?.actor.destroy();
-            this._body = createBody(this._ctx, data, unit, spend => `${spend.providerName} · ${periodSpan(period)}`);
+            this._body = createBody(this._ctx, data, unit, spend => legendTitle(spend, this._settings().period));
             this._bodyKey = key;
             this._bodySlot.add_child(this._body.actor);
         }
