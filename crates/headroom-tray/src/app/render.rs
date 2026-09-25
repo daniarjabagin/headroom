@@ -10,7 +10,7 @@ use super::App;
 use crate::dates::Locale;
 use crate::events::{MenuLabels, TrayUpdate};
 use crate::i18n::{Lang, system_locale};
-use crate::icon::ring_pixmaps;
+use crate::icon::{TrayIcon, TrayText};
 use crate::palette::{Palette, Scheme};
 use crate::payload::Display;
 use crate::ui::context::{Action, Ctx, RefreshMode};
@@ -40,7 +40,8 @@ pub(super) fn initial_tray_update() -> TrayUpdate {
     let locale = locale(&Display::default());
     let look = tray_look(&crate::view::View::Loading, &locale, Timestamp::now());
     TrayUpdate {
-        ring: None,
+        icon: TrayIcon::themed(),
+        text: TrayText::plain(),
         tooltip: look.tooltip,
         labels: menu_labels(locale.lang),
     }
@@ -157,16 +158,17 @@ impl App {
     pub(super) fn sync_tray(&self) {
         let display = self.display();
         let locale = locale(&display);
-        let look = tray_look(&self.model.borrow().view, &locale, Timestamp::now());
         let palette = self.palette_for(resolve_theme(display.theme));
-        let ring = look.ring.and_then(|key| {
-            let color = palette.tone(key.tone).ok()?;
-            Some(ring_pixmaps(key, color))
-        });
-        let update = TrayUpdate {
-            ring,
-            tooltip: look.tooltip,
-            labels: menu_labels(locale.lang),
+        let update = {
+            let model = self.model.borrow();
+            let state = model.view.state();
+            let reduced = model.settings.settings().is_some_and(|s| s.reduced_motion);
+            TrayUpdate {
+                icon: TrayIcon::new(state, palette, !reduced_motion(reduced)),
+                text: TrayText::new(state, locale.lang),
+                tooltip: tray_look(&model.view, &locale, Timestamp::now()).tooltip,
+                labels: menu_labels(locale.lang),
+            }
         };
         let mut model = self.model.borrow_mut();
         if model.last_tray.as_ref() == Some(&update) {
