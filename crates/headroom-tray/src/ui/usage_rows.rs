@@ -13,6 +13,7 @@ use crate::ui::widgets::{column, label, row};
 const BAR_WIDTH: f64 = 4.0;
 const BAR_GAP: f64 = 1.0;
 const BAR_SLOTS: i32 = 30;
+const COMPACT_TREND_HEIGHT: i32 = 14;
 
 fn day_tooltip(lang: Lang, day: &Daily) -> String {
     let figures = if day.total_tokens == 0 {
@@ -79,15 +80,21 @@ fn trend_strip(ctx: &Ctx, usage: &Usage) -> gtk::DrawingArea {
     let heights = day_heights(usage);
     let area = gtk::DrawingArea::new();
     area.set_content_width(strip_width());
-    area.set_content_height(i32::try_from(TREND_HEIGHT).unwrap_or(18));
+    let full = i32::try_from(TREND_HEIGHT).unwrap_or(18);
+    area.set_content_height(if ctx.compact() {
+        COMPACT_TREND_HEIGHT
+    } else {
+        full
+    });
     area.set_valign(gtk::Align::Center);
     let color = ctx.tone_color(crate::payload::Tone::Good);
     let bars: Vec<u64> = heights.iter().map(|(height, _)| *height).collect();
     area.set_draw_func(move |_, cr, _, height| {
         set_color(cr, color);
+        let scale = f64::from(height) / f64::from(full);
         for (index, bar) in bars.iter().enumerate() {
             #[allow(clippy::cast_precision_loss, reason = "30 slots and 18 px bars")]
-            let (x, bar) = (index as f64 * (BAR_WIDTH + BAR_GAP), *bar as f64);
+            let (x, bar) = (index as f64 * (BAR_WIDTH + BAR_GAP), *bar as f64 * scale);
             rounded_top(cr, x, f64::from(height) - bar, BAR_WIDTH, bar, 1.0);
             fill(cr);
         }

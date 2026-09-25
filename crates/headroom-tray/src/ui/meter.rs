@@ -6,7 +6,7 @@ use gtk::prelude::*;
 
 use crate::meter_shape::{
     METER_HEIGHT, SEGMENT_GAP, Slot, TICK_RADIUS, TRACK_HEIGHT, fill_width, segment_layout,
-    tick_rect, track_top,
+    tick_rect,
 };
 use crate::palette::Rgba;
 use crate::ui::draw::{capsule, fill, rounded_rect, set_color};
@@ -19,6 +19,26 @@ pub struct MeterColors {
     pub tick: Rgba,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MeterSize {
+    pub track: f64,
+    pub height: i32,
+}
+
+const NORMAL: MeterSize = MeterSize {
+    track: TRACK_HEIGHT,
+    height: METER_HEIGHT,
+};
+const COMPACT: MeterSize = MeterSize {
+    track: 4.0,
+    height: 8,
+};
+
+#[must_use]
+pub fn meter_size(compact: bool) -> MeterSize {
+    if compact { COMPACT } else { NORMAL }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct MeterPart {
     pub fraction: f64,
@@ -26,14 +46,14 @@ pub struct MeterPart {
     pub colors: MeterColors,
 }
 
-fn draw_bar(cr: &cairo::Context, slot: Slot, top: f64, part: &MeterPart) {
+fn draw_bar(cr: &cairo::Context, slot: Slot, top: f64, track: f64, part: &MeterPart) {
     set_color(cr, part.colors.track);
-    capsule(cr, slot.x, top, slot.width, TRACK_HEIGHT);
+    capsule(cr, slot.x, top, slot.width, track);
     fill(cr);
     let filled = fill_width(slot.width, part.fraction);
     if filled > 0.0 {
         set_color(cr, part.colors.fill);
-        capsule(cr, slot.x, top, filled, TRACK_HEIGHT);
+        capsule(cr, slot.x, top, filled, track);
         fill(cr);
     }
 }
@@ -48,29 +68,29 @@ fn draw_tick(cr: &cairo::Context, slot: Slot, height: f64, part: &MeterPart) {
     fill(cr);
 }
 
-fn draw(cr: &cairo::Context, width: f64, height: f64, parts: &[MeterPart]) {
-    let top = track_top(height);
+fn draw(cr: &cairo::Context, width: f64, height: f64, track: f64, parts: &[MeterPart]) {
+    let top = ((height - track) / 2.0).round();
     let slots = segment_layout(parts.len(), width, SEGMENT_GAP);
     for (slot, part) in slots.iter().zip(parts) {
-        draw_bar(cr, *slot, top, part);
+        draw_bar(cr, *slot, top, track, part);
     }
     for (slot, part) in slots.iter().zip(parts) {
         draw_tick(cr, *slot, height, part);
     }
 }
 
-fn area() -> gtk::DrawingArea {
+fn area(size: MeterSize) -> gtk::DrawingArea {
     let area = gtk::DrawingArea::new();
-    area.set_content_height(METER_HEIGHT);
+    area.set_content_height(size.height);
     area.set_hexpand(true);
     area.add_css_class("headroom-meter");
     area
 }
 
-pub fn segmented_meter(parts: Vec<MeterPart>) -> gtk::DrawingArea {
-    let area = area();
+pub fn segmented_meter(parts: Vec<MeterPart>, size: MeterSize) -> gtk::DrawingArea {
+    let area = area(size);
     area.set_draw_func(move |_, cr, width, height| {
-        draw(cr, f64::from(width), f64::from(height), &parts);
+        draw(cr, f64::from(width), f64::from(height), size.track, &parts);
     });
     area
 }
@@ -80,8 +100,9 @@ pub fn meter(
     tick: Option<f64>,
     colors: MeterColors,
     animate: bool,
+    size: MeterSize,
 ) -> gtk::DrawingArea {
-    let area = area();
+    let area = area(size);
     let shown = Rc::new(Cell::new(if animate { 0.0 } else { fraction }));
     let drawn = Rc::clone(&shown);
     area.set_draw_func(move |_, cr, width, height| {
@@ -90,7 +111,7 @@ pub fn meter(
             tick,
             colors,
         };
-        draw(cr, f64::from(width), f64::from(height), &[part]);
+        draw(cr, f64::from(width), f64::from(height), size.track, &[part]);
     });
     if animate {
         motion::grow(&area, move |progress| shown.set(fraction * progress));

@@ -1,5 +1,6 @@
 mod ru;
 mod ru_options;
+mod ru_popup;
 mod ru_prefs;
 
 use gtk::gio;

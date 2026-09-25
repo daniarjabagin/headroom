@@ -6,11 +6,13 @@ use gtk::prelude::*;
 
 use crate::donut::{Arc, geometry, sector_path, segments, visible_fractions};
 use crate::palette::Rgba;
+use crate::popup_model::spend_view::RingCenter;
 use crate::ui::draw::{fill, set_color};
 use crate::ui::motion;
-use crate::ui::widgets::label;
+use crate::ui::widgets::{column, label};
 
 const DONUT_SIZE: i32 = 104;
+const COMPACT_DONUT_SIZE: i32 = 84;
 
 fn trace(cr: &cairo::Context, arcs: &[Arc]) {
     for arc in arcs {
@@ -54,11 +56,37 @@ fn sweep(fractions: &[f64], reveal: f64) -> Vec<f64> {
         .collect()
 }
 
-pub fn donut(values: &[f64], colors: Vec<Rgba>, center: &str, animate: bool) -> gtk::Overlay {
+fn center_label(center: &RingCenter) -> gtk::Box {
+    let texts = column(0, &["headroom-donut-center"]);
+    texts.set_halign(gtk::Align::Center);
+    texts.set_valign(gtk::Align::Center);
+    let amount = label(&center.amount, &["headroom-donut-value"]);
+    amount.set_xalign(0.5);
+    texts.append(&amount);
+    if let Some(unit) = center.unit_line {
+        let unit = label(unit, &["headroom-donut-unit"]);
+        unit.set_xalign(0.5);
+        texts.append(&unit);
+    }
+    texts
+}
+
+pub fn donut(
+    values: &[f64],
+    colors: Vec<Rgba>,
+    center: &RingCenter,
+    animate: bool,
+    compact: bool,
+) -> gtk::Overlay {
     let fractions = visible_fractions(values);
+    let size = if compact {
+        COMPACT_DONUT_SIZE
+    } else {
+        DONUT_SIZE
+    };
     let area = gtk::DrawingArea::new();
-    area.set_content_width(DONUT_SIZE);
-    area.set_content_height(DONUT_SIZE);
+    area.set_content_width(size);
+    area.set_content_height(size);
     let reveal = Rc::new(Cell::new(if animate { 0.0 } else { 1.0 }));
     let shown = Rc::clone(&reveal);
     area.set_draw_func(move |_, cr, width, height| {
@@ -71,9 +99,6 @@ pub fn donut(values: &[f64], colors: Vec<Rgba>, center: &str, animate: bool) -> 
     let overlay = gtk::Overlay::new();
     overlay.set_child(Some(&area));
     overlay.set_valign(gtk::Align::Center);
-    let value = label(center, &["headroom-donut-value"]);
-    value.set_halign(gtk::Align::Center);
-    value.set_valign(gtk::Align::Center);
-    overlay.add_overlay(&value);
+    overlay.add_overlay(&center_label(center));
     overlay
 }

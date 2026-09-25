@@ -1,0 +1,76 @@
+.headroom-popup.compact .headroom-content {
+    padding: var(--compact-content-padding);
+}
+
+.headroom-popup.compact .headroom-card {
+    padding: var(--compact-card-padding-y) 0;
+}
+
+.headroom-popup.compact .headroom-quota-row {
+    padding: var(--compact-bar-row-padding);
+}
+
+.headroom-popup.compact .headroom-text-row {
+    padding: var(--compact-text-row-padding);
+}
+
+.headroom-popup.compact .headroom-spend-card {
+    padding: var(--compact-spend-card-padding);
+}
+
+.headroom-popup.compact .headroom-segmented button.headroom-segment {
+    padding: var(--compact-segment-padding);
+    font-size: 10px;
+}
+
+.headroom-popup.compact .headroom-segmented.tight button.headroom-segment {
+    padding: 3px 6px;
+}
+
+.headroom-popup.compact .headroom-mini-segmented button.headroom-segment {
+    padding: 2px 10px;
+}
+
+.headroom-popup.compact button.headroom-caret {
+    padding: var(--compact-caret-padding-y) 0;
+}
+
+.headroom-popup.compact .headroom-footer {
+    padding: var(--compact-footer-padding);
+}
+
+.headroom-popup.compact button.headroom-footer-button {
+    min-width: var(--compact-footer-button);
+    min-height: var(--compact-footer-button);
+    border-radius: 12px;
+}
+
+.headroom-popup.compact .headroom-title {
+    font-size: 13px;
+}
+
+.headroom-popup.compact .headroom-plan {
+    font-size: 10px;
+}
+
+.headroom-popup.compact .headroom-metric-label {
+    font-size: 12px;
+}
+
+.headroom-popup.compact .headroom-reading,
+.headroom-popup.compact .headroom-legend-name,
+.headroom-popup.compact .headroom-legend-value,
+.headroom-popup.compact .headroom-value,
+.headroom-popup.compact .headroom-value-label,
+.headroom-popup.compact .headroom-breakdown-name,
+.headroom-popup.compact .headroom-breakdown-value {
+    font-size: 11px;
+}
+
+.headroom-popup.compact .headroom-donut-value {
+    font-size: 12.5px;
+}
+
+.headroom-popup.compact .headroom-compact-line button.headroom-toggle {
+    padding: 0 3px;
+}
