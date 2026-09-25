@@ -16,6 +16,7 @@ PlasmaExtras.PlasmoidHeading {
     required property var now
     required property string lang
     required property string versionText
+    property bool animated: true
     readonly property var status: FooterStatus.footerStatus(lang, view, now, versionText)
     readonly property real dotSize: Math.round(Kirigami.Units.smallSpacing * 1.5)
     readonly property real haloAlpha: 0.22
@@ -119,7 +120,7 @@ PlasmaExtras.PlasmoidHeading {
 
                     PlasmaComponents3.BusyIndicator {
                         visible: footer.status.busy
-                        running: visible
+                        running: visible && footer.animated
                         Layout.preferredWidth: Kirigami.Units.iconSizes.small * 0.75
                         Layout.preferredHeight: Kirigami.Units.iconSizes.small * 0.75
                     }
@@ -131,6 +132,7 @@ PlasmaExtras.PlasmoidHeading {
             objectName: "settingsButton"
             Layout.alignment: Qt.AlignVCenter
             iconName: "configure"
+            animated: footer.animated
             text: I18n.tr(footer.lang, "Settings")
             tipText: `${text} · ${footer.versionText}`
             onClicked: footer.settingsRequested()

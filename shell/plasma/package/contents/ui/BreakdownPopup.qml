@@ -17,8 +17,9 @@ PointerHover {
     property string title: ""
     property var totals: null
     property string fallback: ""
-    readonly property var rows: totals === null ? [] : Breakdown.popoverRows(lang, totals)
-    readonly property var notes: totals === null ? [] : Breakdown.popoverNotes(lang, totals)
+    readonly property bool loaded: shown && totals !== null
+    readonly property var rows: loaded ? Breakdown.popoverRows(lang, totals) : []
+    readonly property var notes: loaded ? Breakdown.popoverNotes(lang, totals) : []
     readonly property color barColor: totals === null ? Kirigami.Theme.highlightColor : Providers.ringColor(totals.provider, Tokens.isDark(Kirigami.Theme))
     readonly property real barHeight: Math.max(2, Math.round(Kirigami.Units.smallSpacing * 0.75))
     readonly property real figuresWidth: Math.round(Kirigami.Units.gridUnit * 6.5)

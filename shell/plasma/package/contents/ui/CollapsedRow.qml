@@ -15,7 +15,9 @@ T.AbstractButton {
 
     required property var folded
     required property string lang
+    property bool animated: true
     readonly property int glyphLimit: 3
+    readonly property var glyphs: Collapse.foldedProviders(folded, glyphLimit)
 
     objectName: "collapsedRow"
     Layout.fillWidth: true
@@ -33,6 +35,8 @@ T.AbstractButton {
         color: pointer.shown || row.visualFocus ? Tokens.cardHover(Kirigami.Theme) : Tokens.card(Kirigami.Theme)
 
         Behavior on color {
+            enabled: row.animated
+
             ColorAnimation {
                 duration: Motion.hoverDuration(Kirigami.Units)
                 easing.type: Easing.OutCubic
@@ -50,14 +54,14 @@ T.AbstractButton {
             spacing: Kirigami.Units.smallSpacing
 
             Repeater {
-                model: Collapse.foldedProviders(row.folded, row.glyphLimit)
+                model: row.glyphs.length
 
                 ProviderIcon {
-                    required property string modelData
+                    required property int index
 
                     implicitWidth: Kirigami.Units.iconSizes.small - 2
                     implicitHeight: implicitWidth
-                    provider: modelData
+                    provider: row.glyphs[index] ?? ""
                 }
             }
         }

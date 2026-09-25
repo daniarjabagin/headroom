@@ -161,6 +161,86 @@ TestCase {
         compare(step.queue, PatchQueue.idle());
     }
 
+    function test_patch_queue_coalesces_waiting_patches() {
+        let step = PatchQueue.enqueue(PatchQueue.idle(), Settings.displayPatch({
+            theme: "dark"
+        }));
+        step = PatchQueue.enqueue(step.queue, Settings.displayPatch({
+            valueMode: "used"
+        }));
+        step = PatchQueue.enqueue(step.queue, Settings.displayPatch({
+            valueMode: "left"
+        }));
+        step = PatchQueue.enqueue(step.queue, {
+            display: {
+                hidden_windows: {
+                    a: null
+                }
+            }
+        });
+        compare(step.queue.pending, [
+            {
+                display: {
+                    value_mode: "left",
+                    hidden_windows: {
+                        a: null
+                    }
+                }
+            }
+        ]);
+        step = PatchQueue.settle(step.queue);
+        compare(step.send.display.value_mode, "left");
+        verify(PatchQueue.settle(step.queue).drained);
+    }
+
+    function test_patch_queue_keeps_patches_that_do_not_compose() {
+        let step = PatchQueue.enqueue(PatchQueue.idle(), {
+            x: 1
+        });
+        step = PatchQueue.enqueue(step.queue, {
+            display: null
+        });
+        step = PatchQueue.enqueue(step.queue, {
+            display: {
+                theme: "dark"
+            }
+        });
+        compare(step.queue.pending, [
+            {
+                display: null
+            },
+            {
+                display: {
+                    theme: "dark"
+                }
+            }
+        ]);
+    }
+
+    function test_coalesced_patch_applies_like_the_sequence() {
+        const raw = Settings.decode(settingsJson);
+        const patches = [Settings.displayPatch({
+                theme: "dark"
+            }), Settings.displayPatch({
+                valueMode: "left"
+            }),
+            {
+                display: {
+                    hidden_windows: null
+                }
+            },
+            Settings.displayPatch({
+                theme: "light"
+            })];
+        const sequential = patches.reduce((current, patch) => Settings.mergePatch(current, patch), raw);
+        let step = PatchQueue.enqueue(PatchQueue.idle(), {
+            first: true
+        });
+        patches.forEach(patch => step = PatchQueue.enqueue(step.queue, patch));
+        compare(step.queue.pending.length, 1);
+        compare(Settings.mergePatch(raw, step.queue.pending[0]), sequential);
+    }
+
     function test_toggles_and_hidden_windows() {
         const display = parse(settingsJson).display;
         compare(Settings.toggledValueMode(display), {

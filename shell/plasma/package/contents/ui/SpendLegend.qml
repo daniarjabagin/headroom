@@ -17,22 +17,25 @@ ColumnLayout {
     required property string periodKey
     required property string lang
     property string unit: "cost"
+    property bool animated: true
     readonly property bool single: period.providers.length === 1
 
     spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
     Repeater {
-        model: legend.period.providers
+        model: legend.period.providers.length
 
         Item {
             id: entry
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: legend.period.providers[index]
 
             Layout.fillWidth: true
             implicitHeight: row.implicitHeight + Kirigami.Units.smallSpacing * 1.5
 
             HoverFill {
+                animated: legend.animated
                 anchors.fill: parent
                 radius: Metrics.chipRadius(Kirigami.Units)
                 shown: tip.shown

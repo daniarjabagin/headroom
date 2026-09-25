@@ -202,6 +202,7 @@ ColumnLayout {
             compact: Density.isCompact(dashboard.display)
             lang: dashboard.lang
             appear: dashboard.appear(0)
+            animated: dashboard.motion
             onPeriodSelected: key => dashboard.pick("spendPeriod", "localPeriod", key)
             onUnitSelected: key => dashboard.pick("spendUnit", "localUnit", key)
             onBreakdownSelected: key => dashboard.pick("spendBreakdown", "localBreakdown", key)
@@ -231,6 +232,7 @@ ColumnLayout {
         visible: dashboard.folded.length > 0 && !dashboard.foldedOpen
         folded: dashboard.folded
         lang: dashboard.lang
+        animated: dashboard.motion
         opacity: dashboard.appear(dashboard.itemCount - 1)
         onClicked: dashboard.setFolded(true)
     }

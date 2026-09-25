@@ -10,6 +10,7 @@ Item {
 
     property var segments: []
     property real progress: 1
+    property bool animated: true
     property real barHeight: Metrics.meterHeight(Kirigami.Units)
     readonly property real gap: Metrics.hairline(Kirigami.Units) * 2
 
@@ -32,6 +33,7 @@ Item {
                 barHeight: meter.barHeight
                 fraction: segment.fraction
                 progress: meter.progress
+                animated: meter.animated
                 tone: segment.tone
                 tick: segment.tick
             }

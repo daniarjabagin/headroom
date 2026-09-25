@@ -16,6 +16,7 @@ SettingsGroup {
     readonly property var display: page.current.display
     readonly property string mode: capable ? display.panelMode : "headline"
     readonly property var limits: display.panelLimits
+    readonly property var choices: mode === "several" && limitsOpen ? Preferences.limitChoices(page.lang, page.snapshot, limits) : []
     property bool limitsOpen: true
 
     function setLimits(value, chosen) {
@@ -68,12 +69,13 @@ SettingsGroup {
     }
 
     Repeater {
-        model: group.mode === "several" && group.limitsOpen ? Preferences.limitChoices(group.page.lang, group.page.snapshot, group.limits) : []
+        model: group.choices.length
 
         ProviderSettingsRow {
             id: choiceRow
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: group.choices[index]
             readonly property bool chosen: Preferences.isChosen(group.limits, modelData.value)
 
             provider: Preferences.providerOf(modelData.value)

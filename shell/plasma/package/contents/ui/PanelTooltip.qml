@@ -32,13 +32,13 @@ Item {
         }
 
         Repeater {
-            model: tooltip.rows.pinned
+            model: tooltip.rows.pinned.length
 
             PanelTipRow {
-                required property var modelData
+                required property int index
 
                 Layout.fillWidth: true
-                row: modelData
+                row: tooltip.rows.pinned[index]
             }
         }
 
@@ -50,13 +50,13 @@ Item {
         }
 
         Repeater {
-            model: tooltip.rows.rest
+            model: tooltip.rows.rest.length
 
             PanelTipRow {
-                required property var modelData
+                required property int index
 
                 Layout.fillWidth: true
-                row: modelData
+                row: tooltip.rows.rest[index]
             }
         }
     }

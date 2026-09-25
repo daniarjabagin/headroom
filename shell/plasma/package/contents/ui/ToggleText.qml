@@ -10,6 +10,7 @@ T.AbstractButton {
     property string emphasis: "primary"
     property string hint: ""
     property real step: 0
+    property bool animated: true
 
     implicitWidth: label.implicitWidth + leftPadding + rightPadding
     implicitHeight: label.implicitHeight + topPadding + bottomPadding
@@ -27,6 +28,8 @@ T.AbstractButton {
         text: toggle.text
 
         Behavior on color {
+            enabled: toggle.animated
+
             ColorAnimation {
                 duration: Motion.hoverDuration(Kirigami.Units)
                 easing.type: Easing.OutCubic
@@ -35,6 +38,7 @@ T.AbstractButton {
     }
 
     background: HoverFill {
+        animated: toggle.animated
         radius: Metrics.chipRadius(Kirigami.Units)
         shown: pointer.shown || toggle.visualFocus
     }

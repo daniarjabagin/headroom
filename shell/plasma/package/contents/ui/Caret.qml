@@ -9,6 +9,7 @@ T.AbstractButton {
     id: caret
 
     property bool expanded: false
+    property bool animated: true
 
     Layout.fillWidth: true
     Layout.leftMargin: Kirigami.Units.largeSpacing
@@ -28,6 +29,8 @@ T.AbstractButton {
             rotation: caret.expanded ? 180 : 0
 
             Behavior on rotation {
+                enabled: caret.animated
+
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
                     easing.type: Easing.OutCubic
@@ -37,6 +40,7 @@ T.AbstractButton {
     }
 
     background: HoverFill {
+        animated: caret.animated
         radius: Metrics.chipRadius(Kirigami.Units)
         shown: pointer.shown || caret.visualFocus
     }

@@ -57,6 +57,8 @@ T.Button {
         border.color: button.visualFocus ? Kirigami.Theme.highlightColor : Tokens.separator(Kirigami.Theme)
 
         Behavior on color {
+            enabled: button.animated
+
             ColorAnimation {
                 duration: Motion.hoverDuration(Kirigami.Units)
                 easing.type: Easing.OutCubic
@@ -71,6 +73,8 @@ T.Button {
     }
 
     Behavior on scale {
+        enabled: button.animated
+
         NumberAnimation {
             duration: Kirigami.Units.shortDuration
             easing.type: Easing.OutCubic

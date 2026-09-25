@@ -35,6 +35,7 @@ Item {
     property bool starred: false
     property bool canStar: false
     readonly property bool compact: Density.isCompact(display)
+    readonly property bool animated: Motion.enabled(Kirigami.Units, reducedMotion)
     readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var plates: Account.plates(notices)
     readonly property var infoLines: Account.infoLines(notices)
@@ -95,6 +96,7 @@ Item {
             starred: section.starred
             canStar: section.canStar
             canShare: section.windows.length > 0
+            animated: section.animated
             onDragMoved: offset => section.dragMoved(offset)
             onDragFinished: section.dragFinished()
             onRefreshRequested: section.menuRefreshRequested()
@@ -108,6 +110,7 @@ Item {
         Card {
             visible: section.notices.length > 0 || section.incident !== null || section.windows.length > 0 || trend.active || section.extrasOpen
             hoverable: true
+            animated: section.animated
             lifted: section.lifted
             verticalPadding: Density.cardGutter(Kirigami.Units, section.compact)
 
@@ -118,7 +121,7 @@ Item {
                     required property int index
 
                     entry: section.plates[index]
-                    animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
+                    animated: section.animated
                     onActionTriggered: (kind, value) => section.runAction(kind, value)
                 }
             }
@@ -132,7 +135,7 @@ Item {
                     notice: section.incident
                     lang: section.lang
                     compact: section.compact
-                    animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
+                    animated: section.animated
                     onLinkActivated: url => section.linkOpened(url)
                 }
             }
@@ -150,6 +153,7 @@ Item {
                     lang: section.lang
                     appear: section.appear
                     members: section.members
+                    animated: section.animated
                     onValueModeToggled: section.valueModeToggled()
                     onResetFormatToggled: section.resetFormatToggled()
                 }
@@ -176,6 +180,7 @@ Item {
                     usage: section.account.usage
                     lang: section.lang
                     stripHeight: Density.trendHeight(Kirigami.Units, section.compact)
+                    animated: section.animated
                 }
             }
 
@@ -184,6 +189,7 @@ Item {
                 topPadding: Density.cardGutter(Kirigami.Units, section.compact)
                 bottomPadding: Density.cardGutter(Kirigami.Units, section.compact)
                 expanded: section.expanded
+                animated: section.animated
                 onClicked: section.expandToggled(section.account.id)
             }
 
@@ -191,6 +197,7 @@ Item {
                 account: section.account
                 display: section.display
                 lang: section.lang
+                animated: section.animated
                 expanded: section.extrasOpen || (section.expanded && Account.hasExtras(section.account, section.display))
             }
         }

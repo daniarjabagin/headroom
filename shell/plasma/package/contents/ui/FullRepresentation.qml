@@ -28,6 +28,7 @@ Item {
     required property UpdateActions updater
     required property var settings
     readonly property bool ready: view.kind === "ready"
+    readonly property bool animated: expanded && Motion.enabled(Kirigami.Units, reducedMotion)
     readonly property bool empty: ready && State.visibleAccounts(view.state).length === 0 && !(display.showSpend && view.state.spend !== null)
     readonly property var popupColors: Tokens.popupPalette(systemTheme, display.theme, display.translucent)
     readonly property real contentHeight: refreshButton.implicitHeight + refreshButton.Layout.bottomMargin + content.implicitHeight + (updateRow.visible ? updateRow.implicitHeight : 0) + footer.implicitHeight
@@ -127,7 +128,7 @@ Item {
             text: I18n.tr(full.lang, "Refresh")
             enabled: full.view.kind !== "unavailable"
             busy: full.ready && State.isRefreshing(full.view.state)
-            animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
+            animated: full.animated
             onRefreshNowRequested: full.refreshNowRequested(() => refreshButton.fail())
         }
 
@@ -167,7 +168,7 @@ Item {
                         display: full.display
                         lang: full.lang
                         reveal: full.reveal
-                        reducedMotion: full.reducedMotion
+                        reducedMotion: !full.animated
                         onRefreshRequested: accountId => full.refreshRequested(accountId)
                         onSignInRequested: providerId => full.signInRequested(providerId)
                         onSettingsRequested: full.settingsRequested()
@@ -188,7 +189,7 @@ Item {
 
                     sourceComponent: Skeleton {
                         lang: full.lang
-                        reducedMotion: full.reducedMotion
+                        reducedMotion: !full.animated
                     }
                 }
 
@@ -210,7 +211,7 @@ Item {
             Layout.fillWidth: true
             updater: full.updater
             lang: full.lang
-            animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
+            animated: full.animated
         }
 
         Footer {
@@ -221,6 +222,7 @@ Item {
             now: full.now
             lang: full.lang
             versionText: full.versionText
+            animated: full.animated
             onRefreshRequested: refreshButton.trigger()
             onSettingsRequested: full.settingsRequested()
         }
@@ -232,7 +234,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: footer.height + Math.round(Kirigami.Units.gridUnit * 0.75)
-        animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
+        animated: full.animated
         onActionTriggered: url => full.openLink(url)
     }
 

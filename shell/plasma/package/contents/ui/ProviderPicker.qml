@@ -13,6 +13,7 @@ Item {
 
     required property var providers
     required property string selected
+    property bool animated: true
     readonly property real selectedFill: 0.14
 
     signal picked(string providerId)
@@ -82,6 +83,8 @@ Item {
             border.color: chip.current || chip.visualFocus ? Kirigami.Theme.highlightColor : Tokens.separator(Kirigami.Theme)
 
             Behavior on color {
+                enabled: picker.animated
+
                 ColorAnimation {
                     duration: Motion.hoverDuration(Kirigami.Units)
                     easing.type: Easing.OutCubic

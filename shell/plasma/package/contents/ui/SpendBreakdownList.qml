@@ -16,7 +16,9 @@ ColumnLayout {
     required property string mode
     required property bool byTokens
     required property string lang
+    property bool animated: true
     readonly property var model: SpendBreakdown.breakdown(lang, period, mode, byTokens)
+    readonly property var rows: model?.rows ?? []
     readonly property bool dark: Tokens.isDark(Kirigami.Theme)
     readonly property real barHeight: Math.max(2, Math.round(Kirigami.Units.smallSpacing * 0.75))
 
@@ -45,6 +47,7 @@ ColumnLayout {
             objectName: "breakdownControl"
             implicitWidth: Kirigami.Units.gridUnit * 8
             options: Options.spendBreakdownOptions(list.lang)
+            animated: list.animated
             current: list.mode
             onSelected: value => list.modeSelected(value)
         }
@@ -60,12 +63,13 @@ ColumnLayout {
     }
 
     Repeater {
-        model: list.model?.rows ?? []
+        model: list.rows.length
 
         ColumnLayout {
             id: entry
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: list.rows[index]
 
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -135,15 +139,16 @@ ColumnLayout {
                     spacing: Metrics.hairline(Kirigami.Units)
 
                     Repeater {
-                        model: entry.modelData.segments
+                        model: entry.modelData.segments.length
 
                         Rectangle {
-                            required property var modelData
+                            required property int index
+                            readonly property var segment: entry.modelData.segments[index]
 
                             height: track.height
-                            width: Math.max(Metrics.hairline(Kirigami.Units), track.width * modelData.fraction)
+                            width: Math.max(Metrics.hairline(Kirigami.Units), track.width * segment.fraction)
                             radius: height / 2
-                            color: list.segmentColor(modelData.provider)
+                            color: list.segmentColor(segment.provider)
                         }
                     }
                 }

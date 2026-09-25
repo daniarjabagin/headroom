@@ -15,6 +15,9 @@ Item {
     required property var display
     required property string lang
     required property bool expanded
+    property bool animated: true
+    readonly property var spendRows: Account.spendRows(lang, account, display)
+    readonly property var balances: account.balances
     readonly property real topGap: Metrics.textRowPadding(Kirigami.Units) - Kirigami.Units.smallSpacing / 2
     readonly property real fullHeight: rows.implicitHeight + topGap + Metrics.textRowPadding(Kirigami.Units)
 
@@ -34,33 +37,39 @@ Item {
         spacing: 0
 
         Repeater {
-            model: Account.spendRows(extras.lang, extras.account, extras.display)
+            model: extras.spendRows.length
 
             ValueRow {
-                required property var modelData
+                required property int index
+                readonly property var modelData: extras.spendRows[index]
 
                 title: modelData.title
                 value: FormatSpend.spendLine(extras.lang, modelData.totals)
                 totals: modelData.totals
                 breakdownTitle: modelData.breakdownTitle
                 lang: extras.lang
+                animated: extras.animated
             }
         }
 
         Repeater {
-            model: extras.account.balances
+            model: extras.balances.length
 
             ValueRow {
-                required property var modelData
+                required property int index
+                readonly property var modelData: extras.balances[index]
 
                 title: DaemonText.label(extras.lang, modelData.label)
                 value: FormatSpend.balanceValue(extras.lang, modelData)
                 lang: extras.lang
+                animated: extras.animated
             }
         }
     }
 
     Behavior on Layout.preferredHeight {
+        enabled: extras.animated
+
         NumberAnimation {
             id: heightAnimation
 
@@ -70,6 +79,8 @@ Item {
     }
 
     Behavior on opacity {
+        enabled: extras.animated
+
         NumberAnimation {
             duration: Kirigami.Units.longDuration
         }

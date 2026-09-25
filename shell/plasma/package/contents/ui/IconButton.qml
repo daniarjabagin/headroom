@@ -44,6 +44,8 @@ T.AbstractButton {
         opacity: button.active ? 1 : 0
 
         Behavior on opacity {
+            enabled: button.animated
+
             NumberAnimation {
                 duration: Motion.hoverDuration(Kirigami.Units)
                 easing.type: Easing.OutCubic
@@ -58,6 +60,8 @@ T.AbstractButton {
     }
 
     Behavior on scale {
+        enabled: button.animated
+
         NumberAnimation {
             duration: Kirigami.Units.shortDuration
             easing.type: Easing.OutCubic

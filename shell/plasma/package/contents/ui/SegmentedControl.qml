@@ -10,6 +10,7 @@ Rectangle {
 
     property var options: []
     property var current: null
+    property bool animated: true
     readonly property int currentIndex: Math.max(0, options.findIndex(option => option.value === current))
     readonly property real inset: Math.round(Kirigami.Units.smallSpacing * 0.75)
     readonly property real segmentWidth: (width - inset * 2 - segments.spacing * Math.max(0, options.length - 1)) / Math.max(1, options.length)
@@ -33,6 +34,8 @@ Rectangle {
         shadow.color: Tokens.controlShadow()
 
         Behavior on x {
+            enabled: switcher.animated
+
             NumberAnimation {
                 duration: Kirigami.Units.longDuration
                 easing.type: Easing.OutCubic
@@ -48,12 +51,13 @@ Rectangle {
         spacing: Kirigami.Units.smallSpacing / 2
 
         Repeater {
-            model: switcher.options
+            model: switcher.options.length
 
             T.AbstractButton {
                 id: segment
 
-                required property var modelData
+                required property int index
+                readonly property var modelData: switcher.options[index]
                 readonly property bool isCurrent: modelData.value === switcher.current
 
                 width: switcher.segmentWidth

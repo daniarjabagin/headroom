@@ -20,6 +20,7 @@ Item {
     required property bool lifted
     required property real dragOffset
     required property string indicator
+    property bool animated: true
 
     signal hiddenToggled(bool hidden)
     signal labelApplied(string label)
@@ -156,6 +157,8 @@ Item {
                     rotation: accountRow.expanded ? 180 : 0
 
                     Behavior on rotation {
+                        enabled: accountRow.animated
+
                         NumberAnimation {
                             duration: Kirigami.Units.longDuration
                             easing.type: Easing.OutCubic
@@ -164,6 +167,7 @@ Item {
                 }
 
                 background: HoverFill {
+                    animated: accountRow.animated
                     radius: Metrics.controlRadius(Kirigami.Units)
                     shown: pointer.shown || expander.visualFocus
                 }
@@ -179,6 +183,7 @@ Item {
             display: accountRow.display
             lang: accountRow.lang
             expanded: accountRow.expanded
+            animated: accountRow.animated
             onLabelApplied: label => accountRow.labelApplied(label)
             onWindowToggled: (windowId, hidden) => accountRow.windowToggled(windowId, hidden)
             onRemoveConfirmed: accountRow.removeConfirmed()
