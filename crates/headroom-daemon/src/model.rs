@@ -7,6 +7,7 @@ use headroom_core::usage::UsageSummary;
 use jiff::Timestamp;
 use rusqlite::Connection;
 
+use crate::activity::ActivityTracker;
 use crate::dismissed::DismissedHomes;
 use crate::error::StorageError;
 use crate::home::UsageHome;
@@ -27,6 +28,7 @@ pub struct Model {
     pub usage: BTreeMap<UsageHome, UsageSummary>,
     pub update: Option<AvailableUpdate>,
     pub update_check: Option<UpdateCheckState>,
+    pub activity: ActivityTracker,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -121,6 +123,7 @@ impl Model {
             usage: BTreeMap::new(),
             update: None,
             update_check: None,
+            activity: ActivityTracker::default(),
         })
     }
 

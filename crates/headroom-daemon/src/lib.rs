@@ -1,3 +1,4 @@
+mod activity;
 pub mod catalog;
 pub mod clock;
 mod commands;

@@ -108,7 +108,8 @@ fn record_success(
         record.plan.clone_from(&snapshot.identity.plan);
     }
     model.record_success(&account.id, snapshot, now);
-    let interval = model.settings.refresh_interval();
+    let live = model.activity.account_is_live(account, now);
+    let interval = policy::effective_interval(&model.settings, live);
     policy::next_delay(Ok(()), 0, interval, core.random.unit())
 }
 

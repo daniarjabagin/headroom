@@ -18,5 +18,11 @@
   "windows": [],
   "balances": [],
   "notices": [],
-  "usage_home": "~/.codex"
+  "usage_home": "~/.codex",
+  "refresh": {
+    "mode": "idle",
+    "interval_secs": 300,
+    "next_at": null,
+    "reason": "hold"
+  }
 }

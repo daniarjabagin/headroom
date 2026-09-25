@@ -811,7 +811,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | field | type | default | description |
 | --- | --- | --- | --- |
 | `refresh_interval_secs` | integer | `300` | Scheduled refresh interval, `60`–`3600`. Applies from each account's next scheduled refresh. |
-| `adaptive_refresh` | bool | `true` | Since 0.6.0. While a provider's CLI is writing local logs, refresh that provider's accounts every 60 s (same backoff and rate-limit holds); after 10 minutes without log activity return to `refresh_interval_secs`. Reported per account as `accounts[].refresh` (see [0.6 payload additions](#06-payload-additions)). |
+| `adaptive_refresh` | bool | `true` | Since 0.6.0. While a CLI is writing local logs into a usage home, refresh the accounts of that home every 60 s (backoff, rate-limit holds and `no_subscription` rechecks still win, and nothing is ever refreshed more often than every 60 s); after 10 minutes without new log records return to `refresh_interval_secs`. Reported per account as `accounts[].refresh` (see [0.6 payload additions](#06-payload-additions)). |
 | `notifications.almost_out` | bool | `true` | Notify when a window drops under the threshold (`notifications.threshold_percent`, or the provider's own threshold). |
 | `notifications.cutting_it_close` | bool | `true` | Notify when pace rises to `close`. |
 | `notifications.will_run_out` | bool | `true` | Notify when pace rises to `running_out` or `spent`. |
@@ -1046,10 +1046,17 @@ Refresh:
 
 | field | type | description |
 | --- | --- | --- |
-| `mode` | string | `live` while `adaptive_refresh` is on and the provider's CLI wrote local logs in the last 10 minutes; `idle` otherwise. |
-| `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode. |
-| `next_at` | timestamp \| null | This account's next scheduled refresh; `null` while it is refreshing or has no schedule. |
-| `reason` | string | Why `next_at` is what it is: `activity` (live mode), `schedule` (the normal interval), `backoff` (after failures) or `hold` (provider rate limit or `no_subscription` check). |
+| `mode` | string | `live` while `adaptive_refresh` is on and the account's usage home (the CLI home it shares with every account listed with the same `provider` and `usage_home`) got new log records dated within the last 10 minutes; `idle` otherwise. Records that are older when the daemon reads them (catching up after it was stopped) do not count. Accounts of providers without local logs are always `idle`. |
+| `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode. Never below `60`. |
+| `next_at` | timestamp \| null | This account's next scheduled refresh; `null` while it is refreshing or has no schedule. The same value that feeds the state's `next_refresh_at`. |
+| `reason` | string | Why `next_at` is what it is: `hold` after a provider rate limit or a `no_subscription` answer (the retry time the provider asked for, or the hourly recheck), `backoff` after any other failure (1, 2, 4 … 30 minutes), otherwise `activity` in `live` mode and `schedule` in `idle` mode. |
+
+Adaptive refresh only ever moves a refresh earlier while the last refresh succeeded: when a usage
+home turns live, each of its accounts is rescheduled to 60 s after its previous attempt (at once
+when that was longer ago). It never shortens a backoff, a rate-limit hold or a `no_subscription`
+recheck, and jitter only lengthens the 60 s interval, so no account is polled more often than every
+60 s. When the logs go quiet, the refresh that is already scheduled keeps its time and the one after
+it uses `refresh_interval_secs`; `mode` switches to `idle` as soon as the 10 minutes are over.
 
 ```json
 "refresh": { "mode": "live", "interval_secs": 60, "next_at": "2026-09-23T10:01:00Z", "reason": "activity" }

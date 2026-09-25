@@ -2,6 +2,7 @@ use headroom_core::provider::ProviderError;
 use jiff::{SignedDuration, Timestamp};
 
 use crate::model::{AccountRuntime, RefreshFailure};
+use crate::settings::Settings;
 
 pub const FETCH_TIMEOUT: SignedDuration = SignedDuration::from_secs(30);
 pub const SOFT_REFRESH_AFTER: SignedDuration = SignedDuration::from_secs(60);
@@ -9,6 +10,8 @@ pub const BACKOFF_BASE: SignedDuration = SignedDuration::from_secs(60);
 pub const BACKOFF_CAP: SignedDuration = SignedDuration::from_mins(30);
 pub const RATE_LIMIT_DEFAULT: SignedDuration = SignedDuration::from_mins(5);
 pub const RATE_LIMIT_CAP: SignedDuration = SignedDuration::from_hours(1);
+pub const MIN_INTERVAL: SignedDuration = SignedDuration::from_secs(60);
+pub const LIVE_INTERVAL: SignedDuration = MIN_INTERVAL;
 pub const NO_SUBSCRIPTION_RECHECK: SignedDuration = SignedDuration::from_hours(1);
 const JITTER: f64 = 0.1;
 const MAX_DOUBLINGS: u32 = 16;
@@ -46,7 +49,7 @@ pub fn next_delay(
     sample: f64,
 ) -> SignedDuration {
     match outcome {
-        Ok(()) => jittered(interval, sample),
+        Ok(()) => jittered(interval, sample).max(MIN_INTERVAL),
         Err(RefreshFailure::Provider(ProviderError::RateLimited { retry_after })) => {
             rate_limit_delay(*retry_after)
         }
@@ -55,6 +58,37 @@ pub fn next_delay(
         }
         Err(_) => backoff(failures, sample),
     }
+}
+
+#[must_use]
+pub fn adaptive_live(settings: &Settings, live: bool) -> bool {
+    live && settings.adaptive_refresh
+}
+
+#[must_use]
+pub fn effective_interval(settings: &Settings, live: bool) -> SignedDuration {
+    let interval = if adaptive_live(settings, live) {
+        LIVE_INTERVAL
+    } else {
+        settings.refresh_interval()
+    };
+    interval.max(MIN_INTERVAL)
+}
+
+#[must_use]
+pub fn live_delay(
+    runtime: Option<&AccountRuntime>,
+    interval: SignedDuration,
+    now: Timestamp,
+) -> Option<SignedDuration> {
+    let Some(runtime) = runtime else {
+        return Some(SignedDuration::ZERO);
+    };
+    let held = runtime.hold_until.is_some_and(|until| until > now);
+    if runtime.refreshing || runtime.failure.is_some() || held {
+        return None;
+    }
+    Some(initial_delay(runtime.last_attempt, now, interval))
 }
 
 #[must_use]

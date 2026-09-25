@@ -384,3 +384,6 @@ async fn vanished_accounts_lose_their_worker() {
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(provider.calls(), 1);
 }
+
+#[path = "adaptive_tests.rs"]
+mod adaptive;

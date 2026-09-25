@@ -6,6 +6,7 @@ mod combined_pace;
 mod headline;
 mod models;
 pub mod payload;
+mod refresh;
 mod spend;
 pub mod status;
 mod update;

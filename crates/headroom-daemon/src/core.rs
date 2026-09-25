@@ -53,6 +53,7 @@ pub struct Core {
     triggers: Mutex<HashMap<AccountId, mpsc::Sender<()>>>,
     ingest_requests: watch::Sender<u64>,
     settings_epoch: watch::Sender<u64>,
+    activity_epoch: watch::Sender<u64>,
 }
 
 impl Core {
@@ -81,6 +82,7 @@ impl Core {
             triggers: Mutex::new(HashMap::new()),
             ingest_requests: watch::Sender::new(0),
             settings_epoch: watch::Sender::new(0),
+            activity_epoch: watch::Sender::new(0),
         })
     }
 
@@ -193,6 +195,15 @@ impl Core {
 
     pub(crate) fn settings_changes(&self) -> watch::Receiver<u64> {
         self.settings_epoch.subscribe()
+    }
+
+    pub(crate) fn activity_started(&self) {
+        self.activity_epoch
+            .send_modify(|count| *count = count.wrapping_add(1));
+    }
+
+    pub(crate) fn activity_changes(&self) -> watch::Receiver<u64> {
+        self.activity_epoch.subscribe()
     }
 
     fn triggers(&self) -> MutexGuard<'_, HashMap<AccountId, mpsc::Sender<()>>> {

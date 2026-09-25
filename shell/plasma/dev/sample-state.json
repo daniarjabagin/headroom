@@ -111,7 +111,13 @@
         }
       ],
       "notices": [],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T10:03:10Z",
+        "reason": "schedule"
+      }
     },
     {
       "id": "codex:9f8e7d6c5b4a",
@@ -187,7 +193,13 @@
           "text": "Weekly limit shared with Codex Cloud"
         }
       ],
-      "usage_home": "~/.local/share/headroom/homes/codex-9f8e7d6c5b4a"
+      "usage_home": "~/.local/share/headroom/homes/codex-9f8e7d6c5b4a",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T10:04:30Z",
+        "reason": "schedule"
+      }
     },
     {
       "id": "claude:0a1b2c3d4e5f",
@@ -271,7 +283,13 @@
         }
       ],
       "notices": [],
-      "usage_home": "~/.claude"
+      "usage_home": "~/.claude",
+      "refresh": {
+        "mode": "live",
+        "interval_secs": 60,
+        "next_at": "2026-09-23T10:04:00Z",
+        "reason": "backoff"
+      }
     },
     {
       "id": "claude:5e4d3c2b1a0f",
@@ -295,7 +313,13 @@
       "windows": [],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.claude"
+      "usage_home": "~/.claude",
+      "refresh": {
+        "mode": "live",
+        "interval_secs": 60,
+        "next_at": "2026-09-23T10:08:00Z",
+        "reason": "backoff"
+      }
     },
     {
       "id": "codex:3c4d5e6f7a8b",
@@ -317,7 +341,13 @@
       "windows": [],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.local/share/headroom/homes/codex-3c4d5e6f7a8b"
+      "usage_home": "~/.local/share/headroom/homes/codex-3c4d5e6f7a8b",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T11:00:00Z",
+        "reason": "hold"
+      }
     },
     {
       "id": "zai:7b8c9d0e1f2a",
@@ -371,7 +401,13 @@
       ],
       "balances": [],
       "notices": [],
-      "usage_home": null
+      "usage_home": null,
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T10:04:20Z",
+        "reason": "schedule"
+      }
     },
     {
       "id": "openrouter:4d5e6f7a8b9c",
@@ -397,7 +433,13 @@
         }
       ],
       "notices": [],
-      "usage_home": null
+      "usage_home": null,
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T10:04:10Z",
+        "reason": "schedule"
+      }
     }
   ],
   "combined": [],
