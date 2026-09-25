@@ -182,6 +182,7 @@ mod tests {
             total_tokens: tokens,
             cost_usd_micros: cost,
             partial,
+            cost_per_mtok_usd_micros: None,
         }
     }
 

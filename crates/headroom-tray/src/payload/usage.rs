@@ -1,5 +1,8 @@
 use serde::Deserialize;
 
+use super::SpendPeriod;
+use super::projects::{OtherProjects, ProjectSpend};
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Usage {
     pub provider: String,
@@ -22,6 +25,16 @@ pub struct Totals {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Tokens {
+    #[serde(default)]
+    pub input: u64,
+    #[serde(default)]
+    pub cache_read: u64,
+    #[serde(default)]
+    pub cache_write: u64,
+    #[serde(default)]
+    pub output: u64,
+    #[serde(default)]
+    pub reasoning: u64,
     pub total: u64,
 }
 
@@ -39,6 +52,8 @@ pub struct ModelUsage {
     pub total_tokens: u64,
     pub cost_usd_micros: i64,
     pub partial: bool,
+    #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -53,7 +68,31 @@ pub struct OtherModels {
 pub struct Spend {
     pub today: PeriodSpend,
     pub yesterday: PeriodSpend,
+    #[serde(default)]
+    pub last_7_days: Option<PeriodSpend>,
     pub last_30_days: PeriodSpend,
+}
+
+impl Spend {
+    #[must_use]
+    pub fn period(&self, period: SpendPeriod) -> Option<&PeriodSpend> {
+        match period {
+            SpendPeriod::Today => Some(&self.today),
+            SpendPeriod::Yesterday => Some(&self.yesterday),
+            SpendPeriod::Last7Days => self.last_7_days.as_ref(),
+            SpendPeriod::Last30Days => Some(&self.last_30_days),
+        }
+    }
+
+    #[must_use]
+    pub fn has_period(&self, period: SpendPeriod) -> bool {
+        self.period(period).is_some()
+    }
+
+    #[must_use]
+    pub fn has_projects(&self) -> bool {
+        self.today.projects.is_some()
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -62,6 +101,12 @@ pub struct PeriodSpend {
     pub total_tokens: u64,
     pub partial: bool,
     pub by_provider: Vec<ProviderSpend>,
+    #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
+    #[serde(default)]
+    pub projects: Option<Vec<ProjectSpend>>,
+    #[serde(default)]
+    pub projects_other: Option<OtherProjects>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -73,4 +118,6 @@ pub struct ProviderSpend {
     pub partial: bool,
     pub models: Vec<ModelUsage>,
     pub models_other: Option<OtherModels>,
+    #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }

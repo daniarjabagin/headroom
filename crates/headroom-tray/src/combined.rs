@@ -14,6 +14,8 @@ pub struct CombinedGroup {
     pub account_ids: Vec<String>,
     pub accounts: Vec<CombinedAccount>,
     pub windows: Vec<CombinedWindow>,
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

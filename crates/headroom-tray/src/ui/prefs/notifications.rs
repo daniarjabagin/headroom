@@ -34,7 +34,7 @@ fn texts(lang: Lang, milestone: Milestone) -> (&'static str, &'static str) {
     }
 }
 
-fn enabled(notifications: Notifications, milestone: Milestone) -> bool {
+fn enabled(notifications: &Notifications, milestone: Milestone) -> bool {
     match milestone {
         Milestone::AlmostOut => notifications.almost_out,
         Milestone::CuttingItClose => notifications.cutting_it_close,
@@ -74,7 +74,7 @@ impl NotificationsPage {
             return;
         };
         for (milestone, row) in &self.rows {
-            row.set(enabled(settings.notifications, *milestone));
+            row.set(enabled(&settings.notifications, *milestone));
         }
     }
 }
