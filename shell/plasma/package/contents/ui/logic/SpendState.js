@@ -111,6 +111,7 @@ function parseProject(raw) {
         totalTokens: Parse.count(raw.total_tokens),
         partial: raw.partial === true,
         sharePermille: Parse.count(raw.share_permille),
+        costPerMtokMicros: Parse.integer(raw.cost_per_mtok_usd_micros),
         providers: Parse.list(raw.by_provider).map(parseProjectProvider)
     };
 }
@@ -123,7 +124,8 @@ function parseProjectsOther(raw) {
         costMicros: Parse.count(raw.cost_usd_micros),
         totalTokens: Parse.count(raw.total_tokens),
         partial: raw.partial === true,
-        sharePermille: Parse.count(raw.share_permille)
+        sharePermille: Parse.count(raw.share_permille),
+        costPerMtokMicros: Parse.integer(raw.cost_per_mtok_usd_micros)
     };
 }
 

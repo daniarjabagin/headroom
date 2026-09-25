@@ -817,6 +817,7 @@
           "total_tokens": 6200,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",
@@ -874,6 +875,7 @@
           "total_tokens": 615,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "codex",
@@ -943,6 +945,7 @@
           "total_tokens": 6815,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",
@@ -1018,6 +1021,7 @@
           "total_tokens": 6815,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",

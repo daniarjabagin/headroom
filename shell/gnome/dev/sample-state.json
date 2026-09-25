@@ -1510,6 +1510,7 @@
           "total_tokens": 3061510,
           "partial": false,
           "share_permille": 460,
+          "cost_per_mtok_usd_micros": 2964485,
           "by_provider": [
             {
               "provider": "codex",
@@ -1537,6 +1538,7 @@
           "total_tokens": 1796970,
           "partial": false,
           "share_permille": 270,
+          "cost_per_mtok_usd_micros": 2964490,
           "by_provider": [
             {
               "provider": "codex",
@@ -1564,6 +1566,7 @@
           "total_tokens": 732099,
           "partial": false,
           "share_permille": 110,
+          "cost_per_mtok_usd_micros": 2964490,
           "by_provider": [
             {
               "provider": "codex",
@@ -1591,6 +1594,7 @@
           "total_tokens": 465881,
           "partial": false,
           "share_permille": 70,
+          "cost_per_mtok_usd_micros": 2964491,
           "by_provider": [
             {
               "provider": "codex",
@@ -1618,7 +1622,8 @@
         "cost_usd_micros": 1775700,
         "total_tokens": 598988,
         "partial": false,
-        "share_permille": 90
+        "share_permille": 90,
+        "cost_per_mtok_usd_micros": 2964500
       }
     },
     "yesterday": {
@@ -1727,6 +1732,7 @@
           "total_tokens": 5299200,
           "partial": false,
           "share_permille": 460,
+          "cost_per_mtok_usd_micros": 2619792,
           "by_provider": [
             {
               "provider": "codex",
@@ -1748,6 +1754,7 @@
           "total_tokens": 3110400,
           "partial": false,
           "share_permille": 270,
+          "cost_per_mtok_usd_micros": 2619792,
           "by_provider": [
             {
               "provider": "codex",
@@ -1769,6 +1776,7 @@
           "total_tokens": 1267200,
           "partial": false,
           "share_permille": 110,
+          "cost_per_mtok_usd_micros": 2619792,
           "by_provider": [
             {
               "provider": "codex",
@@ -1790,6 +1798,7 @@
           "total_tokens": 806400,
           "partial": false,
           "share_permille": 70,
+          "cost_per_mtok_usd_micros": 2619792,
           "by_provider": [
             {
               "provider": "codex",
@@ -1811,7 +1820,8 @@
         "cost_usd_micros": 2716200,
         "total_tokens": 1036800,
         "partial": false,
-        "share_permille": 90
+        "share_permille": 90,
+        "cost_per_mtok_usd_micros": 2619792
       }
     },
     "last_7_days": {
@@ -1943,6 +1953,7 @@
           "total_tokens": 24761041,
           "partial": false,
           "share_permille": 460,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -1970,6 +1981,7 @@
           "total_tokens": 14533652,
           "partial": true,
           "share_permille": 269,
+          "cost_per_mtok_usd_micros": 2549320,
           "by_provider": [
             {
               "provider": "codex",
@@ -1997,6 +2009,7 @@
           "total_tokens": 5921117,
           "partial": false,
           "share_permille": 109,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -2024,6 +2037,7 @@
           "total_tokens": 3767983,
           "partial": false,
           "share_permille": 69,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -2051,7 +2065,8 @@
         "cost_usd_micros": 12268614,
         "total_tokens": 4844549,
         "partial": false,
-        "share_permille": 89
+        "share_permille": 89,
+        "cost_per_mtok_usd_micros": 2532457
       }
     },
     "last_30_days": {
@@ -2183,6 +2198,7 @@
           "total_tokens": 106118737,
           "partial": false,
           "share_permille": 460,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -2210,6 +2226,7 @@
           "total_tokens": 62287084,
           "partial": true,
           "share_permille": 270,
+          "cost_per_mtok_usd_micros": 2549320,
           "by_provider": [
             {
               "provider": "codex",
@@ -2237,6 +2254,7 @@
           "total_tokens": 25376219,
           "partial": false,
           "share_permille": 110,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -2264,6 +2282,7 @@
           "total_tokens": 16148503,
           "partial": false,
           "share_permille": 70,
+          "cost_per_mtok_usd_micros": 2532458,
           "by_provider": [
             {
               "provider": "codex",
@@ -2291,7 +2310,8 @@
         "cost_usd_micros": 52579800,
         "total_tokens": 20762361,
         "partial": false,
-        "share_permille": 90
+        "share_permille": 90,
+        "cost_per_mtok_usd_micros": 2532458
       }
     }
   },

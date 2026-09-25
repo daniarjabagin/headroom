@@ -151,6 +151,7 @@ fn parses_spend_additions() {
     let projects = state.spend.today.projects.as_ref().unwrap();
     assert_eq!(projects[0].project, None);
     assert_eq!(projects[0].share_permille, 1000);
+    assert_eq!(projects[0].cost_per_mtok_usd_micros, Some(2_000_000));
     assert_eq!(projects[0].by_provider[1].provider, "codex");
     assert!(state.spend.has_projects());
     assert!(state.spend.has_period(SpendPeriod::Last7Days));
@@ -184,6 +185,13 @@ fn parses_projects_other() {
     .unwrap();
     assert_eq!(other.count, 4);
     assert_eq!(other.share_permille, 266);
+    assert_eq!(other.cost_per_mtok_usd_micros, None);
+    let rated: OtherProjects = serde_json::from_value(json!({
+        "count": 4, "cost_usd_micros": 3_300_000, "total_tokens": 9_000_000,
+        "partial": false, "share_permille": 266, "cost_per_mtok_usd_micros": 366_667
+    }))
+    .unwrap();
+    assert_eq!(rated.cost_per_mtok_usd_micros, Some(366_667));
 }
 
 #[test]

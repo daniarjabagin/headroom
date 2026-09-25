@@ -1,6 +1,8 @@
 use crate::format::{middle_ellipsis, project_label};
 use crate::i18n::{Lang, fill};
-use crate::payload::{ModelUsage, PeriodSpend, ProjectSpend, ProviderSpend, SpendUnit};
+use crate::payload::{
+    ModelUsage, OtherProjects, PeriodSpend, ProjectSpend, ProviderSpend, SpendUnit,
+};
 
 use super::spend_view::{
     Basis, Figures, basis_of, measure, per_mtok_of, permille, proportion, share_text, unit_value,
@@ -264,11 +266,7 @@ fn project_row(scale: Scale, project: &ProjectSpend) -> BreakdownRow {
     let figures = Figures {
         cost_micros: project.cost_usd_micros,
         tokens: project.total_tokens,
-        per_mtok: per_mtok_of(
-            project.cost_usd_micros,
-            project.total_tokens,
-            project.partial,
-        ),
+        per_mtok: project.cost_per_mtok_usd_micros,
     };
     let share = if scale.basis == Basis::Cost {
         share_text(scale.lang, project.share_permille)
@@ -294,6 +292,14 @@ fn project_row(scale: Scale, project: &ProjectSpend) -> BreakdownRow {
             })
             .collect(),
         tooltip: format!("{name}\n{}", scale.tooltip(figures)),
+    }
+}
+
+fn other_project_figures(other: &OtherProjects) -> Figures {
+    Figures {
+        cost_micros: other.cost_usd_micros,
+        tokens: other.total_tokens,
+        per_mtok: other.cost_per_mtok_usd_micros,
     }
 }
 
@@ -325,6 +331,7 @@ pub fn project_list(
             &[(None, folded)],
         );
         row.mark = RowMark::Folder;
+        row.value = scale.value(other_project_figures(other));
         rows.push(row);
         total = total.saturating_add(other.count);
     }

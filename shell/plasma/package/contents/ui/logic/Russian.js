@@ -428,6 +428,5 @@ const MESSAGES = {
     "tokens": "токенов",
     "blended": "в среднем",
     "{count} model": ["{count} модель", "{count} модели", "{count} моделей"],
-    "{count} project": ["{count} проект", "{count} проекта", "{count} проектов"],
-    "by spend": "по расходам"
+    "{count} project": ["{count} проект", "{count} проекта", "{count} проектов"]
 };

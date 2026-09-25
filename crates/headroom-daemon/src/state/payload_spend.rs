@@ -114,6 +114,7 @@ pub struct ProjectSpendView {
     pub total_tokens: u64,
     pub partial: bool,
     pub share_permille: u32,
+    pub cost_per_mtok_usd_micros: Option<i64>,
     pub by_provider: Vec<ProjectProviderView>,
 }
 
@@ -132,4 +133,5 @@ pub struct OtherProjectsView {
     pub total_tokens: u64,
     pub partial: bool,
     pub share_permille: u32,
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }

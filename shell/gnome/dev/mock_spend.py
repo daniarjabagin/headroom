@@ -155,14 +155,22 @@ def share_permille(entry, period_cost, period_tokens):
     return entry["total_tokens"] * 1000 // period_tokens if period_tokens else 0
 
 
+def unpriced_share(provider, row, count):
+    if not provider["partial"] or row["project"] != UNPRICED_PROJECT:
+        return 0
+    return min(count, provider["total_tokens"] - priced_tokens(provider["models"]))
+
+
 def project_rows(providers):
-    rows = [{"project": project, "cost_usd_micros": 0, "total_tokens": 0, "partial": False, "by_provider": []}
+    rows = [{"project": project, "cost_usd_micros": 0, "total_tokens": 0, "priced_tokens": 0, "partial": False,
+             "by_provider": []}
             for project, _ in PROJECT_SHARES]
     for provider in providers:
         costs, counts = shares_of(provider["cost_usd_micros"]), shares_of(provider["total_tokens"])
         for row, cost, count in zip(rows, costs, counts):
             row["cost_usd_micros"] += cost
             row["total_tokens"] += count
+            row["priced_tokens"] += count - unpriced_share(provider, row, count)
             row["partial"] = row["partial"] or (provider["partial"] and row["project"] == UNPRICED_PROJECT)
             row["by_provider"].append({key: provider[key] for key in ("provider", "provider_name")}
                                       | {"cost_usd_micros": cost, "total_tokens": count})
@@ -171,7 +179,9 @@ def project_rows(providers):
 
 def with_shares(rows, period_cost, period_tokens):
     return [{key: row[key] for key in ("project", "cost_usd_micros", "total_tokens", "partial")}
-            | {"share_permille": share_permille(row, period_cost, period_tokens), "by_provider": row["by_provider"]}
+            | {"share_permille": share_permille(row, period_cost, period_tokens),
+               "cost_per_mtok_usd_micros": cost_per_mtok(row["cost_usd_micros"], row["priced_tokens"]),
+               "by_provider": row["by_provider"]}
             for row in rows]
 
 
@@ -181,7 +191,9 @@ def folded_projects(rest, period_cost, period_tokens):
     other = {"count": len(rest), "cost_usd_micros": sum(row["cost_usd_micros"] for row in rest),
              "total_tokens": sum(row["total_tokens"] for row in rest),
              "partial": any(row["partial"] for row in rest)}
-    return {**other, "share_permille": share_permille(other, period_cost, period_tokens)}
+    rate = cost_per_mtok(other["cost_usd_micros"], sum(row["priced_tokens"] for row in rest))
+    return {**other, "share_permille": share_permille(other, period_cost, period_tokens),
+            "cost_per_mtok_usd_micros": rate}
 
 
 def period_spend(usage, period):

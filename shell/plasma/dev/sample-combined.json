@@ -1616,6 +1616,7 @@
           "total_tokens": 5926620,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 3713753,
           "by_provider": [
             {
               "provider": "claude",
@@ -1771,6 +1772,7 @@
           "total_tokens": 9136000,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 3688704,
           "by_provider": [
             {
               "provider": "claude",
@@ -1926,6 +1928,7 @@
           "total_tokens": 158730500,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 3356318,
           "by_provider": [
             {
               "provider": "claude",
@@ -2081,6 +2084,7 @@
           "total_tokens": 158730500,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 3356318,
           "by_provider": [
             {
               "provider": "claude",

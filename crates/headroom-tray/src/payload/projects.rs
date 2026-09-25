@@ -9,6 +9,8 @@ pub struct ProjectSpend {
     pub partial: bool,
     pub share_permille: u32,
     #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
+    #[serde(default)]
     pub by_provider: Vec<ProjectProvider>,
 }
 
@@ -27,4 +29,6 @@ pub struct OtherProjects {
     pub total_tokens: u64,
     pub partial: bool,
     pub share_permille: u32,
+    #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }
