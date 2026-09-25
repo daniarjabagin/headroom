@@ -122,7 +122,7 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
         "Will run out and Almost out come through",
         "«Закончится раньше сброса» и «Почти исчерпан» приходят сразу",
     ),
-    ("Advanced", "Дополнительно"),
+    ("Advanced", "Расширенные"),
     ("Restart", "Перезапустить"),
     ("version", "версия"),
     ("systemd user service", "пользовательская служба systemd"),

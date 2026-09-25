@@ -74,6 +74,11 @@ pub fn header_status(account: &Account, offline: bool) -> Option<HeaderStatus> {
 }
 
 #[must_use]
+pub fn header_mark(status: Option<HeaderStatus>, incident: bool) -> Option<HeaderStatus> {
+    status.filter(|status| !(incident && *status == HeaderStatus::Error))
+}
+
+#[must_use]
 pub fn shows_name(account: &Account, accounts: &[&Account]) -> bool {
     accounts
         .iter()

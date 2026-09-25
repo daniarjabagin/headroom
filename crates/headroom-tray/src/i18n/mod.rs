@@ -148,6 +148,16 @@ mod tests {
     }
 
     #[test]
+    fn russian_settings_tabs_fit_the_view_switcher() {
+        let tabs = ["General", "Accounts", "Notifications", "Advanced", "About"];
+        for tab in tabs {
+            let shown = Lang::Ru.tr(tab);
+            assert_ne!(shown, tab, "{tab} is not translated");
+            assert!(shown.chars().count() <= 11, "{shown} is too wide");
+        }
+    }
+
+    #[test]
     fn translates_known_strings_only() {
         assert_eq!(Lang::Ru.tr("Session"), "Сессия");
         assert_eq!(Lang::Ru.tr("Unknown text"), "Unknown text");

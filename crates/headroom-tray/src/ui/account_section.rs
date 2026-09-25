@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use jiff::Timestamp;
 
-use crate::account::{HeaderStatus, account_title, header_status, shown_plan};
+use crate::account::{HeaderStatus, account_title, header_mark, header_status, shown_plan};
 use crate::format::ago_text;
 use crate::i18n::fill;
 use crate::payload::{Account, ProviderStatus, Usage};
@@ -85,9 +85,14 @@ fn outdated_tag(ctx: &Ctx, updated_at: Option<Timestamp>) -> gtk::Widget {
     tag.upcast()
 }
 
+fn error_text<'a>(ctx: &Ctx, key: &'a HeaderKey) -> &'a str {
+    key.error
+        .as_deref()
+        .unwrap_or(ctx.locale.lang.tr("Refresh failed"))
+}
+
 fn status_widget(ctx: &Ctx, key: &HeaderKey) -> Option<gtk::Widget> {
-    let lang = ctx.locale.lang;
-    match key.status? {
+    match header_mark(key.status, key.incident.is_some())? {
         HeaderStatus::Refreshing => {
             let spinner = gtk::Spinner::new();
             spinner.set_spinning(ctx.motion);
@@ -97,17 +102,29 @@ fn status_widget(ctx: &Ctx, key: &HeaderKey) -> Option<gtk::Widget> {
         HeaderStatus::Outdated => Some(outdated_tag(ctx, key.updated_at)),
         HeaderStatus::Error => {
             let warning = icon("dialog-warning-symbolic", 12, &["headroom-header-warning"]);
-            let message = key.error.as_deref().unwrap_or(lang.tr("Refresh failed"));
-            warning.set_tooltip_text(Some(message));
+            warning.set_tooltip_text(Some(error_text(ctx, key)));
             Some(warning.upcast())
         }
     }
 }
 
+fn incident_mark(ctx: &Ctx, key: &HeaderKey, view: &StatusView) -> gtk::Widget {
+    let mark = status_mark(view);
+    if key.status == Some(HeaderStatus::Error) {
+        let tooltip = format!("{}\n{}", view.title, error_text(ctx, key));
+        mark.set_tooltip_text(Some(&tooltip));
+    }
+    mark.upcast()
+}
+
 fn header(ctx: &Ctx, key: &HeaderKey) -> gtk::Box {
     let status = status_widget(ctx, key)
         .into_iter()
-        .chain(key.incident.as_ref().map(|view| status_mark(view).upcast()))
+        .chain(
+            key.incident
+                .as_ref()
+                .map(|view| incident_mark(ctx, key, view)),
+        )
         .collect();
     let header = HeaderInput {
         title: key.title.clone(),

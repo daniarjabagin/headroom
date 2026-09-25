@@ -96,6 +96,25 @@ fn errors_add_a_notice_unless_offline() {
 }
 
 #[test]
+fn an_incident_mark_replaces_the_error_triangle() {
+    use HeaderStatus::{Error, Outdated, Refreshing};
+    let cases = [
+        (Some(Error), false, Some(Error)),
+        (Some(Error), true, None),
+        (Some(Refreshing), true, Some(Refreshing)),
+        (Some(Outdated), true, Some(Outdated)),
+        (None, true, None),
+    ];
+    for (status, incident, shown) in cases {
+        assert_eq!(
+            header_mark(status, incident),
+            shown,
+            "{status:?} {incident}"
+        );
+    }
+}
+
+#[test]
 fn first_refresh_shows_a_skeleton() {
     let mut waiting = account("refreshing", None);
     waiting.updated_at = None;

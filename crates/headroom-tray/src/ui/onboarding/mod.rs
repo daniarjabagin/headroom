@@ -71,6 +71,26 @@ fn page_column() -> gtk::Box {
     column
 }
 
+fn pinned_page(content: &gtk::Box, actions: &[gtk::Widget]) -> gtk::Box {
+    let scroller = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vexpand(true)
+        .child(content)
+        .build();
+    let footer = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    footer.set_margin_top(MARGIN / 2);
+    footer.set_margin_bottom(MARGIN);
+    footer.set_margin_start(MARGIN);
+    footer.set_margin_end(MARGIN);
+    for action in actions {
+        footer.append(action);
+    }
+    let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    page.append(&scroller);
+    page.append(&footer);
+    page
+}
+
 fn mark_tile(ctx: &Ctx) -> gtk::Box {
     let tile = gtk::Box::new(gtk::Orientation::Vertical, 0);
     tile.add_css_class("card");
