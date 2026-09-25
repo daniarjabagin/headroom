@@ -13,7 +13,7 @@ ColumnLayout {
     required property string period
     required property string lang
     required property real appear
-    readonly property var current: spend[period]
+    readonly property var current: Spend.periodTotals(spend, period)
     readonly property string body: Spend.bodyKind(current)
 
     signal periodSelected(string key)

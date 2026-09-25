@@ -6,14 +6,22 @@
 const PERIODS = [
     {
         value: "today",
+        key: "today",
         msgid: I18n.N("Today")
     },
     {
         value: "yesterday",
+        key: "yesterday",
         msgid: I18n.N("Yesterday")
     },
     {
-        value: "last30Days",
+        value: "7d",
+        key: "last7Days",
+        msgid: I18n.N("7 Days")
+    },
+    {
+        value: "30d",
+        key: "last30Days",
         msgid: I18n.N("30 Days")
     }
 ];
@@ -21,16 +29,31 @@ const PERIODS = [
 const MIN_SLICE = 0.025;
 const START_DEGREES = -90;
 
-function periodOptions(lang) {
-    return PERIODS.map(period => ({
+function periodFor(value) {
+    return PERIODS.find(candidate => candidate.value === value) ?? PERIODS[0];
+}
+
+function hasPeriod(spend, value) {
+    return (spend?.[periodFor(value).key] ?? null) !== null;
+}
+
+function periodOptions(lang, spend) {
+    return PERIODS.filter(period => period.value !== "7d" || hasPeriod(spend, period.value)).map(period => ({
                 value: period.value,
                 label: I18n.tr(lang, period.msgid)
             }));
 }
 
-function periodTitle(lang, key) {
-    const period = PERIODS.find(candidate => candidate.value === key) ?? PERIODS[0];
-    return I18n.tr(lang, period.msgid);
+function periodTotals(spend, value) {
+    return hasPeriod(spend, value) ? spend[periodFor(value).key] : spend.last30Days;
+}
+
+function periodTitle(lang, value) {
+    return I18n.tr(lang, periodFor(value).msgid);
+}
+
+function hasProjects(period) {
+    return period.projects !== null;
 }
 
 function sharedFractions(values, minimum, raised) {

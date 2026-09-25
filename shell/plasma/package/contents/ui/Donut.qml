@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
-import "logic/Format.js" as Format
+import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 import "logic/Sector.js" as Sector
 import "logic/Spend.js" as Spend
@@ -72,6 +72,6 @@ Item {
         anchors.centerIn: parent
         opacity: donut.progress
         role: "label"
-        text: Format.ringUsd(donut.period.costMicros)
+        text: FormatSpend.ringUsd(donut.period.costMicros)
     }
 }

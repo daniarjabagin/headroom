@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Account.js" as Account
 import "logic/DaemonText.js" as DaemonText
-import "logic/Format.js" as Format
+import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 
 Item {
@@ -40,7 +40,7 @@ Item {
                 required property var modelData
 
                 title: modelData.title
-                value: Format.spendLine(extras.lang, modelData.totals)
+                value: FormatSpend.spendLine(extras.lang, modelData.totals)
                 totals: modelData.totals
                 breakdownTitle: modelData.breakdownTitle
                 lang: extras.lang
@@ -54,7 +54,7 @@ Item {
                 required property var modelData
 
                 title: DaemonText.label(extras.lang, modelData.label)
-                value: Format.balanceValue(extras.lang, modelData)
+                value: FormatSpend.balanceValue(extras.lang, modelData)
                 lang: extras.lang
             }
         }

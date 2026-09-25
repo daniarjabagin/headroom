@@ -4,7 +4,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.workspace.dbus as DBus
 import headroom.preview
 import "../package/contents/ui/logic/Commands.js" as Commands
-import "../package/contents/ui/logic/Format.js" as Format
+import "../package/contents/ui/logic/FormatSpend.js" as FormatSpend
 
 TestCase {
     id: suite
@@ -212,7 +212,7 @@ TestCase {
         compare(donut.slices[0].sweep, 360);
         const tokens = findAll(card, item => item.objectName === "legendTokens", [])[0];
         verify(tokens.visible);
-        compare(tokens.text, Format.tokenCount("en", card.current.providers[0].totalTokens));
+        compare(tokens.text, FormatSpend.tokenCount("en", card.current.providers[0].totalTokens));
     }
 
     function test_settings_button_opens_configuration() {

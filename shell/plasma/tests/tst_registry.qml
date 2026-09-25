@@ -44,12 +44,69 @@ TestCase {
                 reason: null
             },
             multiAccount: true,
-            localUsage: true
+            localUsage: true,
+            links: {
+                status: "https://status.openai.com",
+                dashboard: "https://chatgpt.com/codex",
+                usage: null
+            }
         });
         compare(provider("openrouter").method.kind, "api_key");
         compare(provider("openrouter").method.consoleUrl, "https://openrouter.ai/settings/keys");
         compare(provider("cursor").method.kind, "auto_detect");
         compare(Registry.findProvider(providers, "missing"), null);
+    }
+
+    function test_links_accept_only_https() {
+        const providers = Registry.parseRegistry(registryJson([
+            {
+                id: "copilot",
+                add_account: [
+                    {
+                        kind: "auto_detect",
+                        reason: "Found automatically"
+                    }
+                ],
+                links: {
+                    status: "https://www.githubstatus.com",
+                    dashboard: "http://github.com/settings/copilot",
+                    usage: "javascript:alert(1)"
+                }
+            },
+            {
+                id: "legacy",
+                add_account: [
+                    {
+                        kind: "auto_detect"
+                    }
+                ]
+            },
+            {
+                id: "broken",
+                add_account: [
+                    {
+                        kind: "auto_detect"
+                    }
+                ],
+                links: "https://example.com"
+            }
+        ]));
+        compare(providers[0].links, {
+            status: "https://www.githubstatus.com",
+            dashboard: null,
+            usage: null
+        });
+        const none = {
+            status: null,
+            dashboard: null,
+            usage: null
+        };
+        compare(providers[1].links, none);
+        compare(providers[2].links, none);
+        compare(Registry.providerLinks(providers, "copilot").status, "https://www.githubstatus.com");
+        compare(Registry.providerLinks(providers, "missing"), none);
+        compare(Registry.providerLinks(null, "copilot"), none);
+        compare(provider("claude").links.status, "https://status.claude.com");
     }
 
     function test_skips_unusable_entries() {

@@ -88,11 +88,20 @@ QtObject {
     function baseSettings() {
         return {
             refresh_interval_secs: 300,
+            adaptive_refresh: true,
             notifications: {
                 almost_out: true,
                 cutting_it_close: true,
                 will_run_out: true,
-                reset: false
+                reset: false,
+                threshold_percent: 10,
+                provider_thresholds: {},
+                quiet_hours: {
+                    enabled: false,
+                    from: "22:00",
+                    to: "08:00",
+                    allow_critical: true
+                }
             },
             headline: {
                 mode: "auto"
@@ -101,8 +110,111 @@ QtObject {
             updates: {
                 check: true
             },
+            status_pages: {
+                enabled: false
+            },
+            shortcuts: {
+                open: ""
+            },
+            logging: {
+                level: "info"
+            },
+            onboarding: {
+                completed: true
+            },
             display: JSON.parse(shiftedState()).display
         };
+    }
+
+    function defaultDisplay() {
+        return {
+            theme: "system",
+            language: "system",
+            value_mode: "left",
+            reset_format: "countdown",
+            panel_label: "percent",
+            show_spend: true,
+            show_account_spend: true,
+            show_trend: true,
+            show_forecast: true,
+            translucent: false,
+            combine_accounts: false,
+            hidden_windows: {},
+            density: "normal",
+            time_format: "auto",
+            panel_mode: "headline",
+            panel_indicator: "ring",
+            panel_limits: [],
+            panel_position: {
+                box: "right",
+                index: 0
+            },
+            spend_period: "30d",
+            spend_unit: "cost",
+            spend_breakdown: "models",
+            starred_accounts: [],
+            collapse_unstarred: false,
+            hide_on_screen_share: true
+        };
+    }
+
+    function resetSettings() {
+        const onboarding = currentSettings().onboarding;
+        appliedSettings = Object.assign(baseSettings(), {
+            display: defaultDisplay(),
+            onboarding
+        });
+    }
+
+    function spendRow(key, provider, cost, tokens, share) {
+        return {
+            key,
+            provider,
+            tokens: {
+                input: Math.round(tokens * 0.2),
+                cache_read: tokens - Math.round(tokens * 0.2) - Math.round(tokens * 0.05),
+                cache_write: 0,
+                output: Math.round(tokens * 0.05),
+                reasoning: 0,
+                total: tokens
+            },
+            cost_usd_micros: cost,
+            partial: false,
+            unpriced_tokens: 0,
+            cost_per_mtok_usd_micros: tokens === 0 ? null : Math.round(cost * 1000000 / tokens),
+            share_permille: share
+        };
+    }
+
+    function spendJson(queryJson) {
+        const query = JSON.parse(queryJson);
+        const period = JSON.parse(shiftedState()).spend.last_7_days;
+        const rows = period.by_provider.map(entry => spendRow(entry.provider, entry.provider, entry.cost_usd_micros, entry.total_tokens, Math.floor(entry.cost_usd_micros * 1000 / period.cost_usd_micros)));
+        const today = new Date().toISOString().slice(0, 10);
+        return JSON.stringify({
+            since: query.since ?? new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10),
+            until: query.until ?? today,
+            by: query.by,
+            rows,
+            total: spendRow(null, null, period.cost_usd_micros, period.total_tokens, 1000)
+        });
+    }
+
+    function diagnosticsJson() {
+        const text = "Headroom 0.6.0\nOS: Arch Linux\nDesktop: KDE (wayland)\nUptime: 2h 5m\nIPC: dbus\nLog level: info (settings)\nLog file: ~/.local/state/headroom/headroom.log\n";
+        return JSON.stringify({
+            app_version: "0.6.0",
+            os: "Arch Linux",
+            desktop: "KDE (wayland)",
+            uptime_secs: 7530,
+            transports: ["dbus"],
+            log_level: currentSettings().logging?.level ?? "info",
+            log_level_source: "settings",
+            log_file: "~/.local/state/headroom/headroom.log",
+            providers: [],
+            accounts: [],
+            text
+        });
     }
 
     function currentSettings() {

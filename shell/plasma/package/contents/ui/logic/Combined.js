@@ -50,7 +50,8 @@ function parseGroup(raw, parseWindow) {
         providerName: text(raw.provider_name) ?? provider,
         accountIds: Array.isArray(raw.account_ids) ? raw.account_ids.filter(text) : [],
         accounts: objects(raw.accounts).map(parseMember),
-        windows: objects(raw.windows).map(window => parseCombinedWindow(window, parseWindow))
+        windows: objects(raw.windows).map(window => parseCombinedWindow(window, parseWindow)),
+        collapsed: raw.collapsed === true
     };
 }
 
@@ -173,7 +174,7 @@ function segmentName(segment, members) {
 function breakdown(lang, window, members, now, display) {
     return window.segments.map(segment => {
         const reading = Format.readingFor(lang, Quota.shownPercent(segment, display.valueMode), display.valueMode);
-        const reset = Quota.trailingText(lang, segment, now, display.resetFormat, false);
+        const reset = Quota.trailingText(lang, segment, now, display.resetFormat, false, display.timeFormat);
         return `${segmentName(segment, members)}: ${reading} · ${reset}`;
     }).join("\n");
 }

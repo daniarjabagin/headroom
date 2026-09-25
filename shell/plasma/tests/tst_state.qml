@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Account.js" as Account
 import "../package/contents/ui/logic/I18n.js" as I18n
+import "../package/contents/ui/logic/Panel.js" as Panel
 import "../package/contents/ui/logic/Registry.js" as Registry
 import "../package/contents/ui/logic/State.js" as State
 import "../package/contents/ui/logic/Summary.js" as Summary
@@ -171,8 +172,8 @@ TestCase {
         const state = sample();
         compare(State.headlineWindow(state).label, "Session");
         compare(State.isHeadlineStale(state), false);
-        compare(State.headlinePercent(state.headline, "used"), 38);
-        compare(State.headlinePercent(state.headline, "left"), 62);
+        compare(Panel.headlinePercent(state.headline, "used"), 38);
+        compare(Panel.headlinePercent(state.headline, "left"), 62);
         compare(Summary.tooltip("en", {
             kind: "ready",
             state

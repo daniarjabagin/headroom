@@ -1,18 +1,18 @@
 .pragma library
 
-.import "Format.js" as Format
+.import "FormatSpend.js" as FormatSpend
 .import "I18n.js" as I18n
 
 function costText(lang, model) {
     if (model.partial && model.costMicros === 0)
         return I18n.tr(lang, "unpriced");
-    return Format.usd(model.costMicros);
+    return FormatSpend.usd(model.costMicros);
 }
 
 function modelRow(lang, model) {
     return {
         name: model.model,
-        tokens: Format.compactTokens(model.totalTokens),
+        tokens: FormatSpend.compactTokens(model.totalTokens),
         cost: costText(lang, model),
         partial: model.partial
     };
@@ -43,7 +43,7 @@ function modelBreakdown(lang, models, other) {
 
 function totalLine(lang, totals) {
     return I18n.tr(lang, "{cost} · {tokens}", {
-        cost: Format.exactUsd(totals.costMicros),
-        tokens: Format.tokenCount(lang, totals.totalTokens)
+        cost: FormatSpend.exactUsd(totals.costMicros),
+        tokens: FormatSpend.tokenCount(lang, totals.totalTokens)
     });
 }

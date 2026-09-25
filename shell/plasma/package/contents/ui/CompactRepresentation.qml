@@ -3,8 +3,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 import "logic/Format.js" as Format
+import "logic/Panel.js" as Panel
 import "logic/Settings.js" as Settings
-import "logic/State.js" as State
 
 MouseArea {
     id: compact
@@ -19,7 +19,7 @@ MouseArea {
     property bool wasExpanded: false
     readonly property bool hasHeadline: headline !== null
     readonly property bool windowMode: hasHeadline && display.panelLabel === "window"
-    readonly property real percent: hasHeadline ? State.headlinePercent(headline, display.valueMode) : 0
+    readonly property real percent: hasHeadline ? Panel.headlinePercent(headline, display.valueMode) : 0
     readonly property real thickness: vertical ? width : height
     readonly property int glyphSize: thickness >= Kirigami.Units.iconSizes.medium ? Kirigami.Units.iconSizes.smallMedium : Kirigami.Units.iconSizes.small
 

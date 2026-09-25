@@ -1,6 +1,7 @@
 .pragma library
 
 .import "Format.js" as Format
+.import "FormatTime.js" as FormatTime
 .import "I18n.js" as I18n
 
 function hasData(window) {
@@ -61,10 +62,10 @@ function paceNote(lang, window, now, showForecast) {
     return null;
 }
 
-function trailingText(lang, window, now, resetFormat, live) {
+function trailingText(lang, window, now, resetFormat, live, timeFormat) {
     if (!hasData(window))
         return I18n.tr(lang, "No data");
-    return Format.resetText(lang, window.resetsAt, now, resetFormat, live);
+    return FormatTime.resetText(lang, window.resetsAt, now, resetFormat, live, timeFormat);
 }
 
 function forecast(lang, window, now, display) {

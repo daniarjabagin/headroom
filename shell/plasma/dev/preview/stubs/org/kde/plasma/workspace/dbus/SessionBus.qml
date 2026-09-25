@@ -34,6 +34,16 @@ QtObject {
             };
         if (message.member === "CheckForUpdates")
             return PreviewConfig.nextCheckReply();
+        if (message.member === "GetSpend")
+            return {
+                value: PreviewConfig.spendJson(message.arguments[0])
+            };
+        if (message.member === "GetDiagnostics")
+            return {
+                value: PreviewConfig.diagnosticsJson()
+            };
+        if (message.member === "ResetSettings")
+            PreviewConfig.resetSettings();
         if (message.member === "UpdateSettings")
             PreviewConfig.applySettingsPatch(message.arguments[0]);
         return {

@@ -1,11 +1,12 @@
 .pragma library
 
 .import "I18n.js" as I18n
+.import "SettingsValues.js" as Values
 
 const THEMES = ["system", "light", "dark"];
 const VALUE_MODES = ["left", "used"];
 const RESET_FORMATS = ["countdown", "exact"];
-const PANEL_LABELS = ["percent", "window"];
+const PANEL_LABELS = ["percent", "window", "none"];
 const LANGUAGES = ["system", "en", "ru"];
 const MIN_REFRESH_SECS = 60;
 const MAX_REFRESH_SECS = 3600;
@@ -23,14 +24,36 @@ const DISPLAY_KEYS = {
     showForecast: "show_forecast",
     translucent: "translucent",
     combineAccounts: "combine_accounts",
-    hiddenWindows: "hidden_windows"
+    hiddenWindows: "hidden_windows",
+    density: "density",
+    timeFormat: "time_format",
+    panelMode: "panel_mode",
+    panelIndicator: "panel_indicator",
+    panelLimits: "panel_limits",
+    panelPosition: "panel_position",
+    spendPeriod: "spend_period",
+    spendUnit: "spend_unit",
+    spendBreakdown: "spend_breakdown",
+    starredAccounts: "starred_accounts",
+    collapseUnstarred: "collapse_unstarred",
+    hideOnScreenShare: "hide_on_screen_share"
 };
 
 const NOTIFICATION_KEYS = {
     almostOut: "almost_out",
     cuttingItClose: "cutting_it_close",
     willRunOut: "will_run_out",
-    reset: "reset"
+    reset: "reset",
+    thresholdPercent: "threshold_percent",
+    quietHours: "quiet_hours"
+};
+
+const ENCODERS = {
+    panelLimits: Values.encodedPanelLimits,
+    panelPosition: Values.panelPosition,
+    starredAccounts: Values.distinctIds,
+    thresholdPercent: Values.thresholdPercent,
+    quietHours: Values.encodedQuietHours
 };
 
 class SettingsError extends I18n.LocalizedError {}
@@ -43,6 +66,10 @@ function fromPairs(pairs) {
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function section(value) {
+    return isObject(value) ? value : {};
 }
 
 function flag(value, fallback) {
@@ -84,7 +111,19 @@ function parseDisplay(raw) {
         showForecast: flag(display.show_forecast, true),
         translucent: flag(display.translucent, false),
         combineAccounts: flag(display.combine_accounts, false),
-        hiddenWindows: parseHiddenWindows(display.hidden_windows)
+        hiddenWindows: parseHiddenWindows(display.hidden_windows),
+        density: choice(Values.DENSITIES, display.density, "normal"),
+        timeFormat: choice(Values.TIME_FORMATS, display.time_format, "auto"),
+        panelMode: choice(Values.PANEL_MODES, display.panel_mode, "headline"),
+        panelIndicator: choice(Values.PANEL_INDICATORS, display.panel_indicator, "ring"),
+        panelLimits: Values.panelLimits(display.panel_limits),
+        panelPosition: Values.panelPosition(display.panel_position),
+        spendPeriod: choice(Values.SPEND_PERIODS, display.spend_period, "30d"),
+        spendUnit: choice(Values.SPEND_UNITS, display.spend_unit, "cost"),
+        spendBreakdown: choice(Values.SPEND_BREAKDOWNS, display.spend_breakdown, "models"),
+        starredAccounts: Values.distinctIds(display.starred_accounts),
+        collapseUnstarred: flag(display.collapse_unstarred, false),
+        hideOnScreenShare: flag(display.hide_on_screen_share, true)
     };
 }
 
@@ -94,7 +133,10 @@ function parseNotifications(raw) {
         almostOut: flag(notifications.almost_out, true),
         cuttingItClose: flag(notifications.cutting_it_close, true),
         willRunOut: flag(notifications.will_run_out, true),
-        reset: flag(notifications.reset, false)
+        reset: flag(notifications.reset, false),
+        thresholdPercent: Values.thresholdPercent(notifications.threshold_percent),
+        providerThresholds: Values.providerThresholds(notifications.provider_thresholds),
+        quietHours: Values.quietHours(notifications.quiet_hours)
     };
 }
 
@@ -141,7 +183,20 @@ function fromRaw(raw) {
         headline: parseHeadline(raw.headline),
         reducedMotion: flag(raw.reduced_motion, false),
         display: parseDisplay(raw.display),
-        updates: parseUpdates(raw.updates)
+        updates: parseUpdates(raw.updates),
+        adaptiveRefresh: flag(raw.adaptive_refresh, true),
+        statusPages: {
+            enabled: flag(section(raw.status_pages).enabled, false)
+        },
+        shortcuts: {
+            open: Values.shortcut(section(raw.shortcuts).open)
+        },
+        logging: {
+            level: choice(Values.LOG_LEVELS, section(raw.logging).level, "info")
+        },
+        onboarding: {
+            completed: flag(section(raw.onboarding).completed, false)
+        }
     };
 }
 
@@ -149,8 +204,12 @@ function isSettingsError(error) {
     return error instanceof SettingsError;
 }
 
+function encoded(key, value) {
+    return value !== null && key in ENCODERS ? ENCODERS[key](value) : value;
+}
+
 function renamed(patch, keys) {
-    return fromPairs(Object.entries(patch).filter(([key]) => key in keys).map(([key, value]) => [keys[key], value]));
+    return fromPairs(Object.entries(patch).filter(([key]) => key in keys).map(([key, value]) => [keys[key], encoded(key, value)]));
 }
 
 function mergePatch(target, patch) {
@@ -226,5 +285,65 @@ function windowHiddenPatch(display, accountId, windowId, hidden) {
         hiddenWindows: {
             [accountId]: next.length > 0 ? next : null
         }
+    };
+}
+
+function adaptiveRefreshPatch(enabled) {
+    return {
+        adaptive_refresh: enabled === true
+    };
+}
+
+function statusPagesPatch(enabled) {
+    return {
+        status_pages: {
+            enabled: enabled === true
+        }
+    };
+}
+
+function shortcutPatch(accelerator) {
+    return {
+        shortcuts: {
+            open: Values.shortcut(accelerator)
+        }
+    };
+}
+
+function loggingPatch(level) {
+    return {
+        logging: {
+            level: choice(Values.LOG_LEVELS, level, "info")
+        }
+    };
+}
+
+function onboardingPatch(completed) {
+    return {
+        onboarding: {
+            completed: completed === true
+        }
+    };
+}
+
+function providerThresholdPatch(provider, threshold) {
+    const value = Number.isInteger(threshold) ? Math.min(Values.MAX_THRESHOLD, Math.max(0, threshold)) : null;
+    return {
+        notifications: {
+            provider_thresholds: {
+                [provider]: value
+            }
+        }
+    };
+}
+
+function isStarred(display, accountId) {
+    return display.starredAccounts.includes(accountId);
+}
+
+function starredPatch(display, accountId, starred) {
+    const others = display.starredAccounts.filter(id => id !== accountId);
+    return {
+        starredAccounts: starred ? others.concat([accountId]) : others
     };
 }

@@ -1,9 +1,12 @@
 import QtQuick
 import org.kde.plasma.workspace.dbus as DBus
+import "logic/Compat.js" as Compat
+import "logic/Diagnostics.js" as Diagnostics
 import "logic/I18n.js" as I18n
 import "logic/PatchQueue.js" as PatchQueue
 import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
+import "logic/SpendQuery.js" as SpendQuery
 import "logic/State.js" as State
 import "logic/UpdateCheck.js" as UpdateCheck
 
@@ -31,6 +34,7 @@ Item {
     readonly property bool signalsLive: signalLoader.status === Loader.Ready
     property var registration: null
     property var patchQueue: PatchQueue.idle()
+    readonly property bool supports06: view.kind === "ready" && Compat.supports06(view.state)
 
     signal openRequested
     signal commandFailed(string message)
@@ -194,6 +198,47 @@ Item {
         });
     }
 
+    function getSpend(query, onDone) {
+        request("GetSpend", "(s)", [JSON.stringify(query)], SpendQuery.parseResult, onDone);
+    }
+
+    function getDiagnostics(onDone) {
+        request("GetDiagnostics", "", [], Diagnostics.parseDiagnostics, onDone);
+    }
+
+    function request(member, signature, args, parse, onDone) {
+        if (!watcher.registered || !supports06) {
+            onDone(I18n.tr(lang, "Needs a newer Headroom service"), null);
+            return;
+        }
+        const reply = DBus.SessionBus.asyncCall({
+            service: busName,
+            path: objectPath,
+            iface: interfaceName,
+            member,
+            signature,
+            arguments: args
+        });
+        reply.finished.connect(() => {
+            const failure = reply.isError ? reply.error.message : null;
+            const value = reply.isError ? null : parse(reply.value);
+            reply.destroy();
+            if (failure === null && value === null)
+                onDone(I18n.tr(lang, "Unexpected answer from the Headroom service"), null);
+            else
+                onDone(failure, value);
+        });
+    }
+
+    function resetSettings() {
+        if (!supports06)
+            return;
+        command("ResetSettings", "", [], () => {
+            if (client.trackSettings)
+                client.loadSettings();
+        });
+    }
+
     function rescan() {
         command("Rescan", "", []);
     }
@@ -220,13 +265,14 @@ Item {
     }
 
     function updateSettings(patch) {
-        if (!watcher.registered)
+        const sendable = Compat.compatiblePatch(patch, supports06);
+        if (!watcher.registered || sendable === null)
             return;
         if (rawSettings !== null) {
-            rawSettings = Settings.mergePatch(rawSettings, patch);
+            rawSettings = Settings.mergePatch(rawSettings, sendable);
             settings = Settings.fromRaw(rawSettings);
         }
-        advancePatches(PatchQueue.enqueue(patchQueue, patch));
+        advancePatches(PatchQueue.enqueue(patchQueue, sendable));
     }
 
     function advancePatches(step) {
@@ -244,6 +290,8 @@ Item {
     }
 
     function patchDisplay(patch) {
+        if (Compat.compatiblePatch(Settings.displayPatch(patch), supports06) === null)
+            return;
         if (view.kind === "ready")
             view = {
                 kind: "ready",

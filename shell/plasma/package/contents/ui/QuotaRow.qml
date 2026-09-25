@@ -101,7 +101,7 @@ ColumnLayout {
 
         ToggleText {
             emphasis: "secondary"
-            text: Quota.trailingText(row.lang, row.window, row.now, row.display.resetFormat, row.live)
+            text: Quota.trailingText(row.lang, row.window, row.now, row.display.resetFormat, row.live, row.display.timeFormat)
             hint: I18n.tr(row.lang, "Click to switch between countdown and exact time")
             onClicked: row.resetFormatToggled()
         }

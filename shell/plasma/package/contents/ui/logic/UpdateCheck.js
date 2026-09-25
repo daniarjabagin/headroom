@@ -1,6 +1,6 @@
 .pragma library
 
-.import "Format.js" as Format
+.import "FormatTime.js" as FormatTime
 .import "I18n.js" as I18n
 
 const STATUSES = ["up_to_date", "available", "failed", "rate_limited", "disabled"];
@@ -104,7 +104,7 @@ function shown(snapshot, lastResult) {
 
 function checked(lang, checkedAt, now) {
     return I18n.tr(lang, "checked {ago}", {
-        ago: Format.agoText(lang, checkedAt, now)
+        ago: FormatTime.agoText(lang, checkedAt, now)
     });
 }
 
@@ -112,7 +112,7 @@ function rateLimitedLine(lang, until, now) {
     if (until === null || until <= now)
         return I18n.tr(lang, "GitHub limits update checks · try again later");
     return I18n.tr(lang, "GitHub limits update checks · try again in {duration}", {
-        duration: Format.duration(lang, until - now)
+        duration: FormatTime.duration(lang, until - now)
     });
 }
 
@@ -135,7 +135,7 @@ function failedLine(lang, checkedAt, now) {
     if (checkedAt === null)
         return I18n.tr(lang, "Couldn't check for updates");
     return I18n.tr(lang, "Couldn't check for updates · last checked {ago}", {
-        ago: Format.agoText(lang, checkedAt, now)
+        ago: FormatTime.agoText(lang, checkedAt, now)
     });
 }
 
