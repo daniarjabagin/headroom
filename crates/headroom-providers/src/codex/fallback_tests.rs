@@ -47,7 +47,7 @@ fn sign_in_without_auth_time(setup: &Setup, signed_in_at: &str) {
 }
 
 fn account_changed(setup: &Setup) -> ProviderError {
-    ProviderError::LocalData(format!(
+    ProviderError::AccountChanged(format!(
         "the Codex account signed in at {} has changed",
         setup.cli_home().display()
     ))

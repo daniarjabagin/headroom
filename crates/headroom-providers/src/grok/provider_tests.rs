@@ -283,7 +283,7 @@ async fn a_changed_account_at_a_home_is_refused() {
     account.id = AccountId("grok:000000000000".into());
     assert!(matches!(
         provider.fetch_limits(&account).await,
-        Err(ProviderError::LocalData(_))
+        Err(ProviderError::AccountChanged(_))
     ));
 }
 

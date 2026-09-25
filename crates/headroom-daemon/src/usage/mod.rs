@@ -3,6 +3,8 @@ pub mod ingest;
 pub mod summary;
 mod watcher;
 
+pub(crate) use watcher::is_relevant;
+
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 

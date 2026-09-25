@@ -79,7 +79,7 @@ fn credentials_resolve_by_owner_and_detect_a_changed_login() {
     write_login(&config.data_dir, AUTH);
     assert!(matches!(
         credential(&accounts[1]),
-        Err(ProviderError::LocalData(ref m)) if m.contains("has changed")
+        Err(ProviderError::AccountChanged(ref m)) if m.contains("has changed")
     ));
     fs::remove_file(config.data_dir.join(AUTH_FILE)).unwrap();
     assert!(matches!(

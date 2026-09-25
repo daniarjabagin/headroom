@@ -188,7 +188,7 @@ fn ensure_same_account(
     if credentials.identity.account_id(&ID) == account.id {
         Ok(())
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Grok account signed in at {} has changed",
             account.home.display()
         )))

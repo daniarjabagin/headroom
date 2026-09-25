@@ -67,6 +67,7 @@
       "owner": "cli",
       "status": "fresh",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
       "windows": [
@@ -135,6 +136,9 @@
         "kind": "sign_in_expired",
         "message": "sign-in expired, open the CLI to sign in again"
       },
+      "recovery": {
+        "action": "retry"
+      },
       "updated_at": "2026-09-23T09:00:00Z",
       "source": "cache",
       "windows": [
@@ -171,6 +175,7 @@
       "owner": "cli",
       "status": "stale",
       "error": null,
+      "recovery": null,
       "updated_at": null,
       "source": null,
       "windows": [],

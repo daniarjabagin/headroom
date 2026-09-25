@@ -68,6 +68,14 @@ impl ProviderCatalog {
             .map_or(id.as_str(), |descriptor| descriptor.display_name)
     }
 
+    #[must_use]
+    pub fn descriptor(&self, id: &ProviderId) -> Option<&'static ProviderDescriptor> {
+        self.descriptors
+            .iter()
+            .copied()
+            .find(|descriptor| &descriptor.id == id)
+    }
+
     /// Position in the registry, which orders per-provider lists; unknown providers come last.
     #[must_use]
     pub fn rank(&self, id: &ProviderId) -> usize {

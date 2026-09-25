@@ -52,7 +52,7 @@ fn start_watcher(path: &Path, sender: mpsc::Sender<()>) -> Option<RecommendedWat
     Some(watcher)
 }
 
-fn is_relevant(kind: EventKind) -> bool {
+pub(crate) fn is_relevant(kind: EventKind) -> bool {
     match kind {
         EventKind::Create(_) | EventKind::Remove(_) => true,
         EventKind::Modify(modify) => !matches!(modify, ModifyKind::Metadata(_)),

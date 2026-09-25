@@ -18,7 +18,7 @@ use crate::random::ThreadRandom;
 use crate::service::Service;
 use crate::storage::Storage;
 use crate::update::UpdateConfig;
-use crate::{registry, rescan, update};
+use crate::{credentials, registry, rescan, update};
 
 pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let socket = config.socket.as_deref().map(ipc::bind).transpose()?;
@@ -48,6 +48,10 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     });
     let sink: Arc<dyn EventSink> = Arc::new(sinks);
     tasks.spawn(registry::supervise(core.clone(), rescan_requests));
+    tasks.spawn(credentials::watch_signed_out(
+        service.clone(),
+        credentials::TIMING,
+    ));
     if let Some(updates) = updates {
         tasks.spawn(update::run(core.clone(), updates, update_requests));
     }

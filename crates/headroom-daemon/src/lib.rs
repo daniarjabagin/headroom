@@ -3,6 +3,7 @@ pub mod clock;
 mod commands;
 pub mod config;
 pub mod core;
+mod credentials;
 mod daemon;
 #[cfg(target_os = "linux")]
 pub mod dbus;

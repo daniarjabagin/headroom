@@ -26,19 +26,21 @@ pub(super) async fn load(
     keychain: Option<&Security>,
     home: &Path,
 ) -> Result<Credentials, ProviderError> {
-    let Some(security) = keychain else {
-        return load_credentials(home);
-    };
-    let use_keychain = match store_mode(home)? {
-        StoreMode::File => false,
-        StoreMode::Keyring => true,
-        StoreMode::Auto => !home.join(AUTH_FILE).exists(),
-    };
-    if use_keychain {
-        load_from_keychain(security, home).await
-    } else {
-        load_credentials(home)
+    match keychain {
+        Some(security) if !reads_file(keychain, home)? => load_from_keychain(security, home).await,
+        _ => load_credentials(home),
     }
+}
+
+pub(super) fn reads_file(keychain: Option<&Security>, home: &Path) -> Result<bool, ProviderError> {
+    if keychain.is_none() {
+        return Ok(true);
+    }
+    Ok(match store_mode(home)? {
+        StoreMode::File => true,
+        StoreMode::Keyring => false,
+        StoreMode::Auto => home.join(AUTH_FILE).exists(),
+    })
 }
 
 pub(super) fn store_mode(home: &Path) -> Result<StoreMode, ProviderError> {

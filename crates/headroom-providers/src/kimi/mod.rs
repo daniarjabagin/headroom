@@ -116,7 +116,7 @@ fn check_account(account: &AccountRef, identity: &AccountIdentity) -> Result<(),
     if identity.account_id(&ID) == account.id {
         Ok(())
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Kimi account stored at {} has changed",
             account.home.display()
         )))

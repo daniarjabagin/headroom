@@ -97,7 +97,7 @@ async fn a_signed_out_or_replaced_account_is_reported_without_a_request() {
     };
     assert!(matches!(
         provider.fetch_limits(&replaced).await,
-        Err(ProviderError::LocalData(_))
+        Err(ProviderError::AccountChanged(_))
     ));
     fs::remove_file(account.home.join(auth::CREDENTIALS_FILE)).unwrap();
     assert_eq!(

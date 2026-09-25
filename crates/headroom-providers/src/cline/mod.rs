@@ -133,7 +133,7 @@ fn check_account(credentials: &Credentials, account: &AccountRef) -> Result<(), 
     if credentials.account_id() == account.id {
         Ok(())
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Cline account signed in at {} has changed",
             account.home.display()
         )))

@@ -38,7 +38,7 @@ pub(super) fn credential(account: &AccountRef) -> Result<Credential, ProviderErr
     if login.account_id() == account.id {
         Ok(Credential::Login(login))
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Kilo sign-in at {} has changed",
             account.home.display()
         )))

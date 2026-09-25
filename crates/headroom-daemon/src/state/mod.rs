@@ -1,4 +1,5 @@
 mod account;
+mod account_recovery;
 mod activity;
 mod combined;
 mod combined_pace;
@@ -73,3 +74,6 @@ mod lapse_tests;
 
 #[cfg(test)]
 mod combined_state_tests;
+
+#[cfg(test)]
+mod recovery_tests;

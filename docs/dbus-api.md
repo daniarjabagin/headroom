@@ -23,7 +23,7 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
 | `ListProviders` | `() → s` | The providers compiled into this build and how to add their accounts (see [Providers](#providers)). Does not change while the daemon runs. |
-| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. This is what a card's Retry button calls. |
+| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. When the account's last error is `account_changed`, `not_signed_in` or `sign_in_expired`, the daemon first runs a rescan (coalesced with any other, see [Rescan semantics](#rescan-semantics)) and then refreshes the account if it is still listed; the call still returns at once with the account `refreshing`. An account whose home now holds another identity leaves `accounts[]` and the new account is refreshed by the rescan. This is what a card's Retry button calls when `recovery.action` is `retry`. |
 | `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `CheckForUpdates` | `() → s` | Ask GitHub for the latest Headroom release now and return the result as JSON (see [Checking on demand](#checking-on-demand)). Returns when the check is done; concurrent calls share one request, and a call within 60 s of the last check returns that result without a request. Fails with `NotSupported` on a daemon started with `--no-update-check`. |
@@ -56,6 +56,19 @@ Refresh semantics:
   `RefreshNow`, which also re-reads local usage logs instead of waiting for the file watcher or the
   60 s usage poll.
 - Each provider call has a 30 s timeout.
+- When the access token of a Headroom-owned account (`"owner": "headroom"`) has expired or is
+  rejected, the daemon refreshes it with the OAuth refresh token stored in its Headroom home: under a
+  lock file, re-reading the file first, and replacing it atomically only if nobody changed it
+  meanwhile. This covers Grok, Codex homes whose sign-in is kept in `auth.json`, and Claude homes on
+  Linux (Claude homes on macOS keep the sign-in in the Keychain and are not refreshed). A rejected
+  refresh token leaves `sign_in_expired` with `recovery` `sign_in`. CLI-owned credential files are
+  never written: only the CLI refreshes them.
+- Credential watcher: while an account's last error is `not_signed_in`, `sign_in_expired`,
+  `api_key_only` or `account_changed` and its provider signs in through a CLI, the daemon watches that
+  account's credential file (for example `~/.codex/auth.json`, `~/.claude/.credentials.json`). A change
+  waits 2 s for the writer to finish, then acts like `Refresh(account_id)` (so a rescan runs first).
+  The watched set is re-evaluated every 5 s; healthy accounts are not watched. Sign-ins stored only in
+  the macOS Keychain produce no file events and are not watched.
 
 ### Rescan semantics
 
@@ -381,6 +394,7 @@ payload is the snapshot test `crates/headroom-daemon/src/state/snapshots/state_c
 | `owner` | string | `cli` when the credentials belong to the provider's CLI home (read-only for Headroom, sign out with the CLI), `headroom` when the account was added with `headroom accounts add` and can be removed with `headroom accounts remove`. |
 | `status` | Status | See below. |
 | `error` | Error \| null | Last refresh error. Kept while the last good data is shown. |
+| `recovery` | Recovery \| null | What the user can do about `error`, decided by the daemon. `null` when healthy or when nothing helps but waiting (`rate_limited`, `no_subscription`, `unsupported`, `no_provider`). Kept while the account is `refreshing`, so a shell can keep the error notice and show its button as busy. Older daemons omit it. |
 | `updated_at` | timestamp \| null | Time of the data: `fetched_at` for live data, the observation time for data read from local logs. `null` when no data exists yet. |
 | `source` | Source \| null | Where the shown data came from. `null` when no data exists yet. |
 | `windows` | Window[] | Quota windows of the last good snapshot, in provider order. |
@@ -394,7 +408,7 @@ Status, evaluated in this order:
 | --- | --- |
 | `refreshing` | A refresh is in flight. |
 | `no_subscription` | The account is signed in, but the provider reports no active paid plan (for example a free ChatGPT plan without Codex limits, or a Claude account without Pro/Max). `error.kind` is `no_subscription` and `error.message` says what the provider reported. The last good snapshot is dropped: `windows`, `balances` and `notices` are empty, `updated_at`, `source` and `plan` are `null`. The account never drives the headline or window notifications. The state survives daemon restarts until a refresh succeeds. |
-| `signed_out` | The last refresh failed with `not_signed_in` or `sign_in_expired`. Ask the user to sign in with the CLI. |
+| `signed_out` | The last refresh failed with `not_signed_in` or `sign_in_expired`. Offer what `recovery` says. |
 | `error` | The last refresh failed for another reason. Any previous data is still shown. |
 | `fresh` | Data is at most 10 minutes old. |
 | `stale` | Data is older than 10 minutes, or there is no data yet. |
@@ -411,8 +425,24 @@ Error:
 
 | field | type | description |
 | --- | --- | --- |
-| `kind` | string | `not_signed_in`, `sign_in_expired`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `unsupported`, `timeout`, `no_provider` |
+| `kind` | string | `not_signed_in`, `sign_in_expired`, `account_changed`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `unsupported`, `timeout`, `no_provider` |
 | `message` | string | Safe, human-readable message. Never contains tokens. |
+
+`account_changed` means another identity is now signed in at the account's home (for example after
+signing into a different account in the CLI). `Refresh` of such an account rescans first, so the new
+account replaces it at once.
+
+Recovery, tagged by `action`:
+
+| action | fields | when | shell action |
+| --- | --- | --- | --- |
+| `retry` | — | Transient errors (`network`, `timeout`, `invalid_response`, `local_data`), `account_changed`, and sign-in errors of a CLI-owned account whose provider has no CLI login | A Retry button that calls `Refresh(account_id)`. |
+| `sign_in` | `account_id` | `not_signed_in`, `sign_in_expired` or `api_key_only` on a Headroom-owned account (its token could not be refreshed) | "Sign in again…": run the provider's sign-in into the same Headroom home. `account_id` is the account to replace. |
+| `cli_login` | `command` | The same errors on a CLI-owned account | Show or copy `command` (the CLI login as typed in a terminal, e.g. `codex login`, `claude auth login --claudeai`). The credential watcher picks up the new sign-in without a click. |
+
+```json
+"recovery": { "action": "cli_login", "command": "codex login" }
+```
 
 An account without an active subscription:
 
@@ -431,6 +461,7 @@ An account without an active subscription:
     "kind": "no_subscription",
     "message": "No active ChatGPT subscription (Free plan)."
   },
+  "recovery": null,
   "updated_at": null,
   "source": null,
   "windows": [],
@@ -639,6 +670,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
       "owner": "cli",
       "status": "fresh",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
       "windows": [
@@ -686,6 +718,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
         "kind": "sign_in_expired",
         "message": "sign-in expired, open the CLI to sign in again"
       },
+      "recovery": { "action": "cli_login", "command": "claude auth login --claudeai" },
       "updated_at": "2026-09-23T09:00:00Z",
       "source": "cache",
       "windows": [

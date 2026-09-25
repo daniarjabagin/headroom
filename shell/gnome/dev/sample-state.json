@@ -59,6 +59,7 @@
       "hidden": false,
       "status": "fresh",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
       "windows": [
@@ -119,6 +120,7 @@
       "hidden": false,
       "status": "stale",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T07:00:00Z",
       "source": "live",
       "windows": [
@@ -196,6 +198,9 @@
       "error": {
         "kind": "invalid_response",
         "message": "invalid response: HTTP 503 from api.anthropic.com"
+      },
+      "recovery": {
+        "action": "retry"
       },
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
@@ -278,6 +283,9 @@
         "kind": "sign_in_expired",
         "message": "sign-in expired, open the CLI to sign in again"
       },
+      "recovery": {
+        "action": "retry"
+      },
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "cache",
       "windows": [],
@@ -296,6 +304,7 @@
       "hidden": false,
       "status": "fresh",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
       "windows": [],
@@ -321,6 +330,7 @@
       "hidden": false,
       "status": "fresh",
       "error": null,
+      "recovery": null,
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "live",
       "windows": [

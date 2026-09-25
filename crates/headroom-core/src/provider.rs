@@ -55,6 +55,8 @@ pub enum ProviderError {
     NotSignedIn,
     #[error("sign-in expired, open the CLI to sign in again")]
     SignInExpired,
+    #[error("{0}")]
+    AccountChanged(String),
     #[error("signed in with an API key, which has no plan limits")]
     ApiKeyOnly,
     #[error("{detail}")]
@@ -76,6 +78,15 @@ impl ProviderError {
     #[must_use]
     pub fn is_nothing_to_discover(&self) -> bool {
         matches!(self, ProviderError::NotSignedIn)
+    }
+
+    /// True when signing in again, not retrying, is what clears the error.
+    #[must_use]
+    pub fn needs_sign_in(&self) -> bool {
+        matches!(
+            self,
+            ProviderError::NotSignedIn | ProviderError::SignInExpired | ProviderError::ApiKeyOnly
+        )
     }
 }
 
@@ -187,6 +198,25 @@ mod tests {
             serde_json::from_str::<ProviderError>(&json).unwrap(),
             lapsed
         );
+    }
+
+    #[test]
+    fn a_changed_account_keeps_its_message_and_kind() {
+        let changed = ProviderError::AccountChanged("the account at /a has changed".into());
+        assert_eq!(changed.to_string(), "the account at /a has changed");
+        assert_eq!(
+            serde_json::to_string(&changed).unwrap(),
+            "{\"kind\":\"account_changed\",\"detail\":\"the account at /a has changed\"}"
+        );
+        assert!(!changed.needs_sign_in());
+    }
+
+    #[test]
+    fn sign_in_errors_need_a_new_sign_in() {
+        assert!(ProviderError::NotSignedIn.needs_sign_in());
+        assert!(ProviderError::SignInExpired.needs_sign_in());
+        assert!(ProviderError::ApiKeyOnly.needs_sign_in());
+        assert!(!ProviderError::Network("down".into()).needs_sign_in());
     }
 
     #[test]

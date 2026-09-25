@@ -159,7 +159,7 @@ async fn run(service: &Service, command: Command) -> Result<Box<RawValue>, Comma
         Command::GetState => return Ok(to_raw_value(&core.state())?),
         Command::ListProviders => return Ok(to_raw_value(&core.catalog.payload())?),
         Command::GetSettings => return Ok(RawValue::from_string(core.settings_json()?)?),
-        Command::Refresh(id) => core.refresh(&id)?,
+        Command::Refresh(id) => service.refresh(&id)?,
         Command::RefreshNow => core.refresh_now(),
         Command::Rescan => service.rescan().await?,
         Command::CheckForUpdates => return Ok(to_raw_value(&service.check_for_updates().await?)?),

@@ -7,9 +7,11 @@ mod labels;
 mod local_usage;
 mod mapper;
 mod number;
+mod oauth;
 mod offline;
 mod plan;
 mod rate_limits;
+mod refresh;
 mod reverse;
 #[cfg(test)]
 mod test_support;
@@ -32,12 +34,14 @@ use jiff::Timestamp;
 
 use auth::Credentials;
 use client::UsageClient;
+use oauth::TokenClient;
 
 use crate::http;
 use crate::keychain::Security;
 
 pub use client::DEFAULT_API_BASE;
 pub use env::CodexEnvironment;
+pub use oauth::DEFAULT_AUTH_BASE;
 
 pub const ID: ProviderId = ProviderId::from_static("codex");
 
@@ -62,6 +66,7 @@ pub type Clock = Arc<dyn Fn() -> Timestamp + Send + Sync>;
 pub struct CodexConfig {
     pub environment: CodexEnvironment,
     pub api_base: String,
+    pub auth_base: String,
     pub clock: Clock,
 }
 
@@ -71,6 +76,7 @@ impl CodexConfig {
         CodexConfig {
             environment: CodexEnvironment::from_process(),
             api_base: DEFAULT_API_BASE.to_owned(),
+            auth_base: DEFAULT_AUTH_BASE.to_owned(),
             clock: Arc::new(Timestamp::now),
         }
     }
@@ -81,6 +87,7 @@ impl fmt::Debug for CodexConfig {
         f.debug_struct("CodexConfig")
             .field("environment", &self.environment)
             .field("api_base", &self.api_base)
+            .field("auth_base", &self.auth_base)
             .finish_non_exhaustive()
     }
 }
@@ -89,6 +96,7 @@ impl fmt::Debug for CodexConfig {
 pub struct CodexProvider {
     config: CodexConfig,
     client: UsageClient,
+    tokens: TokenClient,
 }
 
 impl CodexProvider {
@@ -98,8 +106,13 @@ impl CodexProvider {
 
     #[must_use]
     pub fn with_http(config: CodexConfig, http: reqwest::Client) -> CodexProvider {
-        let client = UsageClient::new(http, &config.api_base);
-        CodexProvider { config, client }
+        let client = UsageClient::new(http.clone(), &config.api_base);
+        let tokens = TokenClient::new(http, &config.auth_base);
+        CodexProvider {
+            config,
+            client,
+            tokens,
+        }
     }
 
     fn now(&self) -> Timestamp {
@@ -112,13 +125,35 @@ impl CodexProvider {
     ) -> Result<Credentials, ProviderError> {
         let keychain = self.config.environment.keychain.as_ref();
         let credentials = keyring::load(keychain, &account.home).await?;
-        if credentials.identity.account_id(&ID) == account.id {
-            Ok(credentials)
-        } else {
-            Err(ProviderError::LocalData(format!(
-                "the Codex account signed in at {} has changed",
-                account.home.display()
-            )))
+        ensure_same_account(account, credentials)
+    }
+
+    fn refreshable(&self, account: &AccountRef) -> bool {
+        let keychain = self.config.environment.keychain.as_ref();
+        account.owner == CredentialOwner::Headroom
+            && keyring::reads_file(keychain, &account.home).unwrap_or(false)
+    }
+
+    async fn fetch_refreshing(
+        &self,
+        account: &AccountRef,
+        credentials: Credentials,
+        now: Timestamp,
+    ) -> (Credentials, Result<LimitsSnapshot, ProviderError>) {
+        match self.fetch_live(&credentials, now).await {
+            Err(ProviderError::SignInExpired) if self.refreshable(account) => {
+                let refreshed = refresh::refresh(&self.tokens, &account.home, &credentials, now)
+                    .await
+                    .and_then(|fresh| ensure_same_account(account, fresh));
+                match refreshed {
+                    Ok(fresh) => {
+                        let live = self.fetch_live(&fresh, now).await;
+                        (fresh, live)
+                    }
+                    Err(error) => (credentials, Err(error)),
+                }
+            }
+            live => (credentials, live),
         }
     }
 
@@ -164,11 +199,11 @@ impl Provider for CodexProvider {
     async fn fetch_limits(&self, account: &AccountRef) -> Result<LimitsSnapshot, ProviderError> {
         let credentials = self.current_credentials(account).await?;
         let now = self.now();
-        match self.fetch_live(&credentials, now).await {
-            Err(error) => {
+        match self.fetch_refreshing(account, credentials, now).await {
+            (credentials, Err(error)) => {
                 offline::limits_from_logs(account.home.clone(), credentials, now, error).await
             }
-            live => live,
+            (_, live) => live,
         }
     }
 
@@ -201,6 +236,20 @@ async fn discover_accounts(
     }
 }
 
+fn ensure_same_account(
+    account: &AccountRef,
+    credentials: Credentials,
+) -> Result<Credentials, ProviderError> {
+    if credentials.identity.account_id(&ID) == account.id {
+        Ok(credentials)
+    } else {
+        Err(ProviderError::AccountChanged(format!(
+            "the Codex account signed in at {} has changed",
+            account.home.display()
+        )))
+    }
+}
+
 fn account_ref(home: PathBuf, owner: CredentialOwner, credentials: &Credentials) -> AccountRef {
     AccountRef {
         id: credentials.identity.account_id(&ID),
@@ -217,3 +266,7 @@ mod tests;
 #[cfg(test)]
 #[path = "fallback_tests.rs"]
 mod fallback_tests;
+
+#[cfg(test)]
+#[path = "owned_refresh_tests.rs"]
+mod owned_refresh_tests;
