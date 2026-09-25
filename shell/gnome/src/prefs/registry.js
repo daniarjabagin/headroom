@@ -28,6 +28,11 @@ function parseMethod(raw) {
     return null;
 }
 
+function parseLinks(raw) {
+    const links = isObject(raw) ? raw : {};
+    return { status: httpsUrl(links.status), dashboard: httpsUrl(links.dashboard), usage: httpsUrl(links.usage) };
+}
+
 function parseProvider(raw) {
     if (!isObject(raw) || typeof raw.id !== 'string' || !PROVIDER_ID.test(raw.id)) return null;
     const methods = (Array.isArray(raw.add_account) ? raw.add_account : []).map(parseMethod).filter(Boolean);
@@ -37,6 +42,7 @@ function parseProvider(raw) {
         displayName: text(raw.display_name) ?? raw.id,
         methods,
         multiAccount: raw.multi_account === true,
+        links: parseLinks(raw.links),
     };
 }
 

@@ -1,11 +1,8 @@
-from datetime import datetime, timezone
-
-from mock_providers import providers_state
-from mock_state import (DAY, HOUR, MINUTE, SCENARIOS as BASE_SCENARIOS, TRACKED, account, assemble, pace,
-                        showcase_accounts, showcase_usage, window)
+from mock_accounts import TRACKED, account, pace, refresh, showcase_accounts, window
+from mock_common import DAY, HOUR, MINUTE
+from mock_state import assemble, showcase_usage
 
 SEVERITY_TONES = {"healthy": "good", "close": "warning", "running_out": "critical", "spent": "critical"}
-TONE_RANK = {"neutral": 0, "good": 1, "warning": 2, "critical": 3}
 QUIET = ("signed_out", "no_subscription")
 CLOSE_SHARE = 0.9
 
@@ -98,25 +95,6 @@ def combined_groups(accounts):
     return [group(members) for members in by_provider.values() if len(members) > 1]
 
 
-def combined_headline(headline, groups):
-    if headline is None:
-        return None
-    for entry in groups:
-        found = next((w for w in entry["windows"] if w["id"] == headline["window"]), None)
-        if headline["account_id"] in entry["account_ids"] and found:
-            share = found["capacity_percent"] / 100
-            first = found["segments"][0]["account_id"] if found["segments"] else ""
-            return {**headline, "account_id": first, "account_label": None, "combined": True,
-                    "account_count": len(found["segments"]), "remaining_percent": found["remaining_percent"] / share,
-                    "used_percent": found["used_percent"] / share, "tone": found["tone"]}
-    return headline
-
-
-def with_combined(state):
-    groups = combined_groups(state["accounts"]) if state["display"].get("combine_accounts") else []
-    return {**state, "combined": groups, "headline": combined_headline(state["headline"], groups)}
-
-
 def codex_plus(now):
     return account(
         "codex:9f8e7d6c5b4a", "codex", "personal", "me@example.org", "Plus", "fresh",
@@ -129,20 +107,11 @@ def codex_plus(now):
         ],
         now,
         owner="headroom",
+        refresh=refresh(now, 230),
     )
 
 
 def combined_state(now):
     claude, codex, copilot, grok = showcase_accounts(now)
-    state = assemble(now, [claude, codex, codex_plus(now), copilot, grok], showcase_usage(now),
-                     ("codex:1a2b3c4d5e6f", "weekly"))
-    state["display"] = {**state["display"], "combine_accounts": True}
-    return with_combined(state)
-
-
-SCENARIOS = {**BASE_SCENARIOS, "combined": combined_state, "providers": providers_state}
-
-
-def build(scenario, now=None):
-    return SCENARIOS[scenario](now or datetime.now(timezone.utc))
-
+    return assemble(now, [claude, codex, codex_plus(now), copilot, grok], showcase_usage(now),
+                    ("codex:1a2b3c4d5e6f", "weekly"))

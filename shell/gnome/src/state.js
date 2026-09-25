@@ -1,46 +1,23 @@
+import { integer, isObject, list, number, oneOf, providerOf, text, timestamp, TONES } from './fields.js';
+import { parseHeadline, parsePanelItems, parsePanelTone, reportsPanelItems } from './panelItems.js';
+import { parseProviderStatus } from './providerStatus.js';
 import { parseDisplay } from './settings.js';
+import { parseSpend, parseUsage } from './spendPayload.js';
 import { parseUpdate } from './update.js';
 import { parseUpdateCheck } from './updateCheck.js';
 
 const SCHEMA_VERSION = 1;
 
-const TONES = new Set(['good', 'warning', 'critical', 'neutral']);
 const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out', 'no_subscription']);
 const SEVERITIES = new Set(['untracked', 'healthy', 'close', 'running_out', 'spent']);
 const BALANCE_KINDS = new Set(['usd', 'money', 'count']);
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 const OWNERS = new Set(['cli', 'headroom']);
+const REFRESH_MODES = new Set(['live', 'idle']);
+const REFRESH_REASONS = new Set(['hold', 'backoff', 'activity', 'schedule']);
+const MIN_REFRESH_SECS = 60;
 
 export class StateError extends Error {}
-
-function isObject(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function text(value) {
-    return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function number(value) {
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function count(value) {
-    return number(value) ?? 0;
-}
-
-function list(value) {
-    return Array.isArray(value) ? value.filter(isObject) : [];
-}
-
-function timestamp(value) {
-    const ms = typeof value === 'string' ? Date.parse(value) : NaN;
-    return Number.isNaN(ms) ? null : new Date(ms);
-}
-
-function oneOf(allowed, value, fallback) {
-    return allowed.has(value) ? value : fallback;
-}
 
 function parseError(raw) {
     if (!isObject(raw)) return null;
@@ -55,6 +32,22 @@ function parseRecovery(raw) {
     const command = text(raw.command);
     if (raw.action === 'cli_login' && command) return { action: 'cli_login', command };
     return null;
+}
+
+function refreshInterval(value) {
+    const secs = integer(value);
+    return secs !== null && secs >= MIN_REFRESH_SECS ? secs : null;
+}
+
+function parseRefresh(raw) {
+    if (!isObject(raw)) return null;
+    const mode = oneOf(REFRESH_MODES, raw.mode, 'idle');
+    return {
+        mode,
+        intervalSecs: refreshInterval(raw.interval_secs),
+        nextAt: timestamp(raw.next_at),
+        reason: oneOf(REFRESH_REASONS, raw.reason, mode === 'live' ? 'activity' : 'schedule'),
+    };
 }
 
 function parsePace(raw) {
@@ -103,81 +96,6 @@ function parseNotice(raw) {
     return { tone: oneOf(TONES, raw.tone, 'warning'), text: text(raw.text) ?? '' };
 }
 
-function parseTokens(raw) {
-    const tokens = isObject(raw) ? raw : {};
-    return {
-        input: count(tokens.input),
-        cacheRead: count(tokens.cache_read),
-        cacheWrite: count(tokens.cache_write),
-        output: count(tokens.output),
-        reasoning: count(tokens.reasoning),
-        total: count(tokens.total),
-    };
-}
-
-function parseModel(raw) {
-    return {
-        model: text(raw.model) ?? 'unknown',
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true,
-    };
-}
-
-function parseModels(raw) {
-    return list(raw).map(parseModel);
-}
-
-function parseModelsOther(raw) {
-    if (!isObject(raw)) return null;
-    return {
-        count: count(raw.count),
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true,
-    };
-}
-
-function parseTotals(raw) {
-    const totals = isObject(raw) ? raw : {};
-    const tokens = parseTokens(totals.tokens);
-    return {
-        tokens,
-        costMicros: count(totals.cost_usd_micros),
-        totalTokens: tokens.total,
-        partial: totals.partial === true,
-        unpricedTokens: count(totals.unpriced_tokens),
-        unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : [],
-        models: parseModels(totals.models),
-        modelsOther: parseModelsOther(totals.models_other),
-    };
-}
-
-function parseDay(raw) {
-    return {
-        date: text(raw.date) ?? '',
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true,
-    };
-}
-
-function providerOf(raw) {
-    const provider = text(raw.provider) ?? 'unknown';
-    return { provider, providerName: text(raw.provider_name) ?? provider };
-}
-
-function parseUsage(raw) {
-    return {
-        ...providerOf(raw),
-        usageHome: text(raw.usage_home),
-        today: parseTotals(raw.today),
-        yesterday: parseTotals(raw.yesterday),
-        last30Days: parseTotals(raw.last_30_days),
-        daily: list(raw.daily).map(parseDay),
-    };
-}
-
 function parseAccount(raw, usage) {
     const { provider, providerName } = providerOf(raw);
     const usageHome = text(raw.usage_home);
@@ -192,6 +110,8 @@ function parseAccount(raw, usage) {
         status: oneOf(STATUSES, raw.status, 'fresh'),
         error: parseError(raw.error),
         recovery: parseRecovery(raw.recovery),
+        refresh: parseRefresh(raw.refresh),
+        collapsed: raw.collapsed === true,
         updatedAt: timestamp(raw.updated_at),
         hidden: raw.hidden === true,
         windows: list(raw.windows).map(parseWindow),
@@ -230,55 +150,7 @@ function parseGroup(raw) {
         accountIds: Array.isArray(raw.account_ids) ? raw.account_ids.filter(text) : [],
         accounts: list(raw.accounts).map(parseMember),
         windows: list(raw.windows).map(parseCombinedWindow),
-    };
-}
-
-function parseHeadline(raw) {
-    if (!isObject(raw)) return null;
-    const remainingPercent = number(raw.remaining_percent);
-    if (remainingPercent === null) return null;
-    return {
-        accountId: text(raw.account_id),
-        windowId: text(raw.window),
-        provider: text(raw.provider),
-        providerName: text(raw.provider_name) ?? text(raw.provider),
-        accountLabel: text(raw.account_label),
-        windowLabel: text(raw.window_label),
-        usedPercent: number(raw.used_percent),
-        remainingPercent,
-        tone: oneOf(TONES, raw.tone, 'neutral'),
-        combined: raw.combined === true,
-        accountCount: number(raw.account_count),
-    };
-}
-
-function parseProviderSpend(raw) {
-    return {
-        ...providerOf(raw),
-        costMicros: count(raw.cost_usd_micros),
-        totalTokens: count(raw.total_tokens),
-        partial: raw.partial === true,
-        models: parseModels(raw.models),
-        modelsOther: parseModelsOther(raw.models_other),
-    };
-}
-
-function parsePeriod(raw) {
-    const period = isObject(raw) ? raw : {};
-    return {
-        costMicros: count(period.cost_usd_micros),
-        totalTokens: count(period.total_tokens),
-        partial: period.partial === true,
-        providers: list(period.by_provider).map(parseProviderSpend),
-    };
-}
-
-function parseSpend(raw, usage) {
-    if (usage.length === 0 || !isObject(raw)) return null;
-    return {
-        today: parsePeriod(raw.today),
-        yesterday: parsePeriod(raw.yesterday),
-        last30Days: parsePeriod(raw.last_30_days),
+        collapsed: raw.collapsed === true,
     };
 }
 
@@ -296,14 +168,19 @@ export function parseState(json) {
     if (raw.version !== SCHEMA_VERSION)
         throw new StateError(`Headroom service speaks state version ${raw.version}, expected ${SCHEMA_VERSION}`);
     const usage = list(raw.usage).map(parseUsage);
+    const headline = parseHeadline(raw.headline);
+    const display = parseDisplay(raw.display);
     return {
         appVersion: text(raw.app_version),
         generatedAt: timestamp(raw.generated_at),
         nextRefreshAt: timestamp(raw.next_refresh_at),
         offline: raw.offline === true,
         lastSuccessAt: timestamp(raw.last_success_at),
-        headline: parseHeadline(raw.headline),
-        display: parseDisplay(raw.display),
+        headline,
+        display,
+        panelItems: parsePanelItems(raw, headline, display),
+        panelTone: parsePanelTone(raw, headline),
+        reportsPanelItems: reportsPanelItems(raw),
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         combined: list(raw.combined)
             .map(parseGroup)
@@ -311,6 +188,7 @@ export function parseState(json) {
         spend: parseSpend(raw.spend, usage),
         update: parseUpdate(raw.update),
         updateCheck: parseUpdateCheck(raw.update_check),
+        providerStatus: parseProviderStatus(raw.provider_status),
     };
 }
 

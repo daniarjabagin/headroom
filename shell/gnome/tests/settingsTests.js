@@ -22,6 +22,9 @@ function testParse() {
         cuttingItClose: true,
         willRunOut: true,
         reset: false,
+        thresholdPercent: 10,
+        providerThresholds: {},
+        quietHours: { enabled: false, from: '22:00', to: '08:00', allowCritical: true },
     });
     check('settings pinned', parsed.headline, { mode: 'pinned', accountId: 'codex:1', window: 'weekly' });
     const { theme, valueMode, language, resetFormat } = parsed.display;

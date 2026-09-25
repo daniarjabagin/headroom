@@ -124,8 +124,42 @@ async function testCheckForUpdates() {
     check('check cancelled', (await checkWith(cancelled)).result, null);
 }
 
+async function testResetSettings() {
+    const delivered = [];
+    const { client, connection } = await readyClient(delivered);
+    const { proxy, calls } = answering('');
+    connection.proxy = proxy;
+    check('reset done', await client.resetSettings(), true);
+    await connection.pending;
+    check('reset method', calls[0].method, 'ResetSettings');
+    check('reset reloads settings', delivered, [300, 300]);
+    client.destroy();
+}
+
+async function testDiagnostics() {
+    const { client, connection } = await readyClient([]);
+    connection.proxy = answering('{"app_version":"0.6.0","text":"Headroom 0.6.0\\n"}').proxy;
+    const report = await client.getDiagnostics();
+    check('diagnostics report', [report.appVersion, report.text], ['0.6.0', 'Headroom 0.6.0\n']);
+    const unknown = Gio.DBusError.new_for_dbus_error('org.freedesktop.DBus.Error.UnknownMethod', 'no such method');
+    connection.proxy = answering(unknown).proxy;
+    try {
+        await client.getDiagnostics();
+        check('diagnostics on old daemon throws', false, true);
+    } catch (error) {
+        check(
+            'diagnostics on old daemon',
+            [error.constructor.name, error.remoteName],
+            ['DaemonCallError', 'org.freedesktop.DBus.Error.UnknownMethod']
+        );
+    }
+    client.destroy();
+}
+
 export async function testPrefsClient() {
     await testOptimisticSettingsDeferred();
     await testDestroyCancelsDelivery();
     await testCheckForUpdates();
+    await testResetSettings();
+    await testDiagnostics();
 }

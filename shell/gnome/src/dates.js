@@ -39,10 +39,24 @@ const MONTHS = () => [
     _('Dec'),
 ];
 
-export function clockTime(date) {
+function twelveHourTime(date) {
+    const hours = date.getHours() % 12 || 12;
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const template = date.getHours() < 12 ? _('{hours}:{minutes} AM') : _('{hours}:{minutes} PM');
+    return fill(template, { hours, minutes });
+}
+
+export function clockTime(date, hour12 = false) {
+    if (hour12) return twelveHourTime(date);
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${hours}:${minutes}`;
+}
+
+export function usesHour12(timeFormat, desktopClockFormat) {
+    if (timeFormat === '12h') return true;
+    if (timeFormat === '24h') return false;
+    return desktopClockFormat === '12h';
 }
 
 function startOfDay(date) {
@@ -57,8 +71,8 @@ function monthDay(date) {
     return fill(_('{month} {date}'), { month: MONTHS()[date.getMonth()], date: date.getDate() });
 }
 
-export function exactMoment(date, now) {
-    const time = clockTime(date);
+export function exactMoment(date, now, hour12 = false) {
+    const time = clockTime(date, hour12);
     const days = calendarDaysBetween(now, date);
     if (days <= 0) return fill(_('today at {time}'), { time });
     if (days === 1) return fill(_('tomorrow at {time}'), { time });

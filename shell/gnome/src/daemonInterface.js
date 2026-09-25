@@ -32,6 +32,14 @@ const INTERFACE_XML = `
     <method name="UpdateSettings">
       <arg type="s" name="patch" direction="in"/>
     </method>
+    <method name="ResetSettings"/>
+    <method name="GetSpend">
+      <arg type="s" name="query" direction="in"/>
+      <arg type="s" name="result" direction="out"/>
+    </method>
+    <method name="GetDiagnostics">
+      <arg type="s" name="report" direction="out"/>
+    </method>
     <method name="SetAccountLabel">
       <arg type="s" name="account_id" direction="in"/>
       <arg type="s" name="label" direction="in"/>

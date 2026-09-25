@@ -94,9 +94,9 @@ export function isCountdownLive(resetsAt, now) {
     return resetsAt !== null && resetsAt > now && resetsAt - now < HOUR;
 }
 
-export function resetPhrase(resetsAt, now, resetFormat, withSeconds = false) {
+export function resetPhrase(resetsAt, now, resetFormat, withSeconds = false, hour12 = false) {
     if (resetsAt <= now) return _('reset pending');
-    if (resetFormat === 'exact') return fill(_('resets {moment}'), { moment: exactMoment(resetsAt, now) });
+    if (resetFormat === 'exact') return fill(_('resets {moment}'), { moment: exactMoment(resetsAt, now, hour12) });
     const left = resetsAt - now;
     if (left < (withSeconds ? SECOND : MINUTE)) return _('resets soon');
     return fill(_('resets in {duration}'), { duration: duration(left, withSeconds) });
@@ -106,9 +106,9 @@ function capitalized(text) {
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export function resetText(resetsAt, now, resetFormat = 'countdown', withSeconds = false) {
+export function resetText(resetsAt, now, resetFormat = 'countdown', withSeconds = false, hour12 = false) {
     if (resetsAt === null) return _('Not started');
-    return capitalized(resetPhrase(resetsAt, now, resetFormat, withSeconds));
+    return capitalized(resetPhrase(resetsAt, now, resetFormat, withSeconds, hour12));
 }
 
 export function spareText(sparePercent) {
@@ -120,13 +120,13 @@ export function limitText(runsOutAt, now) {
     return fill(_('Limit in {duration}'), { duration: duration(runsOutAt - now) });
 }
 
-function runOutForecast(window, now, resetFormat) {
+function runOutForecast(window, now, resetFormat, hour12) {
     const { runsOutAt } = window.pace;
     if (runsOutAt === null && isPooled(window)) return _('At this pace: runs out before reset');
     if (runsOutAt === null || runsOutAt <= now) return _('At this pace: runs out any minute');
     const runsOut = fill(_('runs out in {duration}'), { duration: duration(runsOutAt - now) });
     if (window.resetsAt === null) return fill(_('At this pace: {runsOut}'), { runsOut });
-    const resets = resetPhrase(window.resetsAt, now, resetFormat);
+    const resets = resetPhrase(window.resetsAt, now, resetFormat, false, hour12);
     return fill(_('At this pace: {runsOut} · {resets}'), { runsOut, resets });
 }
 
@@ -152,10 +152,10 @@ function atResetForecast(window, valueMode) {
     return fill(_('At this pace: ~{percent}% left at reset'), { percent: roundPercent(pace.sparePercent) });
 }
 
-export function forecastText(window, now, display) {
+export function forecastText(window, now, display, hour12 = false) {
     const { severity, sparePercent } = window.pace;
     if (window.remainingPercent === null) return null;
-    if (severity === 'running_out') return runOutForecast(window, now, display.resetFormat);
+    if (severity === 'running_out') return runOutForecast(window, now, display.resetFormat, hour12);
     if ((severity === 'healthy' || severity === 'close') && sparePercent !== null)
         return atResetForecast(window, display.valueMode);
     return null;

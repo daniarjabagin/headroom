@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import { requestDiagnostics, requestReset } from '../daemonCalls.js';
 import { DaemonConnection } from '../daemonConnection.js';
 import { remoteMessage } from '../daemonInterface.js';
 import { decodeSettings, mergePatch, settingsFrom } from '../settings.js';
@@ -74,6 +75,17 @@ export class PrefsClient {
 
     restoreAccounts(provider) {
         return this._connection.enqueue(proxy => proxy.RestoreAccountsAsync(provider));
+    }
+
+    async resetSettings() {
+        const sequence = ++this._patchSequence;
+        const done = await requestReset(this._connection.proxy, this._cancellable);
+        if (done && sequence === this._patchSequence) await this._connection.call(proxy => this._loadSettings(proxy));
+        return done;
+    }
+
+    getDiagnostics() {
+        return requestDiagnostics(this._connection.proxy, this._cancellable);
     }
 
     checkForUpdates() {
