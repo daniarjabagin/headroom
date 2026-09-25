@@ -22,14 +22,16 @@ public final class AppModel {
     var pendingOrder: PendingOrder?
     private let preferredLanguages: [String]
     private let timeZone: TimeZone
+    private let locale: Locale
     private let appVersion: String?
 
     public init(
-        preferredLanguages: [String], timeZone: TimeZone = .current, appVersion: String? = nil,
-        commands: CommandQueue? = nil
+        preferredLanguages: [String], timeZone: TimeZone = .current, locale: Locale = .current,
+        appVersion: String? = nil, commands: CommandQueue? = nil
     ) {
         self.preferredLanguages = preferredLanguages
         self.timeZone = timeZone
+        self.locale = locale
         self.appVersion = appVersion
         self.commands = commands
     }
@@ -37,8 +39,11 @@ public final class AppModel {
     public var formatter: DisplayFormatter {
         let preference = state?.display.language ?? .system
         let language = UILanguage.resolve(preference, preferredLanguages: preferredLanguages)
-        return DisplayFormatter(language: language, timeZone: timeZone)
+        let hourCycle = HourCycle.resolve(state?.display.timeFormat ?? .auto, locale: locale)
+        return DisplayFormatter(language: language, timeZone: timeZone, hourCycle: hourCycle)
     }
+
+    public var features: DaemonFeatures { state?.features ?? .legacy }
 
     public var menuBarContent: MenuBarContent {
         guard phase == .connected else { return .glyph }

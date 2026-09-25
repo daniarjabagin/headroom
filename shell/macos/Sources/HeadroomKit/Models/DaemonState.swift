@@ -13,10 +13,19 @@ public struct DaemonState: Decodable, Sendable, Hashable {
     public let spend: Spend
     public let appVersion: String?
     public let combined: [CombinedGroup]
+    public let panelItems: [PanelItem]
+    public let panelTone: Tone?
+    public let providerStatus: [ProviderStatus]
+    let reportsPanelItems: Bool
+
+    public var features: DaemonFeatures { DaemonFeatures(state: self) }
 
     enum CodingKeys: String, CodingKey {
         case version, offline, display, headline, accounts, usage, spend, combined
         case appVersion = "app_version"
+        case panelItems = "panel_items"
+        case panelTone = "panel_tone"
+        case providerStatus = "provider_status"
         case generatedAt = "generated_at"
         case nextRefreshAt = "next_refresh_at"
         case lastSuccessAt = "last_success_at"
@@ -35,7 +44,12 @@ public struct DaemonState: Decodable, Sendable, Hashable {
         usage = try container.decode([Usage].self, forKey: .usage)
         spend = try container.decode(Spend.self, forKey: .spend)
         appVersion = try container.decodeIfPresent(String.self, forKey: .appVersion)
-        combined = try container.decodeIfPresent([CombinedGroup].self, forKey: .combined) ?? []
+        combined = try container.value(.combined, default: [])
+        let reported = try container.decodeIfPresent([PanelItem].self, forKey: .panelItems)
+        reportsPanelItems = reported != nil
+        panelItems = reported ?? PanelItem.fallback(headline: headline, valueMode: display.valueMode)
+        panelTone = try container.decodeIfPresent(Tone.self, forKey: .panelTone)
+        providerStatus = try container.value(.providerStatus, default: [])
     }
 }
 
@@ -102,12 +116,14 @@ public struct Account: Decodable, Sendable, Hashable, Identifiable {
     public let balances: [Balance]
     public let notices: [Notice]
     public let usageHome: String
+    public let collapsed: Bool
+    public let refresh: AccountRefresh?
 
     public var displayName: String { label ?? email ?? providerName }
 
     enum CodingKeys: String, CodingKey {
         case id, provider, label, email, plan, hidden, owner, status, error, recovery, source, windows,
-            balances, notices
+            balances, notices, collapsed, refresh
         case providerName = "provider_name"
         case updatedAt = "updated_at"
         case usageHome = "usage_home"
@@ -133,6 +149,8 @@ public struct Account: Decodable, Sendable, Hashable, Identifiable {
         balances = try container.decode([Balance].self, forKey: .balances)
         notices = try container.decode([Notice].self, forKey: .notices)
         usageHome = try container.decode(String.self, forKey: .usageHome)
+        collapsed = try container.value(.collapsed, default: false)
+        refresh = try container.decodeIfPresent(AccountRefresh.self, forKey: .refresh)
     }
 }
 

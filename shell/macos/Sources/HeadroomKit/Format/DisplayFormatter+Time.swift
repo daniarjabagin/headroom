@@ -46,7 +46,11 @@ extension DisplayFormatter {
 
     public func clockTime(_ date: Date) -> String {
         let parts = calendar.dateComponents([.hour, .minute], from: date)
-        return "\(twoDigits(parts.hour ?? 0)):\(twoDigits(parts.minute ?? 0))"
+        let hour = parts.hour ?? 0
+        let minute = twoDigits(parts.minute ?? 0)
+        guard hourCycle == .twelveHour else { return "\(twoDigits(hour)):\(minute)" }
+        let dialHour = hour % 12 == 0 ? 12 : hour % 12
+        return "\(dialHour):\(minute)\u{00A0}\(hour < 12 ? "AM" : "PM")"
     }
 
     public func exactMoment(_ date: Date, now: Date) -> String {

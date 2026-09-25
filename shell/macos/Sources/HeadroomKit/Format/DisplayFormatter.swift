@@ -5,10 +5,12 @@ public struct DisplayFormatter: Sendable {
 
     public let strings: UIStrings
     public let timeZone: TimeZone
+    public let hourCycle: HourCycle
 
-    public init(language: UILanguage, timeZone: TimeZone = .current) {
+    public init(language: UILanguage, timeZone: TimeZone = .current, hourCycle: HourCycle = .twentyFourHour) {
         strings = UIStrings(language: language)
         self.timeZone = timeZone
+        self.hourCycle = hourCycle
     }
 
     public var language: UILanguage { strings.language }

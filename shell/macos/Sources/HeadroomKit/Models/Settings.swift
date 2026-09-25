@@ -1,32 +1,41 @@
-public struct Settings: Codable, Sendable, Hashable {
+public struct Settings: Decodable, Sendable, Hashable {
     public var refreshIntervalSecs: Int64
     public var notifications: NotificationSettings
     public var headline: HeadlineSetting
     public var reducedMotion: Bool
     public var display: DisplaySettings
+    public var adaptiveRefresh = true
+    public var statusPages = StatusPageSettings()
+    public var shortcuts = ShortcutSettings()
+    public var logging = LoggingSettings()
+    public var onboarding = OnboardingSettings()
+    public private(set) var features = DaemonFeatures.legacy
 
     enum CodingKeys: String, CodingKey {
-        case notifications, headline, display
+        case notifications, headline, display, shortcuts, logging, onboarding
         case refreshIntervalSecs = "refresh_interval_secs"
         case reducedMotion = "reduced_motion"
+        case adaptiveRefresh = "adaptive_refresh"
+        case statusPages = "status_pages"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        refreshIntervalSecs = try container.decode(Int64.self, forKey: .refreshIntervalSecs)
+        notifications = try container.decode(NotificationSettings.self, forKey: .notifications)
+        headline = try container.decode(HeadlineSetting.self, forKey: .headline)
+        reducedMotion = try container.decode(Bool.self, forKey: .reducedMotion)
+        display = try container.decode(DisplaySettings.self, forKey: .display)
+        adaptiveRefresh = try container.value(.adaptiveRefresh, default: adaptiveRefresh)
+        statusPages = try container.value(.statusPages, default: statusPages)
+        shortcuts = try container.value(.shortcuts, default: shortcuts)
+        logging = try container.value(.logging, default: logging)
+        onboarding = try container.value(.onboarding, default: onboarding)
+        features = container.contains(.adaptiveRefresh) ? .current : .legacy
     }
 }
 
-public struct NotificationSettings: Codable, Sendable, Hashable {
-    public var almostOut: Bool
-    public var cuttingItClose: Bool
-    public var willRunOut: Bool
-    public var reset: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case reset
-        case almostOut = "almost_out"
-        case cuttingItClose = "cutting_it_close"
-        case willRunOut = "will_run_out"
-    }
-}
-
-public enum HeadlineSetting: Codable, Sendable, Hashable {
+public enum HeadlineSetting: Decodable, Sendable, Hashable {
     case auto
     case pinned(accountID: String, window: String)
 
@@ -44,17 +53,5 @@ public enum HeadlineSetting: Codable, Sendable, Hashable {
         self = .pinned(
             accountID: try container.decode(String.self, forKey: .accountID),
             window: try container.decode(String.self, forKey: .window))
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-        case .auto:
-            try container.encode("auto", forKey: .mode)
-        case .pinned(let accountID, let window):
-            try container.encode("pinned", forKey: .mode)
-            try container.encode(accountID, forKey: .accountID)
-            try container.encode(window, forKey: .window)
-        }
     }
 }

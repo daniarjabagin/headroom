@@ -27,12 +27,21 @@ extension DaemonClient {
         _ = try await call(.rescan)
     }
 
-    public func setSettings(_ settings: Settings) async throws(DaemonError) {
-        _ = try await call(.setSettings, [.string(try RPCCodec.encodeString(settings))])
-    }
-
     public func updateSettings(_ patch: [String: JSONValue]) async throws(DaemonError) {
         _ = try await call(.updateSettings, [.string(try RPCCodec.encodeString(patch))])
+    }
+
+    public func resetSettings() async throws(DaemonError) {
+        _ = try await call(.resetSettings)
+    }
+
+    public func getSpend(_ query: SpendQuery) async throws(DaemonError) -> SpendReport {
+        let line = try await call(.getSpend, [.string(try RPCCodec.encodeString(query))])
+        return try RPCCodec.result(SpendReport.self, from: line)
+    }
+
+    public func getDiagnostics() async throws(DaemonError) -> Diagnostics {
+        try RPCCodec.result(Diagnostics.self, from: try await call(.getDiagnostics))
     }
 
     public func setAccountLabel(accountID: String, label: String) async throws(DaemonError) {

@@ -13,8 +13,6 @@ public enum Milestone: String, Sendable, CaseIterable {
 }
 
 public enum SettingsChange: Sendable, Hashable {
-    public static let refreshIntervalRange: ClosedRange<Int64> = 60...3600
-
     case theme(ThemePreference)
     case language(LanguagePreference)
     case valueMode(ValueMode)
@@ -28,6 +26,19 @@ public enum SettingsChange: Sendable, Hashable {
     case headline(HeadlineSetting)
     case notification(Milestone, Bool)
     case hiddenWindows(accountID: String, windows: [String])
+    case density(Density)
+    case timeFormat(TimeFormat)
+    case panel(PanelChange)
+    case spend(SpendChange)
+    case starredAccounts([String])
+    case collapseUnstarred(Bool)
+    case hideOnScreenShare(Bool)
+    case adaptiveRefresh(Bool)
+    case alerts(AlertChange)
+    case statusPages(Bool)
+    case shortcut(String)
+    case logLevel(LogLevel)
+    case onboardingCompleted(Bool)
 
     public var patch: [String: JSONValue] {
         switch self {
@@ -44,6 +55,20 @@ public enum SettingsChange: Sendable, Hashable {
         case .headline(let headline): ["headline": Self.headlineValue(headline)]
         case .notification(let milestone, let value): ["notifications": .object([milestone.rawValue: .bool(value)])]
         case .hiddenWindows(let accountID, let windows): Self.hiddenWindowsPatch(accountID, Self.unique(windows))
+        case .density(let value): Self.display("density", .string(value.rawValue))
+        case .timeFormat(let value): Self.display("time_format", .string(value.rawValue))
+        case .panel(let change): Self.display(change.key, change.value)
+        case .spend(let change): Self.display(change.key, change.value)
+        case .starredAccounts(let ids):
+            Self.display("starred_accounts", Self.strings(SettingsRules.uniqueNonBlank(ids)))
+        case .collapseUnstarred(let value): Self.display("collapse_unstarred", .bool(value))
+        case .hideOnScreenShare(let value): Self.display("hide_on_screen_share", .bool(value))
+        case .adaptiveRefresh(let value): ["adaptive_refresh": .bool(value)]
+        case .alerts(let change): ["notifications": .object(change.patch)]
+        case .statusPages(let value): ["status_pages": .object(["enabled": .bool(value)])]
+        case .shortcut(let value): ["shortcuts": .object(["open": .string(value)])]
+        case .logLevel(let value): ["logging": .object(["level": .string(value.rawValue)])]
+        case .onboardingCompleted(let value): ["onboarding": .object(["completed": .bool(value)])]
         }
     }
 
@@ -65,12 +90,33 @@ public enum SettingsChange: Sendable, Hashable {
         case .hiddenWindows(let accountID, let windows):
             let kept = Self.unique(windows)
             result.display.hiddenWindows[accountID] = kept.isEmpty ? nil : kept
+        case .density(let value): result.display.density = value
+        case .timeFormat(let value): result.display.timeFormat = value
+        case .panel(let change): change.apply(to: &result.display)
+        case .spend(let change): change.apply(to: &result.display)
+        case .starredAccounts(let ids): result.display.starredAccounts = SettingsRules.uniqueNonBlank(ids)
+        case .collapseUnstarred(let value): result.display.collapseUnstarred = value
+        case .hideOnScreenShare(let value): result.display.hideOnScreenShare = value
+        case .adaptiveRefresh(let value): result.adaptiveRefresh = value
+        case .alerts(let change): change.apply(to: &result.notifications)
+        case .statusPages(let value): result.statusPages.enabled = value
+        case .shortcut(let value): result.shortcuts.open = value
+        case .logLevel(let value): result.logging.level = value
+        case .onboardingCompleted(let value): result.onboarding.completed = value
         }
         return result
     }
 
     static func clampedInterval(_ seconds: Int64) -> Int64 {
-        min(max(seconds, refreshIntervalRange.lowerBound), refreshIntervalRange.upperBound)
+        clamped(seconds, to: SettingsRules.refreshIntervalRange)
+    }
+
+    static func clamped<Value: Comparable>(_ value: Value, to range: ClosedRange<Value>) -> Value {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
+
+    static func strings(_ values: [String]) -> JSONValue {
+        .array(values.map(JSONValue.string))
     }
 
     private static func display(_ key: String, _ value: JSONValue) -> [String: JSONValue] {
@@ -86,61 +132,11 @@ public enum SettingsChange: Sendable, Hashable {
     }
 
     private static func hiddenWindowsPatch(_ accountID: String, _ windows: [String]) -> [String: JSONValue] {
-        let value: JSONValue = windows.isEmpty ? .null : .array(windows.map(JSONValue.string))
+        let value: JSONValue = windows.isEmpty ? .null : strings(windows)
         return display("hidden_windows", .object([accountID: value]))
     }
 
     private static func unique(_ windows: [String]) -> [String] {
-        var seen: Set<String> = []
-        return windows.filter { !$0.isEmpty && seen.insert($0).inserted }
-    }
-}
-
-extension DisplaySettings {
-    public func isShown(_ section: DisplaySection) -> Bool {
-        switch section {
-        case .showSpend: showSpend
-        case .showAccountSpend: showAccountSpend
-        case .showTrend: showTrend
-        case .showForecast: showForecast
-        }
-    }
-
-    public func isHidden(accountID: String, windowID: String) -> Bool {
-        hiddenWindows[accountID]?.contains(windowID) ?? false
-    }
-
-    public func hiddenWindows(after windowID: String, hidden: Bool, accountID: String) -> [String] {
-        let others = (hiddenWindows[accountID] ?? []).filter { $0 != windowID }
-        return hidden ? others + [windowID] : others
-    }
-
-    mutating func set(_ section: DisplaySection, _ value: Bool) {
-        switch section {
-        case .showSpend: showSpend = value
-        case .showAccountSpend: showAccountSpend = value
-        case .showTrend: showTrend = value
-        case .showForecast: showForecast = value
-        }
-    }
-}
-
-extension NotificationSettings {
-    public func isEnabled(_ milestone: Milestone) -> Bool {
-        switch milestone {
-        case .almostOut: almostOut
-        case .cuttingItClose: cuttingItClose
-        case .willRunOut: willRunOut
-        case .reset: reset
-        }
-    }
-
-    mutating func set(_ milestone: Milestone, _ value: Bool) {
-        switch milestone {
-        case .almostOut: almostOut = value
-        case .cuttingItClose: cuttingItClose = value
-        case .willRunOut: willRunOut = value
-        case .reset: reset = value
-        }
+        SettingsRules.unique(windows.filter { !$0.isEmpty })
     }
 }

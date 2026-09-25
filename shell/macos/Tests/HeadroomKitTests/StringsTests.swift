@@ -20,6 +20,9 @@ final class StringsTests: XCTestCase {
         check(UpdateText.self)
         check(WelcomeText.self)
         check(CombinedText.self)
+        check(LayoutOptionText.self)
+        check(SpendOptionText.self)
+        check(AdvancedOptionText.self)
         for key in UIText.allCases {
             assertTranslated(String(describing: key), english: key.english, russian: key.russian)
         }

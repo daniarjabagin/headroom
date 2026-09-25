@@ -4,11 +4,22 @@ public struct CombinedGroup: Decodable, Sendable, Hashable {
     public let accountIDs: [String]
     public let accounts: [CombinedAccount]
     public let windows: [CombinedWindow]
+    public let collapsed: Bool
 
     enum CodingKeys: String, CodingKey {
-        case provider, accounts, windows
+        case provider, accounts, windows, collapsed
         case providerName = "provider_name"
         case accountIDs = "account_ids"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try container.decode(String.self, forKey: .provider)
+        providerName = try container.decode(String.self, forKey: .providerName)
+        accountIDs = try container.decode([String].self, forKey: .accountIDs)
+        accounts = try container.decode([CombinedAccount].self, forKey: .accounts)
+        windows = try container.decode([CombinedWindow].self, forKey: .windows)
+        collapsed = try container.value(.collapsed, default: false)
     }
 }
 

@@ -7,6 +7,17 @@ public enum LogFile {
         home.appendingPathComponent("Library/Logs/Headroom/daemon.log")
     }
 
+    public static func serviceLog(home: URL) -> URL {
+        home.appendingPathComponent("Library/Logs/Headroom/headroom.log")
+    }
+
+    public static func displayPath(_ url: URL, home: URL) -> String {
+        let path = url.standardizedFileURL.path
+        let homePath = home.standardizedFileURL.path
+        guard homePath != "/", path.hasPrefix(homePath + "/") else { return path }
+        return "~" + path.dropFirst(homePath.count)
+    }
+
     static func openForAppending(_ url: URL) throws -> FileHandle {
         let manager = FileManager.default
         try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
