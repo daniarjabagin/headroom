@@ -4,6 +4,7 @@ mod codec;
 pub mod cursors;
 pub mod dismissed;
 pub mod events;
+pub mod held;
 pub mod lapses;
 mod migrations;
 mod private;

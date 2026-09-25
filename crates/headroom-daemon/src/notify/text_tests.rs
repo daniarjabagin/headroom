@@ -5,6 +5,13 @@ use crate::testing::{session, ts, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 
+fn at(milestone: Milestone) -> Alert {
+    Alert {
+        milestone,
+        threshold: 10,
+    }
+}
+
 fn observed(severity: Severity, remaining: f64) -> Observation {
     Observation {
         remaining,
@@ -23,7 +30,7 @@ fn body_of(locale: Locale, milestone: Milestone, observation: &Observation) -> S
         account_name: Some("Work"),
         window: &window,
     };
-    compose(locale, milestone, &subject, observation, ts(NOW)).body
+    compose(locale, at(milestone), &subject, observation, ts(NOW)).body
 }
 
 #[test]
@@ -75,6 +82,64 @@ fn bodies_are_translated_for_every_milestone() {
 }
 
 #[test]
+fn almost_out_names_the_threshold() {
+    let window = session(50.0, "2026-09-23T10:42:00Z");
+    let subject = Subject {
+        account_id: "codex:work",
+        provider_name: "Codex",
+        account_name: Some("Work"),
+        window: &window,
+    };
+    let cases = [
+        (
+            5,
+            "Under 5% left · resets in 42m",
+            "Осталось меньше 5% · сброс через 42 мин",
+        ),
+        (
+            20,
+            "Under 20% left · resets in 42m",
+            "Осталось меньше 20% · сброс через 42 мин",
+        ),
+        (
+            30,
+            "Under 30% left · resets in 42m",
+            "Осталось меньше 30% · сброс через 42 мин",
+        ),
+    ];
+    for (threshold, english, russian) in cases {
+        let alert = Alert {
+            milestone: Milestone::AlmostOut,
+            threshold,
+        };
+        let observation = observed(Severity::Close, 1.0);
+        let text = |locale| compose(locale, alert, &subject, &observation, ts(NOW)).body;
+        assert_eq!(text(Locale::En), english);
+        assert_eq!(text(Locale::Ru), russian);
+    }
+}
+
+#[test]
+fn headings_name_provider_account_and_window() {
+    let session = session(50.0, NOW);
+    let weekly = weekly(50.0, NOW);
+    let subject = |account_name, window| Subject {
+        account_id: "codex:work",
+        provider_name: "Codex",
+        account_name,
+        window,
+    };
+    assert_eq!(
+        heading(Locale::En, &subject(Some("Work"), &session)),
+        "Codex · Work · Session"
+    );
+    assert_eq!(
+        heading(Locale::Ru, &subject(None, &weekly)),
+        "Codex · Неделя"
+    );
+}
+
+#[test]
 fn titles_translate_known_windows_only() {
     let session = session(50.0, NOW);
     let weekly = weekly(50.0, NOW);
@@ -102,7 +167,7 @@ fn titles_translate_known_windows_only() {
         let text = |locale| {
             compose(
                 locale,
-                Milestone::AlmostOut,
+                at(Milestone::AlmostOut),
                 &subject,
                 &observation,
                 ts(NOW),
@@ -125,7 +190,7 @@ fn claude_titles_name_the_provider() {
     let observation = observed(Severity::Untracked, 100.0);
     let text = compose(
         Locale::En,
-        Milestone::Reset,
+        at(Milestone::Reset),
         &subject,
         &observation,
         ts(NOW),
@@ -229,7 +294,7 @@ fn alerts_carry_a_stable_id_and_an_urgency() {
     for (milestone, severity, key, expected) in cases {
         let text = compose(
             Locale::En,
-            milestone,
+            at(milestone),
             &subject,
             &observed(severity, 5.0),
             ts(NOW),

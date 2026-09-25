@@ -1,7 +1,11 @@
 pub mod alerts;
 #[cfg(target_os = "linux")]
 pub mod desktop;
+pub mod digest;
 pub mod evaluator;
+pub mod held;
+pub mod quiet;
+pub mod release_task;
 pub mod text;
 
 use async_trait::async_trait;

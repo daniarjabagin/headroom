@@ -47,6 +47,7 @@ fn fresh_database_is_migrated_to_latest() {
         [
             "accounts",
             "dismissed_homes",
+            "held_alerts",
             "limits_snapshots",
             "log_cursors",
             "notification_state",

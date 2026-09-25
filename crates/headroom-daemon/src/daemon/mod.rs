@@ -13,7 +13,7 @@ use crate::error::{DaemonError, StorageError};
 use crate::events::{self, EventSink, EventSinks};
 use crate::home::HomeDisplay;
 use crate::ipc::{self, Hub, SocketFile};
-use crate::notify::Notifier;
+use crate::notify::{Notifier, release_task};
 use crate::random::ThreadRandom;
 use crate::service::Service;
 use crate::storage::Storage;
@@ -48,6 +48,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     });
     let sink: Arc<dyn EventSink> = Arc::new(sinks);
     tasks.spawn(registry::supervise(core.clone(), rescan_requests));
+    tasks.spawn(release_task::run(core.clone()));
     if let Some(updates) = updates {
         tasks.spawn(update::run(core.clone(), updates, update_requests));
     }

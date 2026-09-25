@@ -6,7 +6,7 @@ use jiff::{SignedDuration, Timestamp};
 use super::policy::{self, FETCH_TIMEOUT};
 use crate::core::Core;
 use crate::model::RefreshFailure;
-use crate::notify::alerts::Review;
+use crate::notify::alerts::{LapseReview, Review};
 use crate::notify::text::Locale;
 use crate::storage::{accounts, lapses, snapshots};
 
@@ -149,9 +149,15 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
     let provider_name = core.catalog.display_name(&record.reference.provider);
     let result = match snapshot {
         _ if lapsed => {
-            core.alerts
-                .review_lapse(&record, provider_name, locale)
-                .await
+            let lapse = LapseReview {
+                account: &record,
+                provider_name,
+                settings: &settings.notifications,
+                locale,
+                now,
+                tz: &core.tz,
+            };
+            core.alerts.review_lapse(&lapse).await
         }
         Some(snapshot) => {
             let review = Review {
@@ -162,6 +168,7 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
                 display: &settings.display,
                 locale,
                 now,
+                tz: &core.tz,
             };
             core.alerts.review(&review).await
         }

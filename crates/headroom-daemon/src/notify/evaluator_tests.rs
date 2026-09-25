@@ -3,6 +3,7 @@ use crate::testing::ts;
 
 const RESET: &str = "2026-09-23T12:00:00Z";
 const NEXT_RESET: &str = "2026-09-23T17:00:00Z";
+const DEFAULT: u8 = 10;
 
 fn seen(remaining: f64, severity: Severity) -> Observation {
     let tone = match severity {
@@ -25,11 +26,15 @@ fn after_reset(mut observation: Observation) -> Observation {
 }
 
 fn run(steps: &[Observation]) -> Vec<Vec<Milestone>> {
+    run_at(steps, DEFAULT)
+}
+
+fn run_at(steps: &[Observation], threshold: u8) -> Vec<Vec<Milestone>> {
     let mut state: Option<AlertState> = None;
     steps
         .iter()
         .map(|step| {
-            let evaluation = evaluate(state.as_ref(), step);
+            let evaluation = evaluate(state.as_ref(), step, threshold);
             state = Some(evaluation.state);
             evaluation.alerts
         })
@@ -38,7 +43,7 @@ fn run(steps: &[Observation]) -> Vec<Vec<Milestone>> {
 
 #[test]
 fn first_observation_primes_without_alerting() {
-    let evaluation = evaluate(None, &seen(5.0, Severity::RunningOut));
+    let evaluation = evaluate(None, &seen(5.0, Severity::RunningOut), DEFAULT);
     assert!(evaluation.alerts.is_empty());
     assert_eq!(
         evaluation.state.fired,
@@ -48,7 +53,11 @@ fn first_observation_primes_without_alerting() {
             Milestone::WillRunOut
         ])
     );
-    let again = evaluate(Some(&evaluation.state), &seen(4.0, Severity::Spent));
+    let again = evaluate(
+        Some(&evaluation.state),
+        &seen(4.0, Severity::Spent),
+        DEFAULT,
+    );
     assert!(again.alerts.is_empty());
 }
 
@@ -105,6 +114,48 @@ fn almost_out_re_arms_only_above_fifteen_percent() {
     ]);
     let fired: Vec<usize> = alerts.iter().map(Vec::len).collect();
     assert_eq!(fired, [0, 1, 0, 0, 0, 1]);
+}
+
+#[test]
+fn almost_out_follows_the_threshold_and_re_arms_five_points_above() {
+    let healthy = |remaining| seen(remaining, Severity::Healthy);
+    let cases: [(u8, Vec<f64>, Vec<usize>); 5] = [
+        (
+            5,
+            vec![20.0, 6.0, 4.0, 9.0, 4.0, 10.0, 4.0],
+            vec![0, 0, 1, 0, 0, 0, 1],
+        ),
+        (
+            10,
+            vec![20.0, 9.0, 14.0, 9.0, 15.0, 9.0],
+            vec![0, 1, 0, 0, 0, 1],
+        ),
+        (
+            20,
+            vec![30.0, 19.0, 24.0, 19.0, 25.0, 19.0],
+            vec![0, 1, 0, 0, 0, 1],
+        ),
+        (
+            30,
+            vec![40.0, 29.5, 34.9, 29.0, 35.0, 1.0],
+            vec![0, 1, 0, 0, 0, 1],
+        ),
+        (0, vec![20.0, 5.0, 0.0, 20.0, 0.0], vec![0, 0, 0, 0, 0]),
+    ];
+    for (threshold, remaining, expected) in cases {
+        let steps: Vec<Observation> = remaining.into_iter().map(healthy).collect();
+        let fired: Vec<usize> = run_at(&steps, threshold).iter().map(Vec::len).collect();
+        assert_eq!(fired, expected, "threshold {threshold}");
+    }
+}
+
+#[test]
+fn zero_threshold_keeps_other_milestones() {
+    let alerts = run_at(
+        &[seen(60.0, Severity::Healthy), seen(0.0, Severity::Spent)],
+        0,
+    );
+    assert_eq!(alerts[1], [Milestone::WillRunOut]);
 }
 
 #[test]
@@ -172,38 +223,41 @@ fn reset_time_jitter_is_not_a_reset() {
 
 #[test]
 fn rolled_back_milestone_fires_again_next_time() {
-    let primed = evaluate(None, &seen(20.0, Severity::Healthy)).state;
-    let mut first = evaluate(Some(&primed), &seen(9.0, Severity::Healthy));
+    let primed = evaluate(None, &seen(20.0, Severity::Healthy), DEFAULT).state;
+    let mut first = evaluate(Some(&primed), &seen(9.0, Severity::Healthy), DEFAULT);
     assert_eq!(first.alerts, [Milestone::AlmostOut]);
     rollback(&mut first.state, Milestone::AlmostOut);
-    let retry = evaluate(Some(&first.state), &seen(9.0, Severity::Healthy));
+    let retry = evaluate(Some(&first.state), &seen(9.0, Severity::Healthy), DEFAULT);
     assert_eq!(retry.alerts, [Milestone::AlmostOut]);
 }
 
 #[test]
 fn rolled_back_reset_is_retried() {
-    let primed = evaluate(None, &seen(50.0, Severity::Close)).state;
+    let primed = evaluate(None, &seen(50.0, Severity::Close), DEFAULT).state;
     let mut reset = evaluate(
         Some(&primed),
         &after_reset(seen(100.0, Severity::Untracked)),
+        DEFAULT,
     );
     assert_eq!(reset.alerts, [Milestone::Reset]);
     rollback(&mut reset.state, Milestone::Reset);
     let retry = evaluate(
         Some(&reset.state),
         &after_reset(seen(100.0, Severity::Untracked)),
+        DEFAULT,
     );
     assert_eq!(retry.alerts, [Milestone::Reset]);
     let settled = evaluate(
         Some(&retry.state),
         &after_reset(seen(100.0, Severity::Untracked)),
+        DEFAULT,
     );
     assert!(settled.alerts.is_empty());
 }
 
 #[test]
 fn state_serializes_compactly() {
-    let state = evaluate(None, &seen(5.0, Severity::Close)).state;
+    let state = evaluate(None, &seen(5.0, Severity::Close), DEFAULT).state;
     let json = serde_json::to_string(&state).unwrap();
     assert_eq!(
         json,

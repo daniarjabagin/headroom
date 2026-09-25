@@ -1296,8 +1296,11 @@ Rules per `(account, window)`:
 - The first observation only records the current state, so start-up never alerts.
 - `AlmostOut`, `CuttingItClose` and `WillRunOut` fire once on the rising edge. Jumping straight to
   `running_out` sends only `WillRunOut`.
-- `AlmostOut` re-arms when remaining climbs back to 15 % or more; `CuttingItClose` and `WillRunOut`
-  re-arm when severity drops to `healthy` or below.
+- `AlmostOut` fires when remaining drops under the threshold: `notifications.provider_thresholds[provider]`
+  when the provider has a key, otherwise `notifications.threshold_percent` (default 10). A threshold of
+  `0` turns `AlmostOut` off for that provider; its other milestones are unaffected.
+- `AlmostOut` re-arms when remaining climbs back to the threshold + 5 % or more (15 % with the default);
+  `CuttingItClose` and `WillRunOut` re-arm when severity drops to `healthy` or below.
 - When `resets_at` moves forward by more than a second the window has reset: milestones re-arm, and
   `Reset` fires if the window's last tone was `warning` or `critical`.
 - The state is stored in the daemon's database, so restarts do not repeat alerts. A failed delivery is
@@ -1311,18 +1314,51 @@ Subscription lapse, per account:
   so a later lapse notifies again. A failed delivery is retried at the next check. Hidden accounts are
   not notified. There is no setting for it.
 
-Texts follow `display.language`:
+Quiet hours (`notifications.quiet_hours`, `from`/`to` in the daemon's local time zone, so they follow
+daylight saving changes; a range with `from` later than `to` crosses midnight, `from` is inside the
+range and `to` is not):
+
+- While the range is active, window alerts and subscription lapses are held instead of delivered.
+  With `allow_critical`, alerts with `critical` urgency (`WillRunOut` when the limit is reached) are
+  delivered at once. A held alert counts as delivered for the rules above, so it is not repeated.
+- Held alerts are stored in the daemon's database (table `held_alerts`) and survive restarts. They are
+  keyed by the alert `id`; a newer alert with the same id replaces the older one.
+- When the range ends the daemon releases them. It checks at start-up, whenever settings change, when
+  the range ends and at least once a minute (so a missed wake-up after suspend is caught). Turning
+  `enabled` off, or moving the range so that now is outside it, releases held alerts at once.
+- On release, items that no longer apply are dropped: the window has reset (its `resets_at` moved
+  forward or has passed), the condition has cleared (the milestone re-armed), the milestone was
+  switched off or its threshold set to `0`, or the account's lapse ended.
+- One remaining item is delivered as its original notification (same `id` and title; the body is
+  recomposed so countdowns are current). Two or more are delivered as one summary with `id`
+  `summary/<unix seconds>`, an empty `account_id`, the highest urgency of its items, and one line per
+  item (`<provider> · <account> · <window> — <state>`, oldest first), at most 4 lines plus a
+  `+N more` line. Nothing is sent when every item was dropped. A failed delivery keeps the items and
+  is retried at the next check.
+- On macOS the summary is an ordinary `Alert` (see [`docs/ipc.md`](ipc.md)) with the same fields.
+
+Texts follow `display.language` (`N` is the threshold that applied):
 
 | milestone | English | Russian |
 | --- | --- | --- |
 | title | `Codex · Work — Session` | `Codex · Work — Сессия` |
-| `AlmostOut` | `Under 10% left · resets in 42m` | `Осталось меньше 10% · сброс через 42 мин` |
+| `AlmostOut` | `Under N% left · resets in 42m` | `Осталось меньше N% · сброс через 42 мин` |
 | `CuttingItClose` | `Projected to finish close to the limit · resets in 2h` | `По прогнозу лимита едва хватит до сброса · сброс через 2 ч` |
 | `WillRunOut` | `Projected to run out in 20m · resets in 42m` (`… before the reset` without a run-out time) | `По прогнозу лимит закончится через 20 мин · сброс через 42 мин` (`… до сброса`) |
 | `WillRunOut` when spent | `Limit reached · resets in 42m` | `Лимит исчерпан · сброс через 42 мин` |
 | `Reset` | `Limit reset · 100% left` | `Лимит сброшен · осталось 100%` |
 | lapse title | `Codex · Work — subscription inactive` | `Codex · Work — подписка неактивна` |
 | lapse body | `Limits are unavailable until the plan is renewed.` | `Данные о лимитах недоступны, пока подписка не продлена.` |
+| summary title | `Headroom — while you were away` | `Headroom — пока вас не было` |
+| summary line, `AlmostOut` | `Codex · Work · Weekly — under N% left` | `Codex · Work · Неделя — осталось меньше N%` |
+| summary line, `CuttingItClose` | `… — close to the limit` | `… — лимита едва хватит` |
+| summary line, `WillRunOut` | `… — projected to run out` | `… — лимит скоро закончится` |
+| summary line, `WillRunOut` when spent | `… — limit reached` | `… — лимит исчерпан` |
+| summary line, `Reset` | `… — limit reset` | `… — лимит сброшен` |
+| summary line, lapse | `Codex · Work — subscription inactive` | `Codex · Work — подписка неактивна` |
+| summary overflow | `+2 more` | `и ещё 2` |
+
+Summary lines leave out `· <account>` when the account has neither a label nor an email.
 
 Session and weekly window labels are translated; other window labels come from the provider as is.
 Titles start with the provider's `display_name` from the registry.
