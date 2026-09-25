@@ -4,8 +4,10 @@ import QtQuick
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasmoid
+import "logic/Accelerator.js" as Accelerator
 import "logic/Commands.js" as Commands
 import "logic/I18n.js" as I18n
+import "logic/PanelTip.js" as PanelTip
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
 import "logic/Summary.js" as Summary
@@ -27,9 +29,17 @@ PlasmoidItem {
     readonly property var tip: Summary.tooltip(lang, view, now)
     readonly property var systemTheme: Kirigami.Theme
     readonly property bool reducedMotion: daemon.settings?.reducedMotion ?? false
+    readonly property var tipRows: PanelTip.rows(lang, ready ? view.state : null, now)
+    readonly property bool shortcutSupported: ready && view.state.supports06 && daemon.settings !== null
+    property var appliedShortcut: null
+    readonly property Item panelTooltip: PanelTooltip {
+        rows: root.tipRows
+    }
 
     toolTipMainText: tip.main
     toolTipSubText: tip.sub
+    toolTipItem: PanelTip.isEmpty(tipRows) ? null : panelTooltip
+    onShortcutSupportedChanged: applyShortcut()
     onDisplayChanged: {
         if (ready)
             lastDisplay = display;
@@ -40,12 +50,21 @@ PlasmoidItem {
             daemon.refresh("");
     }
 
+    function applyShortcut() {
+        const next = Accelerator.nextShortcut(daemon.settings?.shortcuts.open, shortcutSupported, appliedShortcut);
+        if (next === null)
+            return;
+        appliedShortcut = next;
+        Plasmoid.globalShortcut = next;
+    }
+
     function signIn(providerId) {
         runner.run(Commands.addAccountCommand(providerId, "", I18n.tr(lang, "Press Enter to close this window")));
     }
 
     compactRepresentation: CompactRepresentation {
-        headline: root.headline
+        items: root.ready ? root.view.state.panelItems : []
+        panelTone: root.ready ? root.view.state.panelTone : null
         display: root.display
         lang: root.lang
         reducedMotion: root.reducedMotion
@@ -84,6 +103,7 @@ PlasmoidItem {
         trackProviders: true
         lang: root.lang
         onOpenRequested: root.expanded = true
+        onSettingsChanged: root.applyShortcut()
     }
 
     UpdateActions {

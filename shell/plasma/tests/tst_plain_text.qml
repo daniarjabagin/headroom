@@ -43,14 +43,20 @@ TestCase {
             display: Settings.parseDisplay({
                 panel_label: "window"
             })
-            headline: ({
+            items: [
+                {
+                    accountId: "codex:1",
                     provider: "codex",
+                    logo: "codex",
                     windowId: "custom-window",
                     windowLabel: suite.markup,
                     remainingPercent: 40,
                     usedPercent: 60,
+                    valuePercent: 40,
+                    evenPacePercent: null,
                     tone: "good"
-                })
+                }
+            ]
         }
     }
 
