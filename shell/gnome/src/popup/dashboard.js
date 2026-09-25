@@ -4,8 +4,9 @@ import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
 import { row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
-import { collapsedRow } from './collapsedRow.js';
+import { collapsedNames, collapsedRow } from './collapsedRow.js';
 import { CombinedSection } from './combinedSection.js';
+import { cardShapeKey, planSections } from './sectionShape.js';
 import { SpendSection } from './spendCard.js';
 
 const LEADING_ACTORS = 1;
@@ -31,12 +32,6 @@ function sectionFor(ctx, card, accounts) {
     return new AccountSection(ctx, card.account, titleShowsName(ctx, card, accounts));
 }
 
-function canUpdateSection(ctx, section, card, accounts) {
-    if (section.id !== card.id) return false;
-    if (card.kind === 'combined') return section instanceof CombinedSection && section.canUpdate(card);
-    return section instanceof AccountSection && section.canUpdate(card.account, titleShowsName(ctx, card, accounts));
-}
-
 function topBar(trailing) {
     const actor = row({ style_class: 'headroom-top-bar', x_expand: true });
     actor.add_child(spacer());
@@ -54,12 +49,9 @@ export class Dashboard {
         this._content = content;
         this._reorderer = reorderer;
         this._refreshActor = refreshActor;
-        this.generation = 0;
-        this._layoutKey = null;
-        this._spendSection = null;
-        this._sections = [];
-        this._pinnedCount = 0;
         this._state = null;
+        this._fresh = new Set();
+        this._clear();
     }
 
     get sections() {
@@ -72,44 +64,81 @@ export class Dashboard {
 
     renderState(state, layoutKey) {
         this._state = state;
+        this._fresh.clear();
         const accounts = visibleAccounts(state);
         const cards = dashboardCards(state, accounts);
         const pinned = cards.filter(card => !isCollapsed(card));
         const folded = cards.filter(isCollapsed);
-        const expanded = this._ctx.moreExpanded;
-        const shown = expanded ? [...pinned, ...folded] : pinned;
-        const key = JSON.stringify([layoutKey, pinned.length, folded.length, expanded]);
-        if (this._canUpdateInPlace(state, key, shown, accounts)) {
-            this._spendSection?.update(state.spend);
-            shown.forEach((card, index) => this._sections[index].update(cardSubject(card)));
+        const shown = this._ctx.moreExpanded ? [...pinned, ...folded] : pinned;
+        this._syncHead(state, JSON.stringify(layoutKey));
+        const changed = this._syncSections(shown, accounts);
+        this._syncMore(folded);
+        this._arrange(pinned.length);
+        if (changed || this._pinnedCount !== pinned.length) this._setPinned(pinned.length);
+    }
+
+    _syncHead(state, key) {
+        const spend = shownSpend(state);
+        if (this._head && key === this._layoutKey && Boolean(spend) === Boolean(this._spendSection)) {
+            this._spendSection?.update(spend);
             return;
         }
-        this._rebuild(state, key, { pinned, folded, shown, accounts });
-    }
-
-    _canUpdateInPlace(state, key, cards, accounts) {
-        if (this._layoutKey !== key) return false;
-        if (Boolean(this._spendSection) !== Boolean(shownSpend(state))) return false;
-        if (this._sections.length !== cards.length || (this._sections.length === 0 && !this._spendSection))
-            return false;
-        return cards.every((card, index) => canUpdateSection(this._ctx, this._sections[index], card, accounts));
-    }
-
-    _rebuild(state, key, { pinned, folded, shown, accounts }) {
-        const spendState = shownSpend(state);
+        this.replace([]);
         const refresh = this.detachRefresh();
-        const spend = spendState ? new SpendSection(this._ctx, spendState, refresh) : null;
-        const sections = shown.map(card => sectionFor(this._ctx, card, accounts));
-        const actors = [spend ? spend.actor : topBar(refresh), ...sections.slice(0, pinned.length).map(s => s.actor)];
-        if (folded.length > 0)
-            actors.push(collapsedRow(this._ctx, folded, this._ctx.moreExpanded, () => this._toggleMore()));
-        actors.push(...sections.slice(pinned.length).map(section => section.actor));
-        this.replace(actors);
-        this._spendSection = spend;
-        this._sections = sections;
-        this._pinnedCount = pinned.length;
+        this._spendSection = spend ? new SpendSection(this._ctx, spend, refresh) : null;
+        this._head = this._spendSection?.actor ?? topBar(refresh);
         this._layoutKey = key;
-        this._reorderer.setSections(sections.slice(0, pinned.length));
+        this._fresh.add(this._head);
+        this._content.add_child(this._head);
+    }
+
+    _syncSections(cards, accounts) {
+        const wanted = cards.map(card => ({
+            card,
+            id: card.id,
+            shapeKey: cardShapeKey(this._ctx, card, titleShowsName(this._ctx, card, accounts)),
+        }));
+        const plan = planSections(this._sections, wanted);
+        for (const section of plan.dropped) section.actor.destroy();
+        this._sections = wanted.map((entry, index) => {
+            const section = plan.kept[index];
+            if (section) {
+                section.update(cardSubject(entry.card));
+                return section;
+            }
+            const created = sectionFor(this._ctx, entry.card, accounts);
+            this._fresh.add(created.actor);
+            return created;
+        });
+        return plan.changed;
+    }
+
+    _syncMore(folded) {
+        const expanded = this._ctx.moreExpanded;
+        const key =
+            folded.length === 0
+                ? null
+                : JSON.stringify([expanded, folded.map(card => card.id), collapsedNames(folded)]);
+        if (key === this._moreKey) return;
+        this._more?.destroy();
+        this._more = key === null ? null : collapsedRow(this._ctx, folded, expanded, () => this._toggleMore());
+        this._moreKey = key;
+        if (this._more) this._fresh.add(this._more);
+    }
+
+    _arrange(pinnedCount) {
+        const actors = this._sections.map(section => section.actor);
+        const more = this._more ? [this._more] : [];
+        const order = [this._head, ...actors.slice(0, pinnedCount), ...more, ...actors.slice(pinnedCount)];
+        order.forEach((actor, index) => {
+            if (actor.get_parent() !== this._content) this._content.insert_child_at_index(actor, index);
+            else if (this._content.get_child_at_index(index) !== actor) this._content.set_child_at_index(actor, index);
+        });
+    }
+
+    _setPinned(count) {
+        this._pinnedCount = count;
+        this._reorderer.setSections(this._sections.slice(0, count));
     }
 
     _toggleMore() {
@@ -118,16 +147,23 @@ export class Dashboard {
     }
 
     replace(actors) {
-        this.generation += 1;
+        this._fresh = new Set(actors);
         this._ctx.tooltips.hide();
         this._reorderer.setSections([]);
         if (this._content.contains(this._refreshActor)) this.detachRefresh();
         this._content.destroy_all_children();
+        this._clear();
+        for (const actor of actors) this._content.add_child(actor);
+    }
+
+    _clear() {
+        this._head = null;
         this._spendSection = null;
         this._sections = [];
+        this._more = null;
+        this._moreKey = null;
         this._pinnedCount = 0;
         this._layoutKey = null;
-        for (const actor of actors) this._content.add_child(actor);
     }
 
     detachRefresh() {
@@ -144,11 +180,26 @@ export class Dashboard {
     }
 
     playEntrance() {
+        this._fresh = new Set();
+        this._enter(() => true);
+    }
+
+    enterFresh() {
+        const fresh = this._fresh;
+        this._fresh = new Set();
+        if (fresh.size > 0) this._enter(piece => fresh.has(piece));
+    }
+
+    _enter(isShown) {
         const motion = this._ctx.motion;
-        this._content.get_children().forEach((actor, index) => enter(motion, actor, index));
+        this._content.get_children().forEach((actor, index) => {
+            if (isShown(actor)) enter(motion, actor, index);
+        });
         if (!motion.enabled) return;
-        this._spendSection?.grow();
-        this._sections.forEach((section, index) => section.grow((index + LEADING_ACTORS) * STAGGER_MS));
+        if (this._spendSection && isShown(this._spendSection.actor)) this._spendSection.grow();
+        this._sections.forEach((section, index) => {
+            if (isShown(section.actor)) section.grow((index + LEADING_ACTORS) * STAGGER_MS);
+        });
     }
 
     settleEntrance() {
@@ -162,6 +213,7 @@ export class Dashboard {
         const reordered = moveItem(pinned, from, to);
         this._sections = [...reordered, ...this._sections.slice(this._pinnedCount)];
         this._content.set_child_at_index(moved.actor, to + LEADING_ACTORS);
+        this._setPinned(this._pinnedCount);
         return mergeOrder(
             allIds,
             this._sections.flatMap(section => section.accountIds)

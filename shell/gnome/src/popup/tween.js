@@ -7,13 +7,16 @@ export class NumberTween {
         this._label = label;
         this._render = render;
         this._shown = null;
+        this._target = null;
         this._timeline = null;
         label.connect('destroy', () => this._stop());
     }
 
     set(value, animate) {
+        if (this._timeline && value === this._target) return;
         const from = this._shown;
         this._stop();
+        this._target = value;
         if (!animate || from === null || from === value || !this._motion.enabled || !this._label.mapped) {
             this._show(value);
             return;

@@ -7,10 +7,6 @@ export function itemKey(item) {
     return `${item.accountId ?? ''}\u0000${item.windowId ?? ''}`;
 }
 
-export function sameKeys(a, b) {
-    return a.length === b.length && a.every((key, index) => key === b[index]);
-}
-
 export function loudTone(tone) {
     return LOUD_TONES.includes(tone) ? tone : null;
 }

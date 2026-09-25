@@ -5,9 +5,11 @@ import { _ } from '../i18n.js';
 import { labelText } from '../labels.js';
 import { compactTokensText, exactSpendLine, exactTokens, money, spendLine, usd } from '../numbers.js';
 import { seriesKey } from '../providers.js';
+import { sameValues } from '../sameValues.js';
 import { column, label, row } from '../widgets.js';
 import { MASK } from './mask.js';
 import { modelTooltip } from './modelTooltip.js';
+import { showsSpend } from './sectionShape.js';
 
 const TREND_DAYS = 30;
 const TREND_HEIGHT = 18;
@@ -44,6 +46,7 @@ function dayTooltip(day) {
 export class TrendRow {
     constructor(ctx, usage) {
         this._days = lastDays(usage.daily);
+        this._tokens = [];
         this.actor = row({ style_class: 'headroom-text-row' });
         this.actor.add_child(label(_('Usage Trend'), 'headroom-value-label', { x_expand: true }));
         const strip = row({ style_class: 'headroom-trend', y_align: Clutter.ActorAlign.CENTER });
@@ -65,9 +68,12 @@ export class TrendRow {
 
     update(usage) {
         this._days = lastDays(usage.daily);
-        const peak = Math.max(...this._days.map(day => day.totalTokens));
-        this._days.forEach((day, index) => {
-            this._bars[index].style = `height: ${barHeight(day.totalTokens, peak)}px;`;
+        const tokens = this._days.map(day => day.totalTokens);
+        if (sameValues(tokens, this._tokens)) return;
+        this._tokens = tokens;
+        const peak = Math.max(...tokens);
+        tokens.forEach((value, index) => {
+            this._bars[index].style = `height: ${barHeight(value, peak)}px;`;
         });
     }
 }
@@ -88,10 +94,6 @@ function balanceValue(balance) {
     if (balance.kind === 'count' && balance.value !== null)
         return `${exactTokens(balance.value)} ${balance.unit ?? ''}`.trim();
     return _('No data');
-}
-
-export function showsSpend(ctx, account) {
-    return account.usage !== null && ctx.display.showAccountSpend;
 }
 
 export class ExtraRows {

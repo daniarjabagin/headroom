@@ -16,11 +16,13 @@ function bounds(actor) {
 }
 
 export class Reorderer {
-    constructor({ layer, onDrop, onSettled }) {
+    constructor({ layer, motion, onDrop, onSettled }) {
         this._layer = layer;
+        this._motion = motion;
         this._onDrop = onDrop;
         this._onSettled = onSettled;
         this._sections = [];
+        this._bound = new WeakSet();
         this._drag = null;
         this._indicator = new St.Widget({ style_class: 'headroom-drop-indicator', visible: false });
         this._layer.add_child(this._indicator);
@@ -29,8 +31,13 @@ export class Reorderer {
     setSections(sections) {
         this.cancel();
         this._sections = sections;
-        for (const section of sections)
-            section.header.connect('button-press-event', (_actor, event) => this._press(section, event));
+        for (const section of sections) this._bind(section);
+    }
+
+    _bind(section) {
+        if (this._bound.has(section)) return;
+        this._bound.add(section);
+        section.header.connect('button-press-event', (_actor, event) => this._press(section, event));
     }
 
     get enabled() {
@@ -54,6 +61,7 @@ export class Reorderer {
     _press(section, event) {
         if (!this.enabled || event.get_button() !== Clutter.BUTTON_PRIMARY || this._drag)
             return Clutter.EVENT_PROPAGATE;
+        if (!this._sections.includes(section)) return Clutter.EVENT_PROPAGATE;
         this._drag = { section, startY: stageY(event), lifted: false, clone: null, target: -1 };
         this._layer.reactive = true;
         this._drag.grab = global.stage.grab(this._layer);
@@ -143,6 +151,10 @@ export class Reorderer {
     }
 
     _settle(clone) {
+        if (!this._motion.enabled) {
+            clone.destroy();
+            return;
+        }
         clone.ease({
             opacity: 0,
             duration: SETTLE_MS,

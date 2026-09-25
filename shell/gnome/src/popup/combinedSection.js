@@ -6,7 +6,8 @@ import { AccountHeader } from './accountHeader.js';
 import { trailingLabel } from './limitTexts.js';
 import { QuotaRow } from './quotaRow.js';
 import { SegmentedMeter } from './segmentedMeter.js';
-import { StatusNotice, statusShape } from './statusNotice.js';
+import { combinedShapeKey, statusShape } from './sectionShape.js';
+import { StatusNotice } from './statusNotice.js';
 
 function combinedLook(membersOf) {
     return {
@@ -39,15 +40,6 @@ function breakdownTooltip(ctx, window, members) {
     return actor;
 }
 
-function shape(ctx, card) {
-    return {
-        status: statusShape(ctx, card.group.provider),
-        detail: headerAccount(card).plan,
-        members: card.accountIds,
-        windows: card.group.windows.map(window => [window.id, window.segments.map(segment => segment.accountId)]),
-    };
-}
-
 export class CombinedSection {
     constructor(ctx, card) {
         this._ctx = ctx;
@@ -70,10 +62,6 @@ export class CombinedSection {
 
     get card() {
         return this._card;
-    }
-
-    canUpdate(card) {
-        return JSON.stringify(shape(this._ctx, card)) === this._shapeKey;
     }
 
     update(card) {
@@ -102,7 +90,7 @@ export class CombinedSection {
 
     _build(card) {
         this._card = card;
-        this._shapeKey = JSON.stringify(shape(this._ctx, card));
+        this.shapeKey = combinedShapeKey(this._ctx, card);
         this._header = new AccountHeader(this._ctx, headerAccount(card), false);
         this._header.onSecondaryClick(point => this._ctx.openCardMenu(this._card, point));
         this.actor.add_child(this._header.actor);

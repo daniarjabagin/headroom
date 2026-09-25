@@ -13,6 +13,13 @@ function childBox(x, y, width, height) {
     return box;
 }
 
+function samePartsAs(current, next) {
+    return (
+        current.length === next.length &&
+        current.every((part, index) => part.permille === next[index].permille && part.series === next[index].series)
+    );
+}
+
 function partClass(series) {
     return series ? `headroom-share-part headroom-series-${series}` : 'headroom-share-part other';
 }
@@ -25,10 +32,21 @@ export const ShareBar = GObject.registerClass(
         }
 
         setParts(parts) {
-            this.destroy_all_children();
-            this._parts = parts.filter(part => part.permille > 0);
-            for (const part of this._parts) this.add_child(new St.Widget({ style_class: partClass(part.series) }));
+            const shown = parts.filter(part => part.permille > 0);
+            if (samePartsAs(this._parts, shown)) return;
+            this._parts = shown;
+            this._syncChildren();
             this.queue_relayout();
+        }
+
+        _syncChildren() {
+            const children = this.get_children();
+            for (const child of children.slice(this._parts.length)) child.destroy();
+            this._parts.forEach((part, index) => {
+                const child = children[index] ?? new St.Widget();
+                child.style_class = partClass(part.series);
+                if (!children[index]) this.add_child(child);
+            });
         }
 
         vfunc_get_preferred_width(_forHeight) {

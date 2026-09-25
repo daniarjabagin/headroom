@@ -147,6 +147,10 @@
 .headroom-reduced-motion .headroom-segment,
 .headroom-reduced-motion .headroom-primary-button,
 .headroom-reduced-motion .headroom-trend-bar,
+.headroom-reduced-motion .headroom-title-pull,
+.headroom-reduced-motion .headroom-menu-item,
+.headroom-reduced-motion .headroom-quick-link,
+.headroom-reduced-motion .headroom-more-row,
 .headroom-reduced-motion .headroom-footer-text {
     transition-duration: 0ms;
 }

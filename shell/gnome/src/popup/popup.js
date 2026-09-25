@@ -41,7 +41,6 @@ function layoutKey(ctx, state) {
         display.showAccountSpend,
         display.showTrend,
         display.combineAccounts,
-        display.density,
         ctx.masked,
         ctx.linksVersion,
         supports06(state),
@@ -57,7 +56,7 @@ export class PopupView {
         this._requestedMask = false;
         this._links = new Map();
         this._linksRequested = false;
-        this._tooltips = new Tooltips();
+        this._tooltips = new Tooltips(motion);
         this._clock = new DesktopClock(() => this._rerender());
         this._refreshControl = new RefreshControl(() => actions.refreshNow());
         this._ctx = this._createContext(dir, motion, actions);
@@ -136,6 +135,7 @@ export class PopupView {
         });
         this._reorderer = new Reorderer({
             layer: dragLayer,
+            motion: this._ctx.motion,
             onDrop: (from, to) => this._onDrop(from, to),
             onSettled: () => this._renderPending(),
         });
@@ -171,11 +171,10 @@ export class PopupView {
         this._syncContext(view);
         this._footer.update(view);
         this._updateRow.update(view.kind === 'ready' ? view.state.update : null);
-        const generation = this._dashboard.generation;
         if (view.kind === 'ready') this._renderState(view.state);
         else this._dashboard.replace(this._statusView(view));
         this._refreshControl.setDaemonBusy(view.kind === 'ready' && isRefreshing(view.state));
-        if (generation !== this._dashboard.generation && Date.now() < this._entranceUntil) this._playEntrance();
+        if (Date.now() < this._entranceUntil) this._dashboard.enterFresh();
     }
 
     _syncContext(view) {
@@ -247,7 +246,8 @@ export class PopupView {
     }
 
     needsSecondTicks() {
-        return this._dashboard.needsSecondTicks(this._ctx.now());
+        const now = this._ctx.now();
+        return this._dashboard.needsSecondTicks(now) || this._footer.needsSecondTicks(now);
     }
 
     setMaxHeight(pixels) {
@@ -259,7 +259,7 @@ export class PopupView {
         this._hideScrollbar();
         this.tick();
         this._entranceUntil = Date.now() + ENTRANCE_WINDOW_MS;
-        this._playEntrance();
+        this._dashboard.playEntrance();
     }
 
     onClose() {
@@ -309,10 +309,6 @@ export class PopupView {
         if (view.kind === 'unavailable') return [serviceView(this._ctx, view)];
         if (view.kind === 'error') return [errorView(this._ctx, view.error)];
         return loadingSections(this._ctx.motion);
-    }
-
-    _playEntrance() {
-        this._dashboard.playEntrance();
     }
 
     _onDrop(from, to) {

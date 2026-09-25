@@ -9,6 +9,8 @@ export class DaemonClient {
     constructor({ onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested }) {
         this._handlers = { onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested };
         this._cancellable = new Gio.Cancellable();
+        this._settingsLoad = null;
+        this._settingsStale = false;
         this._connection = new DaemonConnection({
             signals: {
                 StateChanged: json => this._onStateChanged(json),
@@ -84,10 +86,22 @@ export class DaemonClient {
     }
 
     _loadSettings() {
-        return this._read(
+        if (this._settingsLoad) {
+            this._settingsStale = true;
+            return this._settingsLoad;
+        }
+        this._settingsLoad = this._read(
             proxy => proxy.GetSettingsAsync(),
-            json => this._handlers.onSettings(parseSettings(json))
-        );
+            json => this._handlers?.onSettings(parseSettings(json))
+        ).finally(() => this._settingsLoaded());
+        return this._settingsLoad;
+    }
+
+    _settingsLoaded() {
+        this._settingsLoad = null;
+        if (!this._settingsStale) return;
+        this._settingsStale = false;
+        this._loadSettings();
     }
 
     async _read(fetch, accept) {

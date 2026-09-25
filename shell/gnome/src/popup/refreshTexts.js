@@ -4,6 +4,7 @@ import { _, fill, n_ } from '../i18n.js';
 import { isRefreshing } from '../state.js';
 
 const SECOND = 1000;
+const HOUR = 60 * 60 * SECOND;
 
 function line(text, kind = 'plain') {
     return { text, kind };
@@ -73,4 +74,11 @@ export function footerLines(view, now, hour12) {
     if (view.kind === 'unavailable') return { first: null, second: line(_('Service not running')), tip: null };
     if (!view.state) return { first: null, second: line(view.kind === 'loading' ? _('Connecting…') : ''), tip: null };
     return stateLines(view.state, now, hour12);
+}
+
+export function footerNeedsSeconds(view, now) {
+    const state = view.state;
+    if (!state?.offline || !state.nextRefreshAt) return false;
+    const left = state.nextRefreshAt - now;
+    return left > 0 && left < HOUR;
 }
