@@ -10,6 +10,7 @@ SettingsGroup {
 
     required property ConfigScaffold page
     readonly property var display: page.current.display
+    readonly property var starRows: Preferences.starRows(page.snapshot)
 
     title: page.tr("Popup cards")
     description: page.tr("Star the accounts that always show their limits.")
@@ -27,12 +28,13 @@ SettingsGroup {
     }
 
     Repeater {
-        model: Preferences.starRows(group.page.snapshot)
+        model: group.starRows.length
 
         ProviderSettingsRow {
             id: starRow
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: group.starRows[index]
             readonly property bool starred: Settings.isStarred(group.display, modelData.id)
 
             provider: modelData.provider

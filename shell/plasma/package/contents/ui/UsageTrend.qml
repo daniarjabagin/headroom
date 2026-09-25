@@ -16,6 +16,7 @@ Item {
     required property string lang
     readonly property var days: Trend.lastDays(usage.daily)
     readonly property int peak: Trend.peakOf(days)
+    property bool animated: true
     property real stripHeight: Metrics.trendHeight(Kirigami.Units)
     readonly property real barWidth: Kirigami.Units.smallSpacing
     readonly property real barGap: Metrics.hairline(Kirigami.Units)
@@ -48,12 +49,11 @@ Item {
             spacing: trend.barGap
 
             Repeater {
-                model: trend.days
+                model: trend.days.length
 
                 Rectangle {
-                    required property var modelData
                     required property int index
-                    readonly property real share: Trend.barShare(modelData.totalTokens, trend.peak)
+                    readonly property real share: Trend.barShare(trend.days[index].totalTokens, trend.peak)
 
                     anchors.bottom: parent.bottom
                     width: trend.barWidth
@@ -63,6 +63,8 @@ Item {
                     opacity: trend.hoveredIndex < 0 || trend.hoveredIndex === index ? 1 : 0.4
 
                     Behavior on opacity {
+                        enabled: trend.animated
+
                         NumberAnimation {
                             duration: Kirigami.Units.shortDuration
                         }

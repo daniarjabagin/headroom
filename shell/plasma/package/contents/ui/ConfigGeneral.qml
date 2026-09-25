@@ -190,7 +190,7 @@ ConfigScaffold {
         SettingsRow {
             visible: page.capable
             title: page.tr("Faster while coding tools run")
-            subtitle: page.tr("Every minute while Claude Code, Codex or Cursor is open")
+            subtitle: page.tr("Every minute while a coding tool is writing usage logs")
 
             QQC2.Switch {
                 objectName: "adaptiveRefresh"

@@ -2,8 +2,10 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
 import "logic/Commands.js" as Commands
 import "logic/I18n.js" as I18n
+import "logic/Motion.js" as Motion
 import "logic/Order.js" as Order
 import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
@@ -138,6 +140,7 @@ ConfigScaffold {
                 account: page.accounts[index]
                 display: page.current.display
                 lang: page.lang
+                animated: Motion.enabled(Kirigami.Units, page.current.reducedMotion)
                 separated: index > 0
                 expanded: page.expandedIds.includes(account.id)
                 canReorder: page.accounts.length > 1
@@ -169,6 +172,7 @@ ConfigScaffold {
             visible: page.chosenProvider !== null
             providers: page.providers
             selected: page.chosenProvider?.id ?? ""
+            animated: Motion.enabled(Kirigami.Units, page.current.reducedMotion)
             onPicked: providerId => {
                 page.selectedProvider = providerId;
                 page.launchedProvider = "";

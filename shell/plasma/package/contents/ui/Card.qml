@@ -13,6 +13,7 @@ Rectangle {
     property alias spacing: column.spacing
     property bool hoverable: false
     property bool lifted: false
+    property bool animated: true
     readonly property bool tinted: lifted || (hoverable && hover.shown)
 
     Layout.fillWidth: true
@@ -39,6 +40,8 @@ Rectangle {
     }
 
     Behavior on color {
+        enabled: card.animated
+
         ColorAnimation {
             duration: Motion.hoverDuration(Kirigami.Units)
             easing.type: Easing.OutCubic

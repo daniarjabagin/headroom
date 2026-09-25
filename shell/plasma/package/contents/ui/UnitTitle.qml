@@ -15,6 +15,7 @@ T.AbstractButton {
     required property string unit
     required property string lang
     property real step: 0
+    property bool animated: true
 
     signal picked(string key)
 
@@ -32,6 +33,7 @@ T.AbstractButton {
     onClicked: menu.popup(title, 0, title.height)
 
     background: HoverFill {
+        animated: title.animated
         radius: Metrics.chipRadius(Kirigami.Units)
         shown: pointer.shown || title.visualFocus || menu.visible
     }

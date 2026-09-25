@@ -24,6 +24,12 @@ PlasmoidItem {
     readonly property var headline: ready ? view.state.headline : null
     property var lastDisplay: Settings.parseDisplay(null)
     readonly property var display: ready ? view.state.display : lastDisplay
+    property var popupView: ({
+            kind: "loading",
+            state: null
+        })
+    property var popupNow: new Date()
+    readonly property var popupDisplay: popupView.kind === "ready" ? popupView.state.display : lastDisplay
     readonly property string lang: I18n.resolve(display.language, Qt.locale().name)
     readonly property bool live: expanded && ready && State.needsLiveClock(view.state, now)
     readonly property var tip: Summary.tooltip(lang, view, now)
@@ -44,10 +50,22 @@ PlasmoidItem {
         if (ready)
             lastDisplay = display;
     }
+    onViewChanged: syncPopup()
+    onNowChanged: syncPopup()
     onExpandedChanged: {
         now = new Date();
+        syncPopup();
         if (expanded)
             daemon.refresh("");
+    }
+
+    function syncPopup() {
+        if (!expanded)
+            return;
+        if (popupView !== view)
+            popupView = view;
+        if (popupNow !== now)
+            popupNow = now;
     }
 
     function applyShortcut() {
@@ -75,11 +93,11 @@ PlasmoidItem {
     }
 
     fullRepresentation: FullRepresentation {
-        view: root.view
+        view: root.popupView
         providers: daemon.providers ?? []
-        now: root.now
+        now: root.popupNow
         live: root.live
-        display: root.display
+        display: root.popupDisplay
         lang: root.lang
         expanded: root.expanded
         systemTheme: root.systemTheme

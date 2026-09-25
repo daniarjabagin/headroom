@@ -78,12 +78,13 @@ ConfigScaffold {
         }
 
         Repeater {
-            model: page.providersOpen ? page.providerRows : []
+            model: page.providersOpen ? page.providerRows.length : 0
 
             ProviderSettingsRow {
                 id: providerRow
 
-                required property var modelData
+                required property int index
+                readonly property var modelData: page.providerRows[index]
                 readonly property var saved: page.notifications.providerThresholds[modelData.provider]
 
                 provider: modelData.provider

@@ -19,6 +19,7 @@ ColumnLayout {
     required property string lang
     required property real appear
     property var members: []
+    property bool animated: true
     readonly property bool compact: Density.isCompact(display)
     readonly property real step: Density.fontStep(compact)
     readonly property bool combined: window.segments !== undefined
@@ -77,6 +78,7 @@ ColumnLayout {
         ToggleText {
             id: compactReadingToggle
 
+            animated: row.animated
             objectName: "compactReading"
             visible: row.compact
             step: row.step
@@ -88,6 +90,7 @@ ColumnLayout {
         ToggleText {
             id: compactResetToggle
 
+            animated: row.animated
             visible: row.compact
             emphasis: "secondary"
             step: row.step
@@ -104,6 +107,7 @@ ColumnLayout {
         barHeight: Density.meterHeight(Kirigami.Units, row.compact)
         fraction: Quota.fillFraction(row.window, row.display.valueMode)
         progress: row.appear
+        animated: row.animated
         tone: Quota.meterTone(row.window)
         tick: Quota.tickPosition(row.window, row.display)
     }
@@ -115,6 +119,7 @@ ColumnLayout {
         barHeight: Density.meterHeight(Kirigami.Units, row.compact)
         segments: row.combined ? Combined.segments(row.window, row.members, row.display) : []
         progress: row.appear
+        animated: row.animated
     }
 
     RowLayout {
@@ -124,6 +129,7 @@ ColumnLayout {
         ToggleText {
             id: readingToggle
 
+            animated: row.animated
             objectName: "reading"
             text: row.readingText
             hint: CompactRow.valueHint(row.lang, row.display.valueMode)
@@ -137,6 +143,7 @@ ColumnLayout {
         ToggleText {
             id: resetToggle
 
+            animated: row.animated
             objectName: "resetText"
             emphasis: "secondary"
             text: row.resetText
@@ -161,7 +168,7 @@ ColumnLayout {
     }
 
     Behavior on tweenedPercent {
-        enabled: row.appear >= 1
+        enabled: row.animated && row.appear >= 1
 
         NumberAnimation {
             duration: Kirigami.Units.longDuration

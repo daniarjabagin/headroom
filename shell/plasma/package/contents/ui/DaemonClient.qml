@@ -33,6 +33,10 @@ Item {
         })
     readonly property bool signalsLive: signalLoader.status === Loader.Ready
     property var registration: null
+    property string acceptedJson: ""
+    property var acceptedView: null
+    property string acceptedSettingsJson: ""
+    property var acceptedRaw: null
     property var patchQueue: PatchQueue.idle()
     readonly property bool supports06: view.kind === "ready" && Compat.supports06(view.state)
 
@@ -97,11 +101,13 @@ Item {
     }
 
     function acceptSettings(json) {
-        if (patchQueue.busy)
+        if (patchQueue.busy || (json === acceptedSettingsJson && rawSettings === acceptedRaw))
             return;
         try {
             rawSettings = Settings.decode(json);
             settings = Settings.fromRaw(rawSettings);
+            acceptedSettingsJson = json;
+            acceptedRaw = rawSettings;
         } catch (error) {
             if (!Settings.isSettingsError(error))
                 throw error;
@@ -111,10 +117,13 @@ Item {
 
     function accept(json) {
         try {
-            view = {
-                kind: "ready",
-                state: State.parseState(json)
-            };
+            if (json !== acceptedJson || view !== acceptedView)
+                view = {
+                    kind: "ready",
+                    state: State.parseState(json)
+                };
+            acceptedJson = json;
+            acceptedView = view;
             if (trackSettings)
                 loadSettings();
             if (trackProviders && !providersRequested)

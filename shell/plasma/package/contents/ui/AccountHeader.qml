@@ -29,6 +29,7 @@ Item {
     property bool starred: false
     property bool canStar: false
     property bool canShare: true
+    property bool animated: true
     readonly property string slot: Account.statusSlot(account, offline)
     readonly property var headerLinks: QuickLinks.headerEntries(lang, links)
     readonly property bool revealed: hover.hovered
@@ -141,7 +142,7 @@ Item {
 
         PlasmaComponents3.BusyIndicator {
             visible: header.slot === "refreshing"
-            running: visible
+            running: visible && header.animated
             Layout.preferredWidth: Kirigami.Units.iconSizes.small * 0.75
             Layout.preferredHeight: Kirigami.Units.iconSizes.small * 0.75
             Layout.alignment: Qt.AlignVCenter
@@ -203,14 +204,16 @@ Item {
             opacity: header.revealed ? 1 : 0
 
             Repeater {
-                model: header.headerLinks
+                model: header.headerLinks.length
 
                 IconButton {
-                    required property var modelData
+                    required property int index
+                    readonly property var modelData: header.headerLinks[index]
 
                     implicitWidth: Math.round(Kirigami.Units.gridUnit * 1.2)
                     iconSize: Metrics.compactIcon(Kirigami.Units)
                     round: true
+                    animated: header.animated
                     iconName: modelData.icon
                     text: modelData.tip
                     onClicked: header.linkOpened(modelData.url)
@@ -218,6 +221,8 @@ Item {
             }
 
             Behavior on opacity {
+                enabled: header.animated
+
                 NumberAnimation {
                     duration: Kirigami.Units.shortDuration
                     easing.type: Easing.OutCubic
@@ -235,6 +240,8 @@ Item {
             opacity: header.canReorder && (hover.shown || drag.active) ? 1 : 0
 
             Behavior on opacity {
+                enabled: header.animated
+
                 NumberAnimation {
                     duration: Motion.hoverDuration(Kirigami.Units)
                     easing.type: Easing.OutCubic

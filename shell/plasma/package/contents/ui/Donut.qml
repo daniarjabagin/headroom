@@ -16,6 +16,7 @@ Item {
     property real progress: 1
     property string unit: "cost"
     property string lang: "en"
+    property bool animated: true
     property real size: Metrics.donutSize(Kirigami.Units)
     readonly property string caption: SpendUnits.ringCaption(lang, unit)
     readonly property real holeRatio: 0.618
@@ -56,6 +57,8 @@ Item {
             }
 
             Behavior on start {
+                enabled: donut.animated
+
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
                     easing.type: Easing.OutCubic
@@ -63,6 +66,8 @@ Item {
             }
 
             Behavior on sweep {
+                enabled: donut.animated
+
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
                     easing.type: Easing.OutCubic

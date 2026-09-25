@@ -332,7 +332,7 @@ const MESSAGES = {
     "Reduce motion": "Меньше анимации",
     "Skip popup and meter animations": "Без анимации окна и шкал",
     "Faster while coding tools run": "Чаще, пока работают инструменты",
-    "Every minute while Claude Code, Codex or Cursor is open": "Каждую минуту, пока открыт Claude Code, Codex или Cursor",
+    "Every minute while a coding tool is writing usage logs": "Каждую минуту, пока инструмент пишет журналы использования",
     "Alert threshold": "Порог уведомлений",
     "Alert when less than": "Уведомлять, когда осталось меньше",
     "Used by Almost out": "Для уведомления «Почти закончился»",

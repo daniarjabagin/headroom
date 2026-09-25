@@ -18,6 +18,7 @@ Item {
     required property var display
     required property string lang
     required property bool expanded
+    property bool animated: true
     property bool confirming: false
     readonly property var removal: Account.removal(lang, account)
 
@@ -76,12 +77,13 @@ Item {
         }
 
         Repeater {
-            model: details.account.windows
+            model: details.account.windows.length
 
             RowLayout {
                 id: windowRow
 
-                required property var modelData
+                required property int index
+                readonly property var modelData: details.account.windows[index]
 
                 spacing: Kirigami.Units.largeSpacing
 
@@ -164,6 +166,8 @@ Item {
     }
 
     Behavior on Layout.preferredHeight {
+        enabled: details.animated
+
         NumberAnimation {
             id: heightAnimation
 
@@ -173,6 +177,8 @@ Item {
     }
 
     Behavior on opacity {
+        enabled: details.animated
+
         NumberAnimation {
             duration: Kirigami.Units.longDuration
         }

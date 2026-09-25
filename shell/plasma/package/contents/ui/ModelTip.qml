@@ -16,7 +16,7 @@ PointerHover {
     property string title: ""
     property var totals: null
     property string fallback: ""
-    readonly property var breakdown: totals === null ? null : Breakdown.modelBreakdown(lang, totals.models, totals.modelsOther)
+    readonly property var breakdown: shown && totals !== null ? Breakdown.modelBreakdown(lang, totals.models, totals.modelsOther) : null
     readonly property string partialMark: "*"
 
     function cells(rows) {

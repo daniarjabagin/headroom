@@ -12,6 +12,7 @@ RowLayout {
     required property string lang
     property var totals: null
     property string breakdownTitle: ""
+    property bool animated: true
     readonly property bool hasTip: totals !== null && totals.totalTokens > 0
 
     Layout.fillWidth: true
@@ -32,6 +33,7 @@ RowLayout {
         implicitHeight: valueLabel.implicitHeight + Kirigami.Units.smallSpacing / 2
 
         HoverFill {
+            animated: valueRow.animated
             anchors.fill: parent
             radius: Metrics.chipRadius(Kirigami.Units)
             shown: valueRow.hasTip && tip.shown

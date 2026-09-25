@@ -11,6 +11,7 @@ Rectangle {
     property real progress: 1
     property string tone: "neutral"
     property var tick: null
+    property bool animated: true
     property real barHeight: Metrics.meterHeight(Kirigami.Units)
     readonly property real shown: fraction * progress
 
@@ -26,7 +27,7 @@ Rectangle {
         color: Tokens.toneColor(Kirigami.Theme, track.tone)
 
         Behavior on width {
-            enabled: track.progress >= 1
+            enabled: track.animated && track.progress >= 1
 
             NumberAnimation {
                 duration: Kirigami.Units.longDuration
@@ -35,6 +36,8 @@ Rectangle {
         }
 
         Behavior on color {
+            enabled: track.animated
+
             ColorAnimation {
                 duration: Kirigami.Units.longDuration
             }
@@ -54,7 +57,7 @@ Rectangle {
         color: Tokens.tick(Kirigami.Theme)
 
         Behavior on x {
-            enabled: track.progress >= 1
+            enabled: track.animated && track.progress >= 1
 
             NumberAnimation {
                 duration: Kirigami.Units.longDuration

@@ -20,6 +20,7 @@ ColumnLayout {
     property string breakdown: "models"
     property bool capable: false
     property bool compact: false
+    property bool animated: true
     readonly property var current: Spend.periodTotals(spend, period)
     readonly property string body: Spend.bodyKind(current)
     readonly property real padding: Density.spendPadding(Kirigami.Units, compact)
@@ -53,6 +54,7 @@ ColumnLayout {
             visible: spendCard.capable
             unit: spendCard.unit
             lang: spendCard.lang
+            animated: spendCard.animated
             step: Density.fontStep(spendCard.compact)
             onPicked: key => spendCard.unitSelected(key)
         }
@@ -71,6 +73,7 @@ ColumnLayout {
     }
 
     Card {
+        animated: spendCard.animated
         verticalPadding: spendCard.padding
         spacing: spendCard.padding
 
@@ -81,6 +84,7 @@ ColumnLayout {
             Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
             options: Spend.periodOptions(spendCard.lang, spendCard.spend)
             current: Spend.hasPeriod(spendCard.spend, spendCard.period) ? spendCard.period : "30d"
+            animated: spendCard.animated
             onSelected: value => spendCard.periodSelected(value)
         }
 
@@ -93,6 +97,7 @@ ColumnLayout {
             Donut {
                 period: spendCard.current
                 progress: spendCard.appear
+                animated: spendCard.animated
                 unit: spendCard.unit
                 lang: spendCard.lang
                 size: Density.donutSize(Kirigami.Units, spendCard.compact)
@@ -103,6 +108,7 @@ ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
                 period: spendCard.current
                 periodKey: spendCard.period
+                animated: spendCard.animated
                 unit: spendCard.unit
                 lang: spendCard.lang
             }
@@ -113,6 +119,7 @@ ColumnLayout {
             period: spendCard.current
             mode: spendCard.breakdown
             byTokens: SpendUnits.byTokens(spendCard.unit)
+            animated: spendCard.animated
             lang: spendCard.lang
             onModeSelected: key => spendCard.breakdownSelected(key)
         }

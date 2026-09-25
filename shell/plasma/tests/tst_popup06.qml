@@ -117,6 +117,7 @@ TestCase {
         open();
         const reading = findAll(section("codex"), item => item.objectName === "reading", [])[0];
         verify(reading.text.endsWith("left"));
+        tryVerify(() => dashboard().reveal === 1, settleMs);
         mouseClick(reading);
         tryVerify(() => reading.text.endsWith("used"), settleMs);
         compare(patches()[0].display.value_mode, "used");
