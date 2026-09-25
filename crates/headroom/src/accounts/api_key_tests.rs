@@ -211,3 +211,95 @@ async fn a_cancelled_add_stores_nothing() {
     let id = identity().account_id(&KEYED.id).0;
     assert!(!sandbox.secret_file(&id).exists());
 }
+
+impl Sandbox {
+    async fn renew(
+        &self,
+        account: &AccountRef,
+        input: &str,
+    ) -> (Result<AccountRef>, Vec<ProgressEvent>) {
+        let target = KeyTarget {
+            provider: &self.provider,
+            secrets: &self.secrets,
+            root: &self.provider.root,
+        };
+        let mut events = Vec::new();
+        let mut record = |event: ProgressEvent| {
+            events.push(event);
+            Ok(())
+        };
+        let input = Cursor::new(input.to_owned());
+        let result = renew(&target, account, input, &mut record, &Cancel::default()).await;
+        (result, events)
+    }
+
+    async fn only_account(&self) -> AccountRef {
+        let mut accounts = self.provider.discover().await.unwrap();
+        assert_eq!(accounts.len(), 1);
+        accounts.remove(0)
+    }
+}
+
+#[tokio::test]
+async fn a_renewed_key_stays_in_the_same_home_and_slot() {
+    let sandbox = Sandbox::new();
+    sandbox
+        .add("kd-first\n", &Cancel::default())
+        .await
+        .0
+        .unwrap();
+    let account = sandbox.only_account().await;
+    let (renewed, events) = sandbox.renew(&account, "kd-second\n").await;
+    assert_eq!(renewed.unwrap(), account);
+    assert_eq!(sandbox.homes(), std::slice::from_ref(&account.home));
+    let started = ProgressEvent::Started {
+        provider: KEYED.id.clone(),
+        home: account.home.display().to_string(),
+    };
+    assert_eq!(events, [started]);
+    assert_eq!(
+        fs::read_to_string(sandbox.secret_file(&account.id.0)).unwrap(),
+        "kd-second"
+    );
+}
+
+#[tokio::test]
+async fn a_key_of_another_account_takes_over_the_home() {
+    let sandbox = Sandbox::new();
+    sandbox
+        .add("kd-first\n", &Cancel::default())
+        .await
+        .0
+        .unwrap();
+    let original = sandbox.only_account().await;
+    let previous = AccountRef {
+        id: AccountId("keyed:0123456789ab".into()),
+        ..original.clone()
+    };
+    fs::write(sandbox.secret_file(&previous.id.0), "kd-old").unwrap();
+    let renewed = sandbox.renew(&previous, "kd-other\n").await.0.unwrap();
+    assert_eq!(renewed, original);
+    assert!(!sandbox.secret_file(&previous.id.0).exists());
+    assert_eq!(
+        key_accounts::load_record(&original.home).unwrap(),
+        Some(identity())
+    );
+}
+
+#[tokio::test]
+async fn a_rejected_renewal_keeps_the_old_key() {
+    let sandbox = Sandbox::new();
+    sandbox
+        .add("kd-first\n", &Cancel::default())
+        .await
+        .0
+        .unwrap();
+    let account = sandbox.only_account().await;
+    let (result, events) = sandbox.renew(&account, "sk-wrong\n").await;
+    assert!(result.is_err());
+    assert!(events.is_empty());
+    assert_eq!(
+        fs::read_to_string(sandbox.secret_file(&account.id.0)).unwrap(),
+        "kd-first"
+    );
+}

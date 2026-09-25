@@ -2,7 +2,7 @@ use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
-use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner};
+use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner};
 use headroom_core::provider::Provider;
 use headroom_core::secret::SecretString;
 use headroom_providers::key_accounts;
@@ -61,6 +61,34 @@ pub async fn add(
     }
 }
 
+pub async fn renew(
+    target: &KeyTarget<'_>,
+    account: &AccountRef,
+    input: impl BufRead,
+    events: &mut dyn FnMut(ProgressEvent) -> Result<()>,
+    cancel: &Cancel,
+) -> Result<AccountRef> {
+    let key = read_key(input)?;
+    let identity = tokio::select! {
+        biased;
+        () = cancel.cancelled() => bail!(CANCELLED),
+        identity = validate(target.provider, &key) => identity?,
+    };
+    let renewed = AccountRef {
+        id: identity.account_id(target.provider.id()),
+        ..account.clone()
+    };
+    save(target.secrets, &renewed, &key, &identity).await?;
+    if renewed.id != account.id {
+        delete_key(target.secrets, &account.id).await;
+    }
+    events(ProgressEvent::Started {
+        provider: renewed.provider.clone(),
+        home: renewed.home.display().to_string(),
+    })?;
+    Ok(renewed)
+}
+
 fn read_key(mut input: impl BufRead) -> Result<SecretString> {
     let mut line = String::new();
     input
@@ -112,8 +140,12 @@ async fn forget(secrets: &SecretStore, stored: &StoredKey) {
         return;
     }
     discard_home(&stored.account.home);
-    if let Err(error) = secrets.delete(&stored.account.id).await {
-        tracing::warn!(account = %stored.account.id, %error, "could not delete the stored key");
+    delete_key(secrets, &stored.account.id).await;
+}
+
+async fn delete_key(secrets: &SecretStore, id: &AccountId) {
+    if let Err(error) = secrets.delete(id).await {
+        tracing::warn!(account = %id, %error, "could not delete the stored key");
     }
 }
 

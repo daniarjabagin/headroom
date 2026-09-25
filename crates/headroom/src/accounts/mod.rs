@@ -10,6 +10,7 @@ mod plan;
 pub mod progress;
 mod prompt;
 mod pty;
+mod relogin;
 mod remove;
 mod stream;
 
@@ -34,6 +35,7 @@ use plan::{AddPlan, KeyInput, choose_add_plan};
 use progress::{JsonLines, ProgressEvent};
 
 pub use dismiss::restore;
+pub use relogin::{LoginRequest, login_again};
 pub use remove::remove;
 
 pub struct AddRequest<'a> {
@@ -54,7 +56,8 @@ struct Target {
 impl Target {
     fn resolve(globals: &Globals, request: &AddRequest<'_>) -> Result<Target> {
         let descriptor = providers::descriptor(request.provider)?;
-        let plan = choose_add_plan(descriptor, key_input(request))?;
+        let keys = key_input(request.api_key_stdin, request.progress);
+        let plan = choose_add_plan(descriptor, keys)?;
         let registry = LocalRegistry::for_cli(globals)?;
         Ok(Target {
             descriptor,
@@ -125,10 +128,10 @@ async fn add_streamed(
     }
 }
 
-fn key_input(request: &AddRequest<'_>) -> KeyInput {
-    if request.api_key_stdin {
+fn key_input(api_key_stdin: bool, progress: Option<ProgressFormat>) -> KeyInput {
+    if api_key_stdin {
         KeyInput::Stdin
-    } else if request.progress.is_none() && io::stdin().is_terminal() {
+    } else if progress.is_none() && io::stdin().is_terminal() {
         KeyInput::Terminal
     } else {
         KeyInput::Unavailable

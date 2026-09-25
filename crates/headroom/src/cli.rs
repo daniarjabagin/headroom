@@ -208,6 +208,23 @@ pub enum AccountsAction {
         )]
         api_key_stdin: bool,
     },
+    #[command(about = "Sign a Headroom-owned account in again, in the same home")]
+    Login {
+        #[arg(value_name = "ID", help = "Account id, see `headroom accounts`")]
+        id: String,
+        #[arg(
+            long,
+            value_enum,
+            value_name = "FORMAT",
+            help = "Report progress as JSON lines on stdout instead of using the terminal"
+        )]
+        progress: Option<ProgressFormat>,
+        #[arg(
+            long,
+            help = "Read the account's new API key from the first line of stdin"
+        )]
+        api_key_stdin: bool,
+    },
     #[command(
         about = "Remove an account: delete a Headroom-owned home, or stop showing a CLI account"
     )]
