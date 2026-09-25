@@ -5,18 +5,20 @@
     struct SpendSection<Trailing: View>: View {
         let spend: Spend
         let formatter: DisplayFormatter
-        @Binding var period: SpendPeriod
+        let units: [SpendUnit]
+        @Binding var selection: SpendSelection
         @ViewBuilder let trailing: () -> Trailing
+        @Environment(\.popupLayout) private var layout
 
         private var model: SpendCardModel {
-            SpendCardModel.make(spend: spend, period: period, formatter: formatter)
+            SpendCardModel.make(spend: spend, selection: selection, formatter: formatter)
         }
 
         var body: some View {
             let card = model
-            VStack(alignment: .leading, spacing: PopupMetrics.headerGap) {
+            VStack(alignment: .leading, spacing: layout.cg.headerGap) {
                 HStack(spacing: 5) {
-                    Text(formatter.strings.text(.totalSpend)).font(Typeface.title)
+                    UnitTitle(title: card.title, units: units, strings: formatter.strings, unit: $selection.unit)
                     Image(systemName: "info.circle")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -27,26 +29,72 @@
                 .padding(.leading, PopupMetrics.headerLeading)
                 .padding(.trailing, PopupMetrics.headerTrailing)
                 .frame(minHeight: PopupMetrics.refreshSize)
-                VStack(spacing: PopupMetrics.cardPaddingY) {
-                    PeriodPicker(period: $period, strings: formatter.strings)
+                VStack(spacing: layout.cg.spendCardPaddingY) {
+                    PeriodPicker(
+                        periods: SpendPeriodPreference.available(in: spend), selected: card.period,
+                        strings: formatter.strings, select: { selection.period = $0 })
                     SpendBody(model: card, formatter: formatter)
+                    if let breakdown = card.breakdown {
+                        SpendBreakdownView(
+                            model: breakdown, strings: formatter.strings, select: { selection.breakdown = $0 })
+                    }
                 }
                 .padding(.horizontal, PopupMetrics.cardPaddingX)
-                .padding(.vertical, PopupMetrics.cardPaddingY)
+                .padding(.vertical, layout.cg.spendCardPaddingY)
                 .cardSurface()
             }
         }
     }
 
-    struct PeriodPicker: View {
-        @Binding var period: SpendPeriod
+    struct UnitTitle: View {
+        let title: String
+        let units: [SpendUnit]
         let strings: UIStrings
+        @Binding var unit: SpendUnit
+        @Environment(\.popupLayout) private var layout
+
+        var body: some View {
+            if units.count > 1 {
+                Menu {
+                    ForEach(units) { option in
+                        Toggle(isOn: Binding(get: { unit == option }, set: { if $0 { unit = option } })) {
+                            Text(option.title(strings))
+                        }
+                        .help(option.detail(strings))
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(title).font(layout.type.title)
+                        Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(TintButtonStyle())
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .padding(.leading, -6)
+            } else {
+                Text(title).font(layout.type.title)
+            }
+        }
+    }
+
+    struct PeriodPicker: View {
+        let periods: [SpendPeriodPreference]
+        let selected: SpendPeriodPreference
+        let strings: UIStrings
+        let select: @MainActor (SpendPeriodPreference) -> Void
         @Namespace private var selection
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             HStack(spacing: 2) {
-                ForEach(SpendPeriod.allCases) { option in
+                ForEach(periods) { option in
                     segment(option)
                 }
             }
@@ -54,19 +102,21 @@
             .background(Palette.segmentTrack, in: Capsule())
         }
 
-        private func segment(_ option: SpendPeriod) -> some View {
-            let selected = option == period
+        private func segment(_ option: SpendPeriodPreference) -> some View {
+            let isSelected = option == selected
             return Button {
-                Motion.perform(Motion.standard, reduced: reducedMotion) { period = option }
+                select(option)
             } label: {
                 Text(option.title(strings))
-                    .font(selected ? Typeface.captionStrong : Typeface.captionMedium)
-                    .foregroundStyle(selected ? .primary : .secondary)
+                    .font(isSelected ? layout.type.segmentSelected : layout.type.segment)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 3)
+                    .padding(.vertical, layout.cg.segmentPaddingY)
+                    .padding(.horizontal, 6)
                     .background {
-                        if selected {
+                        if isSelected {
                             Capsule()
                                 .fill(Palette.tray)
                                 .shadow(color: .black.opacity(0.12), radius: 1, y: 1)
@@ -76,13 +126,15 @@
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: selected)
         }
     }
 
     struct SpendBody: View {
         let model: SpendCardModel
         let formatter: DisplayFormatter
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             if model.isEmpty {
@@ -92,7 +144,7 @@
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
             } else {
-                HStack(spacing: PopupMetrics.legendGap) {
+                HStack(spacing: layout.cg.legendGap) {
                     DonutView(model: model)
                     VStack(alignment: .leading, spacing: PopupMetrics.legendRowGap) {
                         ForEach(model.entries) { entry in
@@ -108,15 +160,16 @@
     struct LegendRow: View {
         let entry: LegendEntry
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Circle().fill(entry.color.color).frame(width: 8, height: 8)
-                    Text(entry.name).font(Typeface.body).lineLimit(1)
+                    Text(entry.name).font(layout.type.body).lineLimit(1)
                     Spacer(minLength: 6)
                     Text(entry.amount)
-                        .font(Typeface.bodyMedium)
+                        .font(layout.type.bodyMedium)
                         .contentTransition(.numericText())
                 }
                 if let tokens = entry.tokensLine {
@@ -128,7 +181,7 @@
                 }
             }
             .monospacedDigit()
-            .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: entry.costMicros)
+            .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: entry.value)
             .contentShape(Rectangle())
             .hoverChip(horizontal: 6, vertical: 3)
             .hoverTip(id: "legend.\(entry.id)", entry.tip)

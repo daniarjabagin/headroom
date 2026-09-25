@@ -7,54 +7,53 @@
         let limits: CombinedLimits
         let context: PopupContext
         let now: Timestamp
+        let status: StatusNoticeModel?
 
         var body: some View {
             ForEach(limits.notices) { notice in NoticeRow(notice: notice, context: context) }
-            ForEach(rows) { row in
-                switch row {
+            if let status { StatusNoticeView(notice: status, open: { context.actions.openURL($0) }) }
+            ForEach(limits.windows) { window in
+                switch row(window) {
                 case .single(let model):
-                    QuotaRowView(
-                        row: model, toggleValueMode: { context.toggleValueMode() },
-                        toggleResetFormat: { context.toggleResetFormat() })
+                    QuotaRowView(scope: sectionID, row: model, resetsAt: window.resetsAt, context: context, now: now)
                 case .pooled(let model):
-                    CombinedRowView(
-                        tipID: "combined.\(sectionID).\(model.id)", row: model,
-                        toggleValueMode: { context.toggleValueMode() },
-                        toggleResetFormat: { context.toggleResetFormat() })
+                    CombinedRowView(scope: sectionID, row: model, context: context)
                 }
             }
         }
 
-        private var rows: [CombinedLimitRow] {
-            limits.windows.map { window in
-                CombinedLimitRow.make(
-                    window, members: limits.members, display: context.display, now: now,
-                    formatter: context.formatter)
-            }
+        private func row(_ window: CombinedWindow) -> CombinedLimitRow {
+            CombinedLimitRow.make(
+                window, members: limits.members, display: context.display, now: now, formatter: context.formatter)
         }
     }
 
     struct CombinedRowView: View {
-        let tipID: String
+        let scope: String
         let row: CombinedRowModel
-        let toggleValueMode: @MainActor () -> Void
-        let toggleResetFormat: @MainActor () -> Void
+        let context: PopupContext
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             VStack(alignment: .leading, spacing: PopupMetrics.rowSpacing) {
                 HStack(spacing: 8) {
-                    Text(row.label).font(Typeface.label).lineLimit(1)
+                    Text(row.label).font(layout.type.label).lineLimit(1)
                     Spacer(minLength: 8)
                     if let note = row.note { PaceNoteView(note: note) }
                 }
                 SegmentedPillMeter(segments: row.segments)
                 HStack(spacing: 8) {
-                    ReadingButton(text: row.headline, font: Typeface.body, style: .primary, action: toggleValueMode)
-                        .contentTransition(.numericText())
+                    ReadingButton(
+                        text: row.headline, font: layout.type.body, style: .primary, tipID: "value.\(scope).\(row.id)",
+                        tip: context.valueTip, action: { context.toggleValueMode() }
+                    )
+                    .contentTransition(.opacity)
                     Spacer(minLength: 8)
                     ReadingButton(
-                        text: row.trailing, font: Typeface.caption, style: .secondary, action: toggleResetFormat)
+                        text: row.trailing, font: layout.type.reading, style: .secondary,
+                        tipID: "reset.\(scope).\(row.id)", tip: context.resetTip,
+                        action: { context.toggleResetFormat() })
                 }
                 if let forecast = row.forecast {
                     Text(forecast)
@@ -66,9 +65,9 @@
             }
             .monospacedDigit()
             .padding(.horizontal, PopupMetrics.rowInset)
-            .padding(.vertical, PopupMetrics.barRowPadding)
+            .padding(.vertical, layout.cg.barRowPadding)
             .contentShape(Rectangle())
-            .hoverTip(id: tipID, row.tip)
+            .hoverTip(id: "combined.\(scope).\(row.id)", row.tip)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: row.percent)
         }
     }
@@ -76,6 +75,10 @@
     struct SegmentedPillMeter: View {
         let segments: [SegmentModel]
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
+
+        private var meterHeight: CGFloat { layout.cg.meterHeight }
+        private var tickHeight: CGFloat { layout.cg.tickHeight }
 
         var body: some View {
             GeometryReader { proxy in
@@ -85,28 +88,28 @@
                         segmentView(pair.0, span: pair.1)
                     }
                 }
-                .frame(height: PopupMetrics.tickHeight)
+                .frame(height: tickHeight)
             }
-            .frame(height: PopupMetrics.tickHeight)
-            .padding(.vertical, (PopupMetrics.meterHeight - PopupMetrics.tickHeight) / 2)
+            .frame(height: tickHeight)
+            .padding(.vertical, (meterHeight - tickHeight) / 2)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: segments)
             .accessibilityHidden(true)
         }
 
         private func segmentView(_ segment: SegmentModel, span: MeterSpan) -> some View {
             let fill = SegmentedMeter.fillWidth(
-                segment.fill, span: span.width, minimum: Double(PopupMetrics.meterHeight))
+                segment.fill, span: span.width, minimum: Double(meterHeight))
             return ZStack(alignment: .leading) {
-                Capsule().fill(Palette.track).frame(height: PopupMetrics.meterHeight)
-                Capsule().fill(segment.tone.color).frame(width: CGFloat(fill), height: PopupMetrics.meterHeight)
+                Capsule().fill(Palette.track).frame(height: meterHeight)
+                Capsule().fill(segment.tone.color).frame(width: CGFloat(fill), height: meterHeight)
                 if let tick = segment.tick {
                     RoundedRectangle(cornerRadius: 1)
                         .fill(Palette.tick)
-                        .frame(width: PopupMetrics.tickWidth, height: PopupMetrics.tickHeight)
+                        .frame(width: PopupMetrics.tickWidth, height: tickHeight)
                         .offset(x: tickOffset(tick, span: span))
                 }
             }
-            .frame(width: CGFloat(span.width), height: PopupMetrics.tickHeight, alignment: .leading)
+            .frame(width: CGFloat(span.width), height: tickHeight, alignment: .leading)
             .offset(x: CGFloat(span.offset))
         }
 

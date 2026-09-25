@@ -12,6 +12,8 @@
         public var setAccountOrder: @MainActor ([String]) -> Void
         public var updateSettings: @MainActor (SettingsChange) -> Void
         public var reducedMotion: @MainActor () -> Bool
+        public var providerLinks: @MainActor (String) -> ProviderLinks?
+        public var openURL: @MainActor (URL) -> Void
 
         public init(
             refreshNow: @escaping @MainActor () async -> Bool,
@@ -20,7 +22,9 @@
             signIn: @escaping @MainActor (String) -> Void,
             setAccountOrder: @escaping @MainActor ([String]) -> Void,
             updateSettings: @escaping @MainActor (SettingsChange) -> Void,
-            reducedMotion: @escaping @MainActor () -> Bool
+            reducedMotion: @escaping @MainActor () -> Bool,
+            providerLinks: @escaping @MainActor (String) -> ProviderLinks? = { _ in nil },
+            openURL: @escaping @MainActor (URL) -> Void = { url in _ = NSWorkspace.shared.open(url) }
         ) {
             self.refreshNow = refreshNow
             self.refreshAccount = refreshAccount
@@ -29,18 +33,28 @@
             self.setAccountOrder = setAccountOrder
             self.updateSettings = updateSettings
             self.reducedMotion = reducedMotion
+            self.providerLinks = providerLinks
+            self.openURL = openURL
         }
     }
 
     @MainActor
     @Observable
     final class PopupUIState {
-        var period = SpendPeriod.today
+        var selection: SpendSelection?
         var expanded: Set<String> = []
+        var showFolded = false
+        var toast: PopupToast?
+        private var toastCount = 0
         let tips = TipCenter()
         let refresh = RefreshControl()
         let retries = RetryControl()
         let icons = ProviderIconStore()
+
+        func nextToastID() -> Int {
+            toastCount += 1
+            return toastCount
+        }
     }
 
     public struct PopupView: View {
@@ -66,12 +80,20 @@
             self.onResize = onResize
         }
 
+        private var layout: PopupLayout {
+            guard model.features.release06 else { return .normal }
+            return PopupLayout.make(model.state?.display.density ?? .normal)
+        }
+
+        private var reducedMotion: Bool { systemReduceMotion || actions.reducedMotion() }
+
         public var body: some View {
             let screen = PopupScreen.make(
                 phase: model.phase, state: model.state, lastError: model.lastError, serviceIssue: model.serviceIssue)
             let translucent = (model.state?.display.translucent ?? false) && !systemReduceTransparency
             VStack(spacing: 0) {
                 scrollArea(screen)
+                    .overlay(alignment: .bottom) { ToastHost(ui: ui) }
                 FooterView(
                     screen: screen, formatter: model.formatter, refresh: { pressRefresh() },
                     openSettings: { actions.openSettings() }
@@ -84,8 +106,9 @@
             .popupSurface(translucent: translucent)
             .overlay { TipOverlay(center: ui.tips) }
             .coordinateSpace(.named(PopupSpace.root))
-            .environment(\.headroomReducedMotion, systemReduceMotion || actions.reducedMotion())
+            .environment(\.headroomReducedMotion, reducedMotion)
             .environment(\.headroomTranslucent, translucent)
+            .environment(\.popupLayout, layout)
             .environment(ui.tips)
             .environment(ui.icons)
             .onChange(of: model.state.map(PopupScreen.isRefreshing) ?? false, initial: true) { _, busy in
@@ -94,6 +117,8 @@
             .onChange(of: model.state.map(PopupScreen.refreshingIDs) ?? [], initial: true) { _, ids in
                 ui.retries.observe(refreshing: ids)
             }
+            .onChange(of: model.state.map(SpendSelection.init(display:)), initial: true) { _, _ in syncSelection() }
+            .onChange(of: presentation) { _, _ in ui.toast = nil }
         }
 
         private var maxScrollHeight: CGFloat {
@@ -106,11 +131,11 @@
         private func scrollArea(_ screen: PopupScreen) -> some View {
             let content = PopupContent(
                 screen: screen, accounts: model.orderedAccounts, formatter: model.formatter, actions: actions, ui: ui,
-                refresh: { pressRefresh() }
+                sectionActions: sectionActions, refresh: { pressRefresh() }
             )
             .padding(.horizontal, PopupMetrics.padding)
-            .padding(.top, PopupMetrics.padding)
-            .padding(.bottom, PopupMetrics.bottomPadding)
+            .padding(.top, layout.cg.contentTop)
+            .padding(.bottom, layout.cg.contentBottom)
             .background { HeightReader(height: $contentHeight) }
             if contentHeight > maxScrollHeight {
                 ThinScrollView(height: maxScrollHeight, contentHeight: contentHeight, content: content)
@@ -120,9 +145,71 @@
             }
         }
 
+        private var sectionActions: SectionActions {
+            SectionActions(
+                features: model.features, statuses: model.state?.providerStatus ?? [], links: actions.providerLinks,
+                signInAgain: { [model] accountID, provider in
+                    model.signInAgain(accountID: accountID, provider: provider)
+                },
+                run: { kind, section, url in perform(kind, section: section, url: url) })
+        }
+
+        private func perform(_ kind: HeaderMenuKind, section: AccountSectionModel, url: URL?) {
+            switch kind {
+            case .refresh:
+                let refresh = actions.refreshAccount
+                for id in section.memberIDs { Task { _ = await refresh(id) } }
+            case .hide:
+                for id in section.memberIDs { model.send(.setAccountHidden(accountID: id, hidden: true)) }
+            case .star:
+                guard let display = model.state?.display else { return }
+                actions.updateSettings(.starredAccounts(HeaderMenuModel.starredAfterToggle(section, display)))
+            case .link:
+                if let url { actions.openURL(url) }
+            case .share, .copyText:
+                share(section, asImage: kind == .share)
+            }
+        }
+
+        private func share(_ section: AccountSectionModel, asImage: Bool) {
+            let formatter = model.formatter
+            guard let state = model.state,
+                let card = ShareCardModel.make(
+                    section, state: state, now: Timestamp(date: Date()), formatter: formatter)
+            else { return }
+            let id = ui.nextToastID()
+            guard asImage else {
+                ShareExporter.copy(text: card.text)
+                showToast(.textCopied(id: id, strings: formatter.strings))
+                return
+            }
+            switch ShareExporter.export(card, icons: ui.icons) {
+            case .copied(let saved): showToast(.imageShared(id: id, saved: saved, strings: formatter.strings))
+            case .failed: showToast(.shareFailed(id: id, strings: formatter.strings))
+            }
+        }
+
+        private func showToast(_ toast: PopupToast) {
+            Motion.perform(Motion.standard, reduced: reducedMotion) { ui.toast = toast }
+        }
+
+        private func syncSelection() {
+            guard let state = model.state else { return }
+            let seeded = SpendSelection.seed(display: state.display, features: model.features)
+            if ui.selection == nil || model.features.release06 { ui.selection = seeded }
+        }
+
         private func pressRefresh() {
             ui.refresh.press(actions.refreshNow)
         }
+    }
+
+    struct SectionActions {
+        let features: DaemonFeatures
+        let statuses: [ProviderStatus]
+        let links: @MainActor (String) -> ProviderLinks?
+        let signInAgain: @MainActor (String, String) -> Void
+        let run: @MainActor (HeaderMenuKind, AccountSectionModel, URL?) -> Void
     }
 
     struct HeightReader: View {
@@ -151,81 +238,18 @@
         let formatter: DisplayFormatter
         let actions: PopupActions
         @Bindable var ui: PopupUIState
+        let sectionActions: SectionActions
         let refresh: @MainActor () -> Void
 
         var body: some View {
             switch screen {
             case .dashboard(let state):
                 Dashboard(
-                    state: state, accounts: accounts, formatter: formatter, actions: actions, ui: ui, refresh: refresh)
+                    state: state, accounts: accounts, formatter: formatter, actions: actions, ui: ui,
+                    sectionActions: sectionActions, refresh: refresh)
             default:
                 StatusScreen(screen: screen, strings: formatter.strings, retry: refresh)
             }
-        }
-    }
-
-    struct Dashboard: View {
-        let state: DaemonState
-        let accounts: [Account]
-        let formatter: DisplayFormatter
-        let actions: PopupActions
-        @Bindable var ui: PopupUIState
-        let refresh: @MainActor () -> Void
-        @Environment(\.headroomReducedMotion) private var reducedMotion
-
-        private var context: PopupContext {
-            PopupContext(formatter: formatter, display: state.display, actions: actions, retries: ui.retries)
-        }
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: PopupMetrics.sectionGap) {
-                if SpendCardModel.shows(state) {
-                    SpendSection(spend: state.spend, formatter: formatter, period: $ui.period) { refreshButton }
-                } else {
-                    HStack {
-                        Spacer(minLength: 0)
-                        refreshButton
-                    }
-                    .padding(.trailing, PopupMetrics.headerTrailing)
-                }
-                TimelineView(.periodic(from: .now, by: tickInterval)) { timeline in
-                    AccountList(
-                        sections: sections, context: context, now: Timestamp(date: timeline.date),
-                        expanded: ui.expanded, toggleExpanded: { toggle($0) }, reorder: { reorder($0) })
-                }
-            }
-        }
-
-        private var refreshButton: some View {
-            RefreshButton(control: ui.refresh, strings: formatter.strings, press: refresh)
-        }
-
-        private var sections: [AccountSectionModel] {
-            AccountSectionModel.sections(state, ordered: accounts, formatter: formatter)
-        }
-
-        private var tickInterval: TimeInterval {
-            let now = Timestamp(date: Date())
-            let live = accounts.contains { account in
-                !account.hidden
-                    && account.windows.contains { QuotaRowModel.needsSecondTicks($0, display: state.display, now: now) }
-            }
-            return live ? 1 : 30
-        }
-
-        private func toggle(_ accountID: String) {
-            Motion.perform(Motion.standard, reduced: reducedMotion) {
-                if ui.expanded.contains(accountID) {
-                    ui.expanded.remove(accountID)
-                } else {
-                    ui.expanded.insert(accountID)
-                }
-            }
-        }
-
-        private func reorder(_ visibleOrder: [String]) {
-            let order = AccountOrder.mergeOrder(all: accounts.map(\.id), visible: visibleOrder)
-            Motion.perform(Motion.standard, reduced: reducedMotion) { actions.setAccountOrder(order) }
         }
     }
 #endif

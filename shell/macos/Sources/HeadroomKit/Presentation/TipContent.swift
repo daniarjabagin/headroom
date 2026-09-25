@@ -1,6 +1,7 @@
 public enum TipContent: Sendable, Hashable {
     case text(String)
     case breakdown(ModelBreakdown)
+    case models(ModelPopover)
     case day(title: String, detail: String)
     case lines(title: String, lines: [String])
 }

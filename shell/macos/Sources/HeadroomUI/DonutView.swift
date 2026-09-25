@@ -73,24 +73,31 @@
         let model: SpendCardModel
         @State private var reveal = 0.0
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
+            let size = layout.cg.donutSize
             ZStack {
                 ForEach(Array(model.entries.enumerated()), id: \.element.id) { index, entry in
                     DonutSliceShape(fractions: AnimatableVector(values: model.fractions), reveal: reveal, index: index)
                         .fill(entry.color.color, style: FillStyle(eoFill: true, antialiased: true))
                 }
-                Text(model.centerAmount)
-                    .font(Typeface.ring)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .padding(.horizontal, PopupMetrics.donutSize * 0.15)
-                    .contentTransition(.numericText())
+                VStack(spacing: 0) {
+                    Text(model.centerAmount)
+                        .font(layout.type.ring)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                    if let caption = model.centerCaption {
+                        Text(caption).font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                .monospacedDigit()
+                .padding(.horizontal, size * 0.15)
             }
-            .frame(width: PopupMetrics.donutSize, height: PopupMetrics.donutSize)
+            .frame(width: size, height: size)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: model.fractions)
-            .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: model.costMicros)
+            .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: model.value)
             .onAppear {
                 Motion.perform(Motion.sweep, reduced: reducedMotion) { reveal = 1 }
             }

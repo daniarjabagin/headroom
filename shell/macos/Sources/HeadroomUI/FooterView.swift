@@ -1,4 +1,5 @@
 #if canImport(AppKit)
+    import AppKit
     import Foundation
     import HeadroomKit
     import SwiftUI
@@ -8,6 +9,8 @@
         let formatter: DisplayFormatter
         let refresh: @MainActor () -> Void
         let openSettings: @MainActor () -> Void
+        @Environment(\.popupLayout) private var layout
+        @Environment(\.headroomReducedMotion) private var reducedMotion
 
         private var versionLine: String {
             let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
@@ -16,49 +19,84 @@
 
         var body: some View {
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(versionLine)
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        statusLine(
-                            FooterStatus.make(screen: screen, now: Timestamp(date: context.date), formatter: formatter))
-                    }
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    lines(
+                        FooterModel.make(
+                            screen: screen, now: Timestamp(date: context.date), formatter: formatter,
+                            version: versionLine))
                 }
                 .font(Typeface.caption2)
-                .foregroundStyle(.secondary)
                 .monospacedDigit()
                 Spacer(minLength: 8)
-                Button {
-                    openSettings()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundStyle(.secondary)
-                        .frame(width: PopupMetrics.gearSize, height: PopupMetrics.gearSize)
-                }
-                .buttonStyle(TintButtonStyle(circle: true))
-                .hoverTip(id: "settings", text: formatter.strings.text(.settings))
-                .accessibilityLabel(formatter.strings.text(.settings))
+                settingsButton
             }
             .padding(.horizontal, PopupMetrics.padding)
-            .padding(.vertical, PopupMetrics.footerPaddingY)
+            .padding(.vertical, layout.cg.footerPaddingY)
             .footerSurface()
         }
 
+        private var settingsButton: some View {
+            let tip = formatter.strings.fill(
+                PopupExtraText.settingsVersion, ["settings": formatter.strings.text(.settings), "version": versionLine])
+            return Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(width: layout.cg.gearSize, height: layout.cg.gearSize)
+            }
+            .buttonStyle(TintButtonStyle(circle: true))
+            .hoverTip(id: "settings", text: tip)
+            .accessibilityLabel(formatter.strings.text(.settings))
+        }
+
+        private func lines(_ model: FooterModel) -> some View {
+            let stale = model.kind == .stale
+            let style = stale ? AnyShapeStyle(Palette.notice) : AnyShapeStyle(.secondary)
+            return VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    if stale {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9))
+                    }
+                    Text(model.primary)
+                }
+                secondLine(model)
+            }
+            .foregroundStyle(style)
+            .lineLimit(1)
+            .animation(Motion.animation(Motion.fast, reduced: reducedMotion), value: model.kind)
+        }
+
         @ViewBuilder
-        private func statusLine(_ status: FooterStatus) -> some View {
-            let text = Text(status.text).foregroundStyle(
-                status.isNotice ? AnyShapeStyle(Palette.notice) : AnyShapeStyle(.secondary))
-            if status.refreshes && !status.text.isEmpty {
+        private func secondLine(_ model: FooterModel) -> some View {
+            let content = HStack(spacing: 4) {
+                if model.kind == .live { LiveDot() }
+                Text(model.secondary)
+            }
+            if model.refreshes && !model.secondary.isEmpty {
                 Button {
                     refresh()
                 } label: {
-                    text
+                    content
                 }
                 .buttonStyle(.plain)
                 .hoverChip(horizontal: 4, vertical: 1)
+                .hoverTip(id: "footer.live", text: model.tip)
             } else {
-                text
+                content
             }
+        }
+    }
+
+    struct LiveDot: View {
+        var body: some View {
+            Circle()
+                .fill(Color(nsColor: .systemGreen))
+                .frame(width: 6, height: 6)
+                .background(Circle().fill(Color(nsColor: .systemGreen).opacity(0.22)).frame(width: 12, height: 12))
+                .padding(.horizontal, 3)
+                .accessibilityHidden(true)
         }
     }
 #endif

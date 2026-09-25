@@ -6,10 +6,11 @@
         let accountID: String
         let bars: [TrendBar]
         let title: String
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             HStack(spacing: 10) {
-                Text(title).font(Typeface.bodyStrong).lineLimit(1)
+                Text(title).font(layout.type.bodyStrong).lineLimit(1)
                 Spacer(minLength: 12)
                 HStack(alignment: .bottom, spacing: 1) {
                     ForEach(bars) { bar in
@@ -17,11 +18,10 @@
                     }
                 }
                 .frame(
-                    minWidth: 90, maxWidth: 150, minHeight: CGFloat(UsageRows.trendHeight),
-                    maxHeight: CGFloat(UsageRows.trendHeight))
+                    minWidth: 90, maxWidth: 150, minHeight: layout.cg.trendHeight, maxHeight: layout.cg.trendHeight)
             }
             .padding(.horizontal, PopupMetrics.rowInset)
-            .padding(.vertical, PopupMetrics.textRowPadding)
+            .padding(.vertical, layout.cg.textRowPadding)
         }
     }
 
@@ -29,13 +29,14 @@
         let accountID: String
         let bar: TrendBar
         @State private var hovered = false
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 UnevenRoundedRectangle(topLeadingRadius: 1, topTrailingRadius: 1, style: .continuous)
                     .fill(Palette.ok.opacity(hovered ? 0.75 : 1))
-                    .frame(height: CGFloat(bar.height))
+                    .frame(height: CGFloat(bar.height * layout.trendScale))
             }
             .frame(minWidth: 2, maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -73,6 +74,7 @@
         let expanded: Bool
         let toggle: @MainActor () -> Void
         @Environment(\.headroomReducedMotion) private var reducedMotion
+        @Environment(\.popupLayout) private var layout
 
         var body: some View {
             Button {
@@ -84,7 +86,7 @@
                     .rotationEffect(.degrees(expanded ? 180 : 0))
                     .frame(width: 14, height: 14)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
+                    .padding(.vertical, layout.cg.caretPaddingY)
             }
             .buttonStyle(TintButtonStyle())
             .padding(.horizontal, 8)

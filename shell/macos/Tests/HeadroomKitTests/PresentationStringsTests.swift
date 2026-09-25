@@ -17,7 +17,7 @@ final class PresentationStringsTests: XCTestCase {
     func testFillReplacesPlaceholders() {
         XCTAssertEqual(Build.english.strings.fill(.signedOutOf, ["provider": "Claude"]), "Signed out of Claude")
         XCTAssertEqual(Build.russian.strings.fill(.couldNotRefresh, ["provider": "Codex"]), "Не удалось обновить Codex")
-        XCTAssertEqual(Build.russian.strings.text(.totalSpend), "Всего потрачено")
+        XCTAssertEqual(SpendUnit.cost.title(Build.russian.strings), "Всего потрачено")
     }
 
     func testNoticeTranslation() {

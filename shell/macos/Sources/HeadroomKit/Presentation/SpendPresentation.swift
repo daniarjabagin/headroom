@@ -1,30 +1,8 @@
-public enum SpendPeriod: String, Sendable, CaseIterable, Identifiable {
-    case today, yesterday, last30Days
-
-    public var id: String { rawValue }
-
-    public func title(_ strings: UIStrings) -> String {
-        switch self {
-        case .today: strings.text(.today)
-        case .yesterday: strings.text(.yesterday)
-        case .last30Days: strings.text(.thirtyDays)
-        }
-    }
-
-    public func spend(in spend: Spend) -> PeriodSpend {
-        switch self {
-        case .today: spend.today
-        case .yesterday: spend.yesterday
-        case .last30Days: spend.last30Days
-        }
-    }
-}
-
 public struct LegendEntry: Sendable, Hashable, Identifiable {
     public let provider: String
     public let name: String
     public let amount: String
-    public let costMicros: Int64
+    public let value: Int64
     public let tokensLine: String?
     public let color: SeriesColor
     public let tip: TipContent
@@ -33,12 +11,16 @@ public struct LegendEntry: Sendable, Hashable, Identifiable {
 }
 
 public struct SpendCardModel: Sendable, Hashable {
-    public let period: SpendPeriod
+    public let period: SpendPeriodPreference
+    public let unit: SpendUnit
+    public let title: String
     public let centerAmount: String
-    public let costMicros: Int64
+    public let centerCaption: String?
+    public let value: Int64
     public let fractions: [Double]
     public let entries: [LegendEntry]
     public let info: String
+    public let breakdown: SpendBreakdownModel?
 
     public var isEmpty: Bool { entries.isEmpty }
     public var providerKey: [String] { entries.map(\.provider) }
@@ -47,18 +29,60 @@ public struct SpendCardModel: Sendable, Hashable {
         state.display.showSpend && !state.usage.isEmpty
     }
 
-    public static func make(spend: Spend, period: SpendPeriod, formatter: DisplayFormatter) -> SpendCardModel {
-        let totals = period.spend(in: spend)
-        let withTokens = totals.byProvider.count == 1
-        let periodTitle = period.title(formatter.strings)
+    public static func units(_ features: DaemonFeatures) -> [SpendUnit] {
+        features.release06 ? SpendUnit.allCases : [.cost]
+    }
+
+    public static func make(spend: Spend, selection: SpendSelection, formatter: DisplayFormatter) -> SpendCardModel {
+        let period = selection.effectivePeriod(in: spend)
+        let totals = spend.period(period) ?? spend.last30Days
+        let unit = selection.unit
+        let withTokens = unit == .cost && totals.byProvider.count == 1
+        let ring = SpendMetric.forRing(unit)
         let entries = totals.byProvider.map { providerSpend in
-            legendEntry(providerSpend, withTokens: withTokens, periodTitle: periodTitle, formatter: formatter)
+            legendEntry(providerSpend, unit: unit, withTokens: withTokens, period: period, formatter: formatter)
         }
+        let center = center(totals, unit: unit, formatter: formatter)
         return SpendCardModel(
-            period: period, centerAmount: formatter.ringUSD(micros: totals.costUSDMicros),
-            costMicros: totals.costUSDMicros,
-            fractions: DonutGeometry.visibleFractions(totals.byProvider.map(\.costUSDMicros)),
-            entries: entries, info: info(partial: totals.partial, strings: formatter.strings))
+            period: period, unit: unit, title: unit.title(formatter.strings), centerAmount: center.amount,
+            centerCaption: center.caption, value: center.value,
+            fractions: DonutGeometry.visibleFractions(totals.byProvider.map { ringValue($0, ring) }),
+            entries: entries, info: info(partial: totals.partial, strings: formatter.strings),
+            breakdown: SpendBreakdownModel.make(totals, mode: selection.breakdown, unit: unit, formatter: formatter))
+    }
+
+    static func ringValue(_ spend: ProviderSpend, _ metric: SpendMetric) -> Int64 {
+        Int64(clamping: metric.value(costMicros: spend.costUSDMicros, tokens: spend.totalTokens))
+    }
+
+    static func center(
+        _ totals: PeriodSpend, unit: SpendUnit, formatter: DisplayFormatter
+    ) -> (amount: String, caption: String?, value: Int64) {
+        let strings = formatter.strings
+        switch unit {
+        case .cost:
+            return (formatter.ringUSD(micros: totals.costUSDMicros), nil, totals.costUSDMicros)
+        case .tokens:
+            return (
+                formatter.compactTokens(totals.totalTokens), strings.text(SpendOptionText.tokensCaption),
+                Int64(clamping: totals.totalTokens)
+            )
+        case .costPerMTok:
+            return (
+                formatter.costPerMTok(micros: totals.costPerMTokUSDMicros),
+                strings.text(SpendOptionText.blendedCaption),
+                totals.costPerMTokUSDMicros ?? 0
+            )
+        }
+    }
+
+    static func amount(_ spend: ProviderSpend, unit: SpendUnit, formatter: DisplayFormatter) -> (String, Int64) {
+        switch unit {
+        case .cost: (formatter.usd(micros: spend.costUSDMicros), spend.costUSDMicros)
+        case .tokens: (formatter.compactTokens(spend.totalTokens), Int64(clamping: spend.totalTokens))
+        case .costPerMTok:
+            (formatter.costPerMTok(micros: spend.costPerMTokUSDMicros), spend.costPerMTokUSDMicros ?? 0)
+        }
     }
 
     private static func info(partial: Bool, strings: UIStrings) -> String {
@@ -67,18 +91,17 @@ public struct SpendCardModel: Sendable, Hashable {
     }
 
     private static func legendEntry(
-        _ spend: ProviderSpend, withTokens: Bool, periodTitle: String, formatter: DisplayFormatter
+        _ spend: ProviderSpend, unit: SpendUnit, withTokens: Bool, period: SpendPeriodPreference,
+        formatter: DisplayFormatter
     ) -> LegendEntry {
-        let breakdown = ModelBreakdown.make(
-            title: "\(periodTitle) · \(spend.providerName)", models: spend.models, other: spend.modelsOther,
-            costMicros: spend.costUSDMicros, totalTokens: spend.totalTokens, formatter: formatter)
+        let popover = ModelPopover.make(spend, period: period, formatter: formatter)
         let fallback = formatter.exactSpendLine(
             costMicros: spend.costUSDMicros, totalTokens: spend.totalTokens, partial: spend.partial)
+        let (amount, value) = amount(spend, unit: unit, formatter: formatter)
         return LegendEntry(
-            provider: spend.provider, name: spend.providerName, amount: formatter.usd(micros: spend.costUSDMicros),
-            costMicros: spend.costUSDMicros,
+            provider: spend.provider, name: spend.providerName, amount: amount, value: value,
             tokensLine: withTokens ? formatter.exactTokensText(spend.totalTokens) : nil,
             color: ProviderStyle.seriesColor(for: spend.provider),
-            tip: breakdown.map(TipContent.breakdown) ?? .text(fallback))
+            tip: popover.map(TipContent.models) ?? .text(fallback))
     }
 }

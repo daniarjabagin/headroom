@@ -7,3 +7,13 @@ public enum DisplayToggle {
         .resetFormat(display.resetFormat == .countdown ? .exact : .countdown)
     }
 }
+
+public enum ReadingTips {
+    public static func value(_ display: DisplaySettings, strings: UIStrings) -> String {
+        strings.text(display.valueMode == .left ? PopupExtraText.clickShowUsed : .clickShowLeft)
+    }
+
+    public static func reset(_ display: DisplaySettings, strings: UIStrings) -> String {
+        strings.text(display.resetFormat == .countdown ? PopupExtraText.clickShowResetTime : .clickShowCountdown)
+    }
+}
