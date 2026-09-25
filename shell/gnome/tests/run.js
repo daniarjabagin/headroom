@@ -18,6 +18,7 @@ import { testProviders } from './providerTests.js';
 import { testModelBreakdown, testOrder, testProgress } from './shapingTests.js';
 import { testStatus } from './statusTests.js';
 import { testExactReset, testForecast } from './timeTests.js';
+import { testUpdateCheck } from './updateCheckTests.js';
 import { testUpdate } from './updateTests.js';
 
 function readRelative(...parts) {
@@ -116,6 +117,12 @@ function testSampleContract() {
     check('shared usage', state.accounts[3].usage.provider, 'claude');
     check('hidden flag', state.accounts[0].hidden, false);
     check('signed out', state.accounts[3].status, 'signed_out');
+    check(
+        'recoveries',
+        state.accounts.map(account => account.recovery?.action ?? null),
+        [null, null, 'retry', 'retry', null, null]
+    );
+    check('update check', state.updateCheck.checkedAt.toISOString(), '2026-09-23T04:00:00.000Z');
 }
 
 function testSampleUsage() {
@@ -208,6 +215,7 @@ testCombined();
 testCombinedSnapshot(readSnapshot('state_combined.json'));
 testRefresh();
 testUpdate();
+testUpdateCheck();
 testOptionModel();
 await testSerialQueue();
 await testProgressProcess();

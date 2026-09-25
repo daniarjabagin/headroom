@@ -77,7 +77,7 @@ export class GeneralPage {
             )
         );
         this.page.add(group(_('Data refresh'), [this._rows.refresh.row]));
-        this.page.add(group(_('Updates'), [this._updates.check.row, this._updates.release]));
+        this.page.add(group(_('Updates'), [this._updates.check.row, this._updates.status, this._updates.release]));
     }
 
     update(settings, state) {
@@ -93,7 +93,7 @@ export class GeneralPage {
         this._rows.refresh.setOptions(refreshOptions(settings.refreshIntervalSecs));
         this._rows.refresh.set(settings.refreshIntervalSecs);
         this._updateLimit(settings.headline, state);
-        this._updates.update(settings, state.update);
+        this._updates.update(settings, state);
     }
 
     syncUpdateRun() {

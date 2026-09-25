@@ -1,5 +1,6 @@
 import { parseDisplay } from './settings.js';
 import { parseUpdate } from './update.js';
+import { parseUpdateCheck } from './updateCheck.js';
 
 const SCHEMA_VERSION = 1;
 
@@ -45,6 +46,15 @@ function parseError(raw) {
     if (!isObject(raw)) return null;
     const kind = text(raw.kind) ?? 'unknown';
     return { kind, message: text(raw.message) ?? kind };
+}
+
+function parseRecovery(raw) {
+    if (!isObject(raw)) return null;
+    if (raw.action === 'retry') return { action: 'retry' };
+    if (raw.action === 'sign_in') return { action: 'sign_in', accountId: text(raw.account_id) };
+    const command = text(raw.command);
+    if (raw.action === 'cli_login' && command) return { action: 'cli_login', command };
+    return null;
 }
 
 function parsePace(raw) {
@@ -181,6 +191,7 @@ function parseAccount(raw, usage) {
         owner: oneOf(OWNERS, raw.owner, 'cli'),
         status: oneOf(STATUSES, raw.status, 'fresh'),
         error: parseError(raw.error),
+        recovery: parseRecovery(raw.recovery),
         updatedAt: timestamp(raw.updated_at),
         hidden: raw.hidden === true,
         windows: list(raw.windows).map(parseWindow),
@@ -286,6 +297,7 @@ export function parseState(json) {
         throw new StateError(`Headroom service speaks state version ${raw.version}, expected ${SCHEMA_VERSION}`);
     const usage = list(raw.usage).map(parseUsage);
     return {
+        appVersion: text(raw.app_version),
         generatedAt: timestamp(raw.generated_at),
         nextRefreshAt: timestamp(raw.next_refresh_at),
         offline: raw.offline === true,
@@ -298,6 +310,7 @@ export function parseState(json) {
             .filter(group => group.accountIds.length > 0),
         spend: parseSpend(raw.spend, usage),
         update: parseUpdate(raw.update),
+        updateCheck: parseUpdateCheck(raw.update_check),
     };
 }
 

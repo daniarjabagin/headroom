@@ -1,11 +1,24 @@
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { DaemonConnection } from '../daemonConnection.js';
 import { remoteMessage } from '../daemonInterface.js';
 import { decodeSettings, mergePatch, settingsFrom } from '../settings.js';
 import { parseState } from '../state.js';
+import { CHECK_TIMEOUT_MS, failedCheck, parseCheckResult } from '../updateCheck.js';
 import { parseProviders, RegistryError } from './registry.js';
 
 const openConnection = options => new DaemonConnection(options);
+
+function checkOutcome(proxy, response) {
+    try {
+        const [json] = proxy.call_finish(response).deepUnpack();
+        return parseCheckResult(json);
+    } catch (error) {
+        if (!(error instanceof GLib.Error)) throw error;
+        if (error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) return null;
+        return failedCheck(Gio.DBusError.get_remote_error(error));
+    }
+}
 
 export class PrefsClient {
     constructor({ onAvailable, onUnavailable, onState, onSettings, onError, connect = openConnection }) {
@@ -13,6 +26,7 @@ export class PrefsClient {
         this._rawSettings = null;
         this._patchSequence = 0;
         this._deliveryId = 0;
+        this._cancellable = new Gio.Cancellable();
         this.state = null;
         this.settings = null;
         this.providers = null;
@@ -26,6 +40,7 @@ export class PrefsClient {
     }
 
     destroy() {
+        this._cancellable.cancel();
         this._cancelDelivery();
         this._connection.destroy();
         this._handlers = null;
@@ -59,6 +74,27 @@ export class PrefsClient {
 
     restoreAccounts(provider) {
         return this._connection.enqueue(proxy => proxy.RestoreAccountsAsync(provider));
+    }
+
+    checkForUpdates() {
+        const proxy = this._connection.proxy;
+        if (!proxy) return Promise.resolve(failedCheck(null));
+        return new Promise((resolve, reject) => {
+            proxy.call(
+                'CheckForUpdates',
+                null,
+                Gio.DBusCallFlags.NO_AUTO_START,
+                CHECK_TIMEOUT_MS,
+                this._cancellable,
+                (source, response) => {
+                    try {
+                        resolve(checkOutcome(source, response));
+                    } catch (error) {
+                        reject(error);
+                    }
+                }
+            );
+        });
     }
 
     _onReady(proxy) {

@@ -3,7 +3,7 @@ import argparse
 import copy
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import gi
@@ -26,6 +26,7 @@ INTERFACE_XML = f"""
     <method name="Refresh"><arg type="s" name="account_id" direction="in"/></method>
     <method name="RefreshNow"/>
     <method name="Rescan"/>
+    <method name="CheckForUpdates"><arg type="s" name="result" direction="out"/></method>
     <method name="RestoreAccounts"><arg type="s" name="provider" direction="in"/></method>
     <method name="DismissAccount"><arg type="s" name="account_id" direction="in"/></method>
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
@@ -46,6 +47,12 @@ INTERFACE_XML = f"""
 </node>
 """
 REFRESH_SECONDS = 2
+CHECK_MS = 1500
+APP_VERSION = "0.6.0"
+SIGN_IN_ERRORS = ("not_signed_in", "sign_in_expired", "api_key_only")
+WAITING_ERRORS = ("no_subscription", "rate_limited", "unsupported", "no_provider")
+CLI_LOGINS = {"claude": "claude auth login", "codex": "codex login"}
+CHECK_OUTCOMES = ("up_to_date", "available", "failed", "rate_limited", "unsupported")
 REFRESH_NOW_MS = 1500
 SAMPLE_TIME = datetime(2026, 9, 23, 10, 0, tzinfo=timezone.utc)
 
@@ -80,15 +87,37 @@ def normalized_settings(raw):
     return settings
 
 
+def recovery(account):
+    error = account.get("error")
+    if not error or error["kind"] in WAITING_ERRORS:
+        return None
+    if error["kind"] not in SIGN_IN_ERRORS:
+        return {"action": "retry"}
+    if account["owner"] == "headroom":
+        return {"action": "sign_in", "account_id": account["id"]}
+    command = CLI_LOGINS.get(account["provider"])
+    return {"action": "cli_login", "command": command} if command else {"action": "retry"}
+
+
+def check_result(outcome, checked_at, now):
+    if outcome == "rate_limited":
+        until = iso(now + timedelta(minutes=30))
+        return {"status": outcome, "checked_at": checked_at, "version": APP_VERSION, "until": until}
+    version = "0.7.0" if outcome == "available" else APP_VERSION
+    return {"status": outcome, "checked_at": checked_at, "version": version}
+
+
 def ordered(accounts, order):
     rank = {account_id: index for index, account_id in enumerate(order)}
     return sorted(accounts, key=lambda entry: rank.get(entry["id"], len(rank)))
 
 
 class MockDaemon:
-    def __init__(self, scenario, interval):
+    def __init__(self, scenario, interval, check_outcome):
         self.scenario = scenario
         self.interval = interval
+        self.check_outcome = check_outcome
+        self.checked_at = datetime.now(timezone.utc) - timedelta(hours=3)
         self.hidden = set()
         self.dismissed = set()
         self.labels = {}
@@ -111,6 +140,7 @@ class MockDaemon:
         account["label"] = self.labels.get(account["id"], account["label"])
         for window in account["windows"]:
             window["hidden"] = window["id"] in hidden_windows
+        account["recovery"] = recovery(account)
         if account["id"] in self.refreshing:
             account["status"] = "refreshing"
         if account["status"] == "signed_out":
@@ -132,8 +162,11 @@ class MockDaemon:
         state["headline"] = choose_headline(state["accounts"], pinned, preferred)
         state["display"] = self.settings["display"]
         state = with_combined(state)
+        state["app_version"] = APP_VERSION
+        state["update_check"] = {"checked_at": iso(self.checked_at)}
         if not self.settings["updates"]["check"]:
             state["update"] = None
+            state["update_check"] = None
         if self.refreshed_at and state.get("last_success_at"):
             state["last_success_at"] = iso(self.refreshed_at)
         return json.dumps(state)
@@ -161,6 +194,26 @@ class MockDaemon:
     def finish_refresh_now(self):
         self.refreshed_at = datetime.now(timezone.utc)
         return self.finish_refresh()
+
+    def check_for_updates(self, invocation):
+        if self.check_outcome == "unsupported":
+            invocation.return_dbus_error("org.freedesktop.DBus.Error.NotSupported", "update checks are off")
+            return
+        if not self.settings["updates"]["check"]:
+            self.reply_check(invocation, {"status": "disabled", "checked_at": None, "version": None})
+            return
+        GLib.timeout_add(CHECK_MS, self.finish_check, invocation)
+
+    def finish_check(self, invocation):
+        now = datetime.now(timezone.utc)
+        if self.check_outcome in ("up_to_date", "available"):
+            self.checked_at = now
+            self.emit()
+        self.reply_check(invocation, check_result(self.check_outcome, iso(self.checked_at), now))
+        return GLib.SOURCE_REMOVE
+
+    def reply_check(self, invocation, result):
+        invocation.return_value(GLib.Variant("(s)", (json.dumps(result),)))
 
     def set_order(self, ids):
         if len(set(ids)) != len(ids):
@@ -220,6 +273,9 @@ class MockDaemon:
         if method == "ListProviders":
             invocation.return_value(GLib.Variant("(s)", (json.dumps({"version": 1, "providers": PROVIDERS}),)))
             return
+        if method == "CheckForUpdates":
+            self.check_for_updates(invocation)
+            return
         if method == "GetSettings":
             invocation.return_value(GLib.Variant("(s)", (json.dumps(self.settings),)))
             return
@@ -252,12 +308,13 @@ def main():
     parser = argparse.ArgumentParser(description="Serve sample Headroom states on the session bus.")
     parser.add_argument("--scenario", choices=sorted(SCENARIOS), default="full")
     parser.add_argument("--interval", type=int, default=30, help="seconds between StateChanged signals")
+    parser.add_argument("--check", choices=CHECK_OUTCOMES, default="up_to_date", help="CheckForUpdates answer")
     parser.add_argument("--dump", action="store_true", help="print a state at a fixed sample time and exit")
     args = parser.parse_args()
     if args.dump:
         print(json.dumps(build(args.scenario, SAMPLE_TIME), indent=2))
         return
-    MockDaemon(args.scenario, args.interval).run()
+    MockDaemon(args.scenario, args.interval, args.check).run()
 
 
 if __name__ == "__main__":
