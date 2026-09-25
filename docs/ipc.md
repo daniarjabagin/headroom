@@ -24,6 +24,14 @@ provider and the headline can be a combined window with `"combined": true` and
 `"account_label": null` (see [Combined accounts](dbus-api.md#combined-accounts)). Clients must accept a
 `null` `account_label` and a missing `combined` list (older daemons) before offering the setting.
 
+Headroom 0.6 adds settings keys, payload fields and methods, all described in
+[0.6 payload additions](dbus-api.md#06-payload-additions) and [Settings](dbus-api.md#settings). The
+same compatibility rule applies over the socket: send the new settings keys and call `ResetSettings`,
+`GetSpend`, `GetDiagnostics` or `CheckForUpdates` only when the state's `app_version` is `0.6.0` or
+later; an older daemon rejects unknown settings keys with `-32602` and unknown methods with `-32601`.
+The macOS app bundles its daemon, so a mismatch only happens with a foreign daemon (see
+`app_version` above).
+
 ## Socket
 
 | item | value |
@@ -70,6 +78,9 @@ socket. The socket is removed on shutdown; the lock file stays and is simply unl
 | `Rescan` | `[]` | `null` |
 | `SetSettings` | `[json_string]` | `null` |
 | `UpdateSettings` | `[patch_string]` | `null` |
+| `ResetSettings` | `[]` | `null` |
+| `GetSpend` | `[query_string]` | spend breakdown as a JSON object (implemented in 0.6) |
+| `GetDiagnostics` | `[]` | diagnostics report as a JSON object (implemented in 0.6) |
 | `SetAccountLabel` | `[account_id, label]` | `null` |
 | `SetAccountOrder` | `[[id, …]]` | `null` |
 | `SetAccountHidden` | `[account_id, hidden_bool]` | `null` |
@@ -85,7 +96,9 @@ alert delivery.
 
 Semantics, validation and side effects of every method are exactly those in
 [dbus-api.md](dbus-api.md#methods). `SetSettings` and `UpdateSettings` take the settings JSON as a
-string, as on D-Bus.
+string, as on D-Bus, and so does `GetSpend` its query. Methods that return a JSON string on D-Bus
+(`GetState`, `ListProviders`, `GetSettings`, `GetSpend`, `GetDiagnostics`) return the parsed JSON
+object here.
 
 ## Responses and errors
 

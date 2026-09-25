@@ -141,7 +141,7 @@ impl Alerts {
             window,
         };
         for milestone in evaluation.alerts.clone() {
-            if !enabled(review.settings, milestone) {
+            if !enabled(&review.settings, milestone) {
                 continue;
             }
             let notification = compose(review.locale, milestone, &subject, observed, review.now);
@@ -169,7 +169,7 @@ impl Alerts {
     }
 }
 
-fn enabled(settings: NotificationSettings, milestone: Milestone) -> bool {
+fn enabled(settings: &NotificationSettings, milestone: Milestone) -> bool {
     match milestone {
         Milestone::AlmostOut => settings.almost_out,
         Milestone::CuttingItClose => settings.cutting_it_close,

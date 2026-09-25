@@ -92,7 +92,7 @@ async fn disabled_milestones_advance_silently() {
         cutting_it_close: false,
         ..NotificationSettings::default()
     };
-    observe_with(&alerts, &work(), 10.0, quiet).await;
+    observe_with(&alerts, &work(), 10.0, quiet.clone()).await;
     observe_with(&alerts, &work(), 58.0, quiet).await;
     observe(&alerts, &work(), 58.0).await;
     assert!(notifier.texts().is_empty());
@@ -166,7 +166,7 @@ async fn hidden_windows_are_not_reviewed() {
             vec![session(used, RESET), weekly(used, "2026-09-25T10:00:00Z")],
             NOW,
         );
-        review(&alerts, &work(), &limits, settings, &display).await;
+        review(&alerts, &work(), &limits, settings.clone(), &display).await;
     }
     let titles: Vec<String> = notifier
         .texts()

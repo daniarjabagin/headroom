@@ -262,6 +262,37 @@ async fn settings_changes_emit_state_with_display_and_hidden_windows() {
     task.abort();
 }
 
+#[tokio::test(start_paused = true)]
+async fn reset_restores_defaults_keeps_onboarding_and_emits_state() {
+    let (harness, _) = two_accounts().await;
+    let core = &harness.core;
+    core.set_account_label("codex:a", "Work").await.unwrap();
+    core.update_settings(
+        r#"{"refresh_interval_secs":120,"onboarding":{"completed":true},"display":{"theme":"dark"}}"#,
+    )
+    .await
+    .unwrap();
+    let sink = Arc::new(RecordingSink::default());
+    let dynamic: Arc<dyn EventSink> = sink.clone();
+    let task = tokio::spawn(publish_changes(harness.core.clone(), dynamic));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    sink.states.lock().unwrap().clear();
+    core.reset_settings().await.unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let expected = Settings {
+        onboarding: crate::settings::OnboardingSettings { completed: true },
+        ..Settings::default()
+    };
+    assert_eq!(stored_settings(&harness), expected);
+    assert_eq!(core.model().settings, expected);
+    let states = sink.states.lock().unwrap().clone();
+    assert_eq!(states.len(), 1);
+    let parsed: crate::StatePayload = serde_json::from_str(&states[0]).unwrap();
+    assert_eq!(parsed.display.theme, crate::settings::Theme::System);
+    assert_eq!(parsed.accounts[0].label.as_deref(), Some("Work"));
+    task.abort();
+}
+
 fn ids(names: &[&str]) -> Vec<AccountId> {
     names.iter().map(|n| AccountId((*n).to_owned())).collect()
 }

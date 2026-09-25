@@ -173,3 +173,142 @@ fn deleting_an_unknown_field_is_a_no_op() {
     let base = customized();
     assert_eq!(base.patched(r#"{"colour":null}"#).unwrap(), base);
 }
+
+fn with_new_keys() -> Settings {
+    Settings::parse(
+        &json!({
+            "notifications": {
+                "threshold_percent": 20,
+                "provider_thresholds": { "claude": 20, "copilot": 0 },
+                "quiet_hours": { "enabled": true, "from": "23:00", "to": "07:00" }
+            },
+            "display": {
+                "panel_limits": [
+                    { "account_id": "codex:a", "window": "session" },
+                    { "account_id": "claude:b", "window": "weekly" }
+                ],
+                "panel_position": { "box": "left", "index": 3 },
+                "starred_accounts": ["codex:a", "claude:b"]
+            }
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn provider_thresholds_merge_per_provider() {
+    let base = with_new_keys();
+    let patched = base
+        .patched(r#"{"notifications":{"provider_thresholds":{"claude":null,"cursor":30}}}"#)
+        .unwrap();
+    let thresholds = &patched.notifications.provider_thresholds;
+    assert!(!thresholds.contains_key("claude"));
+    assert_eq!(thresholds["copilot"], 0);
+    assert_eq!(thresholds["cursor"], 30);
+    assert_eq!(patched.notifications.threshold_percent, 20);
+    let cleared = base
+        .patched(r#"{"notifications":{"provider_thresholds":null}}"#)
+        .unwrap();
+    assert!(cleared.notifications.provider_thresholds.is_empty());
+    assert!(matches!(
+        base.patched(r#"{"notifications":{"provider_thresholds":{"cursor":60}}}"#),
+        Err(SettingsError::ProviderThreshold { value: 60, .. })
+    ));
+}
+
+#[test]
+fn quiet_hours_merge_as_an_object() {
+    let base = with_new_keys();
+    let patched = base
+        .patched(r#"{"notifications":{"quiet_hours":{"to":"06:30","allow_critical":false}}}"#)
+        .unwrap();
+    let quiet = patched.notifications.quiet_hours;
+    assert!(quiet.enabled);
+    assert_eq!(quiet.from.to_string(), "23:00");
+    assert_eq!(quiet.to.to_string(), "06:30");
+    assert!(!quiet.allow_critical);
+    let from_reset = base
+        .patched(r#"{"notifications":{"quiet_hours":{"from":null}}}"#)
+        .unwrap();
+    assert_eq!(
+        from_reset.notifications.quiet_hours.from.to_string(),
+        "22:00"
+    );
+    assert!(matches!(
+        base.patched(r#"{"notifications":{"quiet_hours":{"to":"23:00"}}}"#),
+        Err(SettingsError::EmptyQuietHours)
+    ));
+}
+
+#[test]
+fn panel_limits_and_starred_accounts_are_replaced_whole() {
+    let base = with_new_keys();
+    let patched = base
+        .patched(
+            r#"{"display":{"panel_limits":[{"account_id":"grok:c","window":"weekly"}],"starred_accounts":[]}}"#,
+        )
+        .unwrap();
+    assert_eq!(
+        patched.display.panel_limits,
+        [crate::settings::PanelLimit {
+            account_id: "grok:c".into(),
+            window: "weekly".into()
+        }]
+    );
+    assert!(patched.display.starred_accounts.is_empty());
+    let reset = base
+        .patched(r#"{"display":{"panel_limits":null}}"#)
+        .unwrap();
+    assert!(reset.display.panel_limits.is_empty());
+    assert_eq!(reset.display.starred_accounts, ["codex:a", "claude:b"]);
+}
+
+#[test]
+fn panel_position_is_replaced_whole() {
+    let base = with_new_keys();
+    let moved = base
+        .patched(r#"{"display":{"panel_position":{"box":"center","index":0}}}"#)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(moved.display.panel_position).unwrap(),
+        json!({ "box": "center", "index": 0 })
+    );
+    assert!(matches!(
+        base.patched(r#"{"display":{"panel_position":{"index":1}}}"#),
+        Err(SettingsError::Json(_))
+    ));
+    let reset = base
+        .patched(r#"{"display":{"panel_position":null}}"#)
+        .unwrap();
+    assert_eq!(
+        reset.display.panel_position,
+        Settings::default().display.panel_position
+    );
+    assert_eq!(reset.display.panel_limits, base.display.panel_limits);
+}
+
+#[test]
+fn new_top_level_sections_patch_and_reset() {
+    let base = with_new_keys();
+    let patched = base
+        .patched(
+            r#"{"adaptive_refresh":false,"status_pages":{"enabled":true},"shortcuts":{"open":"<Super>u"},"logging":{"level":"error"},"onboarding":{"completed":true}}"#,
+        )
+        .unwrap();
+    assert!(!patched.adaptive_refresh);
+    assert!(patched.status_pages.enabled);
+    assert_eq!(patched.shortcuts.open, "<Super>u");
+    assert_eq!(patched.notifications, base.notifications);
+    let reset = patched
+        .patched(r#"{"adaptive_refresh":null,"shortcuts":null,"logging":{"level":null}}"#)
+        .unwrap();
+    assert!(reset.adaptive_refresh);
+    assert!(reset.shortcuts.open.is_empty());
+    assert_eq!(reset.logging, Settings::default().logging);
+    assert!(reset.onboarding.completed);
+    assert!(matches!(
+        base.patched(r#"{"shortcuts":{"open":"Ctrl+U"}}"#),
+        Err(SettingsError::InvalidShortcut(_))
+    ));
+}

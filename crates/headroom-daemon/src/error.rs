@@ -44,6 +44,26 @@ pub enum SettingsError {
     BlankHiddenWindow,
     #[error("a settings patch must be a JSON object")]
     PatchNotObject,
+    #[error("panel limits need non-empty account and window ids")]
+    BlankPanelLimit,
+    #[error("at most {max} panel limits are allowed, got {found}")]
+    TooManyPanelLimits { found: usize, max: usize },
+    #[error("starred accounts need non-empty ids")]
+    BlankStarredAccount,
+    #[error("notification threshold {0}% is outside 1..=50")]
+    ThresholdPercent(u8),
+    #[error("provider thresholds need non-empty provider ids")]
+    BlankProviderThreshold,
+    #[error("notification threshold {value}% for {provider} is outside 0..=50")]
+    ProviderThreshold { provider: String, value: u8 },
+    #[error("quiet hours time {0:?} is not HH:MM between 00:00 and 23:59")]
+    ClockTime(String),
+    #[error("enabled quiet hours need different start and end times")]
+    EmptyQuietHours,
+    #[error("shortcut is longer than {0} characters")]
+    ShortcutTooLong(usize),
+    #[error("shortcut {0:?} is not a GTK accelerator such as <Super>u")]
+    InvalidShortcut(String),
 }
 
 #[derive(Debug, thiserror::Error)]
