@@ -17,7 +17,7 @@ How much of your AI coding limits is left, in your Linux top panel and macOS men
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-F0F0ED.svg?logo=apple&logoColor=white&labelColor=151617)](#macos)
 
 [Install](#install) · [Updates](#updates) · [Quick start](#quick-start) · [Providers](#providers) ·
-[Privacy](#privacy) · [How it works](#how-it-works) · [Changelog](CHANGELOG.md)
+[Settings](#settings) · [Privacy](#privacy) · [How it works](#how-it-works) · [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -77,12 +77,21 @@ default.</sub>
   price lists that refresh in the background and re-cost history when prices change. Models without
   a price are flagged as *partial*, never guessed. Where a tool logs its own cost (Grok), that exact
   figure is used. Pay-as-you-go balances keep their own currency (¥, €, $), never converted.
-- **Notifications that matter.** *Under 10 % left*, *projected to run out in …*, *limit reset*.
-  Sent once per window, remembered across restarts, through your desktop's notifications or macOS
-  Notification Center.
+- **Spend by model and by project.** Today, yesterday, 7 or 30 days, in dollars, tokens or cost per
+  million tokens, broken down by model or by the project directory you worked in.
+- **Your panel, your way.** One limit, up to three side by side, or just the Headroom mark tinted
+  by the worst tone; as a ring, a mini bar with the pace tick or plain text. In GNOME, drag it
+  anywhere on the top bar. A global shortcut opens the popup, and numbers hide while you share your
+  screen.
+- **Notifications that matter.** *Under 10 % left* (or your own threshold per provider), *projected
+  to run out in …*, *limit reset*. Sent once per window, remembered across restarts, held during
+  quiet hours and delivered as one summary afterwards.
+- **Retry that fixes things.** Sign in again through the CLI and the card comes back by itself;
+  Headroom's own sign-ins refresh their tokens; the error card offers exactly what helps: retry,
+  sign in again or the CLI's login command.
 - **Native everywhere.** A GNOME Shell extension, a KDE Plasma 6 widget, a GTK 4 tray app for every
   other Linux desktop and a SwiftUI menu-bar app with the same popup: spend donut, limits with pace,
-  30-day trend and model breakdown. Plus a CLI and a Waybar module.
+  30-day trend and model breakdown. Plus a CLI, a Waybar module and `headroom guard` for scripts.
 - **Stays current.** Linux installs tell you when a new release is out and update in one click;
   the macOS app updates itself with Sparkle.
 - **Light and dark, English and Russian.** Both themes are first-class and follow the system;
@@ -126,13 +135,24 @@ the Keychain. `headroom providers` prints the same list for your build. Missing 
 
 - **Local only.** Headroom talks to the providers you use and fetches public price lists (LiteLLM,
   models.dev). It has no telemetry, no analytics and no server of its own.
-- **One update check a day.** The Linux daemon asks GitHub's release API once a day whether a newer
-  Headroom exists; the macOS app reads the release feed (`appcast.xml`) from GitHub once a day.
-  Nothing is sent besides the request itself: no identifiers, accounts, usage or settings. Turn it
-  off in the settings (Check for updates on Linux, Settings → Service → App updates on macOS).
-- **Status pages only when you ask.** With provider status pages turned on (off by default), the
-  daemon reads the public status page of each provider you have an account with every 5 minutes:
-  one `GET` per page (two for OpenAI). Nothing else is sent.
+- **One update check a day.** The Linux daemon asks GitHub's release API
+  (`api.github.com/repos/daniarjabagin/headroom/releases/latest`) once a day whether a newer
+  Headroom exists, plus once when you press **Check now** (at most once a minute); the macOS app
+  reads the release feed (`appcast.xml`) from GitHub once a day. Nothing is sent besides the request
+  itself: no identifiers, accounts, usage or settings. Turn it off in the settings (Check for updates
+  on Linux, Settings → Service → App updates on macOS).
+- **Status pages only when you ask.** Provider status pages are off by default. Turned on, the
+  daemon reads the public status page of each provider you have an account with, every 5 minutes:
+  one `GET` of `/api/v2/summary.json` on status.claude.com, githubstatus.com (Copilot),
+  status.cursor.com, devinstatus.com, status.moonshot.cn (Kimi Code and Moonshot API), status.minimax.io,
+  status.kilo.ai and status.warp.dev, one `GET` of `/api/v2/components.json` on status.poe.com, and
+  two on status.openai.com for Codex (`/api/v2/components.json` and `/api/v1/summary`). The requests
+  carry only the usual `User-Agent` and `Accept` headers and the page's last `ETag`. Other providers
+  have no status page Headroom reads.
+- **No telemetry, no crash reports.** Logs stay on your machine (`~/.local/state/headroom/headroom.log`
+  on Linux, `~/Library/Logs/Headroom/` on macOS). **Copy diagnostics** and `headroom diagnostics`
+  produce a report without tokens, emails, labels or account ids, and nothing leaves your computer
+  unless you paste it somewhere.
 - **CLI credentials are read-only.** `~/.codex/auth.json`, `~/.claude/.credentials.json`, the
   Claude Code and Codex Keychain items on macOS and their friends are never written or refreshed.
   Headroom refreshes only the sign-ins it created itself, in its own data directory
@@ -329,7 +349,8 @@ Updates…** to check at once. Every update is verified with an EdDSA signature 
 installed. Installed with Homebrew, the app still updates itself; `brew upgrade --cask --greedy
 headroom` works too.
 
-Both checks are a single request to GitHub and can be turned off, see [Privacy](#privacy).
+The Linux settings show when the last check ran and have a **Check now** button. Both checks are a
+single request to GitHub and can be turned off, see [Privacy](#privacy).
 
 ## Quick start
 
@@ -372,6 +393,8 @@ headroom accounts remove ID          # delete an account Headroom added (never ~
 headroom update                      # install the latest release (script installs)
 headroom spend                       # spend of the last 7 days by model, from local logs
 headroom spend --by project --since 30d   # also --by provider|day, --since YYYY-MM-DD --until …, --provider, --json
+headroom guard --min 20              # exit 1 when a visible limit has less than 20% left, see Scripting
+headroom diagnostics                 # versions, platform and account health for a bug report, no secrets
 ```
 
 Without a running daemon, `status` shows the last cached data and `spend` reads the daemon's
@@ -397,7 +420,7 @@ account and your spend, and a `good`, `warning`, `critical` or `neutral` class.
 #custom-headroom.neutral  { opacity: 0.6; }
 ```
 
-**New in 0.6:** several providers in one module. `--providers claude,codex` shows one value per
+Several providers fit in one module. `--providers claude,codex` shows one value per
 provider, in that order (`Claude 72% · Codex 40%`); without it, every visible provider is shown.
 `--window session|weekly|any` picks the window each value comes from (default `any`, the provider's
 lowest), and `--labels none` drops the names (`72% · 40%`). Values follow the "left"/"used" setting,
@@ -465,7 +488,49 @@ fi
 The daemon finds Codex in `$CODEX_HOME` (default `~/.codex`) and Claude Code in
 `$CLAUDE_CONFIG_DIR` (default `~/.claude`, plus other Claude config dirs it discovers). If you set
 these in your shell, set them for the user service too, in
-`~/.config/environment.d/headroom.conf`, then log in again. Logs: `journalctl --user -u headroom -f`.
+`~/.config/environment.d/headroom.conf`, then log in again. Logs: `journalctl --user -u headroom -f`
+or `~/.local/state/headroom/headroom.log`; set the level in Settings → Advanced.
+
+## Settings
+
+Open the settings from the popup, from the tray menu, with `gnome-extensions prefs
+headroom@daniarjabagin.github.io`, from the Plasma widget's *Configure…* or with ⌘, on macOS. Every
+option is stored by the daemon, so the popup, the panel, Waybar and the CLI always agree.
+
+| Tab | What you set |
+| --- | --- |
+| **General** | Theme, language, density (normal or compact), 12/24-hour time, translucency, reduced motion; what the panel shows and where (below); spend period, unit and breakdown; popup sections and combined accounts; starred cards and "on demand" folding; refresh interval and faster refresh while coding tools run; privacy (hide numbers while sharing the screen, update checks, provider status pages); the global shortcut |
+| **Accounts** | Add, sign in again, rename, reorder, hide single limits, hide or remove accounts |
+| **Notifications** | Almost out, cutting it close, will run out, limit reset; the "almost out" threshold (5, 10, 20 or 30 % left) and per-provider overrides; quiet hours with an exception for critical alerts |
+| **Advanced** | Service status, log level, log file (Copy path, Open folder), Copy diagnostics, Reset all settings… (accounts are kept) |
+
+The macOS app keeps app-only options such as launch at login and Sparkle updates on a separate
+**Service** tab. Clicking a percentage in the popup switches between left and used, and clicking a
+reset time switches between the countdown and the exact time; the choice is saved like any other
+setting.
+
+### Panel indicator
+
+| Option | Choices |
+| --- | --- |
+| Shows | **One limit** (the most critical, or one you pin), **Several limits** (up to three you pick, or the two most critical, each with its provider logo), **Icon only** (the Headroom mark tinted by the worst tone) |
+| Style | **Ring**, **Bar** (a 26×5 mini meter with the even-pace tick) or **None** |
+| Label | Percentage, window name (*Session*, *Weekly*) or nothing, so *Ring* + *None* is "ring only" |
+| Position | GNOME: left, centre or right of the top bar, or press and hold the indicator and drag it. macOS: ⌘-drag each menu-bar item. Plasma: place the widget in panel edit mode. Tray: the tray host decides |
+
+A critical limit pulses gently in every style unless reduced motion is on. Plasma shows a thin
+single value on vertical panels and lists every limit in its tooltip; the tray icon draws up to two
+rings or bars.
+
+**Screen sharing.** With *Hide numbers while sharing the screen* on (the default), GNOME shows only
+the mark in the top bar and `••` in the popup until the share ends (**Show anyway** reveals them);
+on macOS the popup and menu-bar items are left out of screenshots, recordings and screen sharing.
+Plasma and the tray cannot detect screen sharing, so they hide the option.
+
+**Global shortcut.** Pick a key combination to open the popup from anywhere: GNOME grabs it
+directly, Plasma uses the widget's global shortcut, the tray uses the GlobalShortcuts portal on
+Wayland (where the compositor offers it) or a key grab on X11, and macOS uses a system hot key
+without needing Accessibility permission.
 
 ## How it works
 

@@ -9,9 +9,9 @@ Every payload (state, settings, providers) is the same JSON document the D-Bus A
 framing differs.
 
 The state payload also carries `update` (a newer Headroom release, see
-[Update](dbus-api.md#update)). The macOS app updates itself with Sparkle and starts its daemon with
-`headroom daemon --no-update-check`, so `update` stays `null` there and the daemon sends no update
-requests.
+[Update](dbus-api.md#update)) and `update_check`. The macOS app updates itself with Sparkle and starts
+its daemon with `headroom daemon --no-update-check`, so `update` and `update_check` stay `null` there,
+`CheckForUpdates` answers `-32000` and the daemon sends no update requests.
 
 The state payload carries `app_version`, the release of the daemon that serves the socket. A client
 that bundles its own daemon (the macOS app) compares it with its own release to notice that it is
@@ -24,11 +24,11 @@ provider and the headline can be a combined window with `"combined": true` and
 `"account_label": null` (see [Combined accounts](dbus-api.md#combined-accounts)). Clients must accept a
 `null` `account_label` and a missing `combined` list (older daemons) before offering the setting.
 
-Headroom 0.6 adds settings keys, payload fields and methods, all described in
+Since 0.6.0 the daemon serves more settings keys, payload fields and methods (`CheckForUpdates`,
+`ResetSettings`, `GetSpend`, `GetDiagnostics`), all described in
 [0.6 payload additions](dbus-api.md#06-payload-additions) and [Settings](dbus-api.md#settings). The
-same compatibility rule applies over the socket: send the new settings keys and call `ResetSettings`,
-`GetSpend`, `GetDiagnostics` or `CheckForUpdates` only when the state's `app_version` is `0.6.0` or
-later; an older daemon rejects unknown settings keys with `-32602` and unknown methods with `-32601`.
+same compatibility rule applies over the socket: send the new settings keys and call these methods
+only when the state's `app_version` is `0.6.0` or later; an older daemon rejects unknown settings keys with `-32602` and unknown methods with `-32601`.
 The macOS app bundles its daemon, so a mismatch only happens with a foreign daemon (see
 `app_version` above).
 
@@ -80,7 +80,7 @@ socket. The socket is removed on shutdown; the lock file stays and is simply unl
 | `SetSettings` | `[json_string]` | `null` |
 | `UpdateSettings` | `[patch_string]` | `null` |
 | `ResetSettings` | `[]` | `null` |
-| `GetSpend` | `[query_string]` | spend breakdown as a JSON object (implemented in 0.6) |
+| `GetSpend` | `[query_string]` | spend breakdown as a JSON object (see [GetSpend](dbus-api.md#getspend)) |
 | `GetDiagnostics` | `[]` | diagnostics report as a JSON object (see [GetDiagnostics](dbus-api.md#getdiagnostics)) |
 | `SetAccountLabel` | `[account_id, label]` | `null` |
 | `SetAccountOrder` | `[[id, …]]` | `null` |

@@ -1,7 +1,7 @@
 # Headroom D-Bus API
 
 The daemon (`headroom daemon`, crate `headroom-daemon`) is the only process that talks to providers.
-Shells (GNOME extension, Plasma plasmoid, tray, TUI, CLI) read state and send commands over the
+Shells (GNOME extension, Plasma plasmoid, Headroom tray, CLI, Waybar) read state and send commands over the
 session bus. Payloads are JSON strings so every toolkit can parse them the same way.
 
 | item | value |
@@ -26,13 +26,13 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. When the account's last error is `account_changed`, `not_signed_in` or `sign_in_expired`, the daemon first runs a rescan (coalesced with any other, see [Rescan semantics](#rescan-semantics)) and then refreshes the account if it is still listed; the call still returns at once with the account `refreshing`. An account whose home now holds another identity leaves `accounts[]` and the new account is refreshed by the rescan. This is what a card's Retry button calls when `recovery.action` is `retry`. |
 | `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
-| `CheckForUpdates` | `() → s` | Ask GitHub for the latest Headroom release now and return the result as JSON (see [Checking on demand](#checking-on-demand)). Returns when the check is done; concurrent calls share one request, and a call within 60 s of the last check returns that result without a request. Fails with `NotSupported` on a daemon started with `--no-update-check`. |
+| `CheckForUpdates` | `() → s` | Ask GitHub for the latest Headroom release now and return the result as JSON (see [Checking on demand](#checking-on-demand)). Returns when the check is done; concurrent calls share one request, and a call within 60 s of the last check returns that result without a request. Fails with `NotSupported` on a daemon started with `--no-update-check`. Since 0.6.0. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
 | `ResetSettings` | `() → ()` | Restore every setting to its default except `onboarding.completed`, which keeps its value. Accounts, labels, order, hidden and dismissed accounts are not settings and stay as they are. Runs under the same lock as `SetSettings`/`UpdateSettings`, stores the result and emits `StateChanged`. Since 0.6.0. |
-| `GetSpend` | `(s query) → s` | Spend and token breakdown for any period, grouped by model, project, provider or day. Implemented in 0.6, see [GetSpend](#getspend). |
-| `GetDiagnostics` | `() → s` | A diagnostics report without secrets or emails, for "Copy diagnostics". Implemented in 0.6, see [GetDiagnostics](#getdiagnostics). |
+| `GetSpend` | `(s query) → s` | Spend and token breakdown for any period, grouped by model, project, provider or day, see [GetSpend](#getspend). Since 0.6.0. |
+| `GetDiagnostics` | `() → s` | A diagnostics report without secrets or emails, for "Copy diagnostics", see [GetDiagnostics](#getdiagnostics). Since 0.6.0. |
 | `SetAccountLabel` | `(s account_id, s label) → ()` | Set a user label. Surrounding whitespace is trimmed; an empty label clears it. At most 64 characters; control characters (C0, DEL, C1) are rejected. |
 | `SetAccountOrder` | `(as ids) → ()` | Move the given accounts to the front, in that order. Accounts not listed keep their relative order after them. |
 | `SetAccountHidden` | `(s account_id, b hidden) → ()` | Hide or show an account. Hidden accounts stay in the payload with `"hidden": true` but are ignored by the headline and by notifications. |
@@ -56,6 +56,10 @@ Refresh semantics:
   `RefreshNow`, which also re-reads local usage logs instead of waiting for the file watcher or the
   60 s usage poll.
 - Each provider call has a 30 s timeout.
+- With `adaptive_refresh` on, accounts whose usage home is getting new log records are scheduled every
+  60 s instead of every `refresh_interval_secs`; backoff, rate-limit holds and `no_subscription`
+  rechecks keep priority. Each account reports its mode, interval, next time and reason as
+  [`refresh`](#account-additions).
 - When the access token of a Headroom-owned account (`"owner": "headroom"`) has expired or is
   rejected, the daemon refreshes it with the OAuth refresh token stored in its Headroom home: under a
   lock file, re-reading the file first, and replacing it atomically only if nobody changed it
@@ -122,14 +126,16 @@ same document without a daemon.
       "display_name": "Codex",
       "add_account": [{ "kind": "cli_login", "program": "codex" }],
       "multi_account": true,
-      "local_usage": true
+      "local_usage": true,
+      "links": { "status": "https://status.openai.com", "dashboard": "https://chatgpt.com/codex", "usage": null }
     },
     {
       "id": "claude",
       "display_name": "Claude",
       "add_account": [{ "kind": "cli_login", "program": "claude" }],
       "multi_account": true,
-      "local_usage": true
+      "local_usage": true,
+      "links": { "status": "https://status.claude.com", "dashboard": "https://claude.ai", "usage": null }
     }
   ]
 }
@@ -143,6 +149,7 @@ same document without a daemon.
 | `providers[].add_account` | AddAccount[] | Ways to add an account, most preferred first; the first is what `headroom accounts add <id>` does without `--api-key-stdin`. Never empty. |
 | `providers[].multi_account` | bool | Several accounts of this provider can be tracked at once. |
 | `providers[].local_usage` | bool | The provider reads local token logs, so it can appear in `usage[]` and `spend`. |
+| `providers[].links` | object | Since 0.6.0: `status`, `dashboard` and `usage` URLs or `null`, see [Provider links](#provider-links). Missing from older daemons. |
 
 AddAccount, tagged by `kind`:
 
@@ -176,9 +183,10 @@ Top level:
 | `usage` | Usage[] | Local token usage, one entry per usage home the daemon reads (see [Usage](#usage)), whether or not an account belongs to it. |
 | `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
 
-Headroom 0.6 adds `panel_items`, `panel_tone` and `provider_status` at the top level,
-`collapsed` and `refresh` per account, `collapsed` per combined group, `spend.last_7_days`, project breakdowns and
-`cost_per_mtok_usd_micros`; see [0.6 payload additions](#06-payload-additions).
+Since 0.6.0 the state also carries `panel_items`, `panel_tone` and `provider_status` at the top
+level, `recovery`, `collapsed` and `refresh` per account, `collapsed` per combined group,
+`spend.last_7_days`, project breakdowns and `cost_per_mtok_usd_micros`; see
+[0.6 payload additions](#06-payload-additions).
 
 All timestamps are RFC 3339 strings in UTC (`2026-09-23T10:00:00Z`, fractional seconds when present).
 Percentages are JSON numbers (floating point, unrounded). Token counts and money are integers; money
@@ -595,6 +603,7 @@ OtherModels: `count` (number of models folded in, at least 1), `total_tokens`, `
 | --- | --- | --- |
 | `today` | PeriodSpend | Sum of `usage[].today` over every usage home, including homes without an account. Events are stored per home and a session is logged in one home only, so nothing is counted twice. |
 | `yesterday` | PeriodSpend | Sum of `usage[].yesterday`. |
+| `last_7_days` | PeriodSpend | Since 0.6.0: today and the 6 previous days over every usage home, see [Spend additions](#spend-additions). |
 | `last_30_days` | PeriodSpend | Sum of `usage[].last_30_days`. |
 
 PeriodSpend:
@@ -608,12 +617,17 @@ PeriodSpend:
 
 ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 5 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
 
+Since 0.6.0 PeriodSpend, ProviderSpend and ModelUsage also carry `cost_per_mtok_usd_micros`, and
+PeriodSpend carries `projects` and `projects_other`; see [Spend additions](#spend-additions).
+`spend.last_7_days` is summed over the usage homes like the other periods, but `usage[]` entries do
+not list a 7-day period.
+
 ### Example
 
 ```json
 {
   "version": 1,
-  "app_version": "0.4.0",
+  "app_version": "0.6.0",
   "generated_at": "2026-09-23T10:00:00Z",
   "next_refresh_at": "2026-09-23T10:03:00Z",
   "last_success_at": "2026-09-23T09:58:00Z",
@@ -659,6 +673,15 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
     "combined": false,
     "account_count": 1
   },
+  "panel_items": [
+    {
+      "account_id": "claude:main", "provider": "claude", "provider_name": "Claude",
+      "account_label": "ada@claude.example", "window": "session", "window_label": "Session",
+      "used_percent": 92.0, "remaining_percent": 8.0, "tone": "critical", "combined": false,
+      "account_count": 1, "value_percent": 8.0, "even_pace_percent": 90.0, "logo": "claude"
+    }
+  ],
+  "panel_tone": "critical",
   "accounts": [
     {
       "id": "codex:work",
@@ -703,7 +726,9 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
         { "id": "credits", "label": "Credits", "kind": "usd", "usd_micros": 12500000 }
       ],
       "notices": [],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": "2026-09-23T10:03:00Z", "reason": "schedule" },
+      "collapsed": false
     },
     {
       "id": "claude:main",
@@ -743,10 +768,16 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
       ],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.claude"
+      "usage_home": "~/.claude",
+      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": null, "reason": "backoff" },
+      "collapsed": false
     }
   ],
   "combined": [],
+  "provider_status": [
+    { "provider": "claude", "indicator": "minor", "tone": "warning", "title": "Elevated errors on Claude Code",
+      "stage": "identified", "started_at": "2026-09-23T09:12:00Z", "url": "https://stspg.io/abc123" }
+  ],
   "usage": [
     {
       "provider": "codex",
@@ -759,7 +790,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
         "unpriced_tokens": 0,
         "unpriced_models": [],
         "models": [
-          { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
+          { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false, "cost_per_mtok_usd_micros": 2000000 }
         ],
         "models_other": null
       },
@@ -776,24 +807,38 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
       "cost_usd_micros": 12400,
       "total_tokens": 6200,
       "partial": false,
+      "cost_per_mtok_usd_micros": 2000000,
       "by_provider": [
         {
           "provider": "claude", "provider_name": "Claude", "cost_usd_micros": 10000, "total_tokens": 5000, "partial": false,
+          "cost_per_mtok_usd_micros": 2000000,
           "models": [
-            { "model": "claude-opus", "total_tokens": 5000, "cost_usd_micros": 10000, "partial": false }
+            { "model": "claude-opus", "total_tokens": 5000, "cost_usd_micros": 10000, "partial": false, "cost_per_mtok_usd_micros": 2000000 }
           ],
           "models_other": null
         },
         {
           "provider": "codex", "provider_name": "Codex", "cost_usd_micros": 2400, "total_tokens": 1200, "partial": false,
+          "cost_per_mtok_usd_micros": 2000000,
           "models": [
-            { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false }
+            { "model": "gpt-5.5", "total_tokens": 1200, "cost_usd_micros": 2400, "partial": false, "cost_per_mtok_usd_micros": 2000000 }
           ],
           "models_other": null
         }
-      ]
+      ],
+      "projects": [
+        {
+          "project": null, "cost_usd_micros": 12400, "total_tokens": 6200, "partial": false, "share_permille": 1000,
+          "by_provider": [
+            { "provider": "claude", "provider_name": "Claude", "cost_usd_micros": 10000, "total_tokens": 5000 },
+            { "provider": "codex", "provider_name": "Codex", "cost_usd_micros": 2400, "total_tokens": 1200 }
+          ]
+        }
+      ],
+      "projects_other": null
     },
     "yesterday": { "…": "same shape as today" },
+    "last_7_days": { "…": "same shape as today" },
     "last_30_days": { "…": "same shape as today" }
   }
 }
@@ -837,8 +882,8 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.spend_unit` | string | `"cost"` | Since 0.6.0. The spend card's unit: `cost`, `tokens` or `cost_per_mtok` (`cost_per_mtok_usd_micros`). |
 | `display.spend_breakdown` | string | `"models"` | Since 0.6.0. What the spend legend breaks down: `models` or `projects`. |
 | `display.starred_accounts` | string[] | `[]` | Since 0.6.0. Account ids that are always expanded in the popup. Non-empty ids; duplicates dropped (first kept); ids not listed right now are kept. |
-| `display.collapse_unstarred` | bool | `false` | Since 0.6.0. Collapse accounts that are not starred and not at `warning` or worse into one "N more" row. The daemon decides per account (`accounts[].collapsed`). |
-| `display.hide_on_screen_share` | bool | `true` | Since 0.6.0. Shells that can detect screen sharing replace figures with `••` while the screen is shared. |
+| `display.collapse_unstarred` | bool | `false` | Since 0.6.0. Fold accounts that are not starred, need no attention and have no window at `warning` or worse into one "N more" row. The daemon decides per account and per combined group (`collapsed`, see [Account additions](#account-additions)); shells never apply the rule themselves. |
+| `display.hide_on_screen_share` | bool | `true` | Since 0.6.0. Hide figures while the screen is shared. GNOME detects screen sharing and shows only the Headroom mark in the panel and `••` (project paths masked) in the popup until the share ends; macOS keeps the popup and menu-bar items out of screen captures. Shells that cannot detect sharing (Plasma, the tray) hide the option. |
 | `display.show_spend` | bool | `true` | Show the spend section. |
 | `display.show_account_spend` | bool | `true` | Show local spend under each account card. |
 | `display.show_trend` | bool | `true` | Show the 30-day trend. |
@@ -968,30 +1013,29 @@ invalid.
 
 ## 0.6 payload additions
 
-The fields and methods below are the contract for Headroom 0.6. Each is marked with its status:
-**implemented in 0.6** means the daemon of the 0.6.0 release serves it exactly as written here, even
-where the current development build does not yet. All of them are additive: `version` stays `1`,
+Every field and method below is served since 0.6.0. All of them are additive: `version` stays `1`,
 older daemons omit them, and clients must treat a missing field as described in its row. A client
 checks `app_version` ≥ `0.6.0` before calling a new method; older daemons answer `UnknownMethod`
 (`-32601` on the socket).
 
 Summary:
 
-| where | field or method | status |
+| where | field or method | described in |
 | --- | --- | --- |
-| state, top level | `panel_items`, `panel_tone` | implemented in 0.6 |
-| state, top level | `provider_status` | implemented in 0.6 |
-| state, top level | `update_check` | defined by the update-check work, see [Update checks](#update-checks) |
-| `accounts[]` | `collapsed`, `refresh` | implemented in 0.6 |
-| `combined[]` | `collapsed` | implemented in 0.6 |
-| `accounts[]` | `recovery` | defined by the account-recovery work, see [Account](#account) |
-| `spend` | `last_7_days` | implemented in 0.6 |
-| PeriodSpend | `projects`, `projects_other` | implemented in 0.6 |
-| PeriodSpend, ProviderSpend, ModelUsage | `cost_per_mtok_usd_micros` | implemented in 0.6 |
-| `ListProviders` | `providers[].links` | implemented in 0.6 |
-| methods | `GetSpend`, `GetDiagnostics` | implemented in 0.6 |
-| methods | `ResetSettings` | implemented (see [Methods](#methods)) |
-| methods | `CheckForUpdates` | implemented (see [Checking on demand](#checking-on-demand)) |
+| state, top level | `panel_items`, `panel_tone` | [Panel items](#panel-items) |
+| state, top level | `provider_status` | [Provider status](#provider-status) |
+| state, top level | `update_check` | [Update check](#update-check) |
+| `accounts[]` | `collapsed`, `refresh` | [Account additions](#account-additions) |
+| `accounts[]` | `recovery` | [Account](#account) |
+| `combined[]` | `collapsed` | [Account additions](#account-additions) |
+| `spend` | `last_7_days` | [Spend additions](#spend-additions) |
+| PeriodSpend | `projects`, `projects_other` | [Spend additions](#spend-additions) |
+| PeriodSpend, ProviderSpend, ModelUsage | `cost_per_mtok_usd_micros` | [Spend additions](#spend-additions) |
+| `ListProviders` | `providers[].links` | [Provider links](#provider-links) |
+| methods | `GetSpend` | [GetSpend](#getspend) |
+| methods | `GetDiagnostics` | [GetDiagnostics](#getdiagnostics) |
+| methods | `ResetSettings` | [Methods](#methods), [Updating settings](#updating-settings) |
+| methods | `CheckForUpdates` | [Checking on demand](#checking-on-demand) |
 
 ### Panel items
 
@@ -1045,7 +1089,7 @@ Older daemons: no `panel_items`; build one item from `headline`.
 | `collapsed` | bool | `true` when `display.collapse_unstarred` is on, the account is not in `display.starred_accounts`, it does not need attention, and none of its visible windows has tone `warning` or `critical`. An account needs attention when its `error` is not `null` (signed out, sign-in expired, account changed, rate limited, any failed refresh — so also whenever `recovery` is set) or its status is `signed_out`, `error` or `no_subscription`; such an account is never collapsed, even while it is `refreshing`. Always `false` when the setting is off. Shells fold collapsed accounts into one "N more · Copilot, Grok ›" row in account order. Missing: `false`. |
 | `combined[].collapsed` | bool | The same rule for a [combined](#combined-accounts) card, which a shell folds instead of its members: `true` when `display.collapse_unstarred` is on, none of the group's `account_ids` is starred, no member needs attention (as for accounts), and none of its combined windows has tone `warning` or `critical`. Missing: `false`. |
 | `refresh` | Refresh | How the daemon is polling this account now. Missing: show `next_refresh_at` only. |
-| `recovery` | object \| null | What a card's primary button does after an error (`retry`, `sign_in`, `cli_login`); defined in [Account](#account) by the account-recovery work, not redefined here. |
+| `recovery` | object \| null | What a card's primary button does after an error (`retry`, `sign_in`, `cli_login`); see [Account](#account). |
 
 Refresh:
 
@@ -1073,8 +1117,9 @@ it uses `refresh_interval_secs`; `mode` switches to `idle` as soon as the 10 min
 that have at least one listed account that is not hidden. It is empty when `status_pages.enabled`
 is off, and a provider is left out while its page has not been read yet, when its last good read is
 older than 30 minutes (stale data is dropped, never shown), and when it has no status page Headroom
-reads. Providers whose page is clear are listed with `indicator: "none"`, so a shell can tell "all
-clear" from "unknown". Ordered like `ListProviders`. Missing: `[]`.
+reads. Providers whose page is clear are listed with `indicator: "none"`, so a client can tell "all
+clear" from "unknown"; the popups show nothing for such an entry. Ordered like `ListProviders`.
+Missing: `[]`.
 
 Headroom never uses a page's global indicator: it follows a fixed list of components per provider
 (for example Claude API, Claude Code and claude.ai on status.claude.com; the Codex components on
@@ -1104,7 +1149,7 @@ Turning the setting on polls at once; a newly added provider is picked up by the
 | field | type | description |
 | --- | --- | --- |
 | `provider` | string | Provider id. |
-| `indicator` | string | Statuspage indicator of the components Headroom follows: `none`, `minor`, `major`, `critical` or `maintenance`. Shells show nothing for `none`. |
+| `indicator` | string | Statuspage indicator of the components Headroom follows: `none`, `minor`, `major`, `critical` or `maintenance`. Popups show nothing for `none` (the entry only says the page was read and is clear). |
 | `tone` | Tone | `neutral` for `none`, `warning` for `minor` and `maintenance`, `critical` for `major` and `critical`. |
 | `title` | string \| null | Name of the current incident or maintenance; `null` for `none` and when components are degraded without a published incident. |
 | `stage` | string \| null | Its latest stage as reported (`investigating`, `identified`, `monitoring`, `in_progress`, `verifying`; incident.io's `maintenance_in_progress` is reported as `in_progress`); `null` when there is no incident or maintenance, including a degraded component without one. |
@@ -1165,7 +1210,7 @@ OtherProjects: `count` (projects folded in, at least 1), `cost_usd_micros`, `tot
 
 ### Provider links
 
-`ListProviders` adds `providers[].links` (object, always present in 0.6): `status`, `dashboard` and
+`ListProviders` adds `providers[].links` (object, always present since 0.6.0): `status`, `dashboard` and
 `usage`, each an absolute `https://` URL or `null` when the provider has none. Only addresses that
 were checked to exist are listed; `usage` may equal `dashboard` when the provider shows usage on the
 same page. Shells open them with the desktop's URL handler and never build URLs themselves.
@@ -1288,9 +1333,9 @@ file:
 
 ### Other 0.6 methods
 
-- `ResetSettings() → ()`: see [Methods](#methods).
-- `CheckForUpdates() → s` and the state's `update_check`: defined in [Update checks](#update-checks)
-  by the update-check work; this section does not redefine them.
+- `ResetSettings() → ()`: see [Methods](#methods) and [Updating settings](#updating-settings).
+- `CheckForUpdates() → s` and the state's `update_check`: see [Checking on demand](#checking-on-demand)
+  and [Update check](#update-check).
 
 ## Update checks
 
