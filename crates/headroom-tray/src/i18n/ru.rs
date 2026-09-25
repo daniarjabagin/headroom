@@ -266,6 +266,7 @@ pub(super) fn lookup(msgid: &str) -> Option<&'static str> {
     CATALOG
         .iter()
         .chain(super::ru_prefs::CATALOG)
+        .chain(super::ru_options::CATALOG)
         .find(|(key, _)| *key == msgid)
         .map(|(_, value)| *value)
 }
@@ -274,6 +275,7 @@ pub(super) fn plural(msgid: &str) -> Option<[&'static str; 3]> {
     PLURALS
         .iter()
         .chain(super::ru_prefs::PLURALS)
+        .chain(super::ru_options::PLURALS)
         .find(|(key, _)| *key == msgid)
         .map(|(_, forms)| *forms)
 }

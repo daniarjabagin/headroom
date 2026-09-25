@@ -1,7 +1,15 @@
 mod ru;
+mod ru_options;
 mod ru_prefs;
 
+use gtk::gio;
+use gtk::prelude::SettingsExt;
+
+use crate::dates::Clock;
 use crate::payload::Language;
+
+const INTERFACE_SCHEMA: &str = "org.gnome.desktop.interface";
+const CLOCK_FORMAT_KEY: &str = "clock-format";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Lang {
@@ -77,10 +85,29 @@ pub fn fill(template: &str, values: &[(&str, &str)]) -> String {
 
 #[must_use]
 pub fn system_locale() -> Option<String> {
-    ["LC_ALL", "LC_MESSAGES", "LANG"]
+    first_env(&["LC_ALL", "LC_MESSAGES", "LANG"])
+}
+
+fn first_env(names: &[&str]) -> Option<String> {
+    names
         .iter()
         .filter_map(|name| std::env::var(name).ok())
         .find(|value| !value.is_empty())
+}
+
+fn desktop_clock() -> Option<Clock> {
+    let schema = gio::SettingsSchemaSource::default()?.lookup(INTERFACE_SCHEMA, true)?;
+    if !schema.has_key(CLOCK_FORMAT_KEY) {
+        return None;
+    }
+    let settings = gio::Settings::new(INTERFACE_SCHEMA);
+    Clock::from_clock_format(&settings.string(CLOCK_FORMAT_KEY))
+}
+
+#[must_use]
+pub fn system_clock() -> Clock {
+    desktop_clock()
+        .unwrap_or_else(|| Clock::from_locale(first_env(&["LC_ALL", "LC_TIME", "LANG"]).as_deref()))
 }
 
 #[cfg(test)]

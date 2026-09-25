@@ -60,7 +60,7 @@ pub fn footer_status(view: &View, locale: &Locale, now: Timestamp) -> StatusLine
         let text = state.last_success_at.map_or_else(
             || lang.tr("Offline").to_owned(),
             |at| {
-                let time = clock_time(at, &locale.tz);
+                let time = clock_time(at, locale);
                 fill(lang.tr("Offline — last update {time}"), &[("time", &time)])
             },
         );

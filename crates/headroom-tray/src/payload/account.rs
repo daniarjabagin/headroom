@@ -2,6 +2,7 @@ use jiff::Timestamp;
 use serde::Deserialize;
 
 use super::Tone;
+use super::lenient::lenient;
 use super::recovery::RecoveryField;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -24,6 +25,44 @@ pub struct Account {
     pub balances: Vec<Balance>,
     pub notices: Vec<Notice>,
     pub usage_home: String,
+    #[serde(default)]
+    pub collapsed: bool,
+    #[serde(default, deserialize_with = "lenient")]
+    pub refresh: Option<Refresh>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct Refresh {
+    pub mode: RefreshMode,
+    pub interval_secs: u32,
+    #[serde(default)]
+    pub next_at: Option<Timestamp>,
+    #[serde(default = "RefreshReason::fallback")]
+    pub reason: RefreshReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshMode {
+    Live,
+    #[serde(other)]
+    Idle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshReason {
+    Hold,
+    Backoff,
+    Activity,
+    #[serde(other)]
+    Schedule,
+}
+
+impl RefreshReason {
+    fn fallback() -> Self {
+        RefreshReason::Schedule
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]

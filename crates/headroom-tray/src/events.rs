@@ -22,8 +22,17 @@ pub enum Event {
     SettingsWritten(Result<(), String>),
     AccountsWritten(Result<(), String>),
     Restored(Result<(), String>),
+    SettingsReset(Result<(), String>),
+    SpendReceived {
+        query: String,
+        result: Result<String, String>,
+    },
+    DiagnosticsReceived(Result<String, String>),
     OpenRequested,
-    Activate { x: i32, y: i32 },
+    Activate {
+        x: i32,
+        y: i32,
+    },
     Menu(MenuAction),
     TrayFailed(String),
 }
@@ -37,6 +46,9 @@ pub enum Command {
     Account(AccountCommand),
     StartService,
     CheckForUpdates,
+    ResetSettings,
+    GetSpend(String),
+    GetDiagnostics,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

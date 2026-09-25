@@ -3,12 +3,17 @@ use jiff::Timestamp;
 use crate::dates::{Locale, clock_time, exact_moment};
 use crate::i18n::{Lang, fill};
 use crate::labels::label_text;
-use crate::payload::{Display, ResetFormat, Severity, ValueMode, Window};
+use crate::numbers::{compact_tokens, exact_usd, usd};
+use crate::payload::{
+    Display, ModelUsage, PeriodSpend, ProviderSpend, ResetFormat, Severity, SpendUnit, ValueMode,
+    Window,
+};
 
 const SECOND: i64 = 1000;
 const MINUTE: i64 = 60 * SECOND;
 const HOUR: i64 = 60 * MINUTE;
 const DAY: i64 = 24 * HOUR;
+const ELLIPSIS: char = '\u{2026}';
 
 #[must_use]
 pub fn millis_between(from: Timestamp, to: Timestamp) -> i64 {
@@ -252,8 +257,98 @@ pub fn ago_text(lang: Lang, moment: Timestamp, now: Timestamp) -> String {
 
 #[must_use]
 pub fn updated_at_text(locale: &Locale, moment: Timestamp) -> String {
-    let time = clock_time(moment, &locale.tz);
+    let time = clock_time(moment, locale);
     fill(locale.lang.tr("Updated {time}"), &[("time", &time)])
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpendFigures {
+    pub cost_usd_micros: i64,
+    pub total_tokens: u64,
+    pub cost_per_mtok_usd_micros: Option<i64>,
+}
+
+impl From<&PeriodSpend> for SpendFigures {
+    fn from(period: &PeriodSpend) -> Self {
+        Self {
+            cost_usd_micros: period.cost_usd_micros,
+            total_tokens: period.total_tokens,
+            cost_per_mtok_usd_micros: period.cost_per_mtok_usd_micros,
+        }
+    }
+}
+
+impl From<&ProviderSpend> for SpendFigures {
+    fn from(provider: &ProviderSpend) -> Self {
+        Self {
+            cost_usd_micros: provider.cost_usd_micros,
+            total_tokens: provider.total_tokens,
+            cost_per_mtok_usd_micros: provider.cost_per_mtok_usd_micros,
+        }
+    }
+}
+
+impl From<&ModelUsage> for SpendFigures {
+    fn from(model: &ModelUsage) -> Self {
+        Self {
+            cost_usd_micros: model.cost_usd_micros,
+            total_tokens: model.total_tokens,
+            cost_per_mtok_usd_micros: model.cost_per_mtok_usd_micros,
+        }
+    }
+}
+
+#[must_use]
+pub fn cost_per_mtok_text(lang: Lang, micros: Option<i64>) -> String {
+    match micros {
+        Some(value) => fill(
+            lang.tr("{cost} / 1M tokens"),
+            &[("cost", &exact_usd(value))],
+        ),
+        None => lang.tr("unpriced").to_owned(),
+    }
+}
+
+#[must_use]
+pub fn spend_value_text(lang: Lang, unit: SpendUnit, figures: SpendFigures) -> String {
+    match unit {
+        SpendUnit::Cost => usd(figures.cost_usd_micros),
+        SpendUnit::Tokens => compact_tokens(lang, figures.total_tokens),
+        SpendUnit::CostPerMtok => cost_per_mtok_text(lang, figures.cost_per_mtok_usd_micros),
+    }
+}
+
+#[must_use]
+pub fn project_label(lang: Lang, project: Option<&str>) -> String {
+    project.map_or_else(|| lang.tr("No project").to_owned(), str::to_owned)
+}
+
+#[must_use]
+pub fn other_projects_label(lang: Lang, count: u64) -> String {
+    let forms = ["{count} other project", "{count} other projects"];
+    fill(
+        lang.tr_plural(forms, count),
+        &[("count", &count.to_string())],
+    )
+}
+
+fn last_segment_chars(text: &str) -> usize {
+    text.rsplit('/')
+        .next()
+        .map_or(0, |segment| segment.chars().count())
+}
+
+#[must_use]
+pub fn middle_ellipsis(text: &str, max_chars: usize) -> String {
+    let count = text.chars().count();
+    if count <= max_chars || max_chars < 3 {
+        return text.to_owned();
+    }
+    let room = max_chars - 1;
+    let tail = (last_segment_chars(text) + 1).min(room.saturating_sub(4).max(1));
+    let head: String = text.chars().take(room - tail).collect();
+    let end: String = text.chars().skip(count - tail).collect();
+    format!("{head}{ELLIPSIS}{end}")
 }
 
 #[cfg(test)]

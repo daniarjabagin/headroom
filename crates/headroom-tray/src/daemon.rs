@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::time::Duration;
 
 use futures_util::StreamExt;
@@ -9,6 +10,9 @@ use crate::events::{AccountCommand, Command, Event, Events};
 const SYSTEMD_UNIT: &str = "headroom.service";
 const BUS_NAME: &str = "io.github.daniarjabagin.Headroom";
 const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(90);
+const SPEND_TIMEOUT: Duration = Duration::from_secs(30);
+const DIAGNOSTICS_TIMEOUT: Duration = Duration::from_secs(15);
+const RESET_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[zbus::proxy(
     interface = "io.github.daniarjabagin.Headroom1",
@@ -38,6 +42,12 @@ trait Daemon {
     fn restore_accounts(&self, provider: &str) -> zbus::Result<()>;
 
     fn check_for_updates(&self) -> zbus::Result<String>;
+
+    fn reset_settings(&self) -> zbus::Result<()>;
+
+    fn get_spend(&self, query: &str) -> zbus::Result<String>;
+
+    fn get_diagnostics(&self) -> zbus::Result<String>;
 
     #[zbus(signal)]
     fn state_changed(&self, state: String) -> zbus::Result<()>;
@@ -118,15 +128,57 @@ async fn account_command(proxy: &DaemonProxy<'_>, command: AccountCommand, event
     events.send(Event::AccountsWritten(outcome(result)));
 }
 
-fn spawn_update_check(proxy: DaemonProxy<'static>, events: Events) {
+fn spawn_timed<T, F>(
+    events: Events,
+    limit: Duration,
+    call: F,
+    deliver: impl FnOnce(Result<T, String>) -> Event + Send + 'static,
+) where
+    T: Send + 'static,
+    F: Future<Output = zbus::Result<T>> + Send + 'static,
+{
     tokio::spawn(async move {
-        let answer = tokio::time::timeout(UPDATE_CHECK_TIMEOUT, proxy.check_for_updates()).await;
-        let result = match answer {
-            Ok(result) => result.map_err(|error| message(&error)),
-            Err(_) => Err(String::from("the update check timed out")),
+        let result = match tokio::time::timeout(limit, call).await {
+            Ok(answer) => answer.map_err(|error| message(&error)),
+            Err(_) => Err(String::from("the Headroom service did not answer in time")),
         };
-        events.send(Event::UpdateChecked(result));
+        events.send(deliver(result));
     });
+}
+
+fn spawn_query(proxy: &DaemonProxy<'static>, command: Command, events: &Events) {
+    let proxy = proxy.clone();
+    let events = events.clone();
+    match command {
+        Command::CheckForUpdates => spawn_timed(
+            events,
+            UPDATE_CHECK_TIMEOUT,
+            async move { proxy.check_for_updates().await },
+            Event::UpdateChecked,
+        ),
+        Command::ResetSettings => spawn_timed(
+            events,
+            RESET_TIMEOUT,
+            async move { proxy.reset_settings().await },
+            Event::SettingsReset,
+        ),
+        Command::GetSpend(query) => {
+            let sent = query.clone();
+            spawn_timed(
+                events,
+                SPEND_TIMEOUT,
+                async move { proxy.get_spend(&sent).await },
+                move |result| Event::SpendReceived { query, result },
+            );
+        }
+        Command::GetDiagnostics => spawn_timed(
+            events,
+            DIAGNOSTICS_TIMEOUT,
+            async move { proxy.get_diagnostics().await },
+            Event::DiagnosticsReceived,
+        ),
+        other => tracing::debug!(?other, "not a background query"),
+    }
 }
 
 async fn run_command(
@@ -149,7 +201,10 @@ async fn run_command(
             }
             events.send(Event::RetrySettled(id));
         }
-        Command::CheckForUpdates => spawn_update_check(proxy.clone(), events.clone()),
+        Command::CheckForUpdates
+        | Command::ResetSettings
+        | Command::GetSpend(_)
+        | Command::GetDiagnostics => spawn_query(proxy, command, events),
         Command::UpdateSettings(patch) => {
             let result = outcome(proxy.update_settings(&patch).await);
             events.send(Event::SettingsWritten(result));

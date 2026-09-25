@@ -1,6 +1,12 @@
+pub mod capability;
 pub mod change;
 pub mod choices;
+pub mod display;
 pub mod flow;
 pub mod model;
+pub mod names;
+pub mod notify;
+pub mod options;
 pub mod registry;
 pub mod sync;
+pub mod validate;

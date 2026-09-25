@@ -3,19 +3,75 @@ use jiff::civil::{Date, Weekday};
 use jiff::tz::TimeZone;
 
 use crate::i18n::{Lang, fill};
+use crate::payload::TimeFormat;
 
 const WEEK_DAYS: i32 = 7;
+const TWELVE_HOUR_LOCALES: [&str; 12] = [
+    "en_US", "en_CA", "en_AU", "en_NZ", "en_PH", "en_IN", "hi_IN", "ar_", "ko_KR", "es_MX",
+    "es_US", "ur_PK",
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Clock {
+    #[default]
+    H24,
+    H12,
+}
+
+impl Clock {
+    #[must_use]
+    pub fn resolve(format: TimeFormat, system: Clock) -> Self {
+        match format {
+            TimeFormat::H12 => Clock::H12,
+            TimeFormat::H24 => Clock::H24,
+            TimeFormat::Auto => system,
+        }
+    }
+
+    #[must_use]
+    pub fn from_clock_format(value: &str) -> Option<Self> {
+        match value {
+            "12h" => Some(Clock::H12),
+            "24h" => Some(Clock::H24),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn from_locale(locale: Option<&str>) -> Self {
+        match locale {
+            Some(name)
+                if TWELVE_HOUR_LOCALES
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix)) =>
+            {
+                Clock::H12
+            }
+            _ => Clock::H24,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Locale {
     pub lang: Lang,
     pub tz: TimeZone,
+    pub clock: Clock,
 }
 
 impl Locale {
     #[must_use]
     pub fn new(lang: Lang, tz: TimeZone) -> Self {
-        Self { lang, tz }
+        Self {
+            lang,
+            tz,
+            clock: Clock::H24,
+        }
+    }
+
+    #[must_use]
+    pub fn with_clock(self, clock: Clock) -> Self {
+        Self { clock, ..self }
     }
 }
 
@@ -57,9 +113,24 @@ fn month_index(date: Date) -> usize {
 }
 
 #[must_use]
-pub fn clock_time(moment: Timestamp, tz: &TimeZone) -> String {
-    let local = moment.to_zoned(tz.clone());
-    format!("{:02}:{:02}", local.hour(), local.minute())
+pub fn hour_minute(hour: i8, minute: i8, clock: Clock) -> String {
+    match clock {
+        Clock::H24 => format!("{hour:02}:{minute:02}"),
+        Clock::H12 => {
+            let suffix = if hour < 12 { "AM" } else { "PM" };
+            let twelve = match hour % 12 {
+                0 => 12,
+                other => other,
+            };
+            format!("{twelve}:{minute:02}\u{a0}{suffix}")
+        }
+    }
+}
+
+#[must_use]
+pub fn clock_time(moment: Timestamp, locale: &Locale) -> String {
+    let local = moment.to_zoned(locale.tz.clone());
+    hour_minute(local.hour(), local.minute(), locale.clock)
 }
 
 fn month_day(lang: Lang, date: Date) -> String {
@@ -94,7 +165,7 @@ fn calendar_days_between(from: Date, to: Date) -> i32 {
 #[must_use]
 pub fn exact_moment(moment: Timestamp, now: Timestamp, locale: &Locale) -> String {
     let lang = locale.lang;
-    let time = clock_time(moment, &locale.tz);
+    let time = clock_time(moment, locale);
     let date = moment.to_zoned(locale.tz.clone()).date();
     let today = now.to_zoned(locale.tz.clone()).date();
     let days = calendar_days_between(today, date);
@@ -140,8 +211,55 @@ mod tests {
 
     #[test]
     fn clock_time_uses_the_time_zone() {
-        let tz = TimeZone::get("Europe/Berlin").unwrap();
-        assert_eq!(clock_time(at("2026-09-23T10:05:00Z"), &tz), "12:05");
+        let locale = berlin(Lang::En);
+        assert_eq!(clock_time(at("2026-09-23T10:05:00Z"), &locale), "12:05");
+        let twelve = locale.with_clock(Clock::H12);
+        assert_eq!(
+            clock_time(at("2026-09-23T10:05:00Z"), &twelve),
+            "12:05\u{a0}PM"
+        );
+    }
+
+    #[test]
+    fn twelve_hour_clock_edges() {
+        let cases = [
+            (0, 0, "12:00\u{a0}AM"),
+            (9, 7, "9:07\u{a0}AM"),
+            (12, 30, "12:30\u{a0}PM"),
+            (23, 59, "11:59\u{a0}PM"),
+        ];
+        for (hour, minute, expected) in cases {
+            assert_eq!(hour_minute(hour, minute, Clock::H12), expected);
+        }
+        assert_eq!(hour_minute(7, 5, Clock::H24), "07:05");
+    }
+
+    #[test]
+    fn the_clock_follows_the_setting_then_the_system() {
+        assert_eq!(Clock::resolve(TimeFormat::H12, Clock::H24), Clock::H12);
+        assert_eq!(Clock::resolve(TimeFormat::H24, Clock::H12), Clock::H24);
+        assert_eq!(Clock::resolve(TimeFormat::Auto, Clock::H12), Clock::H12);
+        assert_eq!(Clock::from_clock_format("12h"), Some(Clock::H12));
+        assert_eq!(Clock::from_clock_format("24h"), Some(Clock::H24));
+        assert_eq!(Clock::from_clock_format("x"), None);
+        assert_eq!(Clock::from_locale(Some("en_US.UTF-8")), Clock::H12);
+        assert_eq!(Clock::from_locale(Some("en_GB.UTF-8")), Clock::H24);
+        assert_eq!(Clock::from_locale(Some("ru_RU.UTF-8")), Clock::H24);
+        assert_eq!(Clock::from_locale(Some("C")), Clock::H24);
+        assert_eq!(Clock::from_locale(None), Clock::H24);
+    }
+
+    #[test]
+    fn exact_moment_in_twelve_hours() {
+        let locale = berlin(Lang::En).with_clock(Clock::H12);
+        assert_eq!(
+            exact_moment(
+                at("2026-09-23T21:30:00Z"),
+                at("2026-09-23T20:00:00Z"),
+                &locale
+            ),
+            "today at 11:30\u{a0}PM"
+        );
     }
 
     #[test]

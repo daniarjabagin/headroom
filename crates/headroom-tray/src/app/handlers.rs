@@ -37,12 +37,13 @@ impl App {
             Event::UpdateChecked(result) => self.update_checked(result),
             Event::ServiceStarted(result) => self.service_started(result),
             Event::SettingsWritten(result) => self.settings_written(result),
-            Event::AccountsWritten(result) => {
+            Event::AccountsWritten(result) | Event::SettingsReset(result) => {
                 if let Err(message) = result {
                     self.toast(&message);
                 }
             }
             Event::Restored(result) => self.restored(&result),
+            Event::SpendReceived { .. } | Event::DiagnosticsReceived(_) => {}
             Event::OpenRequested | Event::Menu(MenuAction::Open) => self.show(None),
             Event::Menu(MenuAction::Settings) => self.open_settings(),
             Event::Activate { x, y } => self.toggle(Some((x, y))),

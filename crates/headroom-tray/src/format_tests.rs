@@ -167,3 +167,70 @@ fn window_labels() {
     assert_eq!(window_label(Lang::En, "model:opus", "Opus"), "Opus");
     assert_eq!(window_label(Lang::En, "other:x", ""), "other:x");
 }
+
+#[test]
+fn spend_values_follow_the_unit() {
+    let figures = SpendFigures {
+        cost_usd_micros: 4_080_000,
+        total_tokens: 1_250_000,
+        cost_per_mtok_usd_micros: Some(3_264_000),
+    };
+    assert_eq!(
+        spend_value_text(Lang::En, SpendUnit::Cost, figures),
+        "$4.08"
+    );
+    assert_eq!(
+        spend_value_text(Lang::En, SpendUnit::Tokens, figures),
+        "1.3M"
+    );
+    assert_eq!(
+        spend_value_text(Lang::En, SpendUnit::CostPerMtok, figures),
+        "$3.26 / 1M tokens"
+    );
+    assert_eq!(
+        spend_value_text(Lang::Ru, SpendUnit::Tokens, figures),
+        "1,3\u{a0}млн"
+    );
+    let unpriced = SpendFigures {
+        cost_per_mtok_usd_micros: None,
+        ..figures
+    };
+    assert_eq!(
+        spend_value_text(Lang::Ru, SpendUnit::CostPerMtok, unpriced),
+        "без цены"
+    );
+    assert_eq!(
+        cost_per_mtok_text(Lang::Ru, Some(217_163)),
+        "$0.22 за 1 млн токенов"
+    );
+}
+
+#[test]
+fn project_paths_lose_their_middle() {
+    assert_eq!(middle_ellipsis("~/code/headroom", 20), "~/code/headroom");
+    assert_eq!(
+        middle_ellipsis("~/work/clients/acme/services/headroom", 24),
+        "~/work/clients…/headroom"
+    );
+    assert_eq!(
+        middle_ellipsis("~/a/an-extremely-long-project-directory-name", 16),
+        "~/a/…ectory-name"
+    );
+    assert_eq!(middle_ellipsis("abcdef", 2), "abcdef");
+    assert_eq!(project_label(Lang::En, None), "No project");
+    assert_eq!(project_label(Lang::Ru, None), "Без проекта");
+    assert_eq!(project_label(Lang::En, Some("~/x")), "~/x");
+    assert_eq!(other_projects_label(Lang::En, 1), "1 other project");
+    assert_eq!(other_projects_label(Lang::En, 4), "4 other projects");
+    assert_eq!(other_projects_label(Lang::Ru, 3), "3 других проекта");
+    assert_eq!(other_projects_label(Lang::Ru, 21), "21 другой проект");
+}
+
+#[test]
+fn clock_times_follow_the_clock_setting() {
+    let twelve = utc(Lang::En).with_clock(crate::dates::Clock::H12);
+    assert_eq!(
+        updated_at_text(&twelve, at("2026-09-23T21:58:00Z")),
+        "Updated 9:58\u{a0}PM"
+    );
+}

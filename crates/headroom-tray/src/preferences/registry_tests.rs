@@ -42,6 +42,31 @@ fn parses_the_methods_of_each_provider() {
 }
 
 #[test]
+fn keeps_only_https_links() {
+    let json = r#"{"version":1,"providers":[
+        {"id":"copilot","display_name":"Copilot","add_account":[{"kind":"cli_login"}],
+         "links":{"status":"https://www.githubstatus.com","dashboard":"https://github.com/settings/copilot",
+                  "usage":"http://github.com/settings/billing"}},
+        {"id":"grok","display_name":"Grok","add_account":[{"kind":"cli_login"}],
+         "links":{"status":null,"dashboard":"https://grok.com/ bad","usage":null}},
+        {"id":"old","display_name":"Old","add_account":[{"kind":"cli_login"}],"links":7}
+    ]}"#;
+    let providers = parse_providers(json).unwrap();
+    assert_eq!(
+        providers[0].links,
+        ProviderLinks {
+            status: Some("https://www.githubstatus.com".into()),
+            dashboard: Some("https://github.com/settings/copilot".into()),
+            usage: None,
+        }
+    );
+    assert_eq!(providers[1].links, ProviderLinks::default());
+    assert_eq!(providers[2].links, ProviderLinks::default());
+    let missing = parse_providers(REGISTRY).unwrap();
+    assert_eq!(missing[0].links, ProviderLinks::default());
+}
+
+#[test]
 fn rejects_unreadable_and_unknown_versions() {
     assert!(matches!(
         parse_providers("nope"),

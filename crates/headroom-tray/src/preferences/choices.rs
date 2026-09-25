@@ -1,7 +1,7 @@
 use super::model::{Headline, MAX_REFRESH_SECS, MIN_REFRESH_SECS};
 use crate::account::{account_title, shows_name};
 use crate::i18n::{Lang, fill};
-use crate::payload::{Account, Owner, State, Status};
+use crate::payload::{Account, Owner, PanelLimit, State, Status};
 
 const REFRESH_PRESETS: [u32; 7] = [60, 120, 300, 600, 900, 1800, 3600];
 
@@ -49,6 +49,30 @@ pub fn refresh_choices(lang: Lang, current: u32) -> Vec<Choice<u32>> {
         .collect()
 }
 
+fn window_choices(state: Option<&State>) -> Vec<Choice<PanelLimit>> {
+    let visible: Vec<&Account> = state
+        .map(|state| {
+            state
+                .accounts
+                .iter()
+                .filter(|account| !account.hidden)
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut choices = Vec::new();
+    for account in &visible {
+        let title = account_title(account, shows_name(account, &visible));
+        choices.extend(account.windows.iter().map(|window| Choice {
+            value: PanelLimit {
+                account_id: account.id.clone(),
+                window: window.id.clone(),
+            },
+            label: format!("{title} — {}", window.label),
+        }));
+    }
+    choices
+}
+
 #[must_use]
 pub fn headline_choices(
     lang: Lang,
@@ -59,30 +83,36 @@ pub fn headline_choices(
         value: Headline::Auto,
         label: lang.tr("Auto — most critical").to_owned(),
     }];
-    let visible: Vec<&Account> = state
-        .map(|state| {
-            state
-                .accounts
-                .iter()
-                .filter(|account| !account.hidden)
-                .collect()
-        })
-        .unwrap_or_default();
-    for account in &visible {
-        let title = account_title(account, shows_name(account, &visible));
-        choices.extend(account.windows.iter().map(|window| Choice {
-            value: Headline::Pinned {
-                account_id: account.id.clone(),
-                window: window.id.clone(),
-            },
-            label: format!("{title} — {}", window.label),
-        }));
-    }
+    choices.extend(window_choices(state).into_iter().map(|choice| Choice {
+        value: Headline::Pinned {
+            account_id: choice.value.account_id,
+            window: choice.value.window,
+        },
+        label: choice.label,
+    }));
     if *current != Headline::Auto && choices.iter().all(|choice| choice.value != *current) {
         choices.push(Choice {
             value: current.clone(),
             label: lang.tr("Pinned limit (not available now)").to_owned(),
         });
+    }
+    choices
+}
+
+#[must_use]
+pub fn panel_limit_choices(
+    lang: Lang,
+    state: Option<&State>,
+    current: &[PanelLimit],
+) -> Vec<Choice<PanelLimit>> {
+    let mut choices = window_choices(state);
+    for limit in current {
+        if choices.iter().all(|choice| choice.value != *limit) {
+            choices.push(Choice {
+                value: limit.clone(),
+                label: lang.tr("Pinned limit (not available now)").to_owned(),
+            });
+        }
     }
     choices
 }

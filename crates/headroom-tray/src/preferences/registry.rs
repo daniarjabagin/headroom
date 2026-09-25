@@ -48,11 +48,19 @@ pub enum AddMethod {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ProviderLinks {
+    pub status: Option<String>,
+    pub dashboard: Option<String>,
+    pub usage: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderInfo {
     pub id: String,
     pub display_name: String,
     pub methods: Vec<AddMethod>,
+    pub links: ProviderLinks,
 }
 
 #[derive(Debug, Deserialize)]
@@ -69,6 +77,18 @@ struct RawProvider {
     display_name: Option<String>,
     #[serde(default)]
     add_account: Vec<RawMethod>,
+    #[serde(default)]
+    links: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawLinks {
+    #[serde(default)]
+    status: Option<String>,
+    #[serde(default)]
+    dashboard: Option<String>,
+    #[serde(default)]
+    usage: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +140,17 @@ fn method(raw: RawMethod) -> Option<AddMethod> {
     }
 }
 
+fn links(value: Option<serde_json::Value>) -> ProviderLinks {
+    let raw: RawLinks = value
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
+    ProviderLinks {
+        status: https_url(raw.status),
+        dashboard: https_url(raw.dashboard),
+        usage: https_url(raw.usage),
+    }
+}
+
 fn provider(value: serde_json::Value) -> Option<ProviderInfo> {
     let raw: RawProvider = serde_json::from_value(value).ok()?;
     if !valid_id(&raw.id) {
@@ -133,6 +164,7 @@ fn provider(value: serde_json::Value) -> Option<ProviderInfo> {
         display_name: text(raw.display_name).unwrap_or_else(|| raw.id.clone()),
         id: raw.id,
         methods,
+        links: links(raw.links),
     })
 }
 

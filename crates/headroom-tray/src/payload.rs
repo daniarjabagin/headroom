@@ -1,21 +1,41 @@
-use std::collections::BTreeMap;
-
 use jiff::Timestamp;
 use serde::Deserialize;
 
 use crate::combined::CombinedGroup;
 
 mod account;
+mod diagnostics;
+mod display;
+mod lenient;
+mod panel;
+mod projects;
 mod recovery;
+mod spend_query;
+mod status;
 mod usage;
 
 pub use account::{
-    Account, AccountError, Balance, BalanceAmount, Notice, Owner, Pace, Severity, Status, Window,
+    Account, AccountError, Balance, BalanceAmount, Notice, Owner, Pace, Refresh, RefreshMode,
+    RefreshReason, Severity, Status, Window,
 };
+pub use diagnostics::{Diagnostics, parse_diagnostics};
+pub use display::{
+    Density, Display, Language, PanelBox, PanelIndicator, PanelLabel, PanelLimit, PanelMode,
+    PanelPosition, ResetFormat, SpendBreakdown, SpendPeriod, SpendUnit, Theme, TimeFormat,
+    ValueMode,
+};
+pub use panel::{Headline, PanelItem};
+pub use projects::{OtherProjects, ProjectProvider, ProjectSpend};
 pub use recovery::{Recovery, RecoveryField};
+pub use spend_query::{
+    SpendGroup, SpendQuery, SpendRange, SpendReport, SpendRow, parse_spend_report,
+};
+pub use status::{ProviderStatus, StatusIndicator};
 pub use usage::{
     Daily, ModelUsage, OtherModels, PeriodSpend, ProviderSpend, Spend, Tokens, Totals, Usage,
 };
+
+use lenient::{lenient, lenient_items, lenient_list};
 
 pub const STATE_VERSION: u32 = 1;
 
@@ -50,15 +70,21 @@ pub struct State {
     pub offline: bool,
     #[serde(default)]
     pub update: Option<Update>,
-    #[serde(default, deserialize_with = "recovery::lenient")]
+    #[serde(default, deserialize_with = "lenient")]
     pub update_check: Option<UpdateCheck>,
     pub display: Display,
     pub headline: Option<Headline>,
+    #[serde(default, deserialize_with = "lenient_items")]
+    pub panel_items: Option<Vec<PanelItem>>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub panel_tone: Option<Tone>,
     pub accounts: Vec<Account>,
     pub usage: Vec<Usage>,
     pub spend: Spend,
     #[serde(default)]
     pub combined: Vec<CombinedGroup>,
+    #[serde(default, deserialize_with = "lenient_list")]
+    pub provider_status: Vec<ProviderStatus>,
 }
 
 impl State {
@@ -67,6 +93,30 @@ impl State {
         self.accounts
             .iter()
             .any(|account| account.status == Status::Refreshing)
+    }
+
+    #[must_use]
+    pub fn speaks_0_6(&self) -> bool {
+        self.panel_items.is_some()
+    }
+
+    #[must_use]
+    pub fn resolved_panel_items(&self) -> Vec<PanelItem> {
+        match &self.panel_items {
+            Some(items) => items.clone(),
+            None => self
+                .headline
+                .iter()
+                .map(|headline| PanelItem::from_headline(headline, self.display.value_mode))
+                .collect(),
+        }
+    }
+
+    #[must_use]
+    pub fn provider_status_of(&self, provider: &str) -> Option<&ProviderStatus> {
+        self.provider_status
+            .iter()
+            .find(|status| status.provider == provider)
     }
 
     #[must_use]
@@ -101,93 +151,6 @@ pub enum InstallKind {
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default)]
-#[allow(
-    clippy::struct_excessive_bools,
-    reason = "each flag is an independent user toggle from the daemon"
-)]
-pub struct Display {
-    pub theme: Theme,
-    pub language: Language,
-    pub value_mode: ValueMode,
-    pub reset_format: ResetFormat,
-    pub show_spend: bool,
-    pub show_account_spend: bool,
-    pub show_trend: bool,
-    pub show_forecast: bool,
-    pub hidden_windows: BTreeMap<String, Vec<String>>,
-}
-
-impl Default for Display {
-    fn default() -> Self {
-        Self {
-            theme: Theme::System,
-            language: Language::System,
-            value_mode: ValueMode::Left,
-            reset_format: ResetFormat::Countdown,
-            show_spend: true,
-            show_account_spend: true,
-            show_trend: true,
-            show_forecast: true,
-            hidden_windows: BTreeMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Theme {
-    Light,
-    Dark,
-    #[serde(other)]
-    System,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Language {
-    En,
-    Ru,
-    #[serde(other)]
-    System,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ValueMode {
-    Used,
-    #[serde(other)]
-    Left,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ResetFormat {
-    Exact,
-    #[serde(other)]
-    Countdown,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct Headline {
-    #[serde(default)]
-    pub account_id: Option<String>,
-    pub provider: String,
-    pub provider_name: String,
-    #[serde(default)]
-    pub account_label: Option<String>,
-    #[serde(default)]
-    pub combined: bool,
-    #[serde(default)]
-    pub account_count: Option<u32>,
-    pub window: String,
-    pub window_label: String,
-    pub used_percent: f64,
-    pub remaining_percent: f64,
-    pub tone: Tone,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Tone {
@@ -201,3 +164,7 @@ pub enum Tone {
 #[cfg(test)]
 #[path = "payload_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "payload_release_tests.rs"]
+mod release_tests;
