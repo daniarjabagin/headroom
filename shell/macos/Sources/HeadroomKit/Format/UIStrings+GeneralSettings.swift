@@ -76,8 +76,8 @@ public enum RefreshSettingsText: LocalizedText {
         case .adaptive: ("Faster while coding tools run", "Чаще, пока работают ИИ-инструменты")
         case .adaptiveDetail:
             (
-                "Every minute while Claude Code, Codex or Cursor is running",
-                "Раз в минуту, пока запущены Claude Code, Codex или Cursor"
+                "Every minute while a coding tool is writing usage logs",
+                "Каждую минуту, пока инструмент пишет журналы использования"
             )
         }
     }

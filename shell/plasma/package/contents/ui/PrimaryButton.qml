@@ -5,6 +5,8 @@ import org.kde.kirigami as Kirigami
 T.Button {
     id: button
 
+    property bool animated: true
+
     implicitWidth: implicitContentWidth + leftPadding + rightPadding
     implicitHeight: implicitContentHeight + topPadding + bottomPadding
     topPadding: Math.round(Kirigami.Units.smallSpacing * 1.25)
@@ -12,7 +14,7 @@ T.Button {
     leftPadding: Math.round(Kirigami.Units.gridUnit * 0.75)
     rightPadding: leftPadding
     opacity: enabled ? 1 : 0.6
-    scale: button.down ? 0.96 : 1
+    scale: button.down && button.animated ? 0.96 : 1
 
     contentItem: TextLabel {
         weight: Font.DemiBold
@@ -29,6 +31,8 @@ T.Button {
     }
 
     Behavior on scale {
+        enabled: button.animated
+
         NumberAnimation {
             duration: Kirigami.Units.shortDuration
             easing.type: Easing.OutCubic

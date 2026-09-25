@@ -198,6 +198,7 @@ Item {
                     Layout.bottomMargin: Metrics.cardPadding(Kirigami.Units)
                     view: full.view
                     lang: full.lang
+                    animated: full.animated
                     onStartServiceRequested: full.startServiceRequested()
                     onRefreshRequested: full.refreshRequested("")
                 }

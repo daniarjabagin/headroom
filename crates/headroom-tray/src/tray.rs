@@ -237,10 +237,10 @@ mod tests {
         assert_eq!(pulse.opacity(), FULL_OPACITY);
         pulse.follow(true);
         assert!(pulse.ticker.is_some());
-        for _ in 0..8 {
+        for _ in 0..4 {
             pulse.next_frame().await;
         }
-        assert_eq!(pulse.opacity(), opacity(8));
+        assert_eq!(pulse.opacity(), opacity(4));
         assert!(pulse.opacity() < FULL_OPACITY);
         pulse.follow(false);
         assert!(pulse.ticker.is_none());

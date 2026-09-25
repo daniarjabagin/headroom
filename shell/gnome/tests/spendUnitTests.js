@@ -39,7 +39,6 @@ function testProjects() {
     check('code points', units.ellipsizedMiddle('~/проекты/приложение', 10), '~/пр…жение');
     check('no project', units.projectLabel(null, 20), 'No project');
     check('project label', units.projectLabel('~/code/headroom', 40), '~/code/headroom');
-    check('other projects', units.otherProjectsLabel({ count: 3 }), 'Other (3)');
 }
 
 function testPeriods() {

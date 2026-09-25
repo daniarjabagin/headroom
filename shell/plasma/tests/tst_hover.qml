@@ -88,6 +88,21 @@ TestCase {
         tryCompare(fill, "opacity", 1);
     }
 
+    function test_primary_button_press_scale_follows_reduced_motion() {
+        const still = createTemporaryObject(primaryComponent, suite, {
+            animated: false
+        });
+        mousePress(still);
+        verify(still.down);
+        compare(still.scale, 1);
+        mouseRelease(still);
+        const lively = createTemporaryObject(primaryComponent, suite);
+        verify(lively.animated);
+        mousePress(lively);
+        tryVerify(() => lively.scale < 1);
+        mouseRelease(lively);
+    }
+
     width: 200
     height: 200
     visible: true
@@ -107,6 +122,14 @@ TestCase {
 
         PointerHover {
             id: hover
+        }
+    }
+
+    Component {
+        id: primaryComponent
+
+        PrimaryButton {
+            text: "Try again"
         }
     }
 

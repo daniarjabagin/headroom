@@ -95,3 +95,6 @@ mod recovery_tests;
 
 #[cfg(test)]
 mod spend_state_tests;
+
+#[cfg(test)]
+mod usage_state_tests;

@@ -88,8 +88,8 @@ export const RU_PREFS = {
     Keyboard: 'Клавиатура',
     Privacy: 'Конфиденциальность',
     'Faster while coding tools run': 'Чаще, пока работают инструменты для кода',
-    'Every minute while Claude Code, Codex or Cursor is open':
-        'Каждую минуту, пока открыт Claude Code, Codex или Cursor',
+    'Every minute while a coding tool is writing usage logs':
+        'Каждую минуту, пока инструмент пишет журналы использования',
     '{percent}%': '{percent}%',
     'Default ({percent}%)': 'По умолчанию ({percent}%)',
     Off: 'Выкл.',

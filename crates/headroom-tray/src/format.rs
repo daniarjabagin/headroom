@@ -1,6 +1,6 @@
 use jiff::Timestamp;
 
-use crate::dates::{Locale, clock_time, exact_moment};
+use crate::dates::{Locale, exact_moment};
 use crate::i18n::{Lang, fill};
 use crate::labels::label_text;
 use crate::numbers::{compact_tokens, exact_usd, usd};
@@ -253,12 +253,6 @@ pub fn ago_text(lang: Lang, moment: Timestamp, now: Timestamp) -> String {
     }
     let text = duration(lang, elapsed, false);
     fill(lang.tr("{duration} ago"), &[("duration", &text)])
-}
-
-#[must_use]
-pub fn updated_at_text(locale: &Locale, moment: Timestamp) -> String {
-    let time = clock_time(moment, locale);
-    fill(locale.lang.tr("Updated {time}"), &[("time", &time)])
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
