@@ -1,3 +1,4 @@
+pub mod breakdown;
 pub mod ingest;
 pub mod summary;
 mod watcher;

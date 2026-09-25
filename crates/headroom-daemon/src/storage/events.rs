@@ -15,17 +15,22 @@ use crate::home::UsageHome;
 
 const UPSERT: &str = "INSERT INTO usage_events (provider, usage_home, key, at, model, tier, input, \
      cache_read, cache_write_5m, cache_write_1h, output, reasoning, total, web_search, \
-     reported_cost) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15) \
+     reported_cost, project) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, \
+     ?15, ?16) \
      ON CONFLICT(provider, usage_home, key) DO UPDATE SET at = excluded.at, \
      model = excluded.model, tier = excluded.tier, input = excluded.input, \
      cache_read = excluded.cache_read, cache_write_5m = excluded.cache_write_5m, \
      cache_write_1h = excluded.cache_write_1h, output = excluded.output, \
      reasoning = excluded.reasoning, total = excluded.total, web_search = excluded.web_search, \
-     reported_cost = excluded.reported_cost \
+     reported_cost = excluded.reported_cost, \
+     project = COALESCE(excluded.project, usage_events.project) \
      WHERE excluded.total > usage_events.total";
 
+const FILL_PROJECT: &str = "UPDATE usage_events SET project = ?4 \
+     WHERE provider = ?1 AND usage_home = ?2 AND key = ?3 AND project IS NULL";
+
 const SELECT_SINCE: &str = "SELECT key, at, model, tier, input, cache_read, cache_write_5m, \
-     cache_write_1h, output, reasoning, web_search, reported_cost FROM usage_events \
+     cache_write_1h, output, reasoning, web_search, reported_cost, project FROM usage_events \
      WHERE provider = ?1 AND usage_home = ?2 AND at >= ?3 ORDER BY at, key";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -47,6 +52,7 @@ struct EventRow<'a> {
     counts: [i64; 7],
     web_search: u32,
     reported_cost: Option<i64>,
+    project: Option<&'a str>,
 }
 
 pub fn ingest(
@@ -63,7 +69,7 @@ pub fn ingest(
     let mut ingested = Ingested::default();
     for event in events {
         match encode(event) {
-            Ok(row) => ingested.changed += upsert(&tx, &key, &row)?,
+            Ok(row) => ingested.changed += store(&tx, &key, &row)?,
             Err(error) => {
                 tracing::warn!(key = %event.key.0, %error, "skipped a usage event that cannot be stored");
                 ingested.skipped += 1;
@@ -93,7 +99,31 @@ fn encode(event: &UsageEvent) -> Result<EventRow<'_>, StorageError> {
         ],
         web_search: event.web_search_requests,
         reported_cost: event.reported_cost.map(|cost| cost.0),
+        project: event.project.as_deref(),
     })
+}
+
+fn store(
+    tx: &Transaction<'_>,
+    home: &HomeKey<'_>,
+    row: &EventRow<'_>,
+) -> Result<usize, StorageError> {
+    let changed = upsert(tx, home, row)?;
+    match row.project {
+        Some(project) if changed == 0 => fill_project(tx, home, row.key, project),
+        _ => Ok(changed),
+    }
+}
+
+fn fill_project(
+    tx: &Transaction<'_>,
+    home: &HomeKey<'_>,
+    key: &str,
+    project: &str,
+) -> Result<usize, StorageError> {
+    Ok(tx
+        .prepare_cached(FILL_PROJECT)?
+        .execute(params![home.provider, home.home, key, project])?)
 }
 
 fn upsert(
@@ -125,7 +155,8 @@ fn upsert(
         reasoning,
         total,
         row.web_search,
-        row.reported_cost
+        row.reported_cost,
+        row.project
     ])?)
 }
 
@@ -162,6 +193,7 @@ struct RawEvent {
     counts: [i64; 6],
     web_search: u32,
     reported_cost: Option<i64>,
+    project: Option<String>,
 }
 
 fn read_raw(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
@@ -180,6 +212,7 @@ fn read_raw(row: &Row<'_>) -> rusqlite::Result<RawEvent> {
         ],
         web_search: row.get(10)?,
         reported_cost: row.get(11)?,
+        project: row.get(12)?,
     })
 }
 
@@ -200,9 +233,14 @@ fn decode(raw: RawEvent) -> Result<UsageEvent, StorageError> {
         },
         web_search_requests: raw.web_search,
         reported_cost: raw.reported_cost.map(MicroUsd),
+        project: raw.project,
     })
 }
 
 #[cfg(test)]
 #[path = "events_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "events_project_tests.rs"]
+mod project_tests;

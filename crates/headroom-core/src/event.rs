@@ -16,6 +16,9 @@ pub struct UsageEvent {
     /// Exact cost the provider logged for this event; it takes precedence over the price book.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reported_cost: Option<MicroUsd>,
+    /// Absolute working directory of the session that produced the event, as the log wrote it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
 }
 
 impl UsageEvent {
@@ -137,6 +140,7 @@ mod tests {
             tokens,
             web_search_requests: 0,
             reported_cost: None,
+            project: None,
         }
     }
 
@@ -164,6 +168,21 @@ mod tests {
             ..TokenCounts::default()
         };
         assert!(!usage("2026-09-23T10:00:00Z", overflowing_total).fits_in_i64());
+    }
+
+    #[test]
+    fn project_is_optional_in_serde() {
+        let plain = usage("2026-09-23T10:00:00Z", tokens(5));
+        let json = serde_json::to_string(&plain).unwrap();
+        assert!(!json.contains("project"));
+        assert_eq!(serde_json::from_str::<UsageEvent>(&json).unwrap(), plain);
+        let placed = UsageEvent {
+            project: Some("/home/user/work/app".into()),
+            ..plain
+        };
+        let json = serde_json::to_string(&placed).unwrap();
+        assert!(json.contains(r#""project":"/home/user/work/app""#));
+        assert_eq!(serde_json::from_str::<UsageEvent>(&json).unwrap(), placed);
     }
 
     #[test]

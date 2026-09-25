@@ -142,6 +142,7 @@ fn model_event(
         tokens,
         web_search_requests: 0,
         reported_cost: ticks.and_then(whole).and_then(micro_usd_from_ticks),
+        project: None,
     })
 }
 

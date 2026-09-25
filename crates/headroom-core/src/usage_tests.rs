@@ -1,7 +1,7 @@
 use super::*;
 use crate::event::{EventKey, ServiceTier};
 
-struct FlatPrices;
+pub(super) struct FlatPrices;
 
 impl PriceBook for FlatPrices {
     fn cost(&self, event: &UsageEvent) -> Option<MicroUsd> {
@@ -17,11 +17,11 @@ impl PriceBook for FlatPrices {
     }
 }
 
-fn ts(text: &str) -> Timestamp {
+pub(super) fn ts(text: &str) -> Timestamp {
     text.parse().unwrap()
 }
 
-fn event(key: &str, at: &str, model: &str, output: u64) -> UsageEvent {
+pub(super) fn event(key: &str, at: &str, model: &str, output: u64) -> UsageEvent {
     UsageEvent {
         key: EventKey(key.into()),
         at: ts(at),
@@ -35,10 +35,11 @@ fn event(key: &str, at: &str, model: &str, output: u64) -> UsageEvent {
         },
         web_search_requests: 0,
         reported_cost: None,
+        project: None,
     }
 }
 
-fn tz(name: &str) -> TimeZone {
+pub(super) fn tz(name: &str) -> TimeZone {
     TimeZone::get(name).unwrap()
 }
 
