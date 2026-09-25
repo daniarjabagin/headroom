@@ -240,7 +240,11 @@ TestCase {
         verify(command.includes("headroom accounts add codex --label="));
         verify(!Commands.addAccountCommand("claude", "  ", "x").includes("--label"));
         compare(Commands.removeAccountCommand("codex:9f8e7d6c5b4a"), "headroom accounts remove 'codex:9f8e7d6c5b4a' --yes --progress json");
-        for (const run of [() => Commands.addAccountCommand("rm -rf", "", ""), () => Commands.addAccountCommand("-h", "", ""), () => Commands.removeAccountCommand("x; rm -rf ~"), () => Commands.removeAccountCommand("-x:1a")]) {
+        const login = Commands.signInCommand("claude:5e4d3c2b1a0f", "Press Enter");
+        verify(login.includes("xdg-terminal-exec sh -c "));
+        verify(login.includes("headroom accounts login '\\''claude:5e4d3c2b1a0f'\\''; status=$?"));
+        compare(Commands.signInCommand("codex", "Press Enter"), Commands.addAccountCommand("codex", "", "Press Enter"));
+        for (const run of [() => Commands.addAccountCommand("rm -rf", "", ""), () => Commands.addAccountCommand("-h", "", ""), () => Commands.removeAccountCommand("x; rm -rf ~"), () => Commands.removeAccountCommand("-x:1a"), () => Commands.loginAccountCommand("claude:1a; rm", ""), () => Commands.signInCommand("-x:1a", "")]) {
             try {
                 run();
                 fail("expected a command error");

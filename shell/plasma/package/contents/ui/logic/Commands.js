@@ -12,10 +12,18 @@ function shellQuote(value) {
     return `'${String(value).replace(/'/g, "'\\''")}'`;
 }
 
+function terminalScript(command, closePrompt) {
+    return `${command}; status=$?; printf '\\n%s ' ${shellQuote(closePrompt)}; read -r _; exit $status`;
+}
+
 function loginScript(provider, label, closePrompt) {
     const labelPart = label.trim() === "" ? "" : ` --label=${shellQuote(label.trim())}`;
-    const add = `headroom accounts add ${provider}${labelPart}`;
-    return `${add}; status=$?; printf '\\n%s ' ${shellQuote(closePrompt)}; read -r _; exit $status`;
+    return terminalScript(`headroom accounts add ${provider}${labelPart}`, closePrompt);
+}
+
+function inTerminal(shellScript) {
+    const script = shellQuote(shellScript);
+    return `if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c ${script}; else exec konsole -e sh -c ${script}; fi`;
 }
 
 function addAccountCommand(provider, label, closePrompt) {
@@ -23,8 +31,19 @@ function addAccountCommand(provider, label, closePrompt) {
         throw new CommandError(I18n.N("Unexpected provider id {provider}"), {
             provider
         });
-    const script = shellQuote(loginScript(provider, label, closePrompt));
-    return `if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c ${script}; else exec konsole -e sh -c ${script}; fi`;
+    return inTerminal(loginScript(provider, label, closePrompt));
+}
+
+function loginAccountCommand(accountId, closePrompt) {
+    if (!ACCOUNT_ID.test(accountId))
+        throw new CommandError(I18n.N("Unexpected account id {account}"), {
+            account: accountId
+        });
+    return inTerminal(terminalScript(`headroom accounts login ${shellQuote(accountId)}`, closePrompt));
+}
+
+function signInCommand(target, closePrompt) {
+    return ACCOUNT_ID.test(target) ? loginAccountCommand(target, closePrompt) : addAccountCommand(target, "", closePrompt);
 }
 
 function opensTerminal(method) {
