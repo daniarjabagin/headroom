@@ -5,7 +5,7 @@
     @MainActor
     enum PreviewModels {
         static let actions = PopupActions(
-            refreshNow: { true }, refreshAccount: { _ in }, openSettings: {}, signIn: { _ in },
+            refreshNow: { true }, refreshAccount: { _ in true }, openSettings: {}, signIn: { _ in },
             setAccountOrder: { _ in }, updateSettings: { _ in }, reducedMotion: { false })
 
         static func connected(_ state: DaemonState?) -> AppModel {

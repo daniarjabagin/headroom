@@ -2,6 +2,7 @@ public enum AccountStatusRules {
     static let signInErrors: Set<String> = ["not_signed_in", "sign_in_expired"]
     static let noSubscriptionKind = "no_subscription"
     static let networkKind = "network"
+    static let accountChangedKind = "account_changed"
     static let noSubscriptionTitle = "no active subscription"
 
     public static func isSignedOut(_ account: Account) -> Bool {
@@ -23,7 +24,16 @@ public enum AccountStatusRules {
     }
 
     public static func showsErrorNotice(_ account: Account, offline: Bool) -> Bool {
-        account.status == .error && !failedOffline(account, offline: offline)
+        failedLastRefresh(account) && !failedOffline(account, offline: offline)
+    }
+
+    static func failedLastRefresh(_ account: Account) -> Bool {
+        if account.status == .error { return true }
+        return account.status == .refreshing && account.error != nil && !isBlocked(account)
+    }
+
+    static func accountChanged(_ account: Account) -> Bool {
+        account.error?.kind == accountChangedKind
     }
 
     public static func awaitingFirstData(_ account: Account) -> Bool {

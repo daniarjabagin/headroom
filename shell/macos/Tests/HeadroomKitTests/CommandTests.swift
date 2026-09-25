@@ -56,7 +56,8 @@ final class CommandTests: XCTestCase {
     func testModelCommandsReachTheDaemonAndRecordFailures() async throws {
         let (client, transport) = try await connectedClient(failing: "RefreshNow")
         let model = AppModel(preferredLanguages: ["en"], commands: CommandQueue(client: client))
-        model.refresh(accountID: "claude:main")
+        let refreshed = await model.refresh(accountID: "claude:main")
+        XCTAssertTrue(refreshed)
         let outcome = await model.send(.refreshNow)?.value
         guard case .some(.failure(let error)) = outcome else { return XCTFail("expected failure") }
         XCTAssertEqual(error, .invalidArguments("rejected"))
@@ -64,6 +65,12 @@ final class CommandTests: XCTestCase {
         XCTAssertEqual(model.lastError, .invalidArguments("rejected"))
         XCTAssertEqual(try sent(transport).map(\.method), ["Refresh", "RefreshNow"])
         await client.stop()
+    }
+
+    func testRefreshWithoutADaemonReportsFailure() async {
+        let model = AppModel(preferredLanguages: ["en"])
+        let refreshed = await model.refresh(accountID: "claude:main")
+        XCTAssertFalse(refreshed)
     }
 
     func testPresenterRoutes() {

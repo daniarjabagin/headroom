@@ -34,9 +34,9 @@ final class PresentationAccountTests: XCTestCase {
             .blocked(
                 BlockingNotice(
                     kind: .signIn, title: "Signed out of Claude",
-                    detail:
-                        "Sign in again through Headroom (Settings → Accounts → Add account), or remove the account there.",
-                    note: "sign-in expired, open the CLI to sign in again", offersSignIn: true, retrying: false)))
+                    detail: "Sign in again with the provider's app, then press Retry.",
+                    note: "sign-in expired, open the CLI to sign in again",
+                    recovery: NoticeRecovery(accountID: "claude:main", primary: nil, retrying: false))))
     }
 
     func testRetryingSignedOutAccountStaysBlocked() throws {
@@ -45,8 +45,8 @@ final class PresentationAccountTests: XCTestCase {
         guard case .blocked(let notice) = AccountSectionModel.sections(state, formatter: Build.english)[0].body else {
             return XCTFail("expected a blocking notice")
         }
-        XCTAssertTrue(notice.retrying)
-        XCTAssertTrue(notice.offersSignIn)
+        XCTAssertEqual(
+            notice.recovery, NoticeRecovery(accountID: "a", primary: .signIn(provider: "codex"), retrying: true))
     }
 
     func testNoSubscriptionHidesPlanAndRepeatsOnlyInformativeMessages() throws {
@@ -64,7 +64,7 @@ final class PresentationAccountTests: XCTestCase {
         XCTAssertEqual(first.title, "No active subscription")
         XCTAssertNil(first.note)
         XCTAssertEqual(second.note, "No active ChatGPT subscription (Free plan).")
-        XCTAssertFalse(second.offersSignIn)
+        XCTAssertEqual(second.recovery, NoticeRecovery(accountID: "b", primary: nil, retrying: false))
     }
 
     func testTitlesNameTheAccountOnlyWhenAProviderHasSeveral() throws {
@@ -88,7 +88,7 @@ final class PresentationAccountTests: XCTestCase {
             limits.notices.first,
             NoticeModel(
                 id: "error", kind: .error, title: "Couldn't refresh Codex", detail: "HTTP 503 from chatgpt.com",
-                retryAccountID: "a"))
+                note: nil, recovery: NoticeRecovery(accountID: "a", primary: nil, retrying: false)))
         let offline = AccountSectionModel.sections(
             try Build.state(accounts: [account], offline: true), formatter: Build.english)[0]
         XCTAssertEqual(offline.header.status, .outdated(updatedAt: nil))

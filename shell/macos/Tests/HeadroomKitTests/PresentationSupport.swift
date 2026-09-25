@@ -54,14 +54,15 @@ enum Build {
         id: String, provider: String = "codex", label: String = "null", email: String = "null",
         status: String = "fresh", error: String = "null", plan: String = "\"Pro\"", updatedAt: String = "null",
         windows: [String] = [], balances: String = "[]", notices: String = "[]", hidden: Bool = false,
-        usageHome: String = "~/.codex"
+        usageHome: String = "~/.codex", recovery: String? = nil
     ) -> String {
-        """
-        {"id":"\(id)","provider":"\(provider)","provider_name":"\(provider.capitalized)","label":\(label),
-        "email":\(email),"plan":\(plan),"hidden":\(hidden),"owner":"cli","status":"\(status)","error":\(error),
-        "updated_at":\(updatedAt),"source":null,"windows":[\(windows.joined(separator: ","))],
-        "balances":\(balances),"notices":\(notices),"usage_home":"\(usageHome)"}
-        """
+        let recoveryField = recovery.map { #""recovery":\#($0),"# } ?? ""
+        return """
+            {"id":"\(id)","provider":"\(provider)","provider_name":"\(provider.capitalized)","label":\(label),
+            "email":\(email),"plan":\(plan),"hidden":\(hidden),"owner":"cli","status":"\(status)","error":\(error),
+            \(recoveryField)"updated_at":\(updatedAt),"source":null,"windows":[\(windows.joined(separator: ","))],
+            "balances":\(balances),"notices":\(notices),"usage_home":"\(usageHome)"}
+            """
     }
 
     static func state(accounts: [String], offline: Bool = false, display: String? = nil) throws -> DaemonState {

@@ -65,7 +65,7 @@
                     if case .success = await task.value { return true }
                     return false
                 },
-                refreshAccount: { model.refresh(accountID: $0) },
+                refreshAccount: { await model.refresh(accountID: $0) },
                 openSettings: { model.openSettings() },
                 signIn: { model.signIn(provider: $0) },
                 setAccountOrder: { model.setAccountOrder($0) },

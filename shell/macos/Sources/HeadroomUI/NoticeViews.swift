@@ -118,7 +118,6 @@
                 }
             }
             .buttonStyle(TintButtonStyle(cornerRadius: 5))
-            .disabled(action.busy)
             .fixedSize()
         }
     }

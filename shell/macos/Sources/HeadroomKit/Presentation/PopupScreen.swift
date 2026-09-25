@@ -23,6 +23,10 @@ public enum PopupScreen: Sendable, Hashable {
         state.accounts.contains { $0.status == .refreshing }
     }
 
+    public static func refreshingIDs(_ state: DaemonState) -> Set<String> {
+        Set(state.accounts.filter { $0.status == .refreshing }.map(\.id))
+    }
+
     private static func ready(_ state: DaemonState) -> PopupScreen {
         let hasAccounts = state.accounts.contains { !$0.hidden }
         return hasAccounts || SpendCardModel.shows(state) ? .dashboard(state) : .empty(state)
