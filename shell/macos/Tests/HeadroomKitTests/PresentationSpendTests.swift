@@ -46,7 +46,11 @@ final class PresentationSpendTests: XCTestCase {
     func testOtherModelsRowComesLast() {
         let breakdown = ModelBreakdown.make(
             title: "Today · Claude",
-            models: [ModelUsage(model: "opus", totalTokens: 2_500_000, costUSDMicros: 12_340_000, partial: false)],
+            models: [
+                ModelUsage(
+                    model: "opus", totalTokens: 2_500_000, costUSDMicros: 12_340_000, partial: false,
+                    costPerMTokUSDMicros: 4_936_000)
+            ],
             other: OtherModels(count: 3, totalTokens: 1500, costUSDMicros: 20_000, partial: false),
             costMicros: 12_360_000, totalTokens: 2_501_500, formatter: Build.english)
         XCTAssertEqual(breakdown?.rows.map(\.name), ["opus", "Other (3)"])

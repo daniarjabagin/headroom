@@ -7,7 +7,7 @@ import XCTest
 final class AddAccountSessionTests: XCTestCase {
     private let provider = ProviderInfo(
         id: "codex", displayName: "Codex", addAccount: [.cliLogin(program: "codex")], multiAccount: true,
-        localUsage: true)
+        localUsage: true, links: nil)
 
     func testSignInCollectsUrlCodeAndLog() {
         let launcher = FakeHelperLauncher()

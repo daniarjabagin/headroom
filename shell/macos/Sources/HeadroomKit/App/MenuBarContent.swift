@@ -9,6 +9,7 @@ public enum MenuBarContent: Sendable, Hashable {
             switch state.display.panelLabel {
             case .percent: formatter.panelPercent(percent)
             case .window: windowText(headline, formatter: formatter)
+            case .none: ""
             }
         return .reading(text: text, fraction: min(1, max(0, percent / 100)))
     }

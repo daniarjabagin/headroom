@@ -5,6 +5,7 @@ public enum DaemonCommand: Sendable, Hashable {
     case setAccountLabel(accountID: String, label: String)
     case setAccountHidden(accountID: String, hidden: Bool)
     case updateSettings([String: JSONValue])
+    case resetSettings
     case restoreAccounts(provider: String)
 
     func perform(on client: DaemonClient) async throws(DaemonError) {
@@ -17,6 +18,7 @@ public enum DaemonCommand: Sendable, Hashable {
         case .setAccountHidden(let accountID, let hidden):
             try await client.setAccountHidden(accountID: accountID, hidden: hidden)
         case .updateSettings(let patch): try await client.updateSettings(patch)
+        case .resetSettings: try await client.resetSettings()
         case .restoreAccounts(let provider): try await client.restoreAccounts(provider: provider)
         }
     }

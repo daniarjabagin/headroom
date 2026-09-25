@@ -66,11 +66,13 @@ public struct ModelUsage: Decodable, Sendable, Hashable {
     public let totalTokens: UInt64
     public let costUSDMicros: Int64
     public let partial: Bool
+    public let costPerMTokUSDMicros: Int64?
 
     enum CodingKeys: String, CodingKey {
         case model, partial
         case totalTokens = "total_tokens"
         case costUSDMicros = "cost_usd_micros"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
     }
 }
 
@@ -90,11 +92,22 @@ public struct OtherModels: Decodable, Sendable, Hashable {
 public struct Spend: Decodable, Sendable, Hashable {
     public let today: PeriodSpend
     public let yesterday: PeriodSpend
+    public let last7Days: PeriodSpend?
     public let last30Days: PeriodSpend
 
     enum CodingKeys: String, CodingKey {
         case today, yesterday
+        case last7Days = "last_7_days"
         case last30Days = "last_30_days"
+    }
+
+    public func period(_ period: SpendPeriodPreference) -> PeriodSpend? {
+        switch period {
+        case .today: today
+        case .yesterday: yesterday
+        case .last7Days: last7Days
+        case .last30Days: last30Days
+        }
     }
 }
 
@@ -103,12 +116,17 @@ public struct PeriodSpend: Decodable, Sendable, Hashable {
     public let totalTokens: UInt64
     public let partial: Bool
     public let byProvider: [ProviderSpend]
+    public let costPerMTokUSDMicros: Int64?
+    public let projects: [ProjectSpend]?
+    public let projectsOther: OtherProjects?
 
     enum CodingKeys: String, CodingKey {
-        case partial
+        case partial, projects
         case costUSDMicros = "cost_usd_micros"
         case totalTokens = "total_tokens"
         case byProvider = "by_provider"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
+        case projectsOther = "projects_other"
     }
 }
 
@@ -120,6 +138,7 @@ public struct ProviderSpend: Decodable, Sendable, Hashable {
     public let partial: Bool
     public let models: [ModelUsage]
     public let modelsOther: OtherModels?
+    public let costPerMTokUSDMicros: Int64?
 
     enum CodingKeys: String, CodingKey {
         case provider, partial, models
@@ -127,5 +146,6 @@ public struct ProviderSpend: Decodable, Sendable, Hashable {
         case costUSDMicros = "cost_usd_micros"
         case totalTokens = "total_tokens"
         case modelsOther = "models_other"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
     }
 }
