@@ -87,6 +87,7 @@ impl App {
         let received = self.model.borrow_mut().settings.receive(json);
         match received {
             Ok(true) => {
+                self.model.borrow_mut().ui.system_clock = None;
                 self.render(false);
                 self.sync_prefs();
                 self.sync_tray();
@@ -153,8 +154,15 @@ impl App {
             .view
             .state()
             .map(|state| change(&state.display));
-        if let Some(change) = change {
-            self.apply_change(&change);
+        match change {
+            Some(Change::ValueMode(mode)) => {
+                self.optimistic(&Change::ValueMode(mode), |d| d.value_mode = mode);
+            }
+            Some(Change::ResetFormat(format)) => {
+                self.optimistic(&Change::ResetFormat(format), |d| d.reset_format = format);
+            }
+            Some(change) => self.apply_change(&change),
+            None => {}
         }
     }
 
@@ -171,7 +179,14 @@ impl App {
             Action::ToggleValueMode => self.patch(toggled_value_mode),
             Action::ToggleResetFormat => self.patch(toggled_reset_format),
             Action::OpenSettings => self.open_settings(),
-            Action::SelectPeriod(period) => self.update_ui(|ui| ui.period = period),
+            action @ (Action::SelectPeriod(_)
+            | Action::SelectUnit(_)
+            | Action::SelectBreakdown(_)
+            | Action::SetMoreExpanded(_)
+            | Action::HideAccounts(_)
+            | Action::SetStarred(..)
+            | Action::Share(_)
+            | Action::CopySummary(_)) => self.popup_act(action),
             Action::SetExpanded(id, open) => {
                 let expanded = &mut self.model.borrow_mut().ui.expanded;
                 if open {

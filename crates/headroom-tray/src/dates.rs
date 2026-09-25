@@ -189,6 +189,21 @@ pub fn exact_moment(moment: Timestamp, now: Timestamp, locale: &Locale) -> Strin
 }
 
 #[must_use]
+pub fn short_moment(moment: Timestamp, now: Timestamp, locale: &Locale) -> String {
+    let time = clock_time(moment, locale);
+    let date = moment.to_zoned(locale.tz.clone()).date();
+    let today = now.to_zoned(locale.tz.clone()).date();
+    let days = calendar_days_between(today, date);
+    if days <= 0 {
+        time
+    } else if days < WEEK_DAYS {
+        format!("{} {time}", weekday_short(locale.lang, date.weekday()))
+    } else {
+        format!("{} {time}", month_day(locale.lang, date))
+    }
+}
+
+#[must_use]
 pub fn day_title(lang: Lang, date: Date) -> String {
     format!(
         "{}, {}",
@@ -289,6 +304,20 @@ mod tests {
             exact_moment(at("2026-10-05T08:00:00Z"), now, &locale),
             "5 окт. в 10:00"
         );
+    }
+
+    #[test]
+    fn short_moments_drop_the_words() {
+        let now = at("2026-09-23T08:00:00Z");
+        let locale = berlin(Lang::En);
+        let cases = [
+            ("2026-09-23T12:30:00Z", "14:30"),
+            ("2026-09-28T07:00:00Z", "Mon 09:00"),
+            ("2026-10-05T08:00:00Z", "Oct 5 10:00"),
+        ];
+        for (moment, expected) in cases {
+            assert_eq!(short_moment(at(moment), now, &locale), expected);
+        }
     }
 
     #[test]

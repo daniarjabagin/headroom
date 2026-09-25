@@ -2,18 +2,18 @@ use gtk::prelude::*;
 use jiff::Timestamp;
 
 use crate::account::shows_name;
-use crate::payload::{Account, State};
+use crate::combined::CombinedGroup;
+use crate::payload::{Account, Spend, State};
+use crate::popup_model::collapse::{MoreSummary, more_summary};
 use crate::ui::account_section::SectionInput;
-use crate::ui::combined_section::combined_section;
+use crate::ui::combined_section::GroupInput;
 use crate::ui::context::Ctx;
-use crate::ui::footer::{footer, refresh_button, top_bar};
-use crate::ui::spend_card::spend_section;
-use crate::ui::status_views::{empty_view, error_view, loading_sections, service_view};
-use crate::ui::update_row::update_row;
+use crate::ui::status_views::{error_view, loading_sections, service_view};
 use crate::ui::widgets::column;
 use crate::view::View;
 
 const CONTENT_SPACING: i32 = 14;
+const COMPACT_CONTENT_SPACING: i32 = 8;
 
 pub struct Frame {
     pub now: Timestamp,
@@ -22,56 +22,88 @@ pub struct Frame {
 }
 
 pub enum Entry<'a> {
-    Widget(gtk::Widget),
+    Empty,
+    Leading(Option<&'a Spend>),
     Account(SectionInput<'a>),
+    Group(GroupInput<'a>),
+    More(MoreSummary),
+    Less,
+}
+
+struct Placed<'a> {
+    entry: Entry<'a>,
+    collapsed: bool,
+    member: (&'a str, &'a str),
+}
+
+fn group_of<'a>(state: &'a State, account: &Account) -> Option<&'a CombinedGroup> {
+    state
+        .combined
+        .iter()
+        .find(|group| group.account_ids.contains(&account.id))
+}
+
+fn place<'a>(
+    state: &'a State,
+    account: &'a Account,
+    accounts: &[&Account],
+    frame: &Frame,
+) -> Option<Placed<'a>> {
+    let status = state.provider_status_of(&account.provider);
+    let member = (account.provider.as_str(), account.provider_name.as_str());
+    if let Some(group) = group_of(state, account) {
+        let first = group
+            .account_ids
+            .iter()
+            .find(|id| accounts.iter().any(|a| &a.id == *id));
+        return (first == Some(&account.id)).then(|| Placed {
+            entry: Entry::Group(GroupInput {
+                group,
+                members: &state.accounts,
+                status,
+                now: frame.now,
+            }),
+            collapsed: group.collapsed,
+            member,
+        });
+    }
+    Some(Placed {
+        entry: Entry::Account(SectionInput {
+            account,
+            usage: state.usage_of(account),
+            status,
+            show_name: shows_name(account, accounts),
+            now: frame.now,
+            animate: frame.animate,
+        }),
+        collapsed: account.collapsed,
+        member,
+    })
 }
 
 pub fn ready_entries<'a>(ctx: &Ctx, state: &'a State, frame: &Frame) -> Vec<Entry<'a>> {
     let accounts: Vec<&Account> = state.accounts.iter().filter(|a| !a.hidden).collect();
     let spend = (ctx.display.show_spend && !state.usage.is_empty()).then_some(&state.spend);
     if accounts.is_empty() && spend.is_none() {
-        return vec![Entry::Widget(empty_view(ctx).upcast())];
+        return vec![Entry::Empty];
     }
-    let refresh = refresh_button(ctx);
-    let leading: gtk::Widget = match spend {
-        Some(spend) => spend_section(ctx, spend, &refresh, frame.animate).upcast(),
-        None => top_bar(&refresh).upcast(),
+    let (collapsed, pinned): (Vec<Placed>, Vec<Placed>) = accounts
+        .iter()
+        .filter_map(|account| place(state, account, &accounts, frame))
+        .partition(|placed| placed.collapsed);
+    let members: Vec<(&str, &str)> = collapsed.iter().map(|placed| placed.member).collect();
+    let mut entries = vec![Entry::Leading(spend)];
+    entries.extend(pinned.into_iter().map(|placed| placed.entry));
+    let Some(summary) = more_summary(ctx.locale.lang, &members) else {
+        return entries;
     };
-    let sections = accounts
-        .iter()
-        .filter_map(|account| entry(ctx, state, account, &accounts, frame));
-    std::iter::once(Entry::Widget(leading))
-        .chain(sections)
-        .collect()
-}
-
-fn entry<'a>(
-    ctx: &Ctx,
-    state: &'a State,
-    account: &'a Account,
-    accounts: &[&Account],
-    frame: &Frame,
-) -> Option<Entry<'a>> {
-    let group = state
-        .combined
-        .iter()
-        .find(|group| group.account_ids.contains(&account.id));
-    if let Some(group) = group {
-        let first = group
-            .account_ids
-            .iter()
-            .find(|id| accounts.iter().any(|a| &a.id == *id));
-        return (first == Some(&account.id)).then(|| {
-            Entry::Widget(combined_section(ctx, group, &state.accounts, frame.now).upcast())
-        });
+    if ctx.ui.more_expanded {
+        entries.push(Entry::Less);
+        entries.extend(collapsed.into_iter().map(|placed| placed.entry));
+    } else {
+        entries.push(Entry::More(summary));
     }
-    Some(Entry::Account(SectionInput {
-        account,
-        usage: state.usage_of(account),
-        show_name: shows_name(account, accounts),
-        now: frame.now,
-        animate: frame.animate,
-    }))
+    entries
 }
 
 pub fn view_widgets(ctx: &Ctx, view: &View) -> Vec<gtk::Widget> {
@@ -84,8 +116,18 @@ pub fn view_widgets(ctx: &Ctx, view: &View) -> Vec<gtk::Widget> {
 }
 
 #[must_use]
-pub fn content_column() -> gtk::Box {
-    column(CONTENT_SPACING, &["headroom-content"])
+pub fn content_column(ctx: &Ctx) -> gtk::Box {
+    let content = column(CONTENT_SPACING, &["headroom-content"]);
+    set_density(ctx, &content);
+    content
+}
+
+pub fn set_density(ctx: &Ctx, content: &gtk::Box) {
+    content.set_spacing(if ctx.compact() {
+        COMPACT_CONTENT_SPACING
+    } else {
+        CONTENT_SPACING
+    });
 }
 
 #[must_use]
@@ -100,21 +142,21 @@ pub fn scroller(content: &gtk::Box, frame: &Frame) -> gtk::ScrolledWindow {
     scroller
 }
 
-pub fn tail(ctx: &Ctx, view: &View, now: Timestamp) -> Vec<gtk::Widget> {
-    let update = view
-        .state()
-        .and_then(|state| state.update.as_ref())
-        .map(|update| update_row(ctx, update).upcast());
-    update
-        .into_iter()
-        .chain(std::iter::once(footer(ctx, view, now).upcast()))
-        .collect()
-}
-
 pub fn root_column(ctx: &Ctx) -> gtk::Box {
     let root = column(0, &["headroom-popup"]);
-    if !ctx.motion {
-        root.add_css_class("reduced-motion");
-    }
+    apply_root_classes(ctx, &root);
     root
+}
+
+fn toggle_class(widget: &gtk::Box, class: &str, on: bool) {
+    if on {
+        widget.add_css_class(class);
+    } else {
+        widget.remove_css_class(class);
+    }
+}
+
+pub fn apply_root_classes(ctx: &Ctx, root: &gtk::Box) {
+    toggle_class(root, "reduced-motion", !ctx.motion);
+    toggle_class(root, "compact", ctx.compact());
 }

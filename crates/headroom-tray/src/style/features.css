@@ -1,0 +1,283 @@
+.headroom-popup menubutton.headroom-unit-button > button {
+    margin-left: -6px;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.headroom-popup menubutton.headroom-unit-button > button:checked {
+    background-color: var(--hover);
+}
+
+.headroom-popup .headroom-donut-unit {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.headroom-popup .headroom-segmented.tight button.headroom-segment {
+    padding: var(--segment-tight-padding);
+}
+
+.headroom-popup .headroom-mini-segmented {
+    margin-right: 0;
+    padding: 2px;
+}
+
+.headroom-popup .headroom-mini-segmented button.headroom-segment {
+    padding: 3px 10px;
+}
+
+.headroom-breakdown {
+    margin-right: 6px;
+}
+
+.headroom-breakdown-head {
+    margin-top: 8px;
+}
+
+.headroom-popup separator.headroom-breakdown-separator,
+.headroom-popup separator.headroom-menu-separator {
+    min-height: 1px;
+    background-color: var(--separator);
+}
+
+.headroom-popup separator.headroom-menu-separator {
+    margin: 4px 6px;
+}
+
+.headroom-popup .headroom-breakdown-caption {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-breakdown-row {
+    padding: 4px 6px 5px;
+}
+
+.headroom-popup .headroom-breakdown-name {
+    font-size: 12px;
+    font-feature-settings: normal;
+}
+
+.headroom-popup .headroom-breakdown-share {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup .headroom-breakdown-value {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.headroom-breakdown-folder {
+    color: var(--text-secondary);
+}
+
+.headroom-popup popover.headroom-floating {
+    background: none;
+    box-shadow: none;
+}
+
+.headroom-popup popover.headroom-floating > contents,
+.headroom-preview-surface {
+    padding: 9px 10px 8px;
+    border-radius: 9px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    box-shadow: 0 8px 26px var(--tooltip-shadow);
+    color: var(--text);
+}
+
+.headroom-popup popover.headroom-menu > contents,
+.headroom-preview-surface.headroom-menu {
+    padding: 5px;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px var(--float-shadow);
+}
+
+.headroom-popup .headroom-popover-strong {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-popover-text {
+    font-size: 11px;
+    font-feature-settings: normal;
+}
+
+.headroom-popup .headroom-popover-dim {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup .headroom-popover-note {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-menu-item {
+    padding: 5px 8px;
+    border-radius: 6px;
+}
+
+.headroom-popup .headroom-menu-title {
+    font-size: 12px;
+}
+
+.headroom-popup .headroom-menu-subtitle {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup .headroom-menu-detail {
+    margin-left: 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-menu-check {
+    color: var(--accent);
+}
+
+.headroom-menu-icon,
+.headroom-link-glyph {
+    color: var(--text-secondary);
+}
+
+.headroom-link-icons {
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+}
+
+.headroom-section-header.hovered .headroom-link-icons,
+.headroom-link-icons:focus-within {
+    opacity: 1;
+}
+
+.headroom-popup.reduced-motion .headroom-link-icons {
+    transition: none;
+}
+
+.headroom-popup button.headroom-link-button {
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 11px;
+}
+
+.headroom-header-critical {
+    color: var(--crit);
+}
+
+.headroom-status-meta {
+    padding-top: 3px;
+}
+
+.headroom-popup button.headroom-status-link {
+    padding: 0 2px;
+    border-radius: 4px;
+}
+
+.headroom-popup .headroom-status-link-text {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.headroom-popup .headroom-status-link-text.compact {
+    font-size: 11px;
+}
+
+.headroom-status-link-icon {
+    color: var(--accent);
+}
+
+.headroom-status-line {
+    margin: 6px 14px 2px;
+}
+
+.headroom-popup .headroom-status-line-title {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-status-line-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-more-row {
+    padding: 10px 12px 10px 14px;
+    border-radius: 12px;
+    background-color: var(--card);
+}
+
+.headroom-popup button.headroom-more-row:hover {
+    background-image: image(var(--hover));
+}
+
+.headroom-popup .headroom-more-title {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-more-names {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.headroom-more-divider {
+    margin-bottom: -6px;
+    padding-left: 10px;
+}
+
+.headroom-popup .headroom-more-divider-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.headroom-popup .headroom-more-less {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.headroom-popup button.headroom-more-less-button {
+    padding: 2px 10px;
+}
+
+.headroom-toast {
+    padding: var(--toast-padding);
+    border-radius: 999px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    box-shadow: 0 6px 20px var(--tooltip-shadow);
+}
+
+.headroom-popup .headroom-toast-title {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.headroom-popup .headroom-toast-detail {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.headroom-toast-icon.ok {
+    color: var(--positive);
+}
+
+.headroom-toast-icon.failed {
+    color: var(--crit);
+}
+
+.headroom-footer-stale {
+    color: var(--notice);
+}
+
+.headroom-preview-backdrop {
+    padding: 28px;
+    border: none;
+    border-radius: 0;
+}

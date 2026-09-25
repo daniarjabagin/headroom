@@ -1,13 +1,14 @@
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use jiff::Timestamp;
 
-use crate::dates::Locale;
+use crate::dates::{Clock, Locale};
 use crate::palette::{Palette, Rgba};
-use crate::payload::{Display, Tone};
-use crate::spend::Period;
+use crate::payload::{Density, Display, SpendBreakdown, SpendPeriod, SpendUnit, Tone};
+use crate::popup_model::spend_view::{SpendChoice, SpendOverride};
+use crate::preferences::registry::ProviderLinks;
 use crate::update::UpdateRun;
 use crate::update_check::CheckRun;
 
@@ -18,7 +19,14 @@ pub enum Action {
     Retry(String),
     ToggleValueMode,
     ToggleResetFormat,
-    SelectPeriod(Period),
+    SelectPeriod(SpendPeriod),
+    SelectUnit(SpendUnit),
+    SelectBreakdown(SpendBreakdown),
+    SetMoreExpanded(bool),
+    HideAccounts(Vec<String>),
+    SetStarred(Vec<String>, bool),
+    Share(ShareTarget),
+    CopySummary(ShareTarget),
     SetExpanded(String, bool),
     StartService,
     InstallUpdate,
@@ -32,6 +40,12 @@ pub enum Action {
     Quit,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShareTarget {
+    Account(String),
+    Combined(String),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RefreshMode {
     #[default]
@@ -41,8 +55,14 @@ pub enum RefreshMode {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each flag is independent per-session popup state"
+)]
 pub struct UiState {
-    pub period: Period,
+    pub spend: SpendOverride,
+    pub more_expanded: bool,
+    pub system_clock: Option<Clock>,
     pub expanded: BTreeSet<String>,
     pub refresh: RefreshMode,
     pub update_run: UpdateRun,
@@ -75,6 +95,9 @@ pub struct Ctx {
     pub version: String,
     pub act: Rc<dyn Fn(Action)>,
     pub ticks: RefCell<Vec<Tick>>,
+    pub links: Rc<BTreeMap<String, ProviderLinks>>,
+    pub spend: Option<SpendChoice>,
+    pub recent: bool,
 }
 
 impl Ctx {
@@ -97,6 +120,11 @@ impl Ctx {
 
     pub fn series_color(&self, provider: &str) -> Rgba {
         self.palette.series(provider).unwrap_or(FALLBACK)
+    }
+
+    #[must_use]
+    pub fn compact(&self) -> bool {
+        self.display.density == Density::Compact
     }
 
     pub fn css(&self, token: &str) -> String {

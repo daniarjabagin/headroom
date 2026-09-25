@@ -46,31 +46,6 @@ fn tray_look_without_data_shows_the_status() {
 }
 
 #[test]
-fn footer_status_lines() {
-    let now = at("2026-09-23T10:00:00Z");
-    let ready = View::Ready(Box::new(sample()));
-    assert_eq!(
-        footer_status(&ready, &locale(), now).text,
-        "Next update in 3m"
-    );
-    let mut offline = sample();
-    offline.offline = true;
-    let line = footer_status(&View::Ready(Box::new(offline)), &locale(), now);
-    assert_eq!(line.text, "Offline — last update 09:58");
-    assert!(line.notice);
-    let mut idle = sample();
-    idle.next_refresh_at = None;
-    assert_eq!(
-        footer_status(&View::Ready(Box::new(idle)), &locale(), now).text,
-        "Updated 09:58"
-    );
-    assert_eq!(
-        footer_status(&View::Loading, &locale(), now).text,
-        "Connecting…"
-    );
-}
-
-#[test]
 fn combined_headline_names_the_account_count() {
     let mut state = sample();
     if let Some(headline) = state.headline.as_mut() {

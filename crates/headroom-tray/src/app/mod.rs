@@ -1,5 +1,6 @@
 mod handlers;
 mod onboarding;
+mod popup_actions;
 mod prefs;
 mod recovery;
 mod render;

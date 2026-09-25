@@ -1,23 +1,36 @@
 mod account_section;
+mod breakdown;
+mod collapsed;
 mod combined_section;
 pub mod context;
 mod donut;
 mod draw;
 mod footer;
+mod header;
+mod header_menu;
+mod keyed;
 #[cfg(feature = "layer-shell")]
 mod layer;
+mod link_icons;
 mod meter;
+mod model_popover;
 mod motion;
 mod notice;
 pub mod onboarding;
+mod popover;
 pub mod popup;
 pub mod popup_tree;
 pub mod prefs;
+pub mod preview;
 mod quota_row;
 mod section_card;
+pub mod share;
 mod spend_card;
+mod status_notice;
 mod status_views;
 pub mod style;
+pub mod toast;
+mod unit_menu;
 mod update_row;
 mod usage_rows;
 mod widgets;
@@ -33,12 +46,6 @@ pub use motion::reduced as reduced_motion;
 pub use widgets::svg_texture_at;
 
 #[must_use]
-pub fn build(ctx: Ctx, view: &View, frame: &Frame) -> (gtk::Box, Vec<Tick>) {
-    let root = PopupTree::default().mount(&ctx, view, frame);
-    (root, ctx.ticks.into_inner())
-}
-
-#[must_use]
 pub fn render(
     tree: &mut PopupTree,
     ctx: Ctx,
@@ -47,5 +54,7 @@ pub fn render(
     rebuild: bool,
 ) -> (Option<gtk::Box>, Vec<Tick>) {
     let root = tree.render(&ctx, view, frame, rebuild);
-    (root, ctx.ticks.into_inner())
+    let mut ticks = tree.ticks();
+    ticks.extend(ctx.ticks.into_inner());
+    (root, ticks)
 }

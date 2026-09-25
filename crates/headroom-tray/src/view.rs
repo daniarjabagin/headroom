@@ -1,10 +1,8 @@
 use jiff::Timestamp;
 
-use crate::dates::{Locale, clock_time};
-use crate::format::{
-    next_update_text, percent_reading, reset_phrase, updated_at_text, window_label,
-};
-use crate::i18n::{Lang, fill};
+use crate::dates::Locale;
+use crate::format::{percent_reading, reset_phrase, window_label};
+use crate::i18n::Lang;
 use crate::icon::RingKey;
 use crate::payload::{Headline, State, ValueMode};
 
@@ -28,56 +26,6 @@ impl View {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StatusLine {
-    pub text: String,
-    pub notice: bool,
-}
-
-impl StatusLine {
-    fn plain(text: String) -> Self {
-        Self {
-            text,
-            notice: false,
-        }
-    }
-}
-
-#[must_use]
-pub fn footer_status(view: &View, locale: &Locale, now: Timestamp) -> StatusLine {
-    let lang = locale.lang;
-    let state = match view {
-        View::Unavailable { .. } => {
-            return StatusLine::plain(lang.tr("Service not running").into());
-        }
-        View::Loading => return StatusLine::plain(lang.tr("Connecting…").into()),
-        View::Failed(_) => return StatusLine::plain(String::new()),
-        View::Ready(state) => state,
-    };
-    if state.offline {
-        let text = state.last_success_at.map_or_else(
-            || lang.tr("Offline").to_owned(),
-            |at| {
-                let time = clock_time(at, locale);
-                fill(lang.tr("Offline — last update {time}"), &[("time", &time)])
-            },
-        );
-        return StatusLine { text, notice: true };
-    }
-    if state.is_refreshing() {
-        return StatusLine::plain(lang.tr("Updating…").into());
-    }
-    if let Some(next) = state.next_refresh_at {
-        return StatusLine::plain(next_update_text(lang, next, now));
-    }
-    StatusLine::plain(
-        state
-            .last_success_at
-            .map(|at| updated_at_text(locale, at))
-            .unwrap_or_default(),
-    )
 }
 
 #[derive(Debug, Clone, PartialEq)]

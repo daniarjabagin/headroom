@@ -148,6 +148,11 @@ impl PopupWindow {
     }
 
     #[must_use]
+    pub fn widget(&self) -> gtk::Widget {
+        self.window.clone().upcast()
+    }
+
+    #[must_use]
     pub fn clipboard(&self) -> gdk::Clipboard {
         gtk::prelude::WidgetExt::display(&self.window).clipboard()
     }
@@ -156,7 +161,7 @@ impl PopupWindow {
         let launcher = gtk::UriLauncher::new(uri);
         launcher.launch(Some(&self.window), gio::Cancellable::NONE, |result| {
             if let Err(error) = result {
-                tracing::warn!(%error, "could not open the release page");
+                tracing::warn!(%error, "could not open a link");
             }
         });
     }

@@ -1,8 +1,10 @@
 use crate::palette::{Palette, PaletteError};
 
-const TEMPLATES: [&str; 2] = [
+const TEMPLATES: [&str; 4] = [
     include_str!("style/base.css"),
     include_str!("style/cards.css"),
+    include_str!("style/features.css"),
+    include_str!("style/compact.css"),
 ];
 const VAR_OPEN: &str = "var(--";
 

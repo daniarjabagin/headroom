@@ -1,6 +1,7 @@
 mod ru;
 mod ru_onboarding;
 mod ru_options;
+mod ru_popup;
 mod ru_prefs;
 mod ru_settings;
 

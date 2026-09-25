@@ -18,6 +18,7 @@ pub mod numbers;
 pub mod palette;
 pub mod payload;
 pub mod placement;
+pub mod popup_model;
 pub mod preferences;
 pub mod process;
 pub mod providers;

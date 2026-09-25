@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -7,12 +8,14 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
 use super::App;
-use crate::dates::Locale;
+use crate::dates::{Clock, Locale};
 use crate::events::{MenuLabels, TrayUpdate};
-use crate::i18n::{Lang, system_locale};
+use crate::i18n::{Lang, system_clock, system_locale};
 use crate::icon::{TrayIcon, TrayText};
 use crate::palette::{Palette, Scheme};
 use crate::payload::Display;
+use crate::popup_model::spend_view::SpendChoice;
+use crate::preferences::registry::ProviderLinks;
 use crate::ui::context::{Action, Ctx, RefreshMode};
 use crate::ui::popup::Frame;
 use crate::ui::reduced_motion;
@@ -22,9 +25,9 @@ use crate::view::tray_look;
 const TICK_SECONDS: u32 = 1;
 const TRAY_CLOCK_SECONDS: u32 = 30;
 
-fn locale(display: &Display) -> Locale {
+fn locale(display: &Display, system: Clock) -> Locale {
     let lang = Lang::resolve(display.language, system_locale().as_deref());
-    Locale::new(lang, TimeZone::system())
+    Locale::new(lang, TimeZone::system()).with_clock(Clock::resolve(display.time_format, system))
 }
 
 fn menu_labels(lang: Lang) -> MenuLabels {
@@ -37,7 +40,7 @@ fn menu_labels(lang: Lang) -> MenuLabels {
 }
 
 pub(super) fn initial_tray_update() -> TrayUpdate {
-    let locale = locale(&Display::default());
+    let locale = locale(&Display::default(), system_clock());
     let look = tray_look(&crate::view::View::Loading, &locale, Timestamp::now());
     TrayUpdate {
         icon: TrayIcon::themed(),
@@ -66,6 +69,31 @@ impl App {
             .state()
             .map(|state| state.display.clone())
             .unwrap_or_default()
+    }
+
+    fn system_clock(&self) -> Clock {
+        let cached = self.model.borrow().ui.system_clock;
+        cached.unwrap_or_else(|| {
+            let clock = system_clock();
+            self.model.borrow_mut().ui.system_clock = Some(clock);
+            clock
+        })
+    }
+
+    pub(super) fn locale(&self, display: &Display) -> Locale {
+        locale(display, self.system_clock())
+    }
+
+    fn links(&self) -> Rc<BTreeMap<String, ProviderLinks>> {
+        let model = self.model.borrow();
+        let links = match &model.providers {
+            Some(Ok(providers)) => providers
+                .iter()
+                .map(|provider| (provider.id.clone(), provider.links.clone()))
+                .collect(),
+            _ => BTreeMap::new(),
+        };
+        Rc::new(links)
     }
 
     fn palette_for(&self, scheme: Scheme) -> &Palette {
@@ -106,11 +134,16 @@ impl App {
             }
         });
         let refresh = self.refresh_mode();
+        let (locale, links) = (self.locale(&display), self.links());
         let model = self.model.borrow();
         let mut ui = model.ui.clone();
         ui.refresh = refresh;
+        let state = model.view.state();
+        let recent = state.is_some_and(crate::payload::State::speaks_0_6);
+        let spend =
+            state.map(|state| SpendChoice::resolve(&display, ui.spend, &state.spend, recent));
         Ctx {
-            locale: locale(&display),
+            locale,
             palette: self.palette(&display),
             motion: !reduced_motion(
                 model
@@ -124,6 +157,9 @@ impl App {
             version: format!("Headroom {}", env!("CARGO_PKG_VERSION")),
             act,
             ticks: RefCell::default(),
+            links,
+            spend,
+            recent,
             display,
         }
     }
@@ -157,7 +193,7 @@ impl App {
 
     pub(super) fn sync_tray(&self) {
         let display = self.display();
-        let locale = locale(&display);
+        let locale = self.locale(&display);
         let palette = self.palette_for(resolve_theme(display.theme));
         let update = {
             let model = self.model.borrow();
@@ -200,6 +236,9 @@ impl App {
     pub(super) fn stop_ticker(&self) {
         if let Some(source) = self.ticker.borrow_mut().take() {
             source.remove();
+        }
+        if let Ok(tree) = self.tree.try_borrow() {
+            tree.dismiss_toast();
         }
     }
 }
