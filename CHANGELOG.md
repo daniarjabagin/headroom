@@ -6,6 +6,8 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-25
+
 A panel indicator you can shape yourself, spend by model and project, provider status pages, quiet
 hours, a Retry button that actually fixes things, and new `guard`, `spend` and `diagnostics`
 commands.
@@ -427,7 +429,8 @@ First version.
 - Settings changes from several windows no longer overwrite each other.
 - Cancelling an account sign-in cleans up after itself.
 
-[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/daniarjabagin/headroom/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/daniarjabagin/headroom/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/daniarjabagin/headroom/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/daniarjabagin/headroom/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/daniarjabagin/headroom/compare/v0.4.0...v0.4.1
