@@ -53,7 +53,6 @@ const CATALOG: &[(&str, &str)] = &[
     ),
     ("Offline", "Нет сети"),
     ("Updating…", "Обновление…"),
-    ("Updated {time}", "Обновлено в {time}"),
     ("Refresh", "Обновить"),
     ("Limit reached", "Лимит исчерпан"),
     ("Over pace", "Темп превышен"),

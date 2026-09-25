@@ -4,8 +4,8 @@ use std::time::Duration;
 use super::canvas::to_byte;
 use super::layout::FULL_OPACITY;
 
-pub const FRAME: Duration = Duration::from_millis(125);
-pub const FRAMES_PER_PERIOD: u32 = 16;
+pub const FRAME: Duration = Duration::from_millis(250);
+pub const FRAMES_PER_PERIOD: u32 = 8;
 const DIM_OPACITY: f64 = 140.0;
 
 #[must_use]
@@ -26,8 +26,16 @@ mod tests {
         assert_eq!(opacity(0), 255);
         assert_eq!(opacity(FRAMES_PER_PERIOD / 2), 140);
         assert_eq!(opacity(FRAMES_PER_PERIOD), 255);
+        assert_eq!(opacity(1), opacity(FRAMES_PER_PERIOD - 1));
         assert_eq!(opacity(3), opacity(FRAMES_PER_PERIOD - 3));
-        assert!(opacity(4) < opacity(2));
+        assert!(opacity(2) < opacity(1));
+        assert!(opacity(3) < opacity(2));
+    }
+
+    #[test]
+    fn ticks_four_times_a_second() {
+        assert_eq!(FRAME, Duration::from_millis(250));
+        assert_eq!(FRAMES_PER_PERIOD, 8);
     }
 
     #[test]
@@ -35,6 +43,6 @@ mod tests {
         let mut levels: Vec<u8> = (0..FRAMES_PER_PERIOD).map(opacity).collect();
         levels.sort_unstable();
         levels.dedup();
-        assert_eq!(levels.len(), 9);
+        assert_eq!(levels.len(), 5);
     }
 }

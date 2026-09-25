@@ -76,7 +76,6 @@ export const RU = {
     'short weekday\u0004Sat': 'сб',
     '{tokens} token': ['{tokens} токен', '{tokens} токена', '{tokens} токенов'],
     unpriced: 'без цены',
-    'Other ({count})': 'Другие ({count})',
     'Service not running': 'Служба не запущена',
     'Connecting…': 'Подключение…',
     Offline: 'Нет сети',

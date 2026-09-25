@@ -67,8 +67,8 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
         "Чаще, пока работают инструменты",
     ),
     (
-        "Every minute while Claude Code, Codex or another tracked tool is writing",
-        "Раз в минуту, пока Claude Code, Codex или другой инструмент пишет логи",
+        "Every minute while a coding tool is writing usage logs",
+        "Каждую минуту, пока инструмент пишет журналы использования",
     ),
     ("Privacy", "Конфиденциальность"),
     ("Latest version", "Последняя версия"),

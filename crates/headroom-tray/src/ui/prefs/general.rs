@@ -184,7 +184,7 @@ fn refresh_rows(lang: Lang, act: &Act) -> Refresh {
         ),
         adaptive: SwitchRow::new(
             lang.tr("Faster while coding tools run"),
-            lang.tr("Every minute while Claude Code, Codex or another tracked tool is writing"),
+            lang.tr("Every minute while a coding tool is writing usage logs"),
             changer(act, Change::AdaptiveRefresh),
         ),
     }

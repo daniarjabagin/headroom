@@ -48,7 +48,3 @@ export function projectLabel(project, maxChars) {
     if (project === null) return _('No project');
     return ellipsizedMiddle(project, maxChars);
 }
-
-export function otherProjectsLabel(other) {
-    return fill(_('Other ({count})'), { count: other.count });
-}

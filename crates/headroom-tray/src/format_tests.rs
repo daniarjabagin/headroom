@@ -155,10 +155,6 @@ fn footer_texts() {
         "3h 0m ago"
     );
     assert_eq!(ago_text(Lang::En, now, now), "just now");
-    assert_eq!(
-        updated_at_text(&utc(Lang::En), at("2026-09-23T09:58:00Z")),
-        "Updated 09:58"
-    );
 }
 
 #[test]
@@ -224,13 +220,4 @@ fn project_paths_lose_their_middle() {
     assert_eq!(other_projects_label(Lang::En, 4), "4 other projects");
     assert_eq!(other_projects_label(Lang::Ru, 3), "3 других проекта");
     assert_eq!(other_projects_label(Lang::Ru, 21), "21 другой проект");
-}
-
-#[test]
-fn clock_times_follow_the_clock_setting() {
-    let twelve = utc(Lang::En).with_clock(crate::dates::Clock::H12);
-    assert_eq!(
-        updated_at_text(&twelve, at("2026-09-23T21:58:00Z")),
-        "Updated 9:58\u{a0}PM"
-    );
 }

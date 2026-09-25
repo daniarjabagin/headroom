@@ -39,7 +39,7 @@ export class GeneralPage {
         });
         this._adaptive = switchRow({
             title: _('Faster while coding tools run'),
-            subtitle: _('Every minute while Claude Code, Codex or Cursor is open'),
+            subtitle: _('Every minute while a coding tool is writing usage logs'),
             onChange: value => client.updateSettings(adaptiveRefreshPatch(value)),
         });
         const groups = [

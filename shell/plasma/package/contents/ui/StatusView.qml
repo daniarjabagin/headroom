@@ -44,6 +44,7 @@ Card {
         visible: status.kind === "unavailable" || status.kind === "error"
         Layout.alignment: Qt.AlignHCenter
         Layout.topMargin: Kirigami.Units.smallSpacing
+        animated: status.animated
         enabled: !(status.view.starting ?? false)
         text: status.kind === "error" ? status.tr("Try again") : (status.view.starting ? status.tr("Starting…") : status.tr("Start service"))
         onClicked: status.kind === "error" ? status.refreshRequested() : status.startServiceRequested()
