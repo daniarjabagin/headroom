@@ -38,6 +38,10 @@ export class DaemonClient {
         this._connection.enqueue(proxy => proxy.SetAccountOrderAsync(ids));
     }
 
+    setAccountHidden(accountId, hidden) {
+        this._connection.enqueue(proxy => proxy.SetAccountHiddenAsync(accountId, hidden));
+    }
+
     updateSettings(patch) {
         this._connection.enqueue(proxy => proxy.UpdateSettingsAsync(JSON.stringify(patch)));
     }

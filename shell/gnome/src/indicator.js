@@ -102,6 +102,9 @@ export const Indicator = GObject.registerClass(
                     refresh: accountId => this._client.refresh(accountId),
                     refreshNow: () => this._client.refreshNow(),
                     setOrder: ids => this._client.setAccountOrder(ids),
+                    setHidden: (accountId, hidden) => this._client.setAccountHidden(accountId, hidden),
+                    listProviders: () => this._client.listProviders(),
+                    updateDisplay: (changes, patch) => this._updateDisplay(changes, patch),
                     toggleValueMode: () => this._patchDisplay(toggledValueMode),
                     toggleResetFormat: () => this._patchDisplay(toggledResetFormat),
                     copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text),
@@ -161,10 +164,16 @@ export const Indicator = GObject.registerClass(
         _patchDisplay(patchFor) {
             const state = this._view.state;
             if (this._view.kind !== 'ready' || !state) return;
-            const patch = patchFor(state.display);
-            state.display = { ...state.display, ...patch };
+            const changes = patchFor(state.display);
+            this._updateDisplay(changes, displayPatch(changes));
+        }
+
+        _updateDisplay(changes, patch) {
+            const state = this._view.state;
+            if (this._view.kind !== 'ready' || !state) return;
+            state.display = { ...state.display, ...changes };
             this._render();
-            this._client.updateSettings(displayPatch(patch));
+            this._client.updateSettings(patch);
         }
 
         _render() {
@@ -176,7 +185,7 @@ export const Indicator = GObject.registerClass(
             this._glass.setEnabled(state?.display.translucent ?? false);
             this._panelView.render(panelLayout(state, { masked, legacy: !supports06(state) }));
             this._renderPlacement();
-            this._popup.render({ ...this._view, masked });
+            this._popup.render(this._view, { masked });
             this._ticker.sync();
         }
 
