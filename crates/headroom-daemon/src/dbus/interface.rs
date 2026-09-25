@@ -75,6 +75,13 @@ impl DaemonInterface {
             .map_err(|error| to_fdo(&error))
     }
 
+    async fn reset_settings(&self) -> fdo::Result<()> {
+        self.core()
+            .reset_settings()
+            .await
+            .map_err(|error| to_fdo(&error))
+    }
+
     async fn set_account_label(&self, account_id: &str, label: &str) -> fdo::Result<()> {
         self.core()
             .set_account_label(account_id, label)

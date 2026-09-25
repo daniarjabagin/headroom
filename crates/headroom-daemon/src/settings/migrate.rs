@@ -1,12 +1,16 @@
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 const LEGACY_SHOW_USAGE: &str = "show_usage";
+const ONBOARDING: &str = "onboarding";
 const DAEMON_MANAGED: &[&str] = &["dismissed_accounts"];
 
 pub fn upgrade(json: &str) -> Result<Value, serde_json::Error> {
     let mut value: Value = serde_json::from_str(json)?;
     if let Value::Object(settings) = &mut value {
         move_show_usage(settings);
+        settings
+            .entry(ONBOARDING)
+            .or_insert_with(|| json!({ "completed": true }));
     }
     drop_daemon_managed(&mut value);
     Ok(value)

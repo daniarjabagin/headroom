@@ -47,6 +47,7 @@ fn every_method_takes_its_d_bus_arguments_in_order() {
             json!(["{}"]),
             Command::UpdateSettings("{}".into()),
         ),
+        ("ResetSettings", json!([]), Command::ResetSettings),
         (
             "SetAccountLabel",
             json!(["codex:a", "Work"]),

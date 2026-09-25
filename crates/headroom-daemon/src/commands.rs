@@ -95,6 +95,12 @@ impl Core {
         self.store_settings(current.patched(patch)?).await
     }
 
+    pub async fn reset_settings(&self) -> Result<(), CommandError> {
+        let _write = self.settings_write.lock().await;
+        let reset = self.model().settings.reset();
+        self.store_settings(reset).await
+    }
+
     pub(crate) async fn store_settings(&self, settings: Settings) -> Result<(), CommandError> {
         let stored = settings.clone();
         self.storage

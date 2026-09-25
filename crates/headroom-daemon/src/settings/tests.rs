@@ -6,8 +6,14 @@ use super::*;
 fn defaults_match_the_spec() {
     let expected = json!({
         "refresh_interval_secs": 300,
+        "adaptive_refresh": true,
         "notifications": {
-            "almost_out": true, "cutting_it_close": true, "will_run_out": true, "reset": false
+            "almost_out": true, "cutting_it_close": true, "will_run_out": true, "reset": false,
+            "threshold_percent": 10,
+            "provider_thresholds": {},
+            "quiet_hours": {
+                "enabled": false, "from": "22:00", "to": "08:00", "allow_critical": true
+            }
         },
         "headline": { "mode": "auto" },
         "reduced_motion": false,
@@ -23,9 +29,25 @@ fn defaults_match_the_spec() {
             "show_forecast": true,
             "translucent": false,
             "combine_accounts": false,
-            "hidden_windows": {}
+            "hidden_windows": {},
+            "density": "normal",
+            "time_format": "auto",
+            "panel_mode": "headline",
+            "panel_indicator": "ring",
+            "panel_limits": [],
+            "panel_position": { "box": "right", "index": 0 },
+            "spend_period": "30d",
+            "spend_unit": "cost",
+            "spend_breakdown": "models",
+            "starred_accounts": [],
+            "collapse_unstarred": false,
+            "hide_on_screen_share": true
         },
-        "updates": { "check": true }
+        "updates": { "check": true },
+        "status_pages": { "enabled": false },
+        "shortcuts": { "open": "" },
+        "logging": { "level": "info" },
+        "onboarding": { "completed": false }
     });
     assert_eq!(serde_json::to_value(Settings::default()).unwrap(), expected);
     assert_eq!(Settings::parse("{}").unwrap(), Settings::default());
@@ -61,7 +83,22 @@ fn display_options_round_trip() {
             "show_forecast": false,
             "translucent": true,
             "combine_accounts": true,
-            "hidden_windows": { "codex:abc": ["weekly", "model:spark"] }
+            "hidden_windows": { "codex:abc": ["weekly", "model:spark"] },
+            "density": "compact",
+            "time_format": "12h",
+            "panel_mode": "several",
+            "panel_indicator": "bar",
+            "panel_limits": [
+                { "account_id": "codex:abc", "window": "session" },
+                { "account_id": "claude:def", "window": "weekly" }
+            ],
+            "panel_position": { "box": "center", "index": 2 },
+            "spend_period": "7d",
+            "spend_unit": "cost_per_mtok",
+            "spend_breakdown": "projects",
+            "starred_accounts": ["claude:def"],
+            "collapse_unstarred": true,
+            "hide_on_screen_share": false
         }
     });
     let settings = Settings::parse(&json.to_string()).unwrap();
@@ -111,6 +148,13 @@ fn unknown_fields_are_rejected_at_every_level() {
         r#"{"notifications":{"loud":true}}"#,
         r#"{"display":{"compact":true}}"#,
         r#"{"updates":{"install":true}}"#,
+        r#"{"status_pages":{"poll":true}}"#,
+        r#"{"shortcuts":{"close":""}}"#,
+        r#"{"logging":{"file":"x"}}"#,
+        r#"{"onboarding":{"step":1}}"#,
+        r#"{"notifications":{"quiet_hours":{"days":[]}}}"#,
+        r#"{"display":{"panel_limits":[{"account_id":"a","window":"w","x":1}]}}"#,
+        r#"{"display":{"panel_position":{"box":"left","index":0,"x":1}}}"#,
         r#"{"headline":{"mode":"auto","account_id":"codex:a"}}"#,
         r#"{"headline":{"mode":"pinned","account_id":"a","window":"w","x":1}}"#,
     ] {
@@ -129,6 +173,15 @@ fn unknown_enum_values_are_rejected() {
         r#"{"display":{"value_mode":"both"}}"#,
         r#"{"display":{"reset_format":"relative"}}"#,
         r#"{"display":{"panel_label":"icon"}}"#,
+        r#"{"display":{"density":"cozy"}}"#,
+        r#"{"display":{"time_format":"12"}}"#,
+        r#"{"display":{"panel_mode":"ring"}}"#,
+        r#"{"display":{"panel_indicator":"percent"}}"#,
+        r#"{"display":{"panel_position":{"box":"top","index":0}}}"#,
+        r#"{"display":{"spend_period":"14d"}}"#,
+        r#"{"display":{"spend_unit":"usd"}}"#,
+        r#"{"display":{"spend_breakdown":"providers"}}"#,
+        r#"{"logging":{"level":"trace"}}"#,
     ] {
         assert!(
             matches!(Settings::parse(json), Err(SettingsError::Json(_))),
@@ -234,7 +287,12 @@ fn daemon_managed_keys_are_ignored_on_input_and_dropped_from_storage() {
     let parsed = Settings::parse(r#"{"reduced_motion":true,"dismissed_accounts":["grok:a"]}"#);
     assert!(parsed.unwrap().reduced_motion);
     let stored = Settings::from_stored(r#"{"dismissed_accounts":["grok:a"]}"#).unwrap();
-    assert_eq!(stored, Settings::default());
+    assert_eq!(
+        stored,
+        Settings::default()
+            .patched(r#"{"onboarding":{"completed":true}}"#)
+            .unwrap()
+    );
     let patched = Settings::default()
         .patched(r#"{"dismissed_accounts":["grok:a"],"reduced_motion":true}"#)
         .unwrap();

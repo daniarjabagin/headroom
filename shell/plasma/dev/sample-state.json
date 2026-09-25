@@ -31,7 +31,19 @@
     "show_forecast": true,
     "hidden_windows": {},
     "translucent": false,
-    "combine_accounts": false
+    "combine_accounts": false,
+    "density": "normal",
+    "time_format": "auto",
+    "panel_mode": "headline",
+    "panel_indicator": "ring",
+    "panel_limits": [],
+    "panel_position": { "box": "right", "index": 0 },
+    "spend_period": "30d",
+    "spend_unit": "cost",
+    "spend_breakdown": "models",
+    "starred_accounts": [],
+    "collapse_unstarred": false,
+    "hide_on_screen_share": true
   },
   "accounts": [
     {
