@@ -26,7 +26,14 @@ Item {
             "starred-symbolic": "status/starred-symbolic.svg",
             "non-starred-symbolic": "status/non-starred-symbolic.svg",
             "edit-copy": "actions/edit-copy-symbolic.svg",
-            "folder-open": "status/folder-open-symbolic.svg"
+            "folder-open": "status/folder-open-symbolic.svg",
+            "folder": "places/folder-symbolic.svg",
+            "arrow-right": "ui/pan-end-symbolic.svg",
+            "network-connect": "places/network-server-symbolic.svg",
+            "link": "actions/insert-link-symbolic.svg",
+            "view-statistics": "status/network-cellular-signal-excellent-symbolic.svg",
+            "view-hidden": "actions/view-conceal-symbolic.svg",
+            "document-share": "actions/send-to-symbolic.svg"
         })
     readonly property string url: {
         const value = String(source);

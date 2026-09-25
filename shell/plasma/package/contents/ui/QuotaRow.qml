@@ -2,8 +2,9 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Combined.js" as Combined
+import "logic/CompactRow.js" as CompactRow
+import "logic/Density.js" as Density
 import "logic/Format.js" as Format
-import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Quota.js" as Quota
 import "logic/Tokens.js" as Tokens
@@ -18,10 +19,15 @@ ColumnLayout {
     required property string lang
     required property real appear
     property var members: []
+    readonly property bool compact: Density.isCompact(display)
+    readonly property real step: Density.fontStep(compact)
     readonly property bool combined: window.segments !== undefined
     readonly property var note: Quota.paceNote(lang, window, now, display.showForecast)
     readonly property var percent: combined ? Combined.combinedPercent(window, display.valueMode) : Quota.shownPercent(window, display.valueMode)
-    readonly property var forecast: Quota.forecast(lang, window, now, display)
+    readonly property var forecast: compact ? null : Quota.forecast(lang, window, now, display)
+    readonly property string readingText: percent === null ? "—" : reading(tweenedPercent)
+    readonly property string resetText: compact ? CompactRow.trailing(lang, window, now, display.resetFormat, live, display.timeFormat) : Quota.trailingText(lang, window, now, display.resetFormat, live, display.timeFormat)
+    readonly property string tipText: combined ? Combined.breakdown(lang, window, members, now, display) : compact ? CompactRow.meterTip(lang, window, now, display) : ""
     property real tweenedPercent: percent ?? 0
 
     signal valueModeToggled
@@ -36,18 +42,19 @@ ColumnLayout {
     Layout.fillWidth: true
     Layout.leftMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
     Layout.rightMargin: Metrics.rowInset(Kirigami.Units) - Kirigami.Units.smallSpacing
-    Layout.topMargin: Metrics.barRowPadding(Kirigami.Units)
-    Layout.bottomMargin: Metrics.barRowPadding(Kirigami.Units)
-    spacing: Kirigami.Units.smallSpacing
+    Layout.topMargin: Density.barRowTop(Kirigami.Units, compact)
+    Layout.bottomMargin: Density.barRowBottom(Kirigami.Units, compact)
+    spacing: compact ? Math.round(Kirigami.Units.smallSpacing * 0.75) : Kirigami.Units.smallSpacing
 
     RowLayout {
         Layout.leftMargin: Kirigami.Units.smallSpacing
-        Layout.rightMargin: Kirigami.Units.smallSpacing
-        spacing: Kirigami.Units.smallSpacing
+        Layout.rightMargin: row.compact ? 0 : Kirigami.Units.smallSpacing
+        spacing: row.compact ? Kirigami.Units.mediumSpacing : Kirigami.Units.smallSpacing
 
         TextLabel {
             Layout.fillWidth: true
             role: "label"
+            step: row.step
             text: Format.windowLabel(row.lang, row.window)
             elide: Text.ElideRight
         }
@@ -62,9 +69,31 @@ ColumnLayout {
         }
 
         TextLabel {
-            visible: row.note !== null
+            visible: row.note !== null && !row.compact
             emphasis: "secondary"
             text: row.note?.text ?? ""
+        }
+
+        ToggleText {
+            id: compactReadingToggle
+
+            objectName: "compactReading"
+            visible: row.compact
+            step: row.step
+            text: row.readingText
+            hint: CompactRow.valueHint(row.lang, row.display.valueMode)
+            onClicked: row.valueModeToggled()
+        }
+
+        ToggleText {
+            id: compactResetToggle
+
+            visible: row.compact
+            emphasis: "secondary"
+            step: row.step
+            text: row.resetText
+            hint: CompactRow.resetHint(row.lang, row.display.resetFormat)
+            onClicked: row.resetFormatToggled()
         }
     }
 
@@ -72,6 +101,7 @@ ColumnLayout {
         visible: !row.combined
         Layout.leftMargin: Kirigami.Units.smallSpacing
         Layout.rightMargin: Kirigami.Units.smallSpacing
+        barHeight: Density.meterHeight(Kirigami.Units, row.compact)
         fraction: Quota.fillFraction(row.window, row.display.valueMode)
         progress: row.appear
         tone: Quota.meterTone(row.window)
@@ -82,16 +112,21 @@ ColumnLayout {
         visible: row.combined
         Layout.leftMargin: Kirigami.Units.smallSpacing
         Layout.rightMargin: Kirigami.Units.smallSpacing
+        barHeight: Density.meterHeight(Kirigami.Units, row.compact)
         segments: row.combined ? Combined.segments(row.window, row.members, row.display) : []
         progress: row.appear
     }
 
     RowLayout {
+        visible: !row.compact
         spacing: Kirigami.Units.smallSpacing
 
         ToggleText {
-            text: row.percent === null ? "—" : row.reading(row.tweenedPercent)
-            hint: I18n.tr(row.lang, "Click to switch between left and used")
+            id: readingToggle
+
+            objectName: "reading"
+            text: row.readingText
+            hint: CompactRow.valueHint(row.lang, row.display.valueMode)
             onClicked: row.valueModeToggled()
         }
 
@@ -100,9 +135,12 @@ ColumnLayout {
         }
 
         ToggleText {
+            id: resetToggle
+
+            objectName: "resetText"
             emphasis: "secondary"
-            text: Quota.trailingText(row.lang, row.window, row.now, row.display.resetFormat, row.live, row.display.timeFormat)
-            hint: I18n.tr(row.lang, "Click to switch between countdown and exact time")
+            text: row.resetText
+            hint: CompactRow.resetHint(row.lang, row.display.resetFormat)
             onClicked: row.resetFormatToggled()
         }
     }
@@ -119,7 +157,7 @@ ColumnLayout {
     }
 
     HoverTip {
-        text: row.combined ? Combined.breakdown(row.lang, row.window, row.members, row.now, row.display) : ""
+        text: compactReadingToggle.hovered || compactResetToggle.hovered || readingToggle.hovered || resetToggle.hovered ? "" : row.tipText
     }
 
     Behavior on tweenedPercent {

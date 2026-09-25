@@ -91,10 +91,14 @@ function fullRing(spend, dark) {
     };
 }
 
-function slices(providers, minDegrees, dark) {
+function weightOf(spend, byTokens) {
+    return byTokens === true ? spend.totalTokens : spend.costMicros;
+}
+
+function slices(providers, minDegrees, dark, byTokens) {
     if (providers.length === 1)
         return [fullRing(providers[0], dark)];
-    const fractions = visibleFractions(providers.map(spend => spend.costMicros), minDegrees / 360);
+    const fractions = visibleFractions(providers.map(spend => weightOf(spend, byTokens)), minDegrees / 360);
     let start = START_DEGREES;
     return providers.map((spend, index) => {
         const slice = {
@@ -123,4 +127,8 @@ function infoText(lang, period) {
 
 function breakdownTitle(lang, periodKey, spend) {
     return `${periodTitle(lang, periodKey)} · ${spend.providerName}`;
+}
+
+function popoverTitle(lang, periodKey, spend) {
+    return `${spend.providerName} · ${periodTitle(lang, periodKey)}`;
 }

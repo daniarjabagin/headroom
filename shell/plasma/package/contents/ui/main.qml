@@ -86,6 +86,7 @@ PlasmoidItem {
         reducedMotion: root.reducedMotion
         versionText: `Headroom ${Plasmoid.metaData.version}`
         updater: updater
+        settings: daemon.settings
         onRefreshRequested: accountId => daemon.refresh(accountId)
         onSignInRequested: providerId => root.signIn(providerId)
         onRefreshNowRequested: onFailed => daemon.refreshNow(onFailed)
@@ -93,6 +94,8 @@ PlasmoidItem {
         onDisplayPatched: patch => daemon.patchDisplay(patch)
         onStartServiceRequested: daemon.startService()
         onSettingsRequested: Plasmoid.internalAction("configure").trigger()
+        onOnboardingDismissed: daemon.updateSettings(Settings.onboardingPatch(true))
+        onHideRequested: ids => ids.forEach(id => daemon.setHidden(id, true))
     }
 
     DaemonClient {

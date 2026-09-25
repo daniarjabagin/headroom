@@ -11,10 +11,11 @@ Rectangle {
     property real progress: 1
     property string tone: "neutral"
     property var tick: null
+    property real barHeight: Metrics.meterHeight(Kirigami.Units)
     readonly property real shown: fraction * progress
 
     Layout.fillWidth: true
-    implicitHeight: Metrics.meterHeight(Kirigami.Units)
+    implicitHeight: barHeight
     radius: height / 2
     color: Tokens.track(Kirigami.Theme)
 

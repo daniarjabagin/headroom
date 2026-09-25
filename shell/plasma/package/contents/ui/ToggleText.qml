@@ -9,6 +9,7 @@ T.AbstractButton {
 
     property string emphasis: "primary"
     property string hint: ""
+    property real step: 0
 
     implicitWidth: label.implicitWidth + leftPadding + rightPadding
     implicitHeight: label.implicitHeight + topPadding + bottomPadding
@@ -22,6 +23,7 @@ T.AbstractButton {
         id: label
 
         emphasis: pointer.shown ? "primary" : toggle.emphasis
+        step: toggle.step
         text: toggle.text
 
         Behavior on color {

@@ -7,6 +7,7 @@ import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 import "logic/Providers.js" as Providers
 import "logic/Spend.js" as Spend
+import "logic/SpendUnits.js" as SpendUnits
 import "logic/Tokens.js" as Tokens
 
 ColumnLayout {
@@ -15,6 +16,7 @@ ColumnLayout {
     required property var period
     required property string periodKey
     required property string lang
+    property string unit: "cost"
     readonly property bool single: period.providers.length === 1
 
     spacing: Math.round(Kirigami.Units.smallSpacing / 2)
@@ -79,15 +81,15 @@ ColumnLayout {
                 TextLabel {
                     Layout.alignment: Qt.AlignVCenter
                     weight: Font.Medium
-                    text: FormatSpend.usd(entry.modelData.costMicros)
+                    text: SpendUnits.legendValue(entry.modelData, legend.unit)
                 }
             }
 
-            ModelTip {
+            BreakdownPopup {
                 id: tip
 
                 lang: legend.lang
-                title: Spend.breakdownTitle(legend.lang, legend.periodKey, entry.modelData)
+                title: Spend.popoverTitle(legend.lang, legend.periodKey, entry.modelData)
                 totals: entry.modelData
                 fallback: FormatSpend.spendTooltip(legend.lang, entry.modelData)
             }

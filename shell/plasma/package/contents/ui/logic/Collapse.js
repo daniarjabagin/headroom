@@ -19,8 +19,28 @@ function cardName(card) {
     return card.kind === "combined" ? card.group.providerName : card.account.providerName;
 }
 
+function cardProvider(card) {
+    return card.kind === "combined" ? card.group.provider : card.account.provider;
+}
+
+function distinct(values) {
+    return values.filter((value, index, all) => all.indexOf(value) === index);
+}
+
+function foldedCount(lang, folded) {
+    return I18n.trn(lang, "{count} more", "{count} more", folded.length);
+}
+
+function foldedNames(folded) {
+    return distinct(folded.map(cardName)).join(NAME_SEPARATOR);
+}
+
+function foldedProviders(folded, limit) {
+    return distinct(folded.map(cardProvider)).slice(0, limit);
+}
+
 function foldedTitle(lang, folded) {
-    const names = folded.map(cardName).filter((name, index, all) => all.indexOf(name) === index);
-    const more = I18n.trn(lang, "{count} more", "{count} more", folded.length);
-    return names.length === 0 ? more : `${more} · ${names.join(NAME_SEPARATOR)}`;
+    const names = foldedNames(folded);
+    const more = foldedCount(lang, folded);
+    return names === "" ? more : `${more} · ${names}`;
 }
