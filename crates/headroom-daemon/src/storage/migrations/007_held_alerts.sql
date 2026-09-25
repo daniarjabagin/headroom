@@ -1,0 +1,5 @@
+CREATE TABLE held_alerts (
+    id TEXT PRIMARY KEY NOT NULL,
+    held_at INTEGER NOT NULL,
+    payload TEXT NOT NULL
+) WITHOUT ROWID;

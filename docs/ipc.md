@@ -141,6 +141,8 @@ that stops reading loses notifications once 64 are queued for it.
 
 `Alert` fields: `id` is `<account_id>/<window>/<milestone>` for window milestones (`window` as in the
 state payload, `milestone` one of `almost_out`, `cutting_it_close`, `will_run_out`, `reset`) and
-`<account_id>/subscription_inactive` for a subscription lapse; the same id may repeat after the
+`<account_id>/subscription_inactive` for a subscription lapse, and `summary/<unix seconds>` with an
+empty `account_id` for the summary of alerts held during quiet hours (see
+[Notifications](dbus-api.md#notifications)); the same id may repeat after the
 milestone re-arms, so it suits replacing a shown notification. `urgency` is `low` for `reset`,
 `critical` for `will_run_out` when the limit is already reached, `normal` otherwise.

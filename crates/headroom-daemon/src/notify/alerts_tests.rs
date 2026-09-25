@@ -1,5 +1,5 @@
 use super::*;
-use crate::testing::CODEX;
+use crate::testing::{CLAUDE, CODEX};
 use crate::testing::{RecordingNotifier, account, session, snapshot, ts, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
@@ -61,6 +61,7 @@ async fn review(
         display,
         locale: Locale::En,
         now: ts(NOW),
+        tz: &TimeZone::UTC,
     };
     alerts.review(&review).await.unwrap();
 }
@@ -196,6 +197,7 @@ async fn russian_locale_is_used_for_delivery() {
             display: &display,
             locale: Locale::Ru,
             now: ts(NOW),
+            tz: &TimeZone::UTC,
         };
         alerts.review(&review).await.unwrap();
     }
@@ -216,10 +218,16 @@ async fn lapse(alerts: &Alerts, storage: &Storage, account: &AccountRecord) {
         .run(move |conn| crate::storage::lapses::record(conn, &id, "none"))
         .await
         .unwrap();
-    alerts
-        .review_lapse(account, "Codex", Locale::En)
-        .await
-        .unwrap();
+    let settings = NotificationSettings::default();
+    let review = LapseReview {
+        account,
+        provider_name: "Codex",
+        settings: &settings,
+        locale: Locale::En,
+        now: ts(NOW),
+        tz: &TimeZone::UTC,
+    };
+    alerts.review_lapse(&review).await.unwrap();
 }
 
 #[tokio::test]
@@ -257,4 +265,46 @@ async fn undelivered_lapse_is_retried_and_hidden_accounts_stay_quiet() {
     notifier.fail(false);
     lapse(&alerts, &storage, &work()).await;
     assert_eq!(notifier.texts().len(), 1);
+}
+
+#[tokio::test]
+async fn provider_thresholds_replace_the_global_threshold() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    let mut settings = NotificationSettings::default();
+    settings.provider_thresholds.insert("codex".into(), 20);
+    settings.provider_thresholds.insert("claude".into(), 0);
+    let claude = AccountRecord {
+        reference: account(CLAUDE, "max"),
+        ..work()
+    };
+    for record in [work(), claude] {
+        observe_with(&alerts, &record, 10.0, settings.clone()).await;
+        observe_with(&alerts, &record, 85.0, settings.clone()).await;
+    }
+    let sent = notifier.sent.lock().unwrap().clone();
+    let ids: Vec<&str> = sent.iter().map(|n| n.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "codex:work/session/will_run_out",
+            "codex:work/session/almost_out",
+            "claude:max/session/will_run_out"
+        ]
+    );
+    assert!(sent[1].body.starts_with("Under 20% left"));
+}
+
+#[test]
+fn thresholds_fall_back_to_the_global_value() {
+    let mut settings = NotificationSettings {
+        threshold_percent: 30,
+        ..NotificationSettings::default()
+    };
+    settings.provider_thresholds.insert("claude".into(), 5);
+    let cases = [("codex", 30), ("claude", 5), ("copilot", 30)];
+    for (provider, expected) in cases {
+        assert_eq!(threshold_for(&settings, provider), expected, "{provider}");
+    }
 }

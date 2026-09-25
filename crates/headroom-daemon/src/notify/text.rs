@@ -1,6 +1,7 @@
 use headroom_core::pace::Severity;
 use headroom_core::quota::{QuotaWindow, WindowId};
 use jiff::{SignedDuration, Timestamp};
+use serde::{Deserialize, Serialize};
 
 use super::evaluator::{Milestone, Observation};
 use crate::model::window_key;
@@ -73,7 +74,7 @@ struct Units {
 }
 
 const EN: Phrases = Phrases {
-    almost_out: "Under 10% left",
+    almost_out: "Under {}% left",
     cutting_it_close: "Projected to finish close to the limit",
     limit_reached: "Limit reached",
     runs_out_in: "Projected to run out in {}",
@@ -93,7 +94,7 @@ const EN: Phrases = Phrases {
 };
 
 const RU: Phrases = Phrases {
-    almost_out: "Осталось меньше 10%",
+    almost_out: "Осталось меньше {}%",
     cutting_it_close: "По прогнозу лимита едва хватит до сброса",
     limit_reached: "Лимит исчерпан",
     runs_out_in: "По прогнозу лимит закончится через {}",
@@ -112,7 +113,8 @@ const RU: Phrases = Phrases {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Urgency {
     Low,
     Normal,
@@ -130,13 +132,19 @@ impl Urgency {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Notification {
     pub id: String,
     pub account_id: String,
     pub title: String,
     pub body: String,
     pub urgency: Urgency,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Alert {
+    pub milestone: Milestone,
+    pub threshold: u8,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,7 +158,7 @@ pub struct Subject<'a> {
 #[must_use]
 pub fn compose(
     locale: Locale,
-    milestone: Milestone,
+    alert: Alert,
     subject: &Subject<'_>,
     observed: &Observation,
     now: Timestamp,
@@ -160,12 +168,21 @@ pub fn compose(
         id: format!(
             "{}/{window}/{}",
             subject.account_id,
-            milestone_key(milestone)
+            milestone_key(alert.milestone)
         ),
         account_id: subject.account_id.to_owned(),
         title: title(locale, subject),
-        body: body(locale, milestone, observed, now),
-        urgency: urgency(milestone, observed),
+        body: body(locale, alert, observed, now),
+        urgency: urgency(alert.milestone, observed),
+    }
+}
+
+#[must_use]
+pub fn heading(locale: Locale, subject: &Subject<'_>) -> String {
+    let window = window_label(locale, subject.window);
+    match subject.account_name {
+        Some(name) => format!("{} · {name} · {window}", subject.provider_name),
+        None => format!("{} · {window}", subject.provider_name),
     }
 }
 
@@ -225,10 +242,12 @@ fn window_label(locale: Locale, window: &QuotaWindow) -> &str {
     translated.unwrap_or(&window.label)
 }
 
-fn body(locale: Locale, milestone: Milestone, observed: &Observation, now: Timestamp) -> String {
+#[must_use]
+pub fn body(locale: Locale, alert: Alert, observed: &Observation, now: Timestamp) -> String {
     let phrases = locale.phrases();
+    let milestone = alert.milestone;
     let headline = match milestone {
-        Milestone::AlmostOut => phrases.almost_out.to_owned(),
+        Milestone::AlmostOut => fill(phrases.almost_out, &alert.threshold.to_string()),
         Milestone::CuttingItClose => phrases.cutting_it_close.to_owned(),
         Milestone::WillRunOut => running_out(locale, observed, now),
         Milestone::Reset => fill(phrases.limit_reset, &whole_percent(observed.remaining)),
@@ -263,7 +282,7 @@ fn resets_in(locale: Locale, observed: &Observation, now: Timestamp) -> Option<S
         .map(|left| countdown(locale, left))
 }
 
-fn fill(template: &str, value: &str) -> String {
+pub(super) fn fill(template: &str, value: &str) -> String {
     template.replacen("{}", value, 1)
 }
 
