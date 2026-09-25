@@ -10,6 +10,14 @@ pub struct ProviderDescriptor {
     pub add_account: &'static [AddAccountMethod],
     pub multi_account: bool,
     pub local_usage: bool,
+    pub links: ProviderLinks,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ProviderLinks {
+    pub status: Option<&'static str>,
+    pub dashboard: Option<&'static str>,
+    pub usage: Option<&'static str>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -92,7 +100,28 @@ impl ProviderDescriptor {
         self.add_account
             .iter()
             .try_for_each(AddAccountMethod::validate)
-            .map_err(fail)
+            .map_err(fail)?;
+        self.links.validate().map_err(fail)
+    }
+}
+
+impl ProviderLinks {
+    pub const NONE: ProviderLinks = ProviderLinks {
+        status: None,
+        dashboard: None,
+        usage: None,
+    };
+
+    fn validate(&self) -> Result<(), &'static str> {
+        let all_https = [self.status, self.dashboard, self.usage]
+            .into_iter()
+            .flatten()
+            .all(is_https_url);
+        if all_https {
+            Ok(())
+        } else {
+            Err("links must be absolute https URLs")
+        }
     }
 }
 
@@ -181,6 +210,13 @@ impl ApiKeyPrompt {
         }
         Ok(())
     }
+}
+
+fn is_https_url(url: &str) -> bool {
+    url.strip_prefix("https://")
+        .and_then(|rest| rest.split('/').next())
+        .is_some_and(|host| !host.is_empty() && !host.contains(char::is_whitespace))
+        && !url.contains(char::is_whitespace)
 }
 
 fn is_env_name(name: &str) -> bool {

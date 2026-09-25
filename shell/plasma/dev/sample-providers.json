@@ -11,7 +11,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": true
+      "local_usage": true,
+      "links": {
+        "status": "https://status.openai.com",
+        "dashboard": "https://chatgpt.com/codex",
+        "usage": null
+      }
     },
     {
       "id": "claude",
@@ -23,7 +28,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": true
+      "local_usage": true,
+      "links": {
+        "status": "https://status.claude.com",
+        "dashboard": "https://claude.ai",
+        "usage": null
+      }
     },
     {
       "id": "opencode",
@@ -35,7 +45,12 @@
         }
       ],
       "multi_account": false,
-      "local_usage": true
+      "local_usage": true,
+      "links": {
+        "status": null,
+        "dashboard": "https://opencode.ai/zen",
+        "usage": null
+      }
     },
     {
       "id": "openrouter",
@@ -49,7 +64,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.openrouter.ai",
+        "dashboard": "https://openrouter.ai/settings/credits",
+        "usage": "https://openrouter.ai/activity"
+      }
     },
     {
       "id": "zai",
@@ -63,7 +83,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": null,
+        "dashboard": "https://z.ai/manage-apikey/coding-plan/personal/my-plan",
+        "usage": "https://z.ai/manage-apikey/billing"
+      }
     },
     {
       "id": "kimi",
@@ -77,7 +102,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.moonshot.cn",
+        "dashboard": "https://www.kimi.com/code/console",
+        "usage": "https://www.kimi.com/code/console"
+      }
     },
     {
       "id": "minimax",
@@ -91,7 +121,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.minimax.io",
+        "dashboard": "https://platform.minimax.io/console/plan",
+        "usage": "https://platform.minimax.io/console/plan"
+      }
     },
     {
       "id": "grok",
@@ -105,7 +140,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.x.ai",
+        "dashboard": "https://console.x.ai",
+        "usage": null
+      }
     },
     {
       "id": "cline",
@@ -117,7 +157,12 @@
         }
       ],
       "multi_account": false,
-      "local_usage": true
+      "local_usage": true,
+      "links": {
+        "status": "https://status.cline.bot",
+        "dashboard": "https://app.cline.bot/dashboard",
+        "usage": "https://app.cline.bot/dashboard"
+      }
     },
     {
       "id": "devin",
@@ -131,7 +176,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://www.devinstatus.com",
+        "dashboard": "https://app.devin.ai",
+        "usage": null
+      }
     },
     {
       "id": "copilot",
@@ -143,7 +193,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://www.githubstatus.com",
+        "dashboard": "https://github.com/settings/copilot",
+        "usage": "https://github.com/settings/billing/summary"
+      }
     },
     {
       "id": "cursor",
@@ -155,7 +210,12 @@
         }
       ],
       "multi_account": false,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.cursor.com",
+        "dashboard": "https://cursor.com/dashboard",
+        "usage": "https://cursor.com/dashboard/usage"
+      }
     },
     {
       "id": "antigravity",
@@ -167,7 +227,12 @@
         }
       ],
       "multi_account": false,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": null,
+        "dashboard": "https://antigravity.google",
+        "usage": null
+      }
     },
     {
       "id": "ollama",
@@ -181,7 +246,12 @@
         }
       ],
       "multi_account": false,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": null,
+        "dashboard": "https://ollama.com/settings",
+        "usage": "https://ollama.com/settings"
+      }
     },
     {
       "id": "kilo",
@@ -203,7 +273,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.kilo.ai",
+        "dashboard": "https://app.kilo.ai",
+        "usage": "https://app.kilo.ai/usage"
+      }
     },
     {
       "id": "warp",
@@ -217,7 +292,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.warp.dev",
+        "dashboard": "https://app.warp.dev",
+        "usage": null
+      }
     },
     {
       "id": "poe",
@@ -231,7 +311,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.poe.com",
+        "dashboard": "https://poe.com/settings",
+        "usage": "https://poe.com/points_history"
+      }
     },
     {
       "id": "deepseek",
@@ -245,7 +330,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.deepseek.com",
+        "dashboard": "https://platform.deepseek.com",
+        "usage": "https://platform.deepseek.com/usage"
+      }
     },
     {
       "id": "moonshot",
@@ -259,7 +349,12 @@
         }
       ],
       "multi_account": true,
-      "local_usage": false
+      "local_usage": false,
+      "links": {
+        "status": "https://status.moonshot.cn",
+        "dashboard": "https://platform.kimi.ai/console",
+        "usage": "https://platform.kimi.ai/console/account"
+      }
     }
   ]
 }

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor, ProviderLinks};
 use headroom_core::event::UsageEvent;
 use headroom_core::pace::Tone;
 use headroom_core::provider::{Provider, ProviderError};
@@ -40,6 +40,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     }],
     multi_account: false,
     local_usage: false,
+    links: ProviderLinks {
+        status: None,
+        dashboard: Some("https://antigravity.google"),
+        usage: None,
+    },
 };
 
 const NOT_FOUND_TEXT: &str = "Headroom cannot find an Antigravity sign-in. Start Antigravity or \

@@ -11,7 +11,7 @@ use crate::logging::DaemonLogging;
 use crate::paths::{Globals, pricing_cache_dir};
 use crate::pricing::{ReloadablePrices, keep_fresh};
 use crate::providers::{self, LocalRegistry};
-use crate::update;
+use crate::{status_pages, update};
 
 pub async fn run(
     globals: &Globals,
@@ -35,6 +35,7 @@ pub async fn run(
     if !args.no_update_check {
         config.updates = Some(update::daemon_config()?);
     }
+    config.status_pages = Some(Arc::new(status_pages::StatusPageClient::new()?));
     let pricing = tokio::spawn(keep_fresh(prices, http));
     let result = headroom_daemon::run(config).await;
     pricing.abort();

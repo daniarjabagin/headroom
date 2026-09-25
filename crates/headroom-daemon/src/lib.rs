@@ -24,6 +24,7 @@ pub mod scheduler;
 pub mod service;
 pub mod settings;
 pub mod state;
+pub mod status;
 pub mod storage;
 pub mod update;
 pub mod usage;

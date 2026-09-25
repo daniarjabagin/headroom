@@ -12,6 +12,7 @@ use crate::clock::{Clock, SystemClock};
 use crate::daemon::log_level::LogControl;
 use crate::error::DaemonError;
 use crate::notify::text::Locale;
+use crate::status::StatusFetch;
 use crate::update::UpdateConfig;
 
 pub type Shutdown = Pin<Box<dyn Future<Output = ()> + Send>>;
@@ -42,6 +43,7 @@ pub struct DaemonConfig {
     pub system_locale: Locale,
     pub updates: Option<UpdateConfig>,
     pub logging: Option<Arc<dyn LogControl>>,
+    pub status_pages: Option<Arc<dyn StatusFetch>>,
     pub shutdown: Shutdown,
 }
 
@@ -67,6 +69,7 @@ impl DaemonConfig {
             system_locale: Locale::from_env(),
             updates: None,
             logging: None,
+            status_pages: None,
             shutdown,
         })
     }

@@ -9,6 +9,7 @@ mod models;
 mod panel_items;
 pub mod payload;
 mod projects;
+mod provider_status;
 mod refresh;
 mod spend;
 pub mod status;
@@ -71,6 +72,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         panel_tone: panel_items::panel_tone(&accounts, &combined),
         accounts,
         combined,
+        provider_status: provider_status::provider_status(model, ctx),
         spend,
         usage,
     }

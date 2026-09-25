@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use headroom_core::account::ProviderId;
-use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor, ProviderLinks};
 use headroom_core::provider::Provider;
 use serde::Serialize;
 
@@ -26,6 +26,14 @@ pub struct ProviderView {
     pub add_account: Vec<AddAccountView>,
     pub multi_account: bool,
     pub local_usage: bool,
+    pub links: LinksView,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct LinksView {
+    pub status: Option<&'static str>,
+    pub dashboard: Option<&'static str>,
+    pub usage: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -106,6 +114,17 @@ fn provider_view(descriptor: &'static ProviderDescriptor) -> ProviderView {
         add_account: descriptor.add_account.iter().map(method_view).collect(),
         multi_account: descriptor.multi_account,
         local_usage: descriptor.local_usage,
+        links: LinksView::from(descriptor.links),
+    }
+}
+
+impl From<ProviderLinks> for LinksView {
+    fn from(links: ProviderLinks) -> LinksView {
+        LinksView {
+            status: links.status,
+            dashboard: links.dashboard,
+            usage: links.usage,
+        }
     }
 }
 
@@ -146,6 +165,11 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        links: ProviderLinks {
+            status: Some("https://status.keyed.example"),
+            dashboard: None,
+            usage: Some("https://keyed.example/usage"),
+        },
     };
 
     #[test]
@@ -175,7 +199,12 @@ mod tests {
                     "display_name": "Codex",
                     "add_account": [{ "kind": "cli_login", "program": "codex" }],
                     "multi_account": true,
-                    "local_usage": true
+                    "local_usage": true,
+                    "links": {
+                        "status": "https://status.openai.com",
+                        "dashboard": null,
+                        "usage": null
+                    }
                 },
                 {
                     "id": "keyed",
@@ -190,7 +219,12 @@ mod tests {
                         { "kind": "auto_detect", "reason": "reads KEYED_API_KEY" }
                     ],
                     "multi_account": true,
-                    "local_usage": false
+                    "local_usage": false,
+                    "links": {
+                        "status": "https://status.keyed.example",
+                        "dashboard": null,
+                        "usage": "https://keyed.example/usage"
+                    }
                 }
             ]
         });

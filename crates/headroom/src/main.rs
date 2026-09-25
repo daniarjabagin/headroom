@@ -12,6 +12,7 @@ mod providers;
 mod render;
 mod spend;
 mod state;
+mod status_pages;
 mod update;
 mod waybar;
 

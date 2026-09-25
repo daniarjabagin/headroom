@@ -22,6 +22,7 @@ fn descriptor(add_account: &'static [AddAccountMethod]) -> ProviderDescriptor {
         add_account,
         multi_account: true,
         local_usage: false,
+        links: ProviderLinks::NONE,
     }
 }
 
@@ -149,4 +150,31 @@ fn credentials_resolve_below_the_home_var_target() {
     };
     assert_eq!(xdg.credentials_path(home), home.join("tool/auth.json"));
     assert_eq!(xdg.home_var.var(), "XDG_DATA_HOME");
+}
+
+#[test]
+fn links_must_be_absolute_https_urls() {
+    let mut tool = descriptor(&[AddAccountMethod::AutoDetect { reason: "found" }]);
+    tool.links = ProviderLinks {
+        status: Some("https://status.example.com"),
+        dashboard: Some("https://example.com/dashboard"),
+        usage: None,
+    };
+    assert_eq!(tool.validate(), Ok(()));
+    let rejected = [
+        "http://status.example.com",
+        "https://",
+        "https:///path",
+        "status.example.com",
+        "https://example.com/a b",
+        "javascript:alert(1)",
+    ];
+    for url in rejected {
+        tool.links.usage = Some(url);
+        assert_eq!(
+            tool.validate().unwrap_err().problem,
+            "links must be absolute https URLs",
+            "{url}"
+        );
+    }
 }

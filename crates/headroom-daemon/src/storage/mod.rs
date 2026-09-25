@@ -10,6 +10,7 @@ mod migrations;
 mod private;
 pub mod settings;
 pub mod snapshots;
+pub mod status_cache;
 pub mod updates;
 
 use std::path::Path;

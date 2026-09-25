@@ -9,7 +9,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, ProviderDescriptor};
+use headroom_core::descriptor::{
+    AddAccountMethod, ApiKeyPrompt, ProviderDescriptor, ProviderLinks,
+};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow};
@@ -35,6 +37,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: false,
+    links: ProviderLinks {
+        status: Some("https://status.minimax.io"),
+        dashboard: Some("https://platform.minimax.io/console/plan"),
+        usage: Some("https://platform.minimax.io/console/plan"),
+    },
 };
 
 const PLAN: &str = "Token Plan";

@@ -74,6 +74,7 @@ mod tests {
         add_account: &[KEY],
         multi_account: true,
         local_usage: false,
+        links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
     static LOGIN_THEN_KEY: ProviderDescriptor = ProviderDescriptor {
@@ -95,6 +96,7 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
     static KEY_THEN_LOGIN: ProviderDescriptor = ProviderDescriptor {
@@ -113,6 +115,7 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
     static DETECTED: ProviderDescriptor = ProviderDescriptor {
@@ -123,6 +126,7 @@ mod tests {
         }],
         multi_account: false,
         local_usage: false,
+        links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
     fn message(result: Result<AddPlan>) -> String {

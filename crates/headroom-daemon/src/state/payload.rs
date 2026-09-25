@@ -6,6 +6,7 @@ use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 
 use crate::settings::DisplaySettings;
+use crate::status::Indicator;
 use crate::update::InstallKind;
 
 pub const STATE_VERSION: u32 = 1;
@@ -31,6 +32,8 @@ pub struct StatePayload {
     pub accounts: Vec<AccountView>,
     #[serde(default)]
     pub combined: Vec<CombinedView>,
+    #[serde(default)]
+    pub provider_status: Vec<ProviderStatusView>,
     pub usage: Vec<UsageView>,
     pub spend: SpendView,
 }
@@ -47,6 +50,17 @@ pub struct UpdateView {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpdateCheckView {
     pub checked_at: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderStatusView {
+    pub provider: ProviderId,
+    pub indicator: Indicator,
+    pub tone: Tone,
+    pub title: Option<String>,
+    pub stage: Option<String>,
+    pub started_at: Option<Timestamp>,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
