@@ -68,6 +68,8 @@ pub enum CommandError {
     Encode(#[from] serde_json::Error),
     #[error("the daemon is shutting down")]
     Stopping,
+    #[error("update checks are turned off for this daemon (--no-update-check)")]
+    UpdateChecksUnavailable,
 }
 
 impl CommandError {
@@ -81,7 +83,10 @@ impl CommandError {
             | CommandError::LabelTooLong(_)
             | CommandError::LabelControlCharacters
             | CommandError::Settings(_) => true,
-            CommandError::Storage(_) | CommandError::Encode(_) | CommandError::Stopping => false,
+            CommandError::Storage(_)
+            | CommandError::Encode(_)
+            | CommandError::Stopping
+            | CommandError::UpdateChecksUnavailable => false,
         }
     }
 }

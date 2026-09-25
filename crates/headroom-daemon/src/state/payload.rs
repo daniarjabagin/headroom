@@ -19,6 +19,8 @@ pub struct StatePayload {
     pub last_success_at: Option<Timestamp>,
     pub offline: bool,
     pub update: Option<UpdateView>,
+    #[serde(default)]
+    pub update_check: Option<UpdateCheckView>,
     pub display: DisplaySettings,
     pub headline: Option<Headline>,
     pub accounts: Vec<AccountView>,
@@ -35,6 +37,11 @@ pub struct UpdateView {
     pub published_at: Timestamp,
     pub install: InstallKind,
     pub command: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UpdateCheckView {
+    pub checked_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

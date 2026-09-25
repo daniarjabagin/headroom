@@ -55,6 +55,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         last_success_at: activity::last_success_at(model),
         offline: activity::offline(model),
         update: update::update_view(model),
+        update_check: update::update_check_view(model),
         display: model.settings.display.clone(),
         headline: headline::headline(&accounts, &combined, &model.settings.headline),
         accounts,

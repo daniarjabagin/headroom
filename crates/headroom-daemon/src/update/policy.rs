@@ -6,6 +6,7 @@ pub const CHECK_EVERY: SignedDuration = SignedDuration::from_hours(24);
 pub const STARTUP_DELAY: SignedDuration = SignedDuration::from_mins(2);
 pub const RETRY_FAILED: SignedDuration = SignedDuration::from_hours(1);
 pub const RATE_LIMIT_MIN: SignedDuration = SignedDuration::from_hours(1);
+pub const MANUAL_REUSE: SignedDuration = SignedDuration::from_mins(1);
 
 #[must_use]
 pub fn first_delay(last_check: Option<Timestamp>, now: Timestamp, sample: f64) -> SignedDuration {
@@ -24,6 +25,12 @@ pub fn after_rate_limit(retry_after: Option<SignedDuration>) -> SignedDuration {
     retry_after
         .unwrap_or(RATE_LIMIT_MIN)
         .clamp(RATE_LIMIT_MIN, CHECK_EVERY)
+}
+
+#[must_use]
+pub fn reusable(checked: Timestamp, now: Timestamp) -> bool {
+    let age = now.duration_since(checked);
+    age >= SignedDuration::ZERO && age < MANUAL_REUSE
 }
 
 #[must_use]
@@ -78,6 +85,20 @@ mod tests {
             after_rate_limit(Some(SignedDuration::from_hours(48))),
             CHECK_EVERY
         );
+    }
+
+    #[test]
+    fn a_manual_check_is_reused_for_one_minute() {
+        let checked = ts(NOW);
+        let cases = [
+            ("2026-09-23T10:00:00Z", true),
+            ("2026-09-23T10:00:59Z", true),
+            ("2026-09-23T10:01:00Z", false),
+            ("2026-09-23T09:59:00Z", false),
+        ];
+        for (now, expected) in cases {
+            assert_eq!(reusable(checked, ts(now)), expected, "{now}");
+        }
     }
 
     #[test]

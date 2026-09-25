@@ -26,6 +26,7 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. This is what a card's Retry button calls. |
 | `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
+| `CheckForUpdates` | `() → s` | Ask GitHub for the latest Headroom release now and return the result as JSON (see [Checking on demand](#checking-on-demand)). Returns when the check is done; concurrent calls share one request, and a call within 60 s of the last check returns that result without a request. Fails with `NotSupported` on a daemon started with `--no-update-check`. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
 | `SetSettings` | `(s json) → ()` | Replace the settings document. Missing fields take their defaults, unknown fields are rejected; the retired `dismissed_accounts` key is ignored (dismissals are managed only by `DismissAccount` and `RestoreAccounts`). Validated before it is stored; emits `StateChanged`. Kept for compatibility; shells should use `UpdateSettings`. |
 | `UpdateSettings` | `(s patch) → ()` | Apply a JSON Merge Patch (RFC 7386) to the current settings, validate the result like `SetSettings`, store it and emit `StateChanged`. See [Updating settings](#updating-settings). |
@@ -76,7 +77,8 @@ Refresh semantics:
 | D-Bus error | when |
 | --- | --- |
 | `org.freedesktop.DBus.Error.InvalidArgs` | unknown account id, unknown provider id in `RestoreAccounts`, `DismissAccount` for a Headroom-owned account, duplicate id in `SetAccountOrder`, label longer than 64 characters or containing control characters, malformed or invalid settings JSON, a settings patch that is not a JSON object or whose result is invalid |
-| `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` while the daemon is shutting down |
+| `org.freedesktop.DBus.Error.NotSupported` | `CheckForUpdates` on a daemon started with `--no-update-check` |
+| `org.freedesktop.DBus.Error.Failed` | storage or encoding failure inside the daemon, or `Rescan` or `CheckForUpdates` while the daemon is shutting down |
 
 The error message is human readable and safe to show.
 
@@ -150,6 +152,7 @@ Top level:
 | `last_success_at` | timestamp \| null | `fetched_at` of the newest live snapshot of a visible account (cached snapshots from an earlier daemon run count; data read from local logs does not). `null` when there is none. |
 | `offline` | bool | `true` when every listed account (hidden ones included) failed its most recent refresh with a `network` error. Any success, any other error or an account not tried yet makes it `false`. `false` without accounts. |
 | `update` | Update \| null | A newer Headroom release, see [Update](#update). `null` when no newer release is known, when `updates.check` is off, when the daemon runs with `--no-update-check`, and in cached payloads read without a daemon. Daemons older than this field omit it. |
+| `update_check` | UpdateCheck \| null | The last update check, see [Update check](#update-check). `null` when `updates.check` is off, when the daemon runs with `--no-update-check`, and in cached payloads read without a daemon. Daemons older than this field omit it. |
 | `display` | Display | A copy of `settings.display` (see [Settings](#settings)), so shells get their display options with every `StateChanged`. |
 | `headline` | Headline \| null | The one window a panel should show. `null` when no visible account has a visible window. |
 | `accounts` | Account[] | Known accounts in user order (`SetAccountOrder`). Accounts that disappeared from discovery are left out; their data is kept and returns if they come back. |
@@ -192,6 +195,19 @@ repository, which is why package commands point at the release page.
   "command": "headroom update"
 }
 ```
+
+### Update check
+
+| field | type | description |
+| --- | --- | --- |
+| `checked_at` | timestamp \| null | When GitHub last answered a check (a `304 Not Modified` counts), scheduled or on demand. Kept across daemon restarts. `null` before the first successful check. Failed and rate-limited checks do not change it. |
+
+```json
+"update_check": { "checked_at": "2026-09-23T04:00:00Z" }
+```
+
+A shell's "Check for updates" row shows `checked_at` ("checked 5 minutes ago") next to the running
+`app_version`; its button calls `CheckForUpdates`. The row is hidden while `update_check` is `null`.
 
 ### Headline
 
@@ -564,6 +580,7 @@ ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`
   "last_success_at": "2026-09-23T09:58:00Z",
   "offline": false,
   "update": null,
+  "update_check": { "checked_at": "2026-09-23T04:00:00Z" },
   "display": {
     "theme": "system",
     "language": "system",
@@ -828,9 +845,9 @@ invalid.
 
 The daemon asks GitHub whether a newer Headroom release exists and reports it as `update` in the
 state payload. Privacy: this is one `GET https://api.github.com/repos/daniarjabagin/headroom/releases/latest`
-a day, sent with `User-Agent: headroom/<version>`, `Accept: application/vnd.github+json` and the
-previous response's `ETag` as `If-None-Match`. Nothing else is sent: no identifiers, accounts, usage
-or settings. GitHub sees the request's IP address like any web request.
+a day, plus one per `CheckForUpdates` call (at most one a minute), sent with
+`User-Agent: headroom/<version>`, `Accept: application/vnd.github+json` and the previous response's
+`ETag` as `If-None-Match`. Nothing else is sent: no identifiers, accounts, usage or settings. GitHub sees the request's IP address like any web request.
 
 - The first check runs 2 minutes after start-up, or 24 h (± 10 %) after the last successful check if
   that is later; the last check (time, `ETag`, latest release) is stored in the daemon's database, so
@@ -842,7 +859,36 @@ or settings. GitHub sees the request's IP address like any web request.
 - `updates.check: false` stops the requests and hides `update`; turning it on again checks at once
   if a check is due. `headroom daemon --no-update-check` never checks (the macOS app starts its daemon
   this way because it updates itself with Sparkle).
-- A change of `update` emits `StateChanged`.
+- A change of `update` or `update_check` emits `StateChanged`.
+
+### Checking on demand
+
+`CheckForUpdates()` (socket: `CheckForUpdates`) runs a check now for a shell's "Check for updates"
+button. It sends the same request as the daily check (with the stored `ETag`, so an unchanged
+release costs a `304`) and returns:
+
+```json
+{"status":"available","checked_at":"2026-09-23T10:00:00Z","version":"0.6.0"}
+{"status":"rate_limited","checked_at":"2026-09-22T09:14:00Z","version":"0.5.1","until":"2026-09-23T11:30:00Z"}
+```
+
+| field | type | description |
+| --- | --- | --- |
+| `status` | string | `up_to_date`: the latest stable release is not newer than the running daemon. `available`: it is newer; the state's `update` describes it. `failed`: the request failed (network, unexpected status, unusable answer). `rate_limited`: GitHub's rate limit holds checks until `until`. `disabled`: `updates.check` is `false`; nothing was sent. |
+| `checked_at` | timestamp \| null | The last successful check, the same value as the state's `update_check.checked_at` (so for `failed` and `rate_limited` it is the previous success). `null` for `disabled` and before the first success. |
+| `version` | string \| null | The latest stable release known from that check, newer or not. `null` for `disabled` and when none is known. |
+| `until` | timestamp | Present only for `rate_limited`: when the next request may be sent. |
+
+- Calls that arrive together or while a check is running share one request and get the same result.
+- A call within 60 s of the last check (scheduled or on demand) returns that check's result without a
+  request.
+- While a rate-limit hold (`403`/`429`) is active, calls return `rate_limited` without a request.
+- A check that reaches GitHub moves the daily schedule: the next scheduled check follows 24 h
+  (± 10 %) later, or 1 h (± 10 %) after a failure, or at the end of a rate-limit hold.
+- The request may take up to 30 s plus the connection time; D-Bus clients should call it
+  asynchronously with a timeout of at least 60 s (`gdbus` and `QDBus` default to 25 s).
+- A daemon started with `--no-update-check` answers with `org.freedesktop.DBus.Error.NotSupported`
+  (socket: `-32000`); `headroom update --check` still works there because it asks GitHub itself.
 
 ## Updating Headroom
 

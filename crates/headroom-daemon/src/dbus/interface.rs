@@ -42,6 +42,15 @@ impl DaemonInterface {
         self.service.rescan().await.map_err(|error| to_fdo(&error))
     }
 
+    async fn check_for_updates(&self) -> fdo::Result<String> {
+        let outcome = self
+            .service
+            .check_for_updates()
+            .await
+            .map_err(|error| to_fdo(&error))?;
+        serde_json::to_string(&outcome).map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
     fn list_providers(&self) -> fdo::Result<String> {
         self.core()
             .providers_json()
@@ -109,7 +118,9 @@ impl DaemonInterface {
 }
 
 fn to_fdo(error: &CommandError) -> fdo::Error {
-    if error.is_invalid_argument() {
+    if matches!(error, CommandError::UpdateChecksUnavailable) {
+        fdo::Error::NotSupported(error.to_string())
+    } else if error.is_invalid_argument() {
         fdo::Error::InvalidArgs(error.to_string())
     } else {
         fdo::Error::Failed(error.to_string())

@@ -59,6 +59,20 @@ async fn commands_reach_the_core_and_return_null() {
 }
 
 #[tokio::test]
+async fn update_checks_fail_on_a_daemon_that_does_not_check() {
+    let server = Server::start().await;
+    let mut client = server.client().await;
+    let answer = client.call(1, "CheckForUpdates", json!([])).await;
+    assert_eq!(answer["error"]["code"], -32_000);
+    assert_eq!(
+        answer["error"]["message"],
+        "update checks are turned off for this daemon (--no-update-check)"
+    );
+    let extra = client.call(2, "CheckForUpdates", json!([true])).await;
+    assert_eq!(extra["error"]["code"], -32_602);
+}
+
+#[tokio::test]
 async fn errors_carry_json_rpc_codes_and_keep_the_connection() {
     let server = Server::start().await;
     let mut client = server.client().await;

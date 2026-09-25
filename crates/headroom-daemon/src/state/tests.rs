@@ -14,6 +14,7 @@ use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin
 use crate::storage::accounts::AccountRecord;
 use crate::testing::{CLAUDE, CODEX, catalog};
 use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
+use crate::update::UpdateCheckState;
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 const SNAPSHOT_APP_VERSION: &str = "0.0.0-snapshot";
@@ -130,6 +131,9 @@ pub(super) fn sample_model() -> Model {
         .display
         .hidden_windows
         .insert("codex:work".into(), vec!["weekly".into()]);
+    model.update_check = Some(UpdateCheckState {
+        checked_at: Some(ts("2026-09-23T04:00:00Z")),
+    });
     model
 }
 

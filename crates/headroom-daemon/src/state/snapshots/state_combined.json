@@ -6,6 +6,9 @@
   "last_success_at": "2026-09-23T09:59:00Z",
   "offline": false,
   "update": null,
+  "update_check": {
+    "checked_at": "2026-09-23T04:00:00Z"
+  },
   "display": {
     "theme": "system",
     "language": "system",

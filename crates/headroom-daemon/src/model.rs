@@ -14,7 +14,7 @@ use crate::settings::Settings;
 use crate::storage::accounts::{self, AccountRecord};
 use crate::storage::lapses::{self, Lapse};
 use crate::storage::{dismissed, settings, snapshots};
-use crate::update::AvailableUpdate;
+use crate::update::{AvailableUpdate, UpdateCheckState};
 
 #[derive(Debug, Clone, Default)]
 pub struct Model {
@@ -26,6 +26,7 @@ pub struct Model {
     pub usage_homes: BTreeSet<UsageHome>,
     pub usage: BTreeMap<UsageHome, UsageSummary>,
     pub update: Option<AvailableUpdate>,
+    pub update_check: Option<UpdateCheckState>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -119,6 +120,7 @@ impl Model {
             usage_homes: BTreeSet::new(),
             usage: BTreeMap::new(),
             update: None,
+            update_check: None,
         })
     }
 

@@ -1,5 +1,5 @@
 use crate::model::Model;
-use crate::state::payload::UpdateView;
+use crate::state::payload::{UpdateCheckView, UpdateView};
 
 pub fn update_view(model: &Model) -> Option<UpdateView> {
     if !model.settings.updates.check {
@@ -15,10 +15,22 @@ pub fn update_view(model: &Model) -> Option<UpdateView> {
     })
 }
 
+pub fn update_check_view(model: &Model) -> Option<UpdateCheckView> {
+    if !model.settings.updates.check {
+        return None;
+    }
+    let check = model.update_check?;
+    Some(UpdateCheckView {
+        checked_at: check.checked_at,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::update::{AvailableUpdate, Install, InstallKind, Packager, Release};
+    use crate::update::{
+        AvailableUpdate, Install, InstallKind, Packager, Release, UpdateCheckState,
+    };
 
     fn with_update(install: Install) -> Model {
         Model {
@@ -57,5 +69,27 @@ mod tests {
         let mut model = with_update(Install::Unknown);
         model.settings.updates.check = false;
         assert_eq!(update_view(&model), None);
+    }
+
+    #[test]
+    fn the_last_check_is_shown_only_while_a_checker_runs_and_checks_are_on() {
+        assert_eq!(update_check_view(&Model::default()), None);
+        let mut model = Model {
+            update_check: Some(UpdateCheckState { checked_at: None }),
+            ..Model::default()
+        };
+        assert_eq!(
+            serde_json::to_value(update_check_view(&model)).unwrap(),
+            serde_json::json!({"checked_at": null})
+        );
+        model.update_check = Some(UpdateCheckState {
+            checked_at: Some("2026-09-23T09:00:00Z".parse().unwrap()),
+        });
+        assert_eq!(
+            serde_json::to_value(update_check_view(&model)).unwrap(),
+            serde_json::json!({"checked_at": "2026-09-23T09:00:00Z"})
+        );
+        model.settings.updates.check = false;
+        assert_eq!(update_check_view(&model), None);
     }
 }
