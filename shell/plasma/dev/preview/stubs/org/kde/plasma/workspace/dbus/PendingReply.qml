@@ -7,6 +7,7 @@ Timer {
     property bool isError: false
     property var value: null
     property var error: ({
+            name: "",
             message: ""
         })
 

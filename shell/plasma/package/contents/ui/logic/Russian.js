@@ -257,5 +257,21 @@ const MESSAGES = {
     "Cash balance is negative: the account is in debt": "Денежный баланс отрицательный — на счёте долг",
     "Extra usage on, cap {amount}": "Доп. использование включено, предел {amount}",
     "{plan} renews on {date} (UTC).": "{plan} продлевается {date} (UTC).",
-    "{plan} ends on {date} (UTC).": "{plan} заканчивается {date} (UTC)."
+    "{plan} ends on {date} (UTC).": "{plan} заканчивается {date} (UTC).",
+    "Sign in again…": "Войти снова…",
+    "Copy command": "Скопировать команду",
+    "Run `{command}` in a terminal — Headroom picks it up automatically.": "Выполните `{command}` в терминале — Headroom подхватит вход сам.",
+    "Headroom's sign-in for this account has expired. Sign in again or remove the account.": "Вход Headroom для этого аккаунта истёк. Войдите снова или удалите аккаунт.",
+    "Check now": "Проверить сейчас",
+    "checked {ago}": "проверено {ago}",
+    "You're up to date · Headroom {version} · {checked}": "У вас последняя версия · Headroom {version} · {checked}",
+    "You're up to date · Headroom {version}": "У вас последняя версия · Headroom {version}",
+    "Update available": "Доступно обновление",
+    "Update available · {checked}": "Доступно обновление · {checked}",
+    "Couldn't check for updates": "Не удалось проверить обновления",
+    "Couldn't check for updates · last checked {ago}": "Не удалось проверить обновления · последняя проверка {ago}",
+    "GitHub limits update checks · try again later": "GitHub ограничил проверки · попробуйте позже",
+    "GitHub limits update checks · try again in {duration}": "GitHub ограничил проверки · попробуйте через {duration}",
+    "Update checks are off": "Проверка обновлений выключена",
+    "Headroom {version} · not checked yet": "Headroom {version} · ещё не проверялось"
 };

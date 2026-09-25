@@ -16,6 +16,7 @@ QtObject {
             return {
                 isError: true,
                 error: {
+                    name: "org.freedesktop.DBus.Error.Failed",
                     message: `${message.member} failed`
                 }
             };
@@ -31,6 +32,8 @@ QtObject {
             return {
                 value: PreviewConfig.settingsJson()
             };
+        if (message.member === "CheckForUpdates")
+            return PreviewConfig.nextCheckReply();
         if (message.member === "UpdateSettings")
             PreviewConfig.applySettingsPatch(message.arguments[0]);
         return {

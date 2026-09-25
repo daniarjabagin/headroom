@@ -5,6 +5,7 @@ import "logic/PatchQueue.js" as PatchQueue
 import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
+import "logic/UpdateCheck.js" as UpdateCheck
 
 Item {
     id: client
@@ -162,6 +163,34 @@ Item {
         daemonCall("RefreshNow", "()", [], () => client.afterCommand(), failed => {
             if (failed)
                 onFailed();
+        });
+    }
+
+    function checkForUpdates(onDone) {
+        if (!watcher.registered) {
+            onDone(UpdateCheck.SERVICE_UNKNOWN, null);
+            return;
+        }
+        checkAttempt(1, onDone);
+    }
+
+    function checkAttempt(attempt, onDone) {
+        const reply = DBus.SessionBus.asyncCall({
+            service: busName,
+            path: objectPath,
+            iface: interfaceName,
+            member: "CheckForUpdates",
+            signature: "",
+            arguments: []
+        });
+        reply.finished.connect(() => {
+            const errorName = reply.isError ? reply.error.name : "";
+            const value = reply.value;
+            reply.destroy();
+            if (UpdateCheck.retries(errorName, attempt))
+                client.checkAttempt(attempt + 1, onDone);
+            else
+                onDone(errorName, value);
         });
     }
 

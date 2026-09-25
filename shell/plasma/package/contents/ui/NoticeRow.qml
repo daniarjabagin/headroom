@@ -11,8 +11,20 @@ Rectangle {
     readonly property var actions: entry.actions
     readonly property bool inlineAction: actions.length === 1
     property bool animated: true
+    property string copiedValue: ""
 
     signal actionTriggered(string kind, string value)
+
+    function trigger(kind, value) {
+        if (kind !== "copy") {
+            actionTriggered(kind, value);
+            return;
+        }
+        clipboard.text = value;
+        clipboard.selectAll();
+        clipboard.copy();
+        copiedValue = value;
+    }
 
     function iconFor(kind) {
         if (kind === "error")
@@ -92,8 +104,9 @@ Rectangle {
                 visible: !notice.inlineAction && notice.actions.length > 0
                 Layout.topMargin: Kirigami.Units.mediumSpacing
                 actions: notice.actions
+                copiedValue: notice.copiedValue
                 animated: notice.animated
-                onTriggered: (kind, value) => notice.actionTriggered(kind, value)
+                onTriggered: (kind, value) => notice.trigger(kind, value)
             }
         }
 
@@ -101,8 +114,15 @@ Rectangle {
             visible: notice.inlineAction
             Layout.alignment: Qt.AlignVCenter
             actions: notice.actions
+            copiedValue: notice.copiedValue
             animated: notice.animated
-            onTriggered: (kind, value) => notice.actionTriggered(kind, value)
+            onTriggered: (kind, value) => notice.trigger(kind, value)
         }
+    }
+
+    TextEdit {
+        id: clipboard
+
+        visible: false
     }
 }

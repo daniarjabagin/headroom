@@ -3,27 +3,30 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Recovery.js" as Recovery
 
 RowLayout {
     id: actionRow
 
     property var actions: []
     property bool animated: true
+    property string copiedValue: ""
 
     signal triggered(string kind, string value)
 
     spacing: Kirigami.Units.smallSpacing
 
     Repeater {
-        model: actionRow.actions
+        model: actionRow.actions.length
 
         SmallButton {
-            required property var modelData
+            required property int index
+            readonly property var actionData: actionRow.actions[index]
 
-            text: modelData.label
-            busy: modelData.busy ?? false
+            text: actionData ? Recovery.buttonLabel(actionData, actionRow.copiedValue) : ""
+            busy: actionData?.busy ?? false
             animated: actionRow.animated
-            onClicked: actionRow.triggered(modelData.kind, modelData.value)
+            onClicked: actionRow.triggered(actionData?.kind ?? "", actionData?.value ?? "")
         }
     }
 }
