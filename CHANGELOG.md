@@ -52,8 +52,7 @@ commands.
 - **Global shortcut to open the popup** (`shortcuts.open`, off by default), set with a capture
   dialog: GNOME key grab, Plasma's widget shortcut, the GlobalShortcuts portal on Wayland or a key
   grab on X11 for the tray, and Carbon hot keys on macOS (no Accessibility permission needed).
-- **A richer popup** in GNOME, the Headroom tray and on macOS, with the features below. Plasma
-  already reads every new field and setting; its popup follows in a later update.
+- **A richer popup** in GNOME, Plasma, the Headroom tray and on macOS, with the features below.
 - **Spend by model and by project.** Hover a legend row for the models behind a provider, or switch
   the breakdown to **Projects** (the working directory Claude Code and Codex logged, with a bar split
   by provider). Periods are Today, Yesterday, **7 days** and 30 days; units are cost, tokens or **cost
@@ -91,7 +90,7 @@ commands.
   GNOME, Plasma, the tray and on macOS.
 - **First run shows what Headroom found**: detected providers with switches, sign-in for tools that
   are installed but signed out, and a pointer to where Headroom lives: a window in GNOME and the
-  tray, a new step of the welcome window on macOS. Existing installs never see it.
+  tray, a banner in the Plasma popup, a new step of the welcome window on macOS. Existing installs never see it.
 - **`headroom guard`** exits `0`, `1` or `2` depending on whether the visible limits stay above a
   minimum, for scripts, git hooks and agents (`headroom guard --min 20 --window weekly && …`).
 - **`headroom spend`** breaks spend down by model, project, provider or day for 7 or 30 days or any
