@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use headroom_core::provider::{Provider, ProviderError};
+use jiff::Timestamp;
 use jiff::civil::Date;
 
 use super::summary::summarize;
+use crate::activity;
 use crate::core::Core;
 use crate::error::StorageError;
 use crate::home::UsageHome;
@@ -21,7 +23,13 @@ pub enum IngestError {
     Task(String),
 }
 
-pub async fn ingest(core: &Core, home: &UsageHome) -> Result<usize, IngestError> {
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct IngestedLogs {
+    pub changed: usize,
+    pub latest: Option<Timestamp>,
+}
+
+pub async fn ingest(core: &Core, home: &UsageHome) -> Result<IngestedLogs, IngestError> {
     let provider = core
         .provider(&home.provider)
         .ok_or_else(|| IngestError::NoProvider(home.provider.to_string()))?;
@@ -37,11 +45,14 @@ fn ingest_blocking(
     storage: &Storage,
     provider: &dyn Provider,
     home: &UsageHome,
-) -> Result<usize, IngestError> {
+) -> Result<IngestedLogs, IngestError> {
     let mut cursors = storage.blocking(|conn| cursors::load(conn, home))?;
     let events = provider.read_usage(&home.home, &mut cursors)?;
     let ingested = storage.blocking(|conn| events::ingest(conn, home, &events, &cursors))?;
-    Ok(ingested.changed)
+    Ok(IngestedLogs {
+        changed: ingested.changed,
+        latest: events.iter().map(|event| event.at).max(),
+    })
 }
 
 pub async fn refresh_summary(core: &Core, home: &UsageHome) -> Result<(), StorageError> {
@@ -59,13 +70,7 @@ pub async fn refresh_summary(core: &Core, home: &UsageHome) -> Result<(), Storag
 }
 
 pub async fn pass(core: &Core, home: &UsageHome, summarized_for: &mut Option<Date>) {
-    let changed = match ingest(core, home).await {
-        Ok(changed) => changed,
-        Err(error) => {
-            tracing::warn!(provider = %home.provider, home = %home.home.display(), %error, "usage ingest failed");
-            0
-        }
-    };
+    let changed = ingest_and_track(core, home).await;
     let today = core.tz.to_datetime(core.clock.now()).date();
     if changed == 0 && *summarized_for == Some(today) {
         return;
@@ -73,5 +78,20 @@ pub async fn pass(core: &Core, home: &UsageHome, summarized_for: &mut Option<Dat
     match refresh_summary(core, home).await {
         Ok(()) => *summarized_for = Some(today),
         Err(error) => tracing::warn!(%error, "usage summary failed"),
+    }
+}
+
+async fn ingest_and_track(core: &Core, home: &UsageHome) -> usize {
+    match ingest(core, home).await {
+        Ok(ingested) => {
+            if ingested.changed > 0 {
+                activity::record_write(core, home, ingested.latest);
+            }
+            ingested.changed
+        }
+        Err(error) => {
+            tracing::warn!(provider = %home.provider, home = %home.home.display(), %error, "usage ingest failed");
+            0
+        }
     }
 }

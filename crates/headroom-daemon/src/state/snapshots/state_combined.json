@@ -119,7 +119,13 @@
           "text": "Weekly limit shared with Codex Cloud"
         }
       ],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": "2026-09-23T10:03:00Z",
+        "reason": "schedule"
+      }
     },
     {
       "id": "claude:main",
@@ -158,7 +164,13 @@
       ],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.claude"
+      "usage_home": "~/.claude",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": null,
+        "reason": "backoff"
+      }
     },
     {
       "id": "codex:hidden",
@@ -176,7 +188,13 @@
       "windows": [],
       "balances": [],
       "notices": [],
-      "usage_home": "/srv/codex"
+      "usage_home": "/srv/codex",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": null,
+        "reason": "schedule"
+      }
     },
     {
       "id": "codex:personal",
@@ -229,7 +247,13 @@
       ],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "refresh": {
+        "mode": "idle",
+        "interval_secs": 300,
+        "next_at": null,
+        "reason": "schedule"
+      }
     }
   ],
   "combined": [

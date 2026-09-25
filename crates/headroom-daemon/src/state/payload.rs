@@ -83,6 +83,32 @@ pub struct AccountView {
     pub balances: Vec<BalanceView>,
     pub notices: Vec<NoticeView>,
     pub usage_home: String,
+    #[serde(default)]
+    pub refresh: Option<RefreshView>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefreshView {
+    pub mode: RefreshMode,
+    pub interval_secs: i64,
+    pub next_at: Option<Timestamp>,
+    pub reason: RefreshReason,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshMode {
+    Live,
+    Idle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RefreshReason {
+    Activity,
+    Schedule,
+    Backoff,
+    Hold,
 }
 
 impl AccountView {

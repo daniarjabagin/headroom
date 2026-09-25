@@ -37,6 +37,7 @@ async fn run(
     first: FirstRefresh,
     mut triggers: mpsc::Receiver<()>,
 ) {
+    let mut activity = core.activity_changes();
     let mut deadline = Instant::now() + to_std(first_delay(&core, &account, first));
     loop {
         tokio::select! {
@@ -45,6 +46,10 @@ async fn run(
                 if received.is_none() {
                     return;
                 }
+            }
+            Ok(()) = activity.changed() => {
+                deadline = live_deadline(&core, &account, deadline);
+                continue;
             }
         }
         let delay = refresh_account(&core, &account).await;
@@ -62,13 +67,36 @@ fn first_delay(core: &Core, account: &AccountRef, first: FirstRefresh) -> Signed
                 .snapshots
                 .get(&account.id)
                 .map(|e| e.snapshot.fetched_at);
-            policy::initial_delay(fetched, now, model.settings.refresh_interval())
+            let live = model.activity.account_is_live(account, now);
+            let interval = policy::effective_interval(&model.settings, live);
+            policy::initial_delay(fetched, now, interval)
         }
     };
     model.runtime_mut(&account.id).next_refresh_at = now.checked_add(delay).ok();
     drop(model);
     core.mark_changed();
     delay
+}
+
+fn live_deadline(core: &Core, account: &AccountRef, deadline: Instant) -> Instant {
+    let now = core.clock.now();
+    let mut model = core.model();
+    let live = model.activity.account_is_live(account, now);
+    if !policy::adaptive_live(&model.settings, live) {
+        return deadline;
+    }
+    let interval = policy::effective_interval(&model.settings, live);
+    let Some(delay) = policy::live_delay(model.runtime.get(&account.id), interval, now) else {
+        return deadline;
+    };
+    let sooner = Instant::now() + to_std(delay);
+    if sooner >= deadline {
+        return deadline;
+    }
+    model.runtime_mut(&account.id).next_refresh_at = now.checked_add(delay).ok();
+    drop(model);
+    core.mark_changed();
+    sooner
 }
 
 fn to_std(delay: SignedDuration) -> Duration {

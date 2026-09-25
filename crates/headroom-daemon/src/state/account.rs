@@ -6,6 +6,7 @@ use super::AssembleContext;
 use super::payload::{
     AccountView, BalanceAmountView, BalanceView, NoticeView, PaceView, WindowView,
 };
+use super::refresh::refresh_view;
 use super::status::{error_view, source, status};
 use crate::model::{Model, RefreshFailure, window_key};
 use crate::storage::accounts::AccountRecord;
@@ -51,6 +52,7 @@ pub fn account_view(
         balances: snapshot.map_or_else(Vec::new, |s| s.balances.iter().map(balance_view).collect()),
         notices: snapshot.map_or_else(Vec::new, |s| s.notices.iter().map(notice_view).collect()),
         usage_home: ctx.homes.show(&record.reference.home),
+        refresh: Some(refresh_view(record, runtime, model, ctx.now)),
     }
 }
 
