@@ -499,8 +499,8 @@ TestCase {
 
     function test_option_lists() {
         compare(Options.densityOptions("ru").map(option => option.label), ["Обычная", "Компактная"]);
-        compare(Options.timeFormatOptions("en").map(option => option.value), ["auto", "12h", "24h"]);
-        compare(Options.timeFormatOptions("en").map(option => option.label), ["Automatic", "12-hour", "24-hour"]);
+        compare(Options.timeFormatOptions("en").map(option => option.value), ["auto", "24h", "12h"]);
+        compare(Options.timeFormatOptions("en").map(option => option.label), ["Automatic", "24-hour", "12-hour"]);
         compare(Options.panelModeOptions("en").map(option => option.value), ["headline", "several", "icon"]);
         compare(Options.panelIndicatorOptions("ru").map(option => option.label), ["Кольцо", "Полоса", "Нет"]);
         compare(Options.panelLabelOptions("en").map(option => option.value), ["percent", "window"]);

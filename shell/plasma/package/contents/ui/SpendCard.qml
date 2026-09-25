@@ -6,7 +6,6 @@ import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Spend.js" as Spend
 import "logic/SpendBreakdown.js" as SpendBreakdown
-import "logic/SpendUnits.js" as SpendUnits
 import "logic/Tokens.js" as Tokens
 
 ColumnLayout {
@@ -118,7 +117,7 @@ ColumnLayout {
             visible: spendCard.body === "ring" && SpendBreakdown.hasProjects(spendCard.current)
             period: spendCard.current
             mode: spendCard.breakdown
-            byTokens: SpendUnits.byTokens(spendCard.unit)
+            unit: spendCard.unit
             animated: spendCard.animated
             lang: spendCard.lang
             onModeSelected: key => spendCard.breakdownSelected(key)

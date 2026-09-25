@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import "logic/I18n.js" as I18n
 
-QQC2.Menu {
+FittedMenu {
     id: menu
 
     required property string providerName
@@ -25,33 +25,29 @@ QQC2.Menu {
         return I18n.tr(lang, msgid, values);
     }
 
-    QQC2.MenuItem {
+    MenuEntry {
         objectName: "menuRefresh"
-        icon.name: "view-refresh"
+        leadIcon: "view-refresh"
         text: menu.tr("Refresh {provider}", {
             provider: menu.providerName
         })
         onTriggered: menu.refreshRequested()
     }
 
-    QQC2.MenuItem {
+    MenuEntry {
         objectName: "menuHide"
-        icon.name: "view-hidden"
+        leadIcon: "view-hidden"
         text: menu.tr("Hide from popup")
         onTriggered: menu.hideRequested()
     }
 
-    QQC2.MenuItem {
+    MenuEntry {
         objectName: "menuStar"
         visible: menu.canStar
         height: visible ? implicitHeight : 0
-        checkable: true
-        checked: menu.starred
+        leadIcon: menu.starred ? "starred-symbolic" : "non-starred-symbolic"
         text: menu.tr("Always show")
-        onTriggered: {
-            menu.starToggled();
-            checked = Qt.binding(() => menu.starred);
-        }
+        onTriggered: menu.starToggled()
     }
 
     QQC2.MenuSeparator {
@@ -62,11 +58,12 @@ QQC2.Menu {
     Instantiator {
         model: menu.links
 
-        delegate: QQC2.MenuItem {
+        delegate: MenuEntry {
             required property var modelData
 
-            icon.name: modelData.icon
-            text: `${modelData.label} · ${modelData.host}`
+            leadIcon: modelData.icon
+            text: modelData.label
+            detail: modelData.menuHost
             onTriggered: menu.linkOpened(modelData.url)
         }
 
@@ -76,18 +73,18 @@ QQC2.Menu {
 
     QQC2.MenuSeparator {}
 
-    QQC2.MenuItem {
+    MenuEntry {
         objectName: "menuShare"
         enabled: menu.canShare
-        icon.name: "document-share"
+        leadIcon: "document-share"
         text: menu.tr("Share as image…")
         onTriggered: menu.shareRequested()
     }
 
-    QQC2.MenuItem {
+    MenuEntry {
         objectName: "menuCopy"
         enabled: menu.canShare
-        icon.name: "edit-copy"
+        leadIcon: "edit-copy"
         text: menu.tr("Copy as text")
         onTriggered: menu.copyRequested()
     }

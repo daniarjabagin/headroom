@@ -156,6 +156,15 @@ TestCase {
         compare(section("codex").incident, null);
     }
 
+    function test_incident_takes_precedence_over_the_refresh_warning() {
+        open();
+        const header = findAll(section("claude"), item => typeof item.incidentTip === "function", [])[0];
+        compare(header.slot, "warning");
+        verify(!findAll(header, item => item.objectName === "warningIcon", [])[0].visible);
+        verify(findAll(header, item => item.objectName === "incidentIcon", [])[0].visible);
+        compare(header.incidentTip(), "Degraded performance · Elevated errors on Claude Code\ninvalid response: HTTP 503 from api.anthropic.com");
+    }
+
     function test_collapsed_accounts_fold_into_one_row() {
         const raw = rawSample();
         raw.accounts.filter(account => account.provider === "codex").forEach(account => account.collapsed = true);

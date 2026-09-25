@@ -224,7 +224,7 @@ TestCase {
     }
 
     function test_model_breakdown_rows_are_ranked_and_add_up() {
-        const result = SpendBreakdown.breakdown("en", period(), "models", false);
+        const result = SpendBreakdown.breakdown("en", period(), "models", "cost");
         compare(result.caption, "5 models");
         compare(result.rows.map(row => row.name), ["opus", "gpt", "haiku", "Other"]);
         compare(result.rows.map(row => row.value), ["$5.00", "$3.50", "$1.00", "$0.50"]);
@@ -246,7 +246,7 @@ TestCase {
                     totalTokens: 10,
                     partial: false
                 }));
-        const result = SpendBreakdown.breakdown("en", many, "models", false);
+        const result = SpendBreakdown.breakdown("en", many, "models", "cost");
         compare(result.rows.length, 6);
         compare(result.rows[5].detail, "4 models");
         compare(result.caption, "9 models");
@@ -254,10 +254,10 @@ TestCase {
     }
 
     function test_project_breakdown_uses_daemon_share_and_provider_segments() {
-        const result = SpendBreakdown.breakdown("ru", period(), "projects", false);
+        const result = SpendBreakdown.breakdown("ru", period(), "projects", "cost");
         compare(result.caption, "4 проекта");
         compare(result.rows.map(row => row.name), ["~/code/headroom", "Другие"]);
-        compare(result.rows.map(row => row.share), ["70.0%", "30.0%"]);
+        compare(result.rows.map(row => row.share), ["70,0%", "30,0%"]);
         verify(result.rows.every(row => row.folder));
         compare(result.rows[0].segments, [
             {
@@ -277,8 +277,55 @@ TestCase {
         ]);
     }
 
+    function test_model_breakdown_ranks_by_tokens_in_tokens_unit() {
+        const result = SpendBreakdown.breakdown("en", period(), "models", "tokens");
+        compare(result.rows.map(row => row.name), ["gpt", "opus", "haiku", "Other"]);
+        compare(result.rows.map(row => row.value), ["500", "300", "100", "100"]);
+        compare(result.rows.map(row => row.share), ["50.0%", "30.0%", "10.0%", "10.0%"]);
+    }
+
+    function test_model_breakdown_breaks_token_ties_by_name() {
+        const tied = period();
+        tied.providers[0].models[1].totalTokens = 300;
+        const result = SpendBreakdown.breakdown("en", tied, "models", "tokens");
+        compare(result.rows.map(row => row.name), ["gpt", "haiku", "opus", "Other"]);
+    }
+
+    function test_model_breakdown_shows_cost_per_mtok_from_payload() {
+        const priced = period();
+        priced.providers[0].models[0].costPerMtokMicros = 16666667;
+        priced.providers[0].models[1].costPerMtokMicros = null;
+        priced.providers[1].models[0].costPerMtokMicros = 7000000;
+        const result = SpendBreakdown.breakdown("en", priced, "models", "cost_per_mtok");
+        compare(result.rows.map(row => row.name), ["gpt", "opus", "haiku", "Other"]);
+        compare(result.rows.map(row => row.value), ["$7.00", "$16.67", "—", "—"]);
+        compare(result.caption, "5 models");
+    }
+
+    function test_project_breakdown_ranks_by_tokens_in_tokens_unit() {
+        const busy = period();
+        busy.projects.push({
+            project: "~/code/site",
+            costMicros: 1000000,
+            totalTokens: 900,
+            partial: false,
+            sharePermille: 100,
+            providers: []
+        });
+        compare(SpendBreakdown.breakdown("en", busy, "projects", "cost").rows.map(row => row.name), ["~/code/headroom", "~/code/site", "Other"]);
+        compare(SpendBreakdown.breakdown("en", busy, "projects", "tokens").rows.map(row => row.name), ["~/code/site", "~/code/headroom", "Other"]);
+    }
+
+    function test_project_breakdown_falls_back_to_spend_in_cost_per_mtok_unit() {
+        const result = SpendBreakdown.breakdown("en", period(), "projects", "cost_per_mtok");
+        compare(result.caption, "4 projects · by spend");
+        compare(result.rows.map(row => row.value), ["$7.00", "$3.00"]);
+        compare(result.rows.map(row => row.share), ["70.0%", "30.0%"]);
+        compare(SpendBreakdown.breakdown("ru", period(), "projects", "cost_per_mtok").caption, "4 проекта · по расходам");
+    }
+
     function test_breakdown_by_tokens() {
-        const result = SpendBreakdown.breakdown("en", period(), "projects", true);
+        const result = SpendBreakdown.breakdown("en", period(), "projects", "tokens");
         compare(result.rows.map(row => row.value), ["700", "300"]);
         compare(result.rows[0].segments[1].fraction, 0.4);
     }
@@ -286,7 +333,7 @@ TestCase {
     function test_breakdown_hidden_without_projects() {
         const bare = period();
         bare.projects = null;
-        compare(SpendBreakdown.breakdown("en", bare, "models", false), null);
+        compare(SpendBreakdown.breakdown("en", bare, "models", "cost"), null);
         bare.projects = [];
         verify(!SpendBreakdown.hasProjects(bare));
     }
@@ -357,6 +404,14 @@ TestCase {
         compare(QuickLinks.headerEntries("en", links).map(entry => entry.kind), ["status", "dashboard"]);
         compare(QuickLinks.menuEntries("en", links)[0].tip, "Status page · githubstatus.com");
         compare(QuickLinks.menuEntries("en", links)[1].host, "github.com");
+        compare(QuickLinks.menuEntries("en", links)[1].menuHost, "github.com");
+        const long = QuickLinks.menuEntries("en", {
+            status: "https://status.a-very-long-subdomain.of-some-provider-cloud.example.com",
+            dashboard: null,
+            usage: null
+        })[0];
+        compare(Array.from(long.menuHost).length, 40);
+        verify(long.menuHost.startsWith("status.") && long.menuHost.endsWith("example.com") && long.menuHost.includes("…"));
         compare(QuickLinks.headerEntries("en", {
             status: null,
             dashboard: null,

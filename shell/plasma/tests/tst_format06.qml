@@ -149,6 +149,13 @@ TestCase {
         compare(FormatSpend.costPerMtok("en", null), "—");
     }
 
+    function test_share_text_follows_language_decimal_separator() {
+        compare(FormatSpend.shareText("en", 618), "61.8%");
+        compare(FormatSpend.shareText("ru", 618), "61,8%");
+        compare(FormatSpend.shareText("ru", 1000), "100,0%");
+        compare(FormatSpend.shareText("en", 0), "0.0%");
+    }
+
     function test_unit_values() {
         const totals = {
             costMicros: 18420000,
