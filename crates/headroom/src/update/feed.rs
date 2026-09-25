@@ -11,10 +11,10 @@ use super::origins::Origins;
 
 const AGENT: &str = concat!("headroom/", env!("CARGO_PKG_VERSION"));
 const GITHUB_JSON: &str = "application/vnd.github+json";
-const API_TIMEOUT: Duration = Duration::from_secs(30);
+const API_TIMEOUT: Duration = Duration::from_secs(20);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_mins(5);
 const RATE_LIMIT_RESET: &str = "x-ratelimit-reset";
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const API_BODY_LIMIT: usize = 1024 * 1024;
 
 pub struct GithubFeed {

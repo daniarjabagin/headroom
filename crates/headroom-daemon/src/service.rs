@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::core::Core;
+use crate::daemon::diagnostics::{Diagnostics, DiagnosticsContext};
 use crate::error::CommandError;
 use crate::rescan::Rescans;
 use crate::update::{CheckOutcome, UpdateChecks};
@@ -10,15 +11,18 @@ pub struct Service {
     core: Arc<Core>,
     rescans: Rescans,
     update_checks: Option<UpdateChecks>,
+    diagnostics: Arc<DiagnosticsContext>,
 }
 
 impl Service {
     #[must_use]
     pub fn new(core: Arc<Core>, rescans: Rescans) -> Service {
+        let diagnostics = Arc::new(DiagnosticsContext::new(core.clock.now()));
         Service {
             core,
             rescans,
             update_checks: None,
+            diagnostics,
         }
     }
 
@@ -28,6 +32,19 @@ impl Service {
             update_checks: Some(update_checks),
             ..self
         }
+    }
+
+    #[must_use]
+    pub fn with_diagnostics(self, diagnostics: DiagnosticsContext) -> Service {
+        Service {
+            diagnostics: Arc::new(diagnostics),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn diagnostics(&self) -> Diagnostics {
+        self.diagnostics.collect(&self.core)
     }
 
     #[must_use]

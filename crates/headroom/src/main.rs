@@ -3,6 +3,8 @@ mod cli;
 mod client;
 mod commands;
 mod daemon;
+mod diagnostics;
+mod logging;
 mod paths;
 mod pricing;
 mod providers;
@@ -11,8 +13,9 @@ mod state;
 mod update;
 mod waybar;
 
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -20,9 +23,9 @@ use clap::Parser;
 #[cfg(target_os = "linux")]
 use headroom_daemon::BusTarget;
 use tokio::runtime::Runtime;
-use tracing_subscriber::EnvFilter;
 
 use cli::{AccountsAction, Cli, Command};
+use logging::DaemonLogging;
 use paths::Globals;
 
 const WORKER_THREADS: usize = 2;
@@ -31,7 +34,7 @@ const BLOCKING_KEEP_ALIVE: Duration = Duration::from_secs(5);
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    init_logging(&cli.command);
+    let logging = logging::init(&cli.command);
     let globals = Globals {
         #[cfg(target_os = "linux")]
         bus: cli
@@ -42,7 +45,7 @@ fn main() -> ExitCode {
     };
     let outcome = runtime()
         .context("cannot start the async runtime")
-        .and_then(|runtime| runtime.block_on(dispatch(&globals, cli.command)));
+        .and_then(|runtime| runtime.block_on(dispatch(&globals, cli.command, logging)));
     match outcome {
         Ok(code) => code,
         Err(error) => {
@@ -61,15 +64,20 @@ fn runtime() -> io::Result<Runtime> {
         .build()
 }
 
-async fn dispatch(globals: &Globals, command: Command) -> Result<ExitCode> {
+async fn dispatch(
+    globals: &Globals,
+    command: Command,
+    logging: Option<Arc<DaemonLogging>>,
+) -> Result<ExitCode> {
     match command {
-        Command::Daemon(args) => return daemon::run(globals, args).await,
+        Command::Daemon(args) => return daemon::run(globals, args, logging).await,
         Command::Status(args) => commands::status(globals, &args).await?,
         Command::Refresh(args) => commands::refresh(globals, &args).await?,
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
         Command::Waybar => waybar::run(globals).await?,
         Command::Providers(args) => providers::list(&args)?,
         Command::Update(args) => update::run(&args).await?,
+        Command::Diagnostics => diagnostics::print(globals).await?,
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -101,23 +109,5 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
         AccountsAction::Restore { provider } => {
             accounts::restore(globals, provider.as_deref()).await
         }
-    }
-}
-
-fn init_logging(command: &Command) {
-    let default = if matches!(command, Command::Daemon(_)) {
-        "info"
-    } else {
-        "warn"
-    };
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default));
-    let builder = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(io::stderr)
-        .with_ansi(io::stderr().is_terminal());
-    if std::env::var_os("JOURNAL_STREAM").is_some() {
-        builder.without_time().init();
-    } else {
-        builder.init();
     }
 }

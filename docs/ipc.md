@@ -81,7 +81,7 @@ socket. The socket is removed on shutdown; the lock file stays and is simply unl
 | `UpdateSettings` | `[patch_string]` | `null` |
 | `ResetSettings` | `[]` | `null` |
 | `GetSpend` | `[query_string]` | spend breakdown as a JSON object (implemented in 0.6) |
-| `GetDiagnostics` | `[]` | diagnostics report as a JSON object (implemented in 0.6) |
+| `GetDiagnostics` | `[]` | diagnostics report as a JSON object (see [GetDiagnostics](dbus-api.md#getdiagnostics)) |
 | `SetAccountLabel` | `[account_id, label]` | `null` |
 | `SetAccountOrder` | `[[id, …]]` | `null` |
 | `SetAccountHidden` | `[account_id, hidden_bool]` | `null` |
