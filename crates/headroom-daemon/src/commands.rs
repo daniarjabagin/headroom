@@ -8,6 +8,8 @@ use crate::model::AccountRuntime;
 use crate::scheduler::policy;
 use crate::settings::Settings;
 use crate::storage::accounts;
+use crate::usage::report::rows::SpendReport;
+use crate::usage::report::{self, ReportContext, request};
 
 pub const MAX_LABEL_CHARS: usize = 64;
 
@@ -110,6 +112,24 @@ impl Core {
         self.settings_stored();
         self.mark_changed();
         Ok(())
+    }
+
+    pub async fn get_spend(&self, query: &str) -> Result<SpendReport, CommandError> {
+        let request = request::resolve(query, &self.tz, self.clock.now(), &self.catalog)?;
+        let usage_homes = self.model().usage_homes.clone();
+        let (prices, tz, homes) = (self.price_book.clone(), self.tz.clone(), self.homes.clone());
+        let report = self
+            .storage
+            .run(move |conn| {
+                let ctx = ReportContext {
+                    prices: prices.as_ref(),
+                    tz: &tz,
+                    homes: &homes,
+                };
+                report::build(conn, &usage_homes, &request, &ctx)
+            })
+            .await?;
+        Ok(report)
     }
 
     pub async fn set_account_label(

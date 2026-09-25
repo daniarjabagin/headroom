@@ -1,33 +1,54 @@
 use std::collections::BTreeMap;
 
 use headroom_core::account::ProviderId;
+use headroom_core::usage::{PeriodUsage, UsageSummary, UsageTotals};
 
+use super::AssembleContext;
 use super::models::{ModelMerge, top_models};
-use super::payload::{PeriodSpendView, ProviderSpendView, SpendView, TotalsView, UsageView};
+use super::payload::{PeriodSpendView, ProviderSpendView, SpendView};
+use super::projects::ProjectMerge;
+use crate::home::UsageHome;
+
+pub type HomeSummary<'a> = (&'a UsageHome, &'a UsageSummary);
+
+type Pick = fn(&UsageSummary) -> &PeriodUsage;
 
 #[must_use]
-pub fn spend(usage: &[UsageView]) -> SpendView {
+pub fn spend(homes: &[HomeSummary<'_>], ctx: &AssembleContext<'_>) -> SpendView {
     SpendView {
-        today: period(usage, |u| &u.today),
-        yesterday: period(usage, |u| &u.yesterday),
-        last_30_days: period(usage, |u| &u.last_30_days),
+        today: period(homes, ctx, |s| &s.today),
+        yesterday: period(homes, ctx, |s| &s.yesterday),
+        last_7_days: period(homes, ctx, |s| &s.last_7_days),
+        last_30_days: period(homes, ctx, |s| &s.last_30_days),
     }
 }
 
-fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> PeriodSpendView {
-    let mut by_id: BTreeMap<ProviderId, (ProviderSpendView, ModelMerge)> = BTreeMap::new();
-    for entry in usage {
-        let (slot, models) = by_id
-            .entry(entry.provider.clone())
-            .or_insert_with(|| (empty(entry), ModelMerge::default()));
-        add(slot, totals(entry));
-        models.add(&totals(entry).models);
+#[derive(Default)]
+struct ProviderMerge {
+    totals: UsageTotals,
+    models: ModelMerge,
+}
+
+fn period(homes: &[HomeSummary<'_>], ctx: &AssembleContext<'_>, pick: Pick) -> PeriodSpendView {
+    let mut providers: BTreeMap<ProviderId, ProviderMerge> = BTreeMap::new();
+    let mut projects = ProjectMerge::default();
+    let mut totals = UsageTotals::default();
+    for (home, summary) in homes {
+        let usage = pick(summary);
+        let merge = providers.entry(home.provider.clone()).or_default();
+        merge.totals.absorb(&usage.totals);
+        merge.models.add(&usage.models);
+        projects.add(&home.provider, &usage.projects);
+        totals.absorb(&usage.totals);
     }
-    let providers = by_id.into_values().map(|(mut spend, models)| {
-        (spend.models, spend.models_other) = top_models(models.ranked());
-        spend
-    });
-    let by_provider = ranked(providers.filter(has_usage).collect());
+    let by_provider = ranked(
+        providers
+            .into_iter()
+            .map(|(id, merge)| provider_view(id, merge, ctx))
+            .filter(has_usage)
+            .collect(),
+    );
+    let projects = projects.finish(&totals, ctx);
     PeriodSpendView {
         cost_usd_micros: by_provider
             .iter()
@@ -36,26 +57,30 @@ fn period(usage: &[UsageView], totals: impl Fn(&UsageView) -> &TotalsView) -> Pe
             .iter()
             .fold(0, |sum, p| sum.saturating_add(p.total_tokens)),
         partial: by_provider.iter().any(|p| p.partial),
+        cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
         by_provider,
+        projects: projects.listed,
+        projects_other: projects.other,
     }
 }
 
-fn empty(usage: &UsageView) -> ProviderSpendView {
+fn provider_view(
+    provider: ProviderId,
+    merge: ProviderMerge,
+    ctx: &AssembleContext<'_>,
+) -> ProviderSpendView {
+    let (models, models_other) = top_models(merge.models.ranked());
+    let totals = merge.totals;
     ProviderSpendView {
-        provider: usage.provider.clone(),
-        provider_name: usage.provider_name.clone(),
-        cost_usd_micros: 0,
-        total_tokens: 0,
-        partial: false,
-        models: Vec::new(),
-        models_other: None,
+        provider_name: ctx.catalog.display_name(&provider).to_owned(),
+        provider,
+        cost_usd_micros: totals.cost.0,
+        total_tokens: totals.tokens.total().0,
+        partial: totals.is_partial(),
+        cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
+        models,
+        models_other,
     }
-}
-
-fn add(slot: &mut ProviderSpendView, totals: &TotalsView) {
-    slot.cost_usd_micros = slot.cost_usd_micros.saturating_add(totals.cost_usd_micros);
-    slot.total_tokens = slot.total_tokens.saturating_add(totals.tokens.total);
-    slot.partial |= totals.partial;
 }
 
 fn has_usage(spend: &ProviderSpendView) -> bool {

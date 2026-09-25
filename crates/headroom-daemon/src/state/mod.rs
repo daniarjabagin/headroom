@@ -5,6 +5,7 @@ mod combined_pace;
 mod headline;
 mod models;
 pub mod payload;
+mod projects;
 mod spend;
 pub mod status;
 mod update;
@@ -40,13 +41,12 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         .filter(|(home, _)| model.usage_homes.contains(home))
         .collect();
     listed.sort_by_key(|(home, _)| (ctx.catalog.rank(&home.provider), &home.home));
-    let full_usage: Vec<_> = listed
-        .into_iter()
-        .map(|(home, summary)| usage::usage_view(home, summary, ctx))
-        .collect();
     let combined = combined::combined(&accounts, model.settings.display.combine_accounts);
-    let spend = spend::spend(&full_usage);
-    let usage = full_usage.into_iter().map(usage::with_top_models).collect();
+    let spend = spend::spend(&listed, ctx);
+    let usage = listed
+        .into_iter()
+        .map(|(home, summary)| usage::with_top_models(usage::usage_view(home, summary, ctx)))
+        .collect();
     StatePayload {
         version: STATE_VERSION,
         app_version: Some(APP_VERSION.to_owned()),
@@ -73,3 +73,6 @@ mod lapse_tests;
 
 #[cfg(test)]
 mod combined_state_tests;
+
+#[cfg(test)]
+mod spend_state_tests;

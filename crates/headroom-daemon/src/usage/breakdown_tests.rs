@@ -77,14 +77,16 @@ fn day(text: &str) -> GroupKey {
 fn every_grouping_splits_the_same_total() {
     let utc = TimeZone::UTC;
     let project = |name: Option<&str>| GroupKey::Project(name.map(str::to_owned));
-    let model = |name: &str| GroupKey::Model(name.to_owned());
+    let model =
+        |provider: &ProviderId, name: &str| GroupKey::Model(provider.clone(), name.to_owned());
     let table = [
         (
             GroupBy::Model,
             vec![
-                (model("gpt-5.5"), 110, 220, false),
-                (model("claude-opus-5-5"), 30, 60, false),
-                (model("unknown"), 40, 0, true),
+                (model(&CODEX, "gpt-5.5"), 100, 200, false),
+                (model(&CLAUDE, "claude-opus-5-5"), 30, 60, false),
+                (model(&CLAUDE, "gpt-5.5"), 10, 20, false),
+                (model(&CODEX, "unknown"), 40, 0, true),
             ],
         ),
         (
@@ -154,8 +156,8 @@ fn the_range_is_half_open() {
     assert_eq!(
         keys,
         [
-            GroupKey::Model("claude-opus-5-5".into()),
-            GroupKey::Model("unknown".into())
+            GroupKey::Model(CLAUDE, "claude-opus-5-5".into()),
+            GroupKey::Model(CODEX, "unknown".into())
         ]
     );
 }

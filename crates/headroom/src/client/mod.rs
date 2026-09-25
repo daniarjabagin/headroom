@@ -92,6 +92,18 @@ impl Daemon {
         }
     }
 
+    pub async fn get_spend(&self, query: &str) -> Result<String> {
+        match self {
+            #[cfg(target_os = "linux")]
+            Daemon::Bus(proxy) => over_bus!(proxy.get_spend(query)),
+            Daemon::Socket(socket) => Ok(socket
+                .call("GetSpend", json!([query]))
+                .await?
+                .get()
+                .to_owned()),
+        }
+    }
+
     pub async fn refresh(&self, account_id: &str) -> Result<()> {
         match self {
             #[cfg(target_os = "linux")]

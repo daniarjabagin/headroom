@@ -45,19 +45,37 @@
       "cost_usd_micros": 0,
       "total_tokens": 0,
       "partial": false,
-      "by_provider": []
+      "cost_per_mtok_usd_micros": null,
+      "by_provider": [],
+      "projects": [],
+      "projects_other": null
     },
     "yesterday": {
       "cost_usd_micros": 0,
       "total_tokens": 0,
       "partial": false,
-      "by_provider": []
+      "cost_per_mtok_usd_micros": null,
+      "by_provider": [],
+      "projects": [],
+      "projects_other": null
+    },
+    "last_7_days": {
+      "cost_usd_micros": 0,
+      "total_tokens": 0,
+      "partial": false,
+      "cost_per_mtok_usd_micros": null,
+      "by_provider": [],
+      "projects": [],
+      "projects_other": null
     },
     "last_30_days": {
       "cost_usd_micros": 0,
       "total_tokens": 0,
       "partial": false,
-      "by_provider": []
+      "cost_per_mtok_usd_micros": null,
+      "by_provider": [],
+      "projects": [],
+      "projects_other": null
     }
   }
 }

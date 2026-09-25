@@ -8,12 +8,14 @@ use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use jiff::{Timestamp, ToSpan};
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 
 use crate::error::StorageError;
 use crate::home::UsageHome;
 use crate::storage::events;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum GroupBy {
     Model,
     Project,
@@ -23,7 +25,7 @@ pub enum GroupBy {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GroupKey {
-    Model(String),
+    Model(ProviderId, String),
     Project(Option<String>),
     Provider(ProviderId),
     Day(Date),
@@ -45,9 +47,14 @@ impl SpendRange {
     ) -> Result<SpendRange, jiff::Error> {
         let today = tz.to_datetime(now).date();
         let first = today.checked_sub(i64::from(days.get() - 1).days())?;
+        SpendRange::local_dates(tz, first, today)
+    }
+
+    /// From local midnight of `first` to local midnight after `last`.
+    pub fn local_dates(tz: &TimeZone, first: Date, last: Date) -> Result<SpendRange, jiff::Error> {
         Ok(SpendRange {
             since: local_midnight(first, tz)?,
-            until: local_midnight(today.tomorrow()?, tz)?,
+            until: local_midnight(last.tomorrow()?, tz)?,
         })
     }
 
@@ -119,7 +126,7 @@ pub fn breakdown(homes: &[HomeEvents], spend: &SpendQuery<'_>) -> Breakdown {
 
 fn group_key(spend: &SpendQuery<'_>, provider: &ProviderId, event: &UsageEvent) -> GroupKey {
     match spend.group_by {
-        GroupBy::Model => GroupKey::Model(event.model.clone()),
+        GroupBy::Model => GroupKey::Model(provider.clone(), event.model.clone()),
         GroupBy::Project => GroupKey::Project(event.project.clone()),
         GroupBy::Provider => GroupKey::Provider(provider.clone()),
         GroupBy::Day => GroupKey::Day(spend.tz.to_datetime(event.at).date()),

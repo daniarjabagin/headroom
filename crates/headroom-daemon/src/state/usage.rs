@@ -31,16 +31,8 @@ pub fn usage_view(
 
 fn totals_view(period: &PeriodUsage) -> TotalsView {
     let totals = &period.totals;
-    let tokens = &totals.tokens;
     TotalsView {
-        tokens: TokensView {
-            input: tokens.input.0,
-            cache_read: tokens.cache_read.0,
-            cache_write: tokens.cache_write().0,
-            output: tokens.output.0,
-            reasoning: tokens.reasoning.0,
-            total: tokens.total().0,
-        },
+        tokens: TokensView::of(&totals.tokens),
         cost_usd_micros: totals.cost.0,
         partial: totals.is_partial(),
         unpriced_tokens: totals.unpriced_tokens.0,

@@ -45,7 +45,7 @@ pub struct Core {
     pub(crate) tz: TimeZone,
     pub(crate) alerts: Alerts,
     pub(crate) system_locale: Locale,
-    homes: HomeDisplay,
+    pub(crate) homes: HomeDisplay,
     model: Mutex<Model>,
     pub(crate) settings_write: AsyncMutex<()>,
     pub(crate) log_reads: AsyncMutex<()>,

@@ -376,25 +376,29 @@
             "model": "gpt-5.5",
             "total_tokens": 2983440,
             "cost_usd_micros": 11208600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 3756938
           },
           {
             "model": "gpt-5.5-mini",
             "total_tokens": 1010520,
             "cost_usd_micros": 1724400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1706448
           },
           {
             "model": "gpt-5.4-codex",
             "total_tokens": 529320,
             "cost_usd_micros": 1149600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2171843
           },
           {
             "model": "o4-mini",
             "total_tokens": 288720,
             "cost_usd_micros": 287400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 995428
           }
         ],
         "models_other": null
@@ -417,25 +421,29 @@
             "model": "gpt-5.5",
             "total_tokens": 5654400,
             "cost_usd_micros": 17066400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 3018251
           },
           {
             "model": "gpt-5.5-mini",
             "total_tokens": 1915200,
             "cost_usd_micros": 2625600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1370927
           },
           {
             "model": "gpt-5.4-codex",
             "total_tokens": 1003200,
             "cost_usd_micros": 1750400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1744817
           },
           {
             "model": "o4-mini",
             "total_tokens": 547200,
             "cost_usd_micros": 437600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 799708
           }
         ],
         "models_other": null
@@ -458,25 +466,29 @@
             "model": "gpt-5.5",
             "total_tokens": 113088000,
             "cost_usd_micros": 361233600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 3194270
           },
           {
             "model": "gpt-5.5-mini",
             "total_tokens": 38304000,
             "cost_usd_micros": 55574400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1450877
           },
           {
             "model": "gpt-5.4-codex",
             "total_tokens": 20064000,
             "cost_usd_micros": 37049600,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1846571
           },
           {
             "model": "o4-mini",
             "total_tokens": 10944000,
             "cost_usd_micros": 9262400,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 846345
           }
         ],
         "models_other": null
@@ -712,31 +724,36 @@
             "model": "claude-opus-4-5",
             "total_tokens": 409175,
             "cost_usd_micros": 2470500,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 6037759
           },
           {
             "model": "claude-sonnet-4-5",
             "total_tokens": 457310,
             "cost_usd_micros": 1093500,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2391157
           },
           {
             "model": "claude-opus-4-1",
             "total_tokens": 60172,
             "cost_usd_micros": 202500,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 3365353
           },
           {
             "model": "claude-haiku-4-5",
             "total_tokens": 144413,
             "cost_usd_micros": 162000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1121783
           },
           {
             "model": "claude-sonnet-4",
             "total_tokens": 72206,
             "cost_usd_micros": 81000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1121790
           }
         ],
         "models_other": {
@@ -764,31 +781,36 @@
             "model": "claude-opus-4-5",
             "total_tokens": 816000,
             "cost_usd_micros": 5063000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 6204657
           },
           {
             "model": "claude-sonnet-4-5",
             "total_tokens": 912000,
             "cost_usd_micros": 2241000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2457237
           },
           {
             "model": "claude-opus-4-1",
             "total_tokens": 120000,
             "cost_usd_micros": 415000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 3458333
           },
           {
             "model": "claude-haiku-4-5",
             "total_tokens": 288000,
             "cost_usd_micros": 332000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1152778
           },
           {
             "model": "claude-sonnet-4",
             "total_tokens": 144000,
             "cost_usd_micros": 166000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1152778
           }
         ],
         "models_other": {
@@ -818,31 +840,36 @@
             "model": "claude-opus-4-5",
             "total_tokens": 12036309,
             "cost_usd_micros": 58804000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 4885551
           },
           {
             "model": "claude-sonnet-4-5",
             "total_tokens": 13452343,
             "cost_usd_micros": 26028000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1934830
           },
           {
             "model": "claude-opus-4-1",
             "total_tokens": 1770045,
             "cost_usd_micros": 4820000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2723095
           },
           {
             "model": "claude-haiku-4-5",
             "total_tokens": 4248108,
             "cost_usd_micros": 3856000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 907698
           },
           {
             "model": "claude-sonnet-4",
             "total_tokens": 2124054,
             "cost_usd_micros": 1928000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 907698
           }
         ],
         "models_other": {
@@ -1101,13 +1128,15 @@
             "model": "glm-4.6",
             "total_tokens": 268800,
             "cost_usd_micros": 772900,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2875372
           },
           {
             "model": "kimi-k2",
             "total_tokens": 371200,
             "cost_usd_micros": 537100,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1446929
           }
         ],
         "models_other": null
@@ -1146,13 +1175,15 @@
             "model": "glm-4.6",
             "total_tokens": 5241600,
             "cost_usd_micros": 14573000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 2780258
           },
           {
             "model": "kimi-k2",
             "total_tokens": 7238400,
             "cost_usd_micros": 10127000,
-            "partial": false
+            "partial": false,
+            "cost_per_mtok_usd_micros": 1399066
           }
         ],
         "models_other": null
@@ -1360,6 +1391,7 @@
       "cost_usd_micros": 19730000,
       "total_tokens": 6655448,
       "partial": false,
+      "cost_per_mtok_usd_micros": 2964489,
       "by_provider": [
         {
           "provider": "codex",
@@ -1367,30 +1399,35 @@
           "cost_usd_micros": 14370000,
           "total_tokens": 4812000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 2986284,
           "models": [
             {
               "model": "gpt-5.5",
               "total_tokens": 2983440,
               "cost_usd_micros": 11208600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3756938
             },
             {
               "model": "gpt-5.5-mini",
               "total_tokens": 1010520,
               "cost_usd_micros": 1724400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1706448
             },
             {
               "model": "gpt-5.4-codex",
               "total_tokens": 529320,
               "cost_usd_micros": 1149600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2171843
             },
             {
               "model": "o4-mini",
               "total_tokens": 288720,
               "cost_usd_micros": 287400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 995428
             }
           ],
           "models_other": null
@@ -1401,36 +1438,42 @@
           "cost_usd_micros": 4050000,
           "total_tokens": 1203448,
           "partial": false,
+          "cost_per_mtok_usd_micros": 3365330,
           "models": [
             {
               "model": "claude-opus-4-5",
               "total_tokens": 409175,
               "cost_usd_micros": 2470500,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 6037759
             },
             {
               "model": "claude-sonnet-4-5",
               "total_tokens": 457310,
               "cost_usd_micros": 1093500,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2391157
             },
             {
               "model": "claude-opus-4-1",
               "total_tokens": 60172,
               "cost_usd_micros": 202500,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3365353
             },
             {
               "model": "claude-haiku-4-5",
               "total_tokens": 144413,
               "cost_usd_micros": 162000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1121783
             },
             {
               "model": "claude-sonnet-4",
               "total_tokens": 72206,
               "cost_usd_micros": 81000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1121790
             }
           ],
           "models_other": {
@@ -1446,28 +1489,149 @@
           "cost_usd_micros": 1310000,
           "total_tokens": 640000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 2046875,
           "models": [
             {
               "model": "glm-4.6",
               "total_tokens": 268800,
               "cost_usd_micros": 772900,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2875372
             },
             {
               "model": "kimi-k2",
               "total_tokens": 371200,
               "cost_usd_micros": 537100,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1446929
             }
           ],
           "models_other": null
         }
-      ]
+      ],
+      "projects": [
+        {
+          "project": "~/code/headroom",
+          "cost_usd_micros": 9075800,
+          "total_tokens": 3061509,
+          "partial": false,
+          "share_permille": 460,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 6610200,
+              "total_tokens": 2213520
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 1863000,
+              "total_tokens": 553589
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 602600,
+              "total_tokens": 294400
+            }
+          ]
+        },
+        {
+          "project": "~/code/app",
+          "cost_usd_micros": 5327100,
+          "total_tokens": 1796970,
+          "partial": false,
+          "share_permille": 270,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 3879900,
+              "total_tokens": 1299240
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 1093500,
+              "total_tokens": 324930
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 353700,
+              "total_tokens": 172800
+            }
+          ]
+        },
+        {
+          "project": null,
+          "cost_usd_micros": 2170300,
+          "total_tokens": 732099,
+          "partial": false,
+          "share_permille": 110,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 1580700,
+              "total_tokens": 529320
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 445500,
+              "total_tokens": 132379
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 144100,
+              "total_tokens": 70400
+            }
+          ]
+        },
+        {
+          "project": "~/work/api",
+          "cost_usd_micros": 1381100,
+          "total_tokens": 465881,
+          "partial": false,
+          "share_permille": 70,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 1005900,
+              "total_tokens": 336840
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 283500,
+              "total_tokens": 84241
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 91700,
+              "total_tokens": 44800
+            }
+          ]
+        }
+      ],
+      "projects_other": {
+        "count": 3,
+        "cost_usd_micros": 1775700,
+        "total_tokens": 598989,
+        "partial": false,
+        "share_permille": 90
+      }
     },
     "yesterday": {
       "cost_usd_micros": 30180000,
       "total_tokens": 11520000,
       "partial": false,
+      "cost_per_mtok_usd_micros": 2619792,
       "by_provider": [
         {
           "provider": "codex",
@@ -1475,30 +1639,35 @@
           "cost_usd_micros": 21880000,
           "total_tokens": 9120000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 2399123,
           "models": [
             {
               "model": "gpt-5.5",
               "total_tokens": 5654400,
               "cost_usd_micros": 17066400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3018251
             },
             {
               "model": "gpt-5.5-mini",
               "total_tokens": 1915200,
               "cost_usd_micros": 2625600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1370927
             },
             {
               "model": "gpt-5.4-codex",
               "total_tokens": 1003200,
               "cost_usd_micros": 1750400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1744817
             },
             {
               "model": "o4-mini",
               "total_tokens": 547200,
               "cost_usd_micros": 437600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 799708
             }
           ],
           "models_other": null
@@ -1509,36 +1678,42 @@
           "cost_usd_micros": 8300000,
           "total_tokens": 2400000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 3458333,
           "models": [
             {
               "model": "claude-opus-4-5",
               "total_tokens": 816000,
               "cost_usd_micros": 5063000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 6204657
             },
             {
               "model": "claude-sonnet-4-5",
               "total_tokens": 912000,
               "cost_usd_micros": 2241000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2457237
             },
             {
               "model": "claude-opus-4-1",
               "total_tokens": 120000,
               "cost_usd_micros": 415000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3458333
             },
             {
               "model": "claude-haiku-4-5",
               "total_tokens": 288000,
               "cost_usd_micros": 332000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1152778
             },
             {
               "model": "claude-sonnet-4",
               "total_tokens": 144000,
               "cost_usd_micros": 166000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1152778
             }
           ],
           "models_other": {
@@ -1548,12 +1723,346 @@
             "partial": false
           }
         }
-      ]
+      ],
+      "projects": [
+        {
+          "project": "~/code/headroom",
+          "cost_usd_micros": 13882800,
+          "total_tokens": 5299200,
+          "partial": false,
+          "share_permille": 460,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 10064800,
+              "total_tokens": 4195200
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 3818000,
+              "total_tokens": 1104000
+            }
+          ]
+        },
+        {
+          "project": "~/code/app",
+          "cost_usd_micros": 8148600,
+          "total_tokens": 3110400,
+          "partial": false,
+          "share_permille": 270,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 5907600,
+              "total_tokens": 2462400
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 2241000,
+              "total_tokens": 648000
+            }
+          ]
+        },
+        {
+          "project": null,
+          "cost_usd_micros": 3319800,
+          "total_tokens": 1267200,
+          "partial": false,
+          "share_permille": 110,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 2406800,
+              "total_tokens": 1003200
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 913000,
+              "total_tokens": 264000
+            }
+          ]
+        },
+        {
+          "project": "~/work/api",
+          "cost_usd_micros": 2112600,
+          "total_tokens": 806400,
+          "partial": false,
+          "share_permille": 70,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 1531600,
+              "total_tokens": 638400
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 581000,
+              "total_tokens": 168000
+            }
+          ]
+        }
+      ],
+      "projects_other": {
+        "count": 3,
+        "cost_usd_micros": 2716200,
+        "total_tokens": 1036800,
+        "partial": false,
+        "share_permille": 90
+      }
+    },
+    "last_7_days": {
+      "cost_usd_micros": 136317995,
+      "total_tokens": 53828342,
+      "partial": true,
+      "cost_per_mtok_usd_micros": 2556640,
+      "by_provider": [
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "cost_usd_micros": 108061332,
+          "total_tokens": 42560000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2539035,
+          "models": [
+            {
+              "model": "gpt-5.5",
+              "total_tokens": 26387200,
+              "cost_usd_micros": 84287840,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3194270
+            },
+            {
+              "model": "gpt-5.5-mini",
+              "total_tokens": 8937600,
+              "cost_usd_micros": 12967360,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1450877
+            },
+            {
+              "model": "gpt-5.4-codex",
+              "total_tokens": 4681600,
+              "cost_usd_micros": 8644906,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1846571
+            },
+            {
+              "model": "o4-mini",
+              "total_tokens": 2553600,
+              "cost_usd_micros": 2161226,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 846345
+            }
+          ],
+          "models_other": null
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "cost_usd_micros": 22493331,
+          "total_tokens": 8356342,
+          "partial": true,
+          "cost_per_mtok_usd_micros": 2866415,
+          "models": [
+            {
+              "model": "claude-opus-4-5",
+              "total_tokens": 2808472,
+              "cost_usd_micros": 13720933,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 4885551
+            },
+            {
+              "model": "claude-sonnet-4-5",
+              "total_tokens": 3138880,
+              "cost_usd_micros": 6073200,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1934830
+            },
+            {
+              "model": "claude-opus-4-1",
+              "total_tokens": 413010,
+              "cost_usd_micros": 1124666,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2723096
+            },
+            {
+              "model": "claude-haiku-4-5",
+              "total_tokens": 991225,
+              "cost_usd_micros": 899733,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 907698
+            },
+            {
+              "model": "claude-sonnet-4",
+              "total_tokens": 495612,
+              "cost_usd_micros": 449866,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 907698
+            }
+          ],
+          "models_other": {
+            "count": 2,
+            "total_tokens": 509143,
+            "cost_usd_micros": 224933,
+            "partial": true
+          }
+        },
+        {
+          "provider": "opencode",
+          "provider_name": "OpenCode",
+          "cost_usd_micros": 5763332,
+          "total_tokens": 2912000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 1979166,
+          "models": [
+            {
+              "model": "glm-4.6",
+              "total_tokens": 1223040,
+              "cost_usd_micros": 3400366,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2780257
+            },
+            {
+              "model": "kimi-k2",
+              "total_tokens": 1688960,
+              "cost_usd_micros": 2362966,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1399066
+            }
+          ],
+          "models_other": null
+        }
+      ],
+      "projects": [
+        {
+          "project": "~/code/headroom",
+          "cost_usd_micros": 62706290,
+          "total_tokens": 24761040,
+          "partial": false,
+          "share_permille": 460,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 49708217,
+              "total_tokens": 19577600
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 10346936,
+              "total_tokens": 3843920
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 2651137,
+              "total_tokens": 1339520
+            }
+          ]
+        },
+        {
+          "project": "~/code/app",
+          "cost_usd_micros": 36805857,
+          "total_tokens": 14533652,
+          "partial": true,
+          "share_permille": 269,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 29176559,
+              "total_tokens": 11491200
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 6073199,
+              "total_tokens": 2256212
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 1556099,
+              "total_tokens": 786240
+            }
+          ]
+        },
+        {
+          "project": null,
+          "cost_usd_micros": 14994978,
+          "total_tokens": 5921117,
+          "partial": false,
+          "share_permille": 109,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 11886746,
+              "total_tokens": 4681600
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 2474266,
+              "total_tokens": 919197
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 633966,
+              "total_tokens": 320320
+            }
+          ]
+        },
+        {
+          "project": "~/work/api",
+          "cost_usd_micros": 9542259,
+          "total_tokens": 3767983,
+          "partial": false,
+          "share_permille": 69,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 7564293,
+              "total_tokens": 2979200
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 1574533,
+              "total_tokens": 584943
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 403433,
+              "total_tokens": 203840
+            }
+          ]
+        }
+      ],
+      "projects_other": {
+        "count": 3,
+        "cost_usd_micros": 12268611,
+        "total_tokens": 4844550,
+        "partial": false,
+        "share_permille": 89
+      }
     },
     "last_30_days": {
       "cost_usd_micros": 584220000,
       "total_tokens": 230692904,
       "partial": true,
+      "cost_per_mtok_usd_micros": 2556640,
       "by_provider": [
         {
           "provider": "codex",
@@ -1561,30 +2070,35 @@
           "cost_usd_micros": 463120000,
           "total_tokens": 182400000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 2539035,
           "models": [
             {
               "model": "gpt-5.5",
               "total_tokens": 113088000,
               "cost_usd_micros": 361233600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 3194270
             },
             {
               "model": "gpt-5.5-mini",
               "total_tokens": 38304000,
               "cost_usd_micros": 55574400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1450877
             },
             {
               "model": "gpt-5.4-codex",
               "total_tokens": 20064000,
               "cost_usd_micros": 37049600,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1846571
             },
             {
               "model": "o4-mini",
               "total_tokens": 10944000,
               "cost_usd_micros": 9262400,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 846345
             }
           ],
           "models_other": null
@@ -1595,36 +2109,42 @@
           "cost_usd_micros": 96400000,
           "total_tokens": 35812904,
           "partial": true,
+          "cost_per_mtok_usd_micros": 2866415,
           "models": [
             {
               "model": "claude-opus-4-5",
               "total_tokens": 12036309,
               "cost_usd_micros": 58804000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 4885551
             },
             {
               "model": "claude-sonnet-4-5",
               "total_tokens": 13452343,
               "cost_usd_micros": 26028000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1934830
             },
             {
               "model": "claude-opus-4-1",
               "total_tokens": 1770045,
               "cost_usd_micros": 4820000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2723095
             },
             {
               "model": "claude-haiku-4-5",
               "total_tokens": 4248108,
               "cost_usd_micros": 3856000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 907698
             },
             {
               "model": "claude-sonnet-4",
               "total_tokens": 2124054,
               "cost_usd_micros": 1928000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 907698
             }
           ],
           "models_other": {
@@ -1640,23 +2160,143 @@
           "cost_usd_micros": 24700000,
           "total_tokens": 12480000,
           "partial": false,
+          "cost_per_mtok_usd_micros": 1979167,
           "models": [
             {
               "model": "glm-4.6",
               "total_tokens": 5241600,
               "cost_usd_micros": 14573000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 2780258
             },
             {
               "model": "kimi-k2",
               "total_tokens": 7238400,
               "cost_usd_micros": 10127000,
-              "partial": false
+              "partial": false,
+              "cost_per_mtok_usd_micros": 1399066
             }
           ],
           "models_other": null
         }
-      ]
+      ],
+      "projects": [
+        {
+          "project": "~/code/headroom",
+          "cost_usd_micros": 268741200,
+          "total_tokens": 106118737,
+          "partial": false,
+          "share_permille": 460,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 213035200,
+              "total_tokens": 83904000
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 44344000,
+              "total_tokens": 16473937
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 11362000,
+              "total_tokens": 5740800
+            }
+          ]
+        },
+        {
+          "project": "~/code/app",
+          "cost_usd_micros": 157739400,
+          "total_tokens": 62287084,
+          "partial": true,
+          "share_permille": 270,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 125042400,
+              "total_tokens": 49248000
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 26028000,
+              "total_tokens": 9669484
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 6669000,
+              "total_tokens": 3369600
+            }
+          ]
+        },
+        {
+          "project": null,
+          "cost_usd_micros": 64264200,
+          "total_tokens": 25376219,
+          "partial": false,
+          "share_permille": 110,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 50943200,
+              "total_tokens": 20064000
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 10604000,
+              "total_tokens": 3939419
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 2717000,
+              "total_tokens": 1372800
+            }
+          ]
+        },
+        {
+          "project": "~/work/api",
+          "cost_usd_micros": 40895400,
+          "total_tokens": 16148503,
+          "partial": false,
+          "share_permille": 70,
+          "by_provider": [
+            {
+              "provider": "codex",
+              "provider_name": "Codex",
+              "cost_usd_micros": 32418400,
+              "total_tokens": 12768000
+            },
+            {
+              "provider": "claude",
+              "provider_name": "Claude",
+              "cost_usd_micros": 6748000,
+              "total_tokens": 2506903
+            },
+            {
+              "provider": "opencode",
+              "provider_name": "OpenCode",
+              "cost_usd_micros": 1729000,
+              "total_tokens": 873600
+            }
+          ]
+        }
+      ],
+      "projects_other": {
+        "count": 3,
+        "cost_usd_micros": 52579800,
+        "total_tokens": 20762361,
+        "partial": false,
+        "share_permille": 90
+      }
     }
   },
   "update": null,
