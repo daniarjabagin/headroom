@@ -10,8 +10,9 @@ providers, the daemon and the transports.
 | `headroom-core` | lib, no I/O | units, domain model, log cursors, `Provider` trait, pacing, severity, usage aggregation | `serde`, `serde_json`, `jiff`, `thiserror`, `async-trait`, `sha2`, `hex` |
 | `headroom-pricing` | lib | price catalog (bundled LiteLLM + models.dev snapshots + supplement), model alias resolution, `PriceBook` impl, cost math | core |
 | `headroom-providers` | lib | `jsonl` incremental reader, `http` helpers (shared client, `Retry-After` parsing), provider `registry`, `secrets` store, `key_accounts` (records, key-hash identities, stored-key reader), one module per provider | core, `zbus`, `rusqlite` |
-| `headroom-daemon` | lib | account registry, provider catalog, scheduler, SQLite storage, transports (D-Bus service on Linux, Unix socket everywhere), notifications, state assembly | core, `zbus` (Linux only) |
-| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `update` (self-update of script installs, JSON progress for shells), `waybar`; the GitHub release feed and install-method detection | all |
+| `headroom-daemon` | lib | account registry, provider catalog, scheduler with adaptive refresh (`activity`), credential watcher (`credentials`), SQLite storage, usage ingest and spend reports (`usage`, `usage/report`), provider status pages (`status`), update checks, transports (D-Bus service on Linux, Unix socket everywhere), notifications with thresholds and quiet hours, state assembly (panel items, collapsed cards, recovery, refresh modes) | core, `zbus` (Linux only) |
+| `headroom` | bin | CLI (`clap`): `daemon`, `status`, `accounts` (`add`/`login`/`remove` also stream JSON progress for shells), `providers`, `refresh`, `update` (self-update of script installs, JSON progress for shells), `waybar`, `guard`, `spend`, `diagnostics`; the daemon's logging (stderr plus a size-capped file, level reloaded from settings), the GitHub release feed, the status-page HTTP fetcher and install-method detection | all |
+| `headroom-tray` | bin | SNI tray (`ksni`) and GTK 4/libadwaita popup, settings and first-run window for desktops without GNOME Shell or Plasma; `popup_model` turns the payload into view models (pure), `icon` draws the tray pixmaps, `shortcut` registers the global shortcut (GlobalShortcuts portal on Wayland, key grab on X11) | GTK 4, libadwaita, `ksni`, `zbus`, `x11rb`; talks to the daemon over D-Bus only and uses no other workspace crate |
 
 The daemon crate never names a provider: the binary builds the providers from
 `headroom_providers::registry` and hands them, with the registry's descriptors, to the daemon.
@@ -221,7 +222,7 @@ Healthy.
 `runs_out_at` are `None` for Untracked and Spent. Spent means `round(100 − used) ≤ 0`, i.e. less than
 0.5 % remaining.
 
-One function maps a window to `Tone`, used by every surface (panel, popup, tray, TUI, notifications):
+One function maps a window to `Tone`, used by every surface (panel, popup, tray, CLI, notifications):
 
 | condition | tone |
 | --- | --- |
@@ -416,6 +417,12 @@ pub struct ProviderDescriptor {
     pub add_account: &'static [AddAccountMethod],   // the first one is the default
     pub multi_account: bool,
     pub local_usage: bool,
+    pub links: ProviderLinks,
+}
+pub struct ProviderLinks {                          // absolute https URLs, validated by the registry
+    pub status: Option<&'static str>,
+    pub dashboard: Option<&'static str>,
+    pub usage: Option<&'static str>,
 }
 pub enum AddAccountMethod {
     CliLogin(CliLogin),
@@ -581,7 +588,10 @@ that take API keys, the stored key.
    logs usage, `fixtures/` with anonymised real responses.
 2. Descriptor: display name, add-account methods in order of preference (`CliLogin` with its home
    variable and credentials file, `ApiKey` with label, console URL and hint, or `AutoDetect` with a
-   reason), `multi_account`, `local_usage`.
+   reason), `multi_account`, `local_usage`, and `links` (status page, dashboard, usage page; only
+   `https` addresses that were checked to exist, `ProviderLinks::NONE` when there are none). A
+   provider whose status page has a documented API can also get an entry in
+   `headroom-daemon::status::sources` with the components that matter for it.
 3. One entry in `registry::ENTRIES` with a builder that reads the provider's environment.
 4. Discovery: CLI homes and Headroom-owned homes under `$XDG_DATA_HOME/headroom/accounts/<id>/`;
    API-key providers use `key_accounts::discover` and override `validate_key`.
@@ -598,7 +608,19 @@ that take API keys, the stored key.
   refresh queues one follow-up. `Refresh(account_id)` forces that account now (rate-limit holds
   excepted) and publishes it as `refreshing` at once; every refresh reads credentials from disk again,
   so a retry after a new CLI sign-in picks it up. Failures back off exponentially 60 s → 30 min with jitter; 429 honours
-  `retry_after` (default 5 min). Per-call timeout 30 s.
+  `retry_after` (default 5 min). Per-call timeout 30 s. `Refresh(account_id)` of an account whose
+  error is `account_changed`, `not_signed_in` or `sign_in_expired` runs a (coalesced) rescan first.
+- **Adaptive refresh** (`activity`): the usage watcher records when a usage home gets new log
+  records; while a home has records from the last 10 minutes and `adaptive_refresh` is on, its
+  accounts are scheduled every 60 s (never shortening backoff, rate-limit holds or `no_subscription`
+  rechecks). The state reports `accounts[].refresh {mode, interval_secs, next_at, reason}`.
+- **Credential watcher** (`credentials`): accounts whose last error is a sign-in error or
+  `account_changed` and whose provider signs in through a CLI get a `notify` watch on their
+  credential file, re-evaluated every 5 s; a change settles for 2 s and then acts like
+  `Refresh(account_id)`. Headroom-owned Codex, Claude (Linux) and Grok homes refresh their own OAuth
+  tokens in the provider crate under a lock with compare-before-write; CLI-owned files are never
+  written. The state's `accounts[].recovery` tells shells what helps (`retry`, `sign_in`,
+  `cli_login`).
 - **Discovery**: every 10 min and on D-Bus `Rescan` (coalesced; a request during a running discovery
   waits for one follow-up). Accounts found by a rescan refresh at once; `headroom accounts add|remove`
   call it. Discovery that finds nothing to discover (`ProviderError::NotSignedIn`: tool not installed
@@ -608,15 +630,21 @@ that take API keys, the stored key.
   60 s poll fallback. Events are stored per home and a session is logged in one home only, so summing
   homes never double counts.
   Without a running daemon, `headroom status` reads cached usage for every stored usage home whose
-  directory still exists.
+  directory still exists. Events keep the session's working directory as `project` (Claude and
+  Codex); aggregation adds the last 7 days, top projects and blended cost per million priced tokens.
+  `usage::report` answers `GetSpend` queries by model, project, provider or day, and `headroom spend`
+  runs the same pure code on the database directly when no daemon is running.
 - **Storage** (`$XDG_STATE_HOME/headroom/headroom.db` on Linux, `~/Library/Application Support/Headroom/headroom.db` on macOS, WAL): `accounts`, `limits_snapshots` (last good per
   account), `usage_events`, `log_cursors`, `notification_state`, `subscription_lapses`,
   `dismissed_homes` (dismissed CLI records), `settings`, `update_check` (last update check: time,
-  `ETag`, latest stable release). Migrations are numbered
-  SQL files applied in order.
+  `ETag`, latest stable release), `held_alerts` (alerts held during quiet hours), `status_cache`
+  (last answer and `ETag` of each status page); `usage_events.project` since migration 006.
+  Migrations are numbered SQL files applied in order.
 - **Staleness**: a snapshot older than 10 min is `stale`. A failed refresh keeps the last good snapshot
   and attaches the error.
-- **Notifications** (`org.freedesktop.Notifications`): milestones `AlmostOut` (remaining < 10 %),
+- **Notifications** (`org.freedesktop.Notifications`): milestones `AlmostOut` (remaining under
+  `notifications.threshold_percent`, 10 % by default, or the provider's own threshold; `0` turns it
+  off),
   `CuttingItClose` (severity rises to Close), `WillRunOut` (rises to RunningOut/Spent), `Reset` (a
   window that was Warning or worse has reset). First observation primes without alerting. State
   (fired set per window + `resets_at`) is persisted so restarts do not re-alert. Default action opens
@@ -624,7 +652,18 @@ that take API keys, the stored key.
   (`display.hidden_windows`) are skipped.
   Texts are English or Russian per `display.language` (`system` resolves from `LC_ALL` /
   `LC_MESSAGES` / `LANG` at daemon start-up); all texts live in `notify/text.rs`. Titles name the
-  provider by its registry display name.
+  provider by its registry display name. During quiet hours alerts go to `held_alerts` and are
+  released as one summary when the range ends, dropping items that no longer apply
+  (`notify::quiet`, `notify::held`, `notify::digest`).
+- **Status pages** (`status`, only with `status_pages.enabled`): a poller reads the Atlassian
+  Statuspage or incident.io page of each provider with a listed, visible account every 5 min ± 10 %
+  with `ETag`s and per-page backoff, computes the indicator from a fixed component list per provider
+  (`status::sources`, pure `assess`) and publishes `provider_status`. The HTTP side is injected by
+  the binary.
+- **Logging**: the binary installs a `tracing` subscriber with a reloadable filter; the daemon
+  applies `logging.level` on every settings change unless `RUST_LOG` is set, and writes
+  `headroom.log` (`0600`, rotated at 2 MiB) next to stderr. `GetDiagnostics` reports versions,
+  platform, log settings and account health without ids, emails or labels.
 - **Update checks** (`headroom-daemon::update`): the daemon owns the schedule, storage and state
   (`update` in the payload); the binary injects the HTTP side as a `ReleaseFeed` (GitHub
   `releases/latest` with `ETag`) and the detected install method (`self` from the install receipt,
@@ -689,12 +728,14 @@ socket, Headroom-owned account homes, secrets fallback); the price cache in
 
 - Bus name `io.github.daniarjabagin.Headroom`, object `/io/github/daniarjabagin/Headroom`, interface
   `io.github.daniarjabagin.Headroom1`.
-- Methods: `GetState() -> s`, `ListProviders() -> s` (compiled-in providers and how to add their
-  accounts), `Refresh(account_id: s)` (`""` = all), `Rescan()` (discover accounts now),
-  `GetSettings() -> s`, `SetSettings(json: s)`, `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
+- Methods: `GetState() -> s`, `ListProviders() -> s` (compiled-in providers, how to add their
+  accounts and their links), `Refresh(account_id: s)` (`""` = all due), `RefreshNow()`, `Rescan()`
+  (discover accounts now), `CheckForUpdates() -> s`, `GetSettings() -> s`, `SetSettings(json: s)`,
+  `UpdateSettings(patch: s)`, `ResetSettings()`, `GetSpend(query: s) -> s`, `GetDiagnostics() -> s`,
+  `SetAccountLabel(account_id: s, label: s)`, `SetAccountOrder(ids: as)`,
   `SetAccountHidden(account_id: s, hidden: b)`, `DismissAccount(account_id: s)` (CLI-owned accounts
   only), `RestoreAccounts(provider: s)` (`""` = all).
-- Signal: `StateChanged(state: s)`.
+- Signals: `StateChanged(state: s)`, `OpenRequested()`.
 - Payloads are JSON (easy in GJS, QML and Rust alike), schema versioned by a top-level `"version"`.
   Full schema: `docs/dbus-api.md`, maintained with the daemon.
 
@@ -705,9 +746,13 @@ State payload outline:
   "version": 1,
   "generated_at": "2026-09-23T10:00:00Z",
   "update": null,
+  "update_check": { "checked_at": "…" },
   "display": { "theme": "system", "language": "system", "value_mode": "left", "…": "copy of settings.display" },
   "headline": { "account_id": "codex:…", "provider": "codex", "provider_name": "Codex", "account_label": "Work", "window": "session",
                 "window_label": "Session", "used_percent": 62.0, "remaining_percent": 38.0, "tone": "warning" },
+  "panel_items": [{ "…": "headline fields", "value_percent": 38.0, "even_pace_percent": 55.0, "logo": "codex" }],
+  "panel_tone": "warning",
+  "provider_status": [{ "provider": "codex", "indicator": "none", "tone": "neutral", "…": "…" }],
   "accounts": [{
     "id": "codex:1a2b3c4d5e6f", "provider": "codex", "provider_name": "Codex", "label": "Work", "email": "…", "plan": "Pro", "owner": "cli|headroom",
     "status": "fresh|stale|refreshing|error|signed_out", "error": null, "updated_at": "…", "source": "live|local_log|cache",
@@ -717,7 +762,9 @@ State payload outline:
                   "hidden": false }],
     "balances": [{ "id": "credits", "label": "Credits", "usd_micros": 12500000 }],
     "notices": [],
-    "usage_home": "~/.codex"
+    "usage_home": "~/.codex",
+    "recovery": null, "collapsed": false,
+    "refresh": { "mode": "live|idle", "interval_secs": 60, "next_at": "…", "reason": "activity" }
   }],
   "usage": [{ "provider": "codex", "provider_name": "Codex", "usage_home": "~/.codex",
               "today": { "tokens": { "input": 0, "cache_read": 0, "cache_write": 0, "output": 0, "reasoning": 0, "total": 0 }, "cost_usd_micros": 0, "partial": false,
@@ -725,7 +772,9 @@ State payload outline:
               "yesterday": { … }, "last_30_days": { … },
               "daily": [{ "date": "2026-09-22", "total_tokens": 0, "cost_usd_micros": 0 }] }],
   "spend": { "today": { "cost_usd_micros": 0, "total_tokens": 0, "partial": false,
-                        "by_provider": [{ "provider": "codex", "provider_name": "Codex", "…": "…", "models": [ … ] }] }, "yesterday": { … }, "last_30_days": { … } }
+                        "by_provider": [{ "provider": "codex", "provider_name": "Codex", "…": "…", "models": [ … ] }],
+                        "projects": [ … ], "projects_other": null, "cost_per_mtok_usd_micros": null },
+             "yesterday": { … }, "last_7_days": { … }, "last_30_days": { … } }
 }
 ```
 

@@ -199,7 +199,8 @@ If a step fails, send back:
   `-bundle.log`), not only the last lines: the first `error:` is usually the one that matters;
 - the output of `swift --version` and `sw_vers`;
 - for a crash or wrong behaviour after launch: `log show --last 5m --predicate 'subsystem ==
-  "io.github.daniarjabagin.headroom"'` and `~/Library/Logs/Headroom/daemon.log`, plus a screenshot.
+  "io.github.daniarjabagin.headroom"'`, `~/Library/Logs/Headroom/daemon.log` and Settings → Advanced →
+  Copy Diagnostics, plus a screenshot.
 
 The logs contain file paths but no credentials; still skim them for account emails before sending.
 
@@ -258,8 +259,8 @@ General → Login Items.
 
 ## 4. Settings
 
-Settings… opens a preferences window with toolbar tabs (General, Accounts, Notifications, Service; the
-window title follows the tab, the app comes to the front even though it has no Dock icon). All
+Settings… opens a preferences window with toolbar tabs (General, Accounts, Notifications, Service,
+Advanced; the window title follows the tab, the app comes to the front even though it has no Dock icon). All
 values live in the daemon; every change is sent at once as an `UpdateSettings` merge patch, in order,
 and the window re-reads the settings when the writes are done. The app also loads them every time it
 (re)connects to the daemon, so app-side options such as reduce motion apply to the popup before
@@ -268,11 +269,18 @@ Settings is ever opened. Texts follow `display.language`
 
 | tab | contents |
 | --- | --- |
-| General | theme, language, translucent background, reduce motion; values left/used, reset countdown/exact; menu bar limit (auto or a pinned account + window) and label (percent or provider + limit); popup sections (total spend, per-account spend, trend, forecast); refresh interval |
+| General | **Appearance**: theme, language, time format (auto, 12 h, 24 h), density (normal, compact), translucent background, reduce motion. **Popup**: values left/used, reset countdown/exact, combine accounts. **Menu bar**: what it shows (one limit, several limits, icon only), the limit (auto or a pinned account + window) or up to three limits, indicator style (ring, bar, none) and label (percent, limit name, none), with a ⌘-drag hint. **Spend**: default period, units, breakdown (models or projects). **Sections**: per-account spend, trend, forecast. **Popup cards**: collapse cards on demand and a star per account ("always open"). **Data refresh**: interval and faster refresh while coding tools run. **Privacy**: hide from screen sharing, provider status pages. **Keyboard**: the global shortcut with a recorder |
 | Accounts | the daemon's accounts in their order: drag to reorder, show/hide, rename, hide single limits, remove. Remove runs `headroom accounts remove <id> --yes --progress json`: a CLI-owned account is only hidden ("The <provider> CLI stays signed in"), a Headroom-owned one is signed out |
 | Accounts → Add Account… | the providers from `ListProviders`. `cli_login` runs `headroom accounts add <provider> --progress json` and shows the progress (Open Sign-In Page, a device code with Copy, a field to paste a code, the CLI output, Cancel); `api_key` sends the key on stdin with `--api-key-stdin`, never on the command line; `auto_detect` explains where Headroom looks and offers Detect Again (`RestoreAccounts`) |
-| Notifications | the four milestones of the settings schema. macOS asks for permission on the first alert or when a milestone is switched on; when notifications are denied the tab links to System Settings |
-| Service | app version, service status, the daemon log (Open Log, Show in Finder), Launch at login, app updates (Automatically check for updates, Check Now, last check) |
+| Accounts → account | show in the menu bar, label, single limits to hide, **Sign In Again…** for a Headroom-owned account whose sign-in failed (runs `headroom accounts login <id> --progress json` with the same progress view as Add Account), Remove… |
+| Notifications | the four milestones of the settings schema; the "almost out" threshold (5, 10, 20 or 30 % left) with per-provider overrides; quiet hours (from, to, let critical alerts through). macOS asks for permission on the first alert or when a milestone is switched on; when notifications are denied the tab links to System Settings |
+| Service | app version, service status, the helper's `daemon.log` (Open Log, Show in Finder), Launch at login, app updates (Automatically check for updates, Check Now, last check) |
+| Advanced | service status and version; log level (`logging.level`, applied without a restart) and the daemon's `headroom.log` (Copy Path, Show in Finder); Copy Diagnostics (`GetDiagnostics`); Reset All Settings… with a confirmation (`ResetSettings`, accounts are kept) |
+
+Options that need a 0.6 daemon (everything added in 0.6: time format, density, menu-bar modes, spend,
+popup cards, adaptive refresh, privacy, shortcut, thresholds, quiet hours, Advanced) are shown only
+when the connected daemon reports `app_version` 0.6.0 or later. The bundled helper always does; a
+foreign older daemon keeps the 0.5 layout.
 
 The account commands run the bundled `Contents/Helpers/headroom` with the same environment as the
 daemon (login-shell `PATH`, `CODEX_HOME`, …) plus `HEADROOM_SOCKET` set to the app's socket, so the
@@ -305,8 +313,13 @@ depending on the capturing app.
 ### Welcome window
 
 The very first launch opens a small welcome window, because a menu-bar app without a Dock icon is
-easy to miss. It points at the Headroom item at the top right of the screen, says what the popup
-shows, and has:
+easy to miss. With a 0.6 daemon whose `onboarding.completed` is still `false` it starts with **What
+we found**: the providers the daemon detected with a switch each (hidden accounts are shown again
+when switched on), **Sign In** for tools that are installed but signed out, muted rows for tools that
+are not installed, **Add another account…**, and **Start** / **Choose later**; both set
+`onboarding.completed`. Settings from an older release load with `onboarding.completed = true`, so
+upgrades skip this step. The next step points at the Headroom item at the top right of the screen,
+says what the popup shows, and has:
 
 - **Open at login**, a switch that is on by default. It is applied with
   `SMAppService.mainApp.register()` only when you press one of the buttons below; if macOS refuses
@@ -317,8 +330,8 @@ shows, and has:
 - **Open Headroom** (the default button) closes the window and opens the popup under the menu-bar
   item; **Settings…** closes it and opens Settings.
 
-Closing the window with its close button skips the login item. Either way the window never comes
-back: the app stores `firstRunCompleted` in its preferences
+Closing the window with its close button skips the login item. Either way the menu-bar step never
+comes back: the app stores `firstRunCompleted` in its preferences
 (`defaults read io.github.daniarjabagin.headroom firstRunCompleted`; `defaults delete` it to see the
 window again). Texts follow the app language (English or Russian) and the entrance
 animation is skipped under Reduce motion.
@@ -344,13 +357,16 @@ background jobs started by `.zshrc` do not delay it) and passes `PATH`, `CODEX_H
 | what | where |
 | --- | --- |
 | daemon socket | `~/Library/Application Support/Headroom/daemon.sock`; when that path is longer than 103 bytes, `$TMPDIR/headroom-<uid>/daemon.sock` in a private `0700` directory that the daemon creates (the app never creates it) |
-| daemon database | `~/Library/Application Support/Headroom/` (see the daemon's config) |
-| daemon log (stdout + stderr of the helper) | `~/Library/Logs/Headroom/daemon.log`, rotated to `daemon.log.1` above 5 MiB at start |
+| daemon database | `~/Library/Application Support/Headroom/headroom.db` |
+| daemon log file (written by the daemon itself) | `~/Library/Logs/Headroom/headroom.log`, `0600`, level from Settings → Advanced (`logging.level`, `RUST_LOG` wins); renamed to `headroom.log.1` when it would pass 2 MiB, so it never takes more than about 4 MiB. This is the file Settings → Advanced and `GetDiagnostics` point to |
+| helper output (stdout + stderr of the helper, captured by the app) | `~/Library/Logs/Headroom/daemon.log`, rotated to `daemon.log.1` above 5 MiB at start. Holds the same records as `headroom.log` plus anything printed before logging starts (start-up failures, panics) |
 | app log | unified log, subsystem `io.github.daniarjabagin.headroom` |
 
 ```sh
-tail -f ~/Library/Logs/Headroom/daemon.log
+tail -f ~/Library/Logs/Headroom/headroom.log
+tail -f ~/Library/Logs/Headroom/daemon.log      # when the helper does not start at all
 log stream --level info --predicate 'subsystem == "io.github.daniarjabagin.headroom"'
+/Applications/Headroom.app/Contents/Helpers/headroom diagnostics
 ```
 
 The CLI works against the same daemon: `HEADROOM_SOCKET` selects another socket.

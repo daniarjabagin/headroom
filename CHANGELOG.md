@@ -6,6 +6,125 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+A panel indicator you can shape yourself, spend by model and project, provider status pages, quiet
+hours, a Retry button that actually fixes things, and new `guard`, `spend` and `diagnostics`
+commands.
+
+### Fixed
+
+- **GNOME preferences no longer freeze when an option changes.** Changing the refresh interval (or
+  any other drop-down) swapped the row's model inside its own selection signal and locked up the
+  window. Rows now swap their options only when the options really change, and settings are applied
+  on idle. The Plasma option drop-down no longer rebuilds itself while an item is being picked.
+- **Retry fixes what it can.** When an account changed or signed out, Retry rescans first, so a new
+  CLI sign-in or a different account shows up at once instead of after the next 10-minute scan.
+  Accounts signed in through Headroom refresh their own Codex and Claude (Linux) tokens (under a lock,
+  re-reading the file first, written atomically); CLI credential files are still never written. A
+  failing account watches its credential file, so running `claude` or `codex login` brings the card
+  back without a click. The notice stays while the account refreshes, the button shows that it is
+  busy and never loses a click, and its action follows the daemon's `recovery`: **Retry**, **Sign in
+  again…** (into the same Headroom home, with the new `headroom accounts login`) or **Copy
+  command** for the CLI's own login. In GNOME, Plasma, the tray and on macOS.
+- **Check for updates on demand.** GNOME and Plasma preferences and the tray's About page show "You
+  have the latest version · 0.6.0 · checked just now" with a **Check now** button. Concurrent clicks
+  share one request, a check within 60 s reuses the last answer, and GitHub's rate limit and ETag
+  are honoured. macOS keeps using Sparkle.
+
+### Added
+
+- **Shape the panel indicator.** Show the most critical limit (as before), **several limits** (up to
+  three, pinned or the two most critical, each with its provider logo) or just the **Headroom mark**
+  tinted by the worst tone. Draw each as a ring, as a mini bar with the even-pace tick or as text
+  only, and label it with the percentage, the window name or nothing. The daemon resolves what to
+  show (`panel_items`), so every desktop shows the same limits.
+  - GNOME: put the indicator on the left, in the centre or on the right of the top bar, or press and
+    hold it and drag it to a new place.
+  - macOS: several limits become separate menu-bar items that keep their ⌘-drag positions.
+  - Plasma: the widget follows the same modes, with a thin fallback on vertical panels and a tooltip
+    that lists every limit; place it with Plasma's own panel editing.
+  - Headroom tray: the icon draws one or two rings, bars or the mark; the tray host decides its
+    position.
+  - A critical limit pulses gently in every style (not with reduced motion).
+- **Hide numbers while the screen is shared** (on by default). GNOME shows only the mark in the top
+  bar and `••` in the popup, with a banner and **Show anyway** until the share ends; project paths
+  are masked too. On macOS the popup and menu-bar items are left out of screenshots, recordings and
+  screen sharing.
+- **Global shortcut to open the popup** (`shortcuts.open`, off by default), set with a capture
+  dialog: GNOME key grab, Plasma's widget shortcut, the GlobalShortcuts portal on Wayland or a key
+  grab on X11 for the tray, and Carbon hot keys on macOS (no Accessibility permission needed).
+- **A richer popup** in GNOME, the Headroom tray and on macOS, with the features below. Plasma
+  already reads every new field and setting; its popup follows in a later update.
+- **Spend by model and by project.** Hover a legend row for the models behind a provider, or switch
+  the breakdown to **Projects** (the working directory Claude Code and Codex logged, with a bar split
+  by provider). Periods are Today, Yesterday, **7 days** and 30 days; units are cost, tokens or **cost
+  per million tokens** (priced tokens only). Your choice is remembered. Existing Claude and Codex logs
+  are read once more to fill in projects, without double counting.
+- **Quick links** to each provider's status page, dashboard and usage page, as icons on the account
+  header and in a new right-click menu (Refresh, Hide, Share as image…, Copy as text, …).
+- **Provider status pages** (off by default, see Privacy in the README). When turned on, the daemon
+  reads the public status pages of the providers you have accounts with every 5 minutes: Claude,
+  Codex (OpenAI), Copilot (GitHub), Cursor, Devin, Kimi Code and Moonshot API, MiniMax, Kilo Code,
+  Warp and Poe. It follows only the components that matter for each provider, so a GitHub Pages
+  outage does not flag Copilot, and the account card shows an amber incident or a red outage.
+- **Cards on demand.** Star the accounts you always want to see and fold the others into one
+  "3 more · Copilot, Grok, Warp ›" row. An account that needs attention (warning, critical, signed
+  out or failing) always stays open.
+- **Compact density**: one-line metrics, thinner meters and a smaller donut for a popup about 40 %
+  shorter.
+- **Click to toggle**: click a percentage to switch between left and used, and a reset time to
+  switch between the countdown and the exact time.
+- **Share as image**: a branded 1200×630 card of an account's limits, without emails, labels or
+  paths, copied to the clipboard and saved to `~/Pictures/Headroom`.
+- **Adaptive refresh** (on by default): while Claude Code, Codex or Grok is writing usage logs, its
+  accounts are checked every minute, and after 10 quiet minutes they return to the normal interval.
+  Backoff and rate-limit holds still win, and no account is ever polled more than once a minute. The
+  popup footer tells you when an account is live, when the next update is due, or how outdated the
+  data is.
+- **12- or 24-hour times**, following the desktop clock or locale unless you choose.
+- **Notification thresholds per provider.** Choose when "almost out" fires (5, 10, 20 or 30 % left,
+  10 % by default) and override it per provider; `0` turns a provider's alerts off.
+- **Quiet hours.** Alerts that arrive at night are held (they survive restarts) and delivered as one
+  summary when quiet hours end; anything that reset meanwhile is dropped, and critical alerts can
+  still come through.
+- **Advanced settings**: the daemon's log level (applied without a restart), the log file with Copy
+  path and Open folder, **Copy diagnostics** and **Reset all settings…** (accounts are kept). In
+  GNOME, Plasma, the tray and on macOS.
+- **First run shows what Headroom found**: detected providers with switches, sign-in for tools that
+  are installed but signed out, and a pointer to where Headroom lives: a window in GNOME and the
+  tray, a new step of the welcome window on macOS. Existing installs never see it.
+- **`headroom guard`** exits `0`, `1` or `2` depending on whether the visible limits stay above a
+  minimum, for scripts, git hooks and agents (`headroom guard --min 20 --window weekly && …`).
+- **`headroom spend`** breaks spend down by model, project, provider or day for 7 or 30 days or any
+  date range, as a table or JSON; without a running daemon it reads the database directly.
+- **`headroom diagnostics`** prints versions, platform, log settings and account health without
+  tokens, emails, labels or account ids, ready to paste into a bug report.
+- **`headroom accounts login <id>`** signs an account Headroom added in again, into the same home,
+  keeping its id, label and order.
+- **Waybar: several providers in one module.** `headroom waybar --providers claude,codex` shows one
+  toned value per provider, `--window session|weekly|any` picks the window and `--labels none` drops
+  the names; the tooltip lists every window and your spend. Without flags the output is unchanged.
+- **D-Bus and socket API:** `CheckForUpdates`, `GetSpend`, `GetDiagnostics` and `ResetSettings`;
+  `panel_items`, `panel_tone`, `provider_status`, `update_check`, `accounts[].recovery`,
+  `accounts[].refresh`, `accounts[].collapsed`, `spend.last_7_days`, project breakdowns and
+  `cost_per_mtok_usd_micros` in the state; `links` in `ListProviders`. All additive, `version` stays
+  `1`. See [docs/dbus-api.md](docs/dbus-api.md#06-payload-additions).
+
+### Changed
+
+- **The daemon writes its own log file**, capped at about 4 MiB and private (`0600`):
+  `~/.local/state/headroom/headroom.log` on Linux and `~/Library/Logs/Headroom/headroom.log` on
+  macOS, next to the journal or the app's `daemon.log`. `RUST_LOG` still wins over the log level
+  setting.
+- **GNOME: the popup opens when the mouse button is released,** because pressing and holding the
+  indicator now starts a drag.
+- **The footer shows when data was updated** and when the next update is due, in your time format.
+- **Settings are regrouped** in every shell: Appearance, Top panel (or Menu bar), Spend, Sections,
+  Popup cards, Data refresh and Privacy on General; thresholds and quiet hours on Notifications; a
+  new Advanced tab.
+- The tray and GNOME update notices and account cards in place instead of rebuilding them on every
+  state change, which keeps the popup smooth.
+- Update checks now finish within the default D-Bus timeout (20 s at most).
+
 ## [0.5.1] - 2026-09-25
 
 Polish for the Headroom tray.
