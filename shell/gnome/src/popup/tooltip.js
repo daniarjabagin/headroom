@@ -18,7 +18,8 @@ function contentActor(content) {
 }
 
 export class Tooltips {
-    constructor() {
+    constructor(motion) {
+        this._motion = motion;
         this._bin = new St.Bin({ style_class: 'headroom-tooltip', visible: false, opacity: 0 });
         Main.layoutManager.uiGroup.add_child(this._bin);
         this._timeoutId = 0;
@@ -77,7 +78,8 @@ export class Tooltips {
         if (side && this._sideAnchor?.mapped) this._placeBeside(actor);
         else this._place(actor);
         this._bin.remove_all_transitions();
-        if (fade) this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
+        if (fade && this._motion.enabled)
+            this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
         else this._bin.opacity = 255;
     }
 

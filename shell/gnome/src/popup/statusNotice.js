@@ -78,11 +78,6 @@ class CompactNotice {
     }
 }
 
-export function statusShape(ctx, provider) {
-    const incident = providerIncident(ctx.providerStatus(), provider);
-    return incident ? [incident.tone, ctx.display.density] : null;
-}
-
 export class StatusNotice {
     constructor(ctx, provider) {
         this._ctx = ctx;

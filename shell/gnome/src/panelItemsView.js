@@ -2,8 +2,8 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { animate, pulse, stopPulse } from './motion.js';
 import { PanelBar } from './panelBar.js';
-import { sameKeys } from './panelContent.js';
 import { PanelRing } from './panelRing.js';
+import { sameValues } from './sameValues.js';
 import { fileIcon, label, providerIcon, row } from './widgets.js';
 
 const STALE_OPACITY = 140;
@@ -63,6 +63,7 @@ class PanelItemView {
         this._logo = null;
         this._kind = null;
         this._leaf = null;
+        this._opacity = null;
         this.actor = new St.Bin({ y_align: Clutter.ActorAlign.CENTER });
         this._row = row({ style_class: 'headroom-panel-item' });
         this.actor.set_child(this._row);
@@ -91,6 +92,8 @@ class PanelItemView {
 
     setOpacity(stale, entering) {
         const opacity = stale ? STALE_OPACITY : 255;
+        if (opacity === this._opacity && !entering) return;
+        this._opacity = opacity;
         if (!entering) {
             this.actor.remove_transition('opacity');
             this.actor.opacity = opacity;
@@ -172,7 +175,7 @@ export class PanelItemsView {
 
     _renderItems(items, entering) {
         const keys = items.map(item => item.key);
-        if (!sameKeys(keys, this._keys)) this._reconcile(keys);
+        if (!sameValues(keys, this._keys)) this._reconcile(keys);
         for (const item of items) {
             const view = this._views.get(item.key);
             const added = view.fresh;

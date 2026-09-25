@@ -3,6 +3,7 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import { segmentLayout } from '../combined.js';
 import { EASE, STANDARD_MS } from '../motion.js';
+import { sameValues } from '../sameValues.js';
 
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -58,15 +59,19 @@ export const SegmentedMeter = GObject.registerClass(
         }
 
         update({ segments }, animate) {
+            const targets = segments.map(segment => clamp(segment.fraction ?? 0, 0, 1));
+            const ticks = segments.map(segment => segment.tick);
+            const unchanged = sameValues(targets, this._targets) && sameValues(ticks, this._ticks);
             const shown = this._shownFractions();
             this._ensureParts(segments.length);
-            this._targets = segments.map(segment => clamp(segment.fraction ?? 0, 0, 1));
-            this._ticks = segments.map(segment => segment.tick);
             segments.forEach((segment, index) => {
                 const part = this._parts[index];
                 part.fill.style_class = `headroom-meter-fill ${segment.tone}`;
                 part.tick.visible = segment.tick !== null;
             });
+            if (unchanged) return;
+            this._targets = targets;
+            this._ticks = ticks;
             this.remove_transition('blend');
             if (animate && this.mapped)
                 this._blendFrom(

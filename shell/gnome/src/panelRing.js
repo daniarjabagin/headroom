@@ -56,6 +56,7 @@ export const FractionLeaf = GObject.registerClass(
             super._init({ style_class: styleClass });
             this._motion = motion;
             this._shownFraction = 0;
+            this._target = 0;
             this._tone = 'neutral';
         }
 
@@ -78,8 +79,8 @@ export const FractionLeaf = GObject.registerClass(
         }
 
         _showFraction(target) {
-            const easing = this.get_transition('shown-fraction') !== null;
-            if (target === this._shownFraction && !easing) return;
+            if (target === this._target) return;
+            this._target = target;
             this.remove_transition('shown-fraction');
             if (this._motion.enabled && this.mapped)
                 this.ease_property('shown-fraction', target, { duration: STANDARD_MS, mode: EASE });

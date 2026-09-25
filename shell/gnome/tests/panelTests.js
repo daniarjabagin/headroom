@@ -1,4 +1,5 @@
-import { isLightPanel, itemKey, panelLayout, sameKeys } from '../src/panelContent.js';
+import { isLightPanel, itemKey, panelLayout } from '../src/panelContent.js';
+import { sameValues } from '../src/sameValues.js';
 import {
     clampIndex,
     dragStarted,
@@ -114,7 +115,7 @@ function testStaleAndKeys() {
     check('item key', itemKey({ accountId: 'a', windowId: 'b' }), 'a\u0000b');
     check(
         'same keys',
-        [sameKeys(['a', 'b'], ['a', 'b']), sameKeys(['a'], ['b']), sameKeys(['a'], ['a', 'b'])],
+        [sameValues(['a', 'b'], ['a', 'b']), sameValues(['a'], ['b']), sameValues(['a'], ['a', 'b'])],
         [true, false, false]
     );
 }

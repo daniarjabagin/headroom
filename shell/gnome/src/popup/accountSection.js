@@ -3,7 +3,6 @@ import {
     isRetrying,
     isSignedOut,
     lacksSubscription,
-    noticeShape,
     recoveryActions,
     subscriptionNote,
 } from '../accountStatus.js';
@@ -14,9 +13,10 @@ import { Expander } from './expander.js';
 import { noticeKind, noticeText } from '../notices.js';
 import { CopyButton, Notice, noticeLine, noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
+import { accountShapeKey, awaitingFirstData, showsSpend, shownWindows, statusShape } from './sectionShape.js';
 import { skeletonRows } from './skeleton.js';
-import { StatusNotice, statusShape } from './statusNotice.js';
-import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
+import { StatusNotice } from './statusNotice.js';
+import { ExtraRows, TrendRow } from './usageRows.js';
 
 const SKELETON_ROWS = 2;
 const NOTICE_KINDS = { signed_out: 'signin', no_subscription: 'warning', error: 'error' };
@@ -90,19 +90,6 @@ function isBlocked(account) {
     return isSignedOut(account) || lacksSubscription(account);
 }
 
-function shownWindows(account) {
-    return account.windows.filter(window => !window.hidden);
-}
-
-function awaitingFirstData(account) {
-    return (
-        account.status === 'refreshing' &&
-        account.error === null &&
-        account.updatedAt === null &&
-        shownWindows(account).every(window => window.remainingPercent === null)
-    );
-}
-
 function hasExtras(ctx, account) {
     return showsSpend(ctx, account) || account.balances.length > 0;
 }
@@ -130,10 +117,6 @@ export class AccountSection {
 
     get header() {
         return this._header.actor;
-    }
-
-    canUpdate(account, showName) {
-        return this._showName === showName && JSON.stringify(this._shape(account)) === this._shapeKey;
     }
 
     get card() {
@@ -168,27 +151,9 @@ export class AccountSection {
         for (const quotaRow of this._rows) quotaRow.tick(now);
     }
 
-    _shape(account) {
-        const ctx = this._ctx;
-        return {
-            windows: shownWindows(account).map(window => window.id),
-            skeleton: awaitingFirstData(account),
-            notice: noticeShape(account, ctx.offline),
-            status: statusShape(ctx, account.provider),
-            notices: account.notices,
-            plan: account.plan,
-            label: account.label,
-            email: account.email,
-            trend: account.usage !== null && ctx.display.showTrend,
-            spend: showsSpend(ctx, account),
-            balances: account.balances.map(balance => [balance.id, balance.label, balance.kind]),
-        };
-    }
-
     _build(account, showName) {
         this._account = account;
-        this._showName = showName;
-        this._shapeKey = JSON.stringify(this._shape(account));
+        this.shapeKey = accountShapeKey(this._ctx, account, showName);
         this._header = new AccountHeader(this._ctx, account, showName);
         this._header.onSecondaryClick(point => this._ctx.openCardMenu(this.card, point));
         this.actor.add_child(this._header.actor);

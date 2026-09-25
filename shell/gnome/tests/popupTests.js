@@ -2,7 +2,7 @@ import { barParts, modelsTable, preciseShareText, projectsTable, wholeShareText 
 import { setLanguage } from '../src/i18n.js';
 import { cardMenuItems, hostOf, SEPARATOR, shownLinks } from '../src/popup/cardMenu.js';
 import { compactTrailing, paceTip, resetHint, trailingLabel, valueHint } from '../src/popup/limitTexts.js';
-import { footerLines } from '../src/popup/refreshTexts.js';
+import { footerLines, footerNeedsSeconds } from '../src/popup/refreshTexts.js';
 import { shareDate, shareModel, shareText } from '../src/popup/share/shareModel.js';
 import * as view from '../src/popup/spendView.js';
 import { statusAge, statusDetail, statusStarted, statusTitle, statusTone } from '../src/popup/statusTexts.js';
@@ -274,6 +274,25 @@ function testFooterLines() {
     );
 }
 
+function testFooterSeconds() {
+    const now = new Date(2026, 8, 25, 12, 26);
+    const retryIn = ms => ({
+        kind: 'ready',
+        state: state({ offline: true, nextRefreshAt: new Date(now.getTime() + ms) }),
+    });
+    check(
+        'footer second ticks',
+        [
+            footerNeedsSeconds(retryIn(45_000), now),
+            footerNeedsSeconds(retryIn(2 * 60 * 60 * 1000), now),
+            footerNeedsSeconds(retryIn(-1000), now),
+            footerNeedsSeconds({ kind: 'ready', state: state() }, now),
+            footerNeedsSeconds({ kind: 'loading', state: null }, now),
+        ],
+        [true, false, false, false, false]
+    );
+}
+
 function accountCard() {
     const account = {
         id: 'codex:1',
@@ -381,6 +400,7 @@ export function testPopup() {
     testLimitTexts();
     testStatusTexts();
     testFooterLines();
+    testFooterSeconds();
     testShareModel();
     testCardMenu();
     testCardMenuItems();

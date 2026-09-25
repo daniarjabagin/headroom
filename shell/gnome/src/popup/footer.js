@@ -2,7 +2,7 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { _ } from '../i18n.js';
 import { button, column, iconButton, label, row, themeIcon } from '../widgets.js';
-import { footerLines } from './refreshTexts.js';
+import { footerLines, footerNeedsSeconds } from './refreshTexts.js';
 
 function setNotice(actor, notice) {
     if (notice) actor.add_style_class_name('notice');
@@ -60,6 +60,10 @@ export class Footer {
     update(view) {
         this._view = view;
         this.tick(this._ctx.now());
+    }
+
+    needsSecondTicks(now) {
+        return footerNeedsSeconds(this._view, now);
     }
 
     tick(now) {

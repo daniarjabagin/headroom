@@ -53,10 +53,15 @@ export const Meter = GObject.registerClass(
         }
 
         update({ fraction, tone, tick }, animate) {
-            this._target = clamp(fraction ?? 0, 0, 1);
             this._fill.style_class = `headroom-meter-fill ${tone}`;
-            this._tick = tick;
             this._tickMark.visible = tick !== null;
+            if (tick !== this._tick) {
+                this._tick = tick;
+                this.queue_relayout();
+            }
+            const target = clamp(fraction ?? 0, 0, 1);
+            if (target === this._target) return;
+            this._target = target;
             this.remove_transition('shown-fraction');
             if (animate && this.mapped) this._easeTo(this._target, 0);
             else this.shown_fraction = this._target;

@@ -11,16 +11,25 @@ function interfaceSettings() {
 export class DesktopClock {
     constructor(onChanged) {
         this._settings = interfaceSettings();
-        this._changedId = this._settings?.connect(`changed::${KEY}`, () => onChanged()) ?? 0;
+        this._format = this._read();
+        this._changedId =
+            this._settings?.connect(`changed::${KEY}`, () => {
+                this._format = this._read();
+                onChanged();
+            }) ?? 0;
     }
 
     get format() {
-        return this._settings?.get_string(KEY) === '12h' ? '12h' : '24h';
+        return this._format;
     }
 
     destroy() {
         if (this._changedId) this._settings.disconnect(this._changedId);
         this._changedId = 0;
         this._settings = null;
+    }
+
+    _read() {
+        return this._settings?.get_string(KEY) === '12h' ? '12h' : '24h';
     }
 }

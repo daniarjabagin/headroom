@@ -46,6 +46,7 @@ export const Indicator = GObject.registerClass(
             this._clickGesture?.set_enabled(false);
             this._extension = extension;
             this._view = { kind: 'loading', state: null };
+            this._theme = null;
             this._motion = new Motion();
             this._cancellable = new Gio.Cancellable();
             this._onboarding = { requested: false, destroyed: false };
@@ -210,6 +211,8 @@ export const Indicator = GObject.registerClass(
 
         _applyTheme() {
             const theme = this._view.state ? themeClass(this._view.state.display) : '';
+            if (theme === this._theme) return;
+            this._theme = theme;
             for (const name of THEME_CLASSES) this.menu.actor.remove_style_class_name(name);
             if (theme) this.menu.actor.add_style_class_name(theme);
             this._popup.setTheme(theme);

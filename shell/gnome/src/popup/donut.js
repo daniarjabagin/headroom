@@ -4,6 +4,7 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import { donutGeometry, donutSegments, sectorPath, visibleFractions } from '../donutGeometry.js';
 import { EASE, STANDARD_MS } from '../motion.js';
+import { sameValues } from '../sameValues.js';
 import { column, label } from '../widgets.js';
 
 const SWEEP_MS = 250;
@@ -75,6 +76,7 @@ const DonutArea = GObject.registerClass(
         }
 
         setSlices(series, fractions, { sweep, morph }) {
+            if (!sweep && sameValues(series, this._series) && sameValues(fractions, this._to)) return;
             this.remove_transition('progress');
             this._from = morph ? this._current() : fractions;
             this._to = fractions;
