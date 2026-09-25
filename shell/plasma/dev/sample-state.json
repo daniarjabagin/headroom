@@ -117,7 +117,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T10:03:10Z",
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "codex:9f8e7d6c5b4a",
@@ -199,7 +200,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T10:04:30Z",
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "claude:0a1b2c3d4e5f",
@@ -289,7 +291,8 @@
         "interval_secs": 60,
         "next_at": "2026-09-23T10:04:00Z",
         "reason": "backoff"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "claude:5e4d3c2b1a0f",
@@ -319,7 +322,8 @@
         "interval_secs": 60,
         "next_at": "2026-09-23T10:08:00Z",
         "reason": "backoff"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "codex:3c4d5e6f7a8b",
@@ -347,7 +351,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T11:00:00Z",
         "reason": "hold"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "zai:7b8c9d0e1f2a",
@@ -407,7 +412,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T10:04:20Z",
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "openrouter:4d5e6f7a8b9c",
@@ -439,7 +445,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T10:04:10Z",
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     }
   ],
   "combined": [],
@@ -2075,5 +2082,24 @@
         }
       ]
     }
-  }
+  },
+  "panel_items": [
+    {
+      "account_id": "codex:1a2b3c4d5e6f",
+      "window": "session",
+      "provider": "codex",
+      "provider_name": "Codex",
+      "account_label": "work",
+      "window_label": "Session",
+      "used_percent": 38.0,
+      "remaining_percent": 62.0,
+      "tone": "good",
+      "combined": false,
+      "account_count": 1,
+      "value_percent": 62.0,
+      "even_pace_percent": 46.0,
+      "logo": "codex"
+    }
+  ],
+  "panel_tone": "critical"
 }

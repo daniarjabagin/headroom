@@ -55,6 +55,25 @@
     "combined": false,
     "account_count": 1
   },
+  "panel_items": [
+    {
+      "account_id": "claude:main",
+      "provider": "claude",
+      "provider_name": "Claude",
+      "account_label": "ada@claude.example",
+      "window": "session",
+      "window_label": "Session",
+      "used_percent": 92.0,
+      "remaining_percent": 8.0,
+      "tone": "critical",
+      "combined": false,
+      "account_count": 1,
+      "value_percent": 8.0,
+      "even_pace_percent": 90.0,
+      "logo": "claude"
+    }
+  ],
+  "panel_tone": "critical",
   "accounts": [
     {
       "id": "codex:work",
@@ -126,7 +145,8 @@
         "interval_secs": 300,
         "next_at": "2026-09-23T10:03:00Z",
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "claude:main",
@@ -174,7 +194,8 @@
         "interval_secs": 300,
         "next_at": null,
         "reason": "backoff"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "codex:hidden",
@@ -199,7 +220,8 @@
         "interval_secs": 300,
         "next_at": null,
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     },
     {
       "id": "codex:personal",
@@ -259,7 +281,8 @@
         "interval_secs": 300,
         "next_at": null,
         "reason": "schedule"
-      }
+      },
+      "collapsed": false
     }
   ],
   "combined": [
@@ -343,7 +366,8 @@
             }
           ]
         }
-      ]
+      ],
+      "collapsed": false
     }
   ],
   "usage": [

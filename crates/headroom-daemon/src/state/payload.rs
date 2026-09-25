@@ -23,6 +23,10 @@ pub struct StatePayload {
     pub update_check: Option<UpdateCheckView>,
     pub display: DisplaySettings,
     pub headline: Option<Headline>,
+    #[serde(default)]
+    pub panel_items: Vec<PanelItem>,
+    #[serde(default)]
+    pub panel_tone: Option<Tone>,
     pub accounts: Vec<AccountView>,
     #[serde(default)]
     pub combined: Vec<CombinedView>,
@@ -66,6 +70,15 @@ fn single_account() -> usize {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PanelItem {
+    #[serde(flatten)]
+    pub headline: Headline,
+    pub value_percent: f64,
+    pub even_pace_percent: Option<f64>,
+    pub logo: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AccountView {
     pub id: String,
     pub provider: ProviderId,
@@ -87,6 +100,8 @@ pub struct AccountView {
     pub usage_home: String,
     #[serde(default)]
     pub refresh: Option<RefreshView>,
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -185,6 +200,8 @@ pub struct CombinedView {
     pub account_ids: Vec<String>,
     pub accounts: Vec<CombinedAccountView>,
     pub windows: Vec<CombinedWindowView>,
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

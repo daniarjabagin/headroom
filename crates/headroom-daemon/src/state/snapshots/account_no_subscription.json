@@ -24,5 +24,6 @@
     "interval_secs": 300,
     "next_at": null,
     "reason": "hold"
-  }
+  },
+  "collapsed": false
 }

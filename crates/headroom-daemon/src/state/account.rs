@@ -3,6 +3,7 @@ use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, Quota
 use jiff::Timestamp;
 
 use super::AssembleContext;
+use super::account_collapse::account_collapsed;
 use super::account_recovery::recovery;
 use super::payload::{
     AccountView, BalanceAmountView, BalanceView, NoticeView, PaceView, WindowView,
@@ -18,6 +19,14 @@ pub fn account_view(
     model: &Model,
     ctx: &AssembleContext<'_>,
 ) -> AccountView {
+    let view = base_view(record, model, ctx);
+    AccountView {
+        collapsed: account_collapsed(&view, &model.settings.display),
+        ..view
+    }
+}
+
+fn base_view(record: &AccountRecord, model: &Model, ctx: &AssembleContext<'_>) -> AccountView {
     let runtime = model.runtime.get(record.id());
     let failure = runtime.and_then(|r| r.failure.as_ref());
     let lapsed = failure.is_some_and(RefreshFailure::is_no_subscription);
@@ -54,6 +63,7 @@ pub fn account_view(
         notices: snapshot.map_or_else(Vec::new, |s| s.notices.iter().map(notice_view).collect()),
         usage_home: ctx.homes.show(&record.reference.home),
         refresh: Some(refresh_view(record, runtime, model, ctx.now)),
+        collapsed: false,
     }
 }
 
