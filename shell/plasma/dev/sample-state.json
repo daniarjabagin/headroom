@@ -1,6 +1,9 @@
 {
   "version": 1,
   "update": null,
+  "update_check": {
+    "checked_at": "2026-09-23T04:00:00Z"
+  },
   "app_version": "0.5.1",
   "generated_at": "2026-09-23T10:00:00Z",
   "next_refresh_at": "2026-09-23T10:03:10Z",
@@ -37,7 +40,10 @@
     "panel_mode": "headline",
     "panel_indicator": "ring",
     "panel_limits": [],
-    "panel_position": { "box": "right", "index": 0 },
+    "panel_position": {
+      "box": "right",
+      "index": 0
+    },
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
