@@ -1,16 +1,53 @@
 .headroom-panel-box {
-    spacing: 5px;
+    spacing: var(--panel-group-gap);
+}
+
+.headroom-panel-item {
+    spacing: var(--panel-item-gap);
+}
+
+.headroom-panel-ring,
+.headroom-panel-bar {
+    -headroom-warning-color: var(--warn);
+    -headroom-critical-color: var(--crit);
+    -headroom-track-alpha: var(--panel-track-alpha);
 }
 
 .headroom-panel-ring {
-    width: 15px;
-    height: 15px;
-    -headroom-warning-color: var(--warn);
-    -headroom-critical-color: var(--crit);
+    width: var(--panel-ring);
+    height: var(--panel-ring);
+}
+
+.headroom-panel-bar {
+    width: var(--panel-bar-width);
+    height: var(--panel-bar-tick-height);
+    -headroom-bar-height: var(--panel-bar-height);
+    -headroom-tick-width: var(--panel-bar-tick-width);
+    -headroom-tick-alpha: var(--panel-tick-alpha);
 }
 
 .headroom-panel-label {
     font-feature-settings: 'tnum';
+}
+
+.headroom-panel-label.warning,
+.headroom-panel-mark.warning {
+    color: var(--warn);
+}
+
+.headroom-panel-label.critical,
+.headroom-panel-mark.critical {
+    color: var(--crit);
+}
+
+.headroom-panel-box.headroom-panel-light .headroom-panel-label.warning,
+.headroom-panel-box.headroom-panel-light .headroom-panel-mark.warning {
+    color: var(--warn-on-light);
+}
+
+.headroom-panel-box.headroom-panel-light .headroom-panel-label.critical,
+.headroom-panel-box.headroom-panel-light .headroom-panel-mark.critical {
+    color: var(--crit-on-light);
 }
 
 .headroom-panel-provider-icon {
@@ -20,4 +57,10 @@
 .headroom-panel-window {
     font-size: 7.5pt;
     font-weight: 800;
+}
+
+.headroom-drop-marker {
+    width: 2px;
+    border-radius: 1px;
+    background-color: -st-accent-color;
 }

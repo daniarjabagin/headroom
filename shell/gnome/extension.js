@@ -5,7 +5,7 @@ import { Indicator } from './src/indicator.js';
 export default class HeadroomExtension extends Extension {
     enable() {
         this._indicator = new Indicator(this);
-        Main.panel.addToStatusArea(this.uuid, this._indicator);
+        this._indicator.addToPanel(Main.panel, this.uuid);
     }
 
     disable() {

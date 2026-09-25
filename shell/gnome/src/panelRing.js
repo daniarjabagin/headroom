@@ -1,18 +1,16 @@
 import Cairo from 'cairo';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
-import { EASE, pulse, STANDARD_MS, stopPulse } from './motion.js';
+import { EASE, STANDARD_MS } from './motion.js';
 
 const TRACK_ALPHA = 0.28;
 const LINE_RATIO = 0.2;
-const PULSE_OPACITY = 140;
-const PULSE_PERIOD_MS = 2000;
 const TONE_PROPERTIES = {
     warning: '-headroom-warning-color',
     critical: '-headroom-critical-color',
 };
 
-function toneColor(node, tone) {
+export function toneColor(node, tone) {
     const property = TONE_PROPERTIES[tone];
     if (property) {
         const [found, color] = node.lookup_color(property, false);
@@ -21,17 +19,31 @@ function toneColor(node, tone) {
     return node.get_foreground_color();
 }
 
-function setSource(cr, color, alpha = 1) {
+export function setSource(cr, color, alpha = 1) {
     cr.setSourceRGBA(color.red / 255, color.green / 255, color.blue / 255, (color.alpha / 255) * alpha);
 }
 
-export const PanelRing = GObject.registerClass(
+export function lookupDouble(node, property, fallback) {
+    const [found, value] = node.lookup_double(property, false);
+    return found ? value : fallback;
+}
+
+export function lookupLength(node, property, fallback) {
+    const [found, value] = node.lookup_length(property, false);
+    return found ? value : fallback;
+}
+
+export function trackAlpha(node) {
+    return lookupDouble(node, '-headroom-track-alpha', TRACK_ALPHA);
+}
+
+export const FractionLeaf = GObject.registerClass(
     {
         Properties: {
             'shown-fraction': GObject.ParamSpec.double(
                 'shown-fraction',
                 'Shown fraction',
-                'Currently drawn ring fraction',
+                'Currently drawn fraction',
                 GObject.ParamFlags.READWRITE,
                 0,
                 1,
@@ -39,14 +51,12 @@ export const PanelRing = GObject.registerClass(
             ),
         },
     },
-    class HeadroomPanelRing extends St.DrawingArea {
-        _init(motion) {
-            super._init({ style_class: 'headroom-panel-ring' });
+    class HeadroomFractionLeaf extends St.DrawingArea {
+        _init(motion, styleClass) {
+            super._init({ style_class: styleClass });
             this._motion = motion;
             this._shownFraction = 0;
             this._tone = 'neutral';
-            this._pulsing = false;
-            this.connect('notify::mapped', () => this._syncPulse());
         }
 
         get shown_fraction() {
@@ -59,24 +69,29 @@ export const PanelRing = GObject.registerClass(
             this.queue_repaint();
         }
 
-        update(fraction, tone) {
-            const target = Math.min(1, Math.max(0, fraction));
-            const toneChanged = tone !== this._tone;
-            this._tone = tone;
-            if (toneChanged) this.queue_repaint();
-            this.remove_transition('shown-fraction');
-            if (this._motion.enabled && this.mapped && target !== this._shownFraction)
-                this.ease_property('shown-fraction', target, { duration: STANDARD_MS, mode: EASE });
-            else this.shown_fraction = target;
-            this._syncPulse();
+        update({ fraction, tone }) {
+            if (tone !== this._tone) {
+                this._tone = tone;
+                this.queue_repaint();
+            }
+            this._showFraction(Math.min(1, Math.max(0, fraction)));
         }
 
-        _syncPulse() {
-            const shouldPulse = this._tone === 'critical' && this.mapped && this._motion.enabled;
-            if (shouldPulse === this._pulsing) return;
-            this._pulsing = shouldPulse;
-            if (shouldPulse) pulse(this._motion, this, PULSE_OPACITY, PULSE_PERIOD_MS);
-            else stopPulse(this);
+        _showFraction(target) {
+            const easing = this.get_transition('shown-fraction') !== null;
+            if (target === this._shownFraction && !easing) return;
+            this.remove_transition('shown-fraction');
+            if (this._motion.enabled && this.mapped)
+                this.ease_property('shown-fraction', target, { duration: STANDARD_MS, mode: EASE });
+            else this.shown_fraction = target;
+        }
+    }
+);
+
+export const PanelRing = GObject.registerClass(
+    class HeadroomPanelRing extends FractionLeaf {
+        _init(motion) {
+            super._init(motion, 'headroom-panel-ring');
         }
 
         vfunc_repaint() {
@@ -88,7 +103,7 @@ export const PanelRing = GObject.registerClass(
             const radius = (size - lineWidth) / 2;
             const center = size / 2;
             cr.setLineWidth(lineWidth);
-            setSource(cr, node.get_foreground_color(), TRACK_ALPHA);
+            setSource(cr, node.get_foreground_color(), trackAlpha(node));
             cr.arc(center, center, radius, 0, 2 * Math.PI);
             cr.stroke();
             if (this._shownFraction > 0) {
