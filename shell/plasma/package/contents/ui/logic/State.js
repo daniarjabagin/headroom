@@ -2,8 +2,10 @@
 
 .import "Combined.js" as Combined
 .import "I18n.js" as I18n
+.import "Recovery.js" as Recovery
 .import "Settings.js" as Settings
 .import "Update.js" as Update
+.import "UpdateCheck.js" as UpdateCheck
 
 const SCHEMA_VERSION = 1;
 const HOUR_MS = 60 * 60 * 1000;
@@ -197,6 +199,7 @@ function parseAccount(raw, usage) {
         owner: oneOf(OWNERS, raw.owner, "cli"),
         status: oneOf(STATUSES, raw.status, "fresh"),
         error: parseError(raw.error),
+        recovery: Recovery.parseRecovery(raw.recovery),
         updatedAt: timestamp(raw.updated_at),
         hidden: raw.hidden === true,
         windows: list(raw.windows).map(parseWindow),
@@ -291,7 +294,9 @@ function parseState(json) {
         accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
         combined: Combined.parseGroups(list(raw.combined), parseWindow),
         spend: parseSpend(raw.spend, usage),
-        update: Update.parseUpdate(raw.update)
+        update: Update.parseUpdate(raw.update),
+        updateCheck: UpdateCheck.parseUpdateCheck(raw.update_check),
+        appVersion: text(raw.app_version)
     };
 }
 

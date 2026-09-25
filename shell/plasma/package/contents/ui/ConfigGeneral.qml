@@ -7,12 +7,30 @@ import org.kde.kirigami as Kirigami
 import "logic/Options.js" as Options
 import "logic/Settings.js" as Settings
 import "logic/Update.js" as Update
+import "logic/UpdateCheck.js" as UpdateCheck
 
 ConfigScaffold {
     id: page
 
     readonly property var display: current.display
     readonly property real controlWidth: Kirigami.Units.gridUnit * 13
+    readonly property int clockTickMs: 30000
+    property var now: new Date()
+    property bool checking: false
+    property var checkResult: null
+    readonly property var shownCheck: snapshot !== null ? UpdateCheck.shown(snapshot, checkResult) : null
+
+    function checkNow() {
+        if (checking)
+            return;
+        checking = true;
+        const previous = snapshot?.updateCheck?.checkedAt ?? null;
+        daemon.checkForUpdates((errorName, value) => {
+            page.checkResult = UpdateCheck.outcome(errorName, value, previous);
+            page.now = new Date();
+            page.checking = false;
+        });
+    }
 
     function releaseActionLabel() {
         if (updater.kind === "command")
@@ -183,6 +201,25 @@ ConfigScaffold {
         }
 
         SettingsRow {
+            objectName: "updateCheckRow"
+            visible: UpdateCheck.visible(page.current.updates.check, page.snapshot)
+            title: page.shownCheck !== null ? UpdateCheck.statusLine(page.lang, page.shownCheck, page.snapshot.appVersion, page.now) : ""
+
+            QQC2.BusyIndicator {
+                objectName: "updateCheckBusy"
+                visible: page.checking
+                running: visible
+            }
+
+            QQC2.Button {
+                objectName: "updateCheckNow"
+                enabled: !page.checking
+                text: page.tr("Check now")
+                onClicked: page.checkNow()
+            }
+        }
+
+        SettingsRow {
             id: releaseRow
 
             readonly property var run: updater.kind === "install" ? updater.run : Update.IDLE
@@ -212,6 +249,13 @@ ConfigScaffold {
                 onClicked: updater.trigger()
             }
         }
+    }
+
+    Timer {
+        interval: page.clockTickMs
+        repeat: true
+        running: page.visible
+        onTriggered: page.now = new Date()
     }
 
     UpdateActions {

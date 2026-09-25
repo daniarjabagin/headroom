@@ -11,6 +11,8 @@ QtObject {
     property var displayPatch: ({})
     property var appliedSettings: null
     property var failingMembers: []
+    property var statePatch: ({})
+    property var checkReplies: []
     property bool wallpaper: false
     readonly property int dialogPadding: 8
     readonly property int dialogRadius: 8
@@ -35,6 +37,9 @@ QtObject {
             shifted.accounts.filter(account => refreshingFrom.includes(account.status)).forEach(account => account.status = "refreshing");
         if (scenario === "retrying")
             shifted.accounts.filter(account => account.status === "signed_out").forEach(account => account.status = "refreshing");
+        if (scenario === "retrying-error")
+            shifted.accounts.filter(account => account.status === "error").forEach(account => account.status = "refreshing");
+        Object.assign(shifted, statePatch);
         if (scenario === "single-spend")
             keepFirstSpender(shifted.spend);
         if (scenario.startsWith(updatePrefix))
@@ -61,6 +66,18 @@ QtObject {
             published_at: new Date(Date.now() - 2 * 86400000).toISOString(),
             install,
             command: install === "package" ? "Download the new Arch package from https://github.com/daniarjabagin/headroom/releases/tag/v0.5.0 and install it with sudo pacman -U" : "headroom update"
+        };
+    }
+
+    function nextCheckReply() {
+        const [reply, ...rest] = checkReplies;
+        checkReplies = rest;
+        return reply ?? {
+            value: JSON.stringify({
+                status: "up_to_date",
+                checked_at: new Date().toISOString(),
+                version: "0.6.0"
+            })
         };
     }
 
