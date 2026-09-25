@@ -278,6 +278,28 @@ The account commands run the bundled `Contents/Helpers/headroom` with the same e
 daemon (login-shell `PATH`, `CODEX_HOME`, …) plus `HEADROOM_SOCKET` set to the app's socket, so the
 CLI and the app always talk to the same daemon.
 
+### Menu bar, shortcut and screen sharing
+
+**Menu-bar items.** The menu bar shows the daemon's `panel_items`: one item in `headline` mode, up
+to three separate items in `several` mode, or the Headroom mark tinted by `panel_tone` in `icon`
+mode. macOS has no left or centre placement for status items: ⌘-drag an item to move it. Each item
+has an autosave name (`headroom.item.0…2`), so positions persist across launches.
+
+**Global shortcut.** `shortcuts.open` (GTK accelerator syntax, shared with Linux) is registered
+with Carbon `RegisterEventHotKey`, which needs no Accessibility permission. `<Super>`, `<Meta>` and
+`<Primary>` map to ⌘, `<Control>` to ⌃, `<Alt>` to ⌥, `<Shift>` to ⇧. A shortcut without a
+modifier is only accepted for F1–F20. If another app already owns the combination, registration
+fails and is logged.
+
+**Screen-share privacy.** When `display.hide_on_screen_share` is on (the default), Headroom sets
+`NSWindow.sharingType = .none` on the popup and on its menu-bar item windows, so screenshots,
+screen recordings and screen sharing leave them out; turning the setting off switches back to
+`.readOnly` at once. macOS gives apps no reliable signal that the screen is being shared, so unlike
+GNOME, Headroom hides its windows from capture instead of masking the numbers. `sharingType` is
+honoured by the legacy window-capture APIs and by most ScreenCaptureKit clients, but it is best
+effort: from macOS 15, ScreenCaptureKit captures of a whole display can still include such windows,
+depending on the capturing app.
+
 ## 5. First run
 
 ### Welcome window
