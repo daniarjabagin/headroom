@@ -280,7 +280,7 @@ async fn a_different_account_in_the_same_home_is_an_error() {
     sign_in(&cli_file(&home), "usr-2");
     assert!(matches!(
         provider.fetch_limits(&account).await,
-        Err(ProviderError::LocalData(_))
+        Err(ProviderError::AccountChanged(_))
     ));
     fs::remove_file(cli_file(&home)).unwrap();
     assert_eq!(

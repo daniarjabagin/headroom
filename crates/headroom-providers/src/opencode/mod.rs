@@ -97,7 +97,7 @@ impl OpenCodeProvider {
         if identity_for_key(key.expose()).account_id(&ID) == account.id {
             Ok(key)
         } else {
-            Err(ProviderError::LocalData(format!(
+            Err(ProviderError::AccountChanged(format!(
                 "the OpenCode Go key at {} has changed",
                 account.home.display()
             )))

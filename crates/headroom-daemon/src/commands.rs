@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
 use headroom_core::account::AccountId;
+use headroom_core::provider::ProviderError;
 
 use crate::core::Core;
 use crate::error::CommandError;
-use crate::model::AccountRuntime;
+use crate::model::{AccountRuntime, RefreshFailure};
 use crate::scheduler::policy;
 use crate::settings::Settings;
 use crate::storage::accounts;
@@ -24,6 +25,40 @@ impl Core {
         };
         if allowed {
             self.force_refresh(&id);
+        }
+        self.mark_changed();
+        Ok(())
+    }
+
+    pub(crate) fn begin_recovery(
+        &self,
+        account_id: &str,
+    ) -> Result<Option<AccountId>, CommandError> {
+        if account_id.is_empty() {
+            return Ok(None);
+        }
+        let id = self.known_account(account_id)?;
+        let mut model = self.model();
+        let failure = model.runtime.get(&id).and_then(|r| r.failure.as_ref());
+        if !failure.is_some_and(needs_rescan) {
+            return Ok(None);
+        }
+        model.runtime_mut(&id).refreshing = true;
+        drop(model);
+        self.mark_changed();
+        Ok(Some(id))
+    }
+
+    pub(crate) fn finish_recovery(&self, id: &AccountId) -> Result<(), CommandError> {
+        let known = {
+            let mut model = self.model();
+            if let Some(runtime) = model.runtime.get_mut(id) {
+                runtime.refreshing = false;
+            }
+            model.account(id).is_some()
+        };
+        if known {
+            return self.refresh(&id.0);
         }
         self.mark_changed();
         Ok(())
@@ -152,6 +187,17 @@ impl Core {
             None => Err(CommandError::UnknownAccount(account_id.to_owned())),
         }
     }
+}
+
+fn needs_rescan(failure: &RefreshFailure) -> bool {
+    matches!(
+        failure,
+        RefreshFailure::Provider(
+            ProviderError::AccountChanged(_)
+                | ProviderError::NotSignedIn
+                | ProviderError::SignInExpired
+        )
+    )
 }
 
 fn normalize_label(label: &str) -> Result<Option<String>, CommandError> {

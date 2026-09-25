@@ -136,7 +136,7 @@ async fn changed_identity_is_reported() {
     sign_in(home.path(), "acc-2", one_hour_later());
     assert!(matches!(
         provider.fetch_limits(&accounts[0]).await.unwrap_err(),
-        ProviderError::LocalData(_)
+        ProviderError::AccountChanged(_)
     ));
 }
 

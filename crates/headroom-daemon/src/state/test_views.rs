@@ -16,6 +16,7 @@ pub fn account(provider: &ProviderId, name: &str, windows: Vec<WindowView>) -> A
         owner: CredentialOwner::Cli,
         status: AccountStatus::Fresh,
         error: None,
+        recovery: None,
         updated_at: None,
         source: None,
         windows,

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use headroom_core::provider::ProviderError;
 
+use super::oauth::DEFAULT_TOKEN_URL;
 use crate::keychain::Security;
 use crate::paths::{HeadroomDirs, Os, xdg_config_home};
 
@@ -16,6 +17,7 @@ pub struct ClaudeConfig {
     pub xdg_config_home: PathBuf,
     pub headroom: HeadroomDirs,
     pub api_base: String,
+    pub token_url: String,
     /// Keychain account of Claude Code's sign-in (`$USER`).
     pub user: Option<String>,
     /// Where Claude Code keeps sign-ins on macOS; `None` reads only `.credentials.json`.
@@ -30,6 +32,7 @@ impl ClaudeConfig {
             xdg_config_home: xdg_config_home(&home, |_| None),
             headroom: HeadroomDirs::for_home(&home),
             api_base: DEFAULT_API_BASE.to_owned(),
+            token_url: DEFAULT_TOKEN_URL.to_owned(),
             user: None,
             keychain: None,
             home,

@@ -54,6 +54,7 @@ fn error_kind(failure: &RefreshFailure) -> &'static str {
         RefreshFailure::Provider(error) => match error {
             ProviderError::NotSignedIn => "not_signed_in",
             ProviderError::SignInExpired => "sign_in_expired",
+            ProviderError::AccountChanged(_) => "account_changed",
             ProviderError::ApiKeyOnly => "api_key_only",
             ProviderError::NoSubscription { .. } => "no_subscription",
             ProviderError::RateLimited { .. } => "rate_limited",

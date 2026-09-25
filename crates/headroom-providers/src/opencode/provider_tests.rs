@@ -191,7 +191,7 @@ async fn a_missing_or_replaced_key_never_calls_the_endpoint() {
     let replaced = sandbox.provider(stored(&account, "oc_sk_other"));
     assert!(matches!(
         replaced.fetch_limits(&account).await,
-        Err(ProviderError::LocalData(ref m)) if m.contains("has changed")
+        Err(ProviderError::AccountChanged(ref m)) if m.contains("has changed")
     ));
 }
 

@@ -84,7 +84,7 @@ impl CursorProvider {
         if self.account_ref(&credentials).id == account.id {
             Ok(credentials)
         } else {
-            Err(ProviderError::LocalData(
+            Err(ProviderError::AccountChanged(
                 "the Cursor account signed in on this machine has changed".to_owned(),
             ))
         }

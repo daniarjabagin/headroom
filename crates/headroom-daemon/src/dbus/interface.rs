@@ -29,7 +29,7 @@ impl DaemonInterface {
     }
 
     fn refresh(&self, account_id: &str) -> fdo::Result<()> {
-        self.core()
+        self.service
             .refresh(account_id)
             .map_err(|error| to_fdo(&error))
     }

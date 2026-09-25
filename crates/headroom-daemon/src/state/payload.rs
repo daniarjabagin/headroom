@@ -70,6 +70,8 @@ pub struct AccountView {
     pub owner: CredentialOwner,
     pub status: AccountStatus,
     pub error: Option<AccountError>,
+    #[serde(default)]
+    pub recovery: Option<Recovery>,
     pub updated_at: Option<Timestamp>,
     pub source: Option<DataSource>,
     pub windows: Vec<WindowView>,
@@ -111,6 +113,14 @@ pub enum DataSource {
 pub struct AccountError {
     pub kind: String,
     pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum Recovery {
+    Retry,
+    SignIn { account_id: String },
+    CliLogin { command: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

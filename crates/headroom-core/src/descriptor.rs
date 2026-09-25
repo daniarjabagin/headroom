@@ -67,6 +67,14 @@ impl ProviderDescriptor {
             .any(|method| matches!(method, AddAccountMethod::ApiKey(_)))
     }
 
+    #[must_use]
+    pub fn cli_login(&self) -> Option<&'static CliLogin> {
+        self.add_account.iter().find_map(|method| match method {
+            AddAccountMethod::CliLogin(login) => Some(login),
+            AddAccountMethod::ApiKey(_) | AddAccountMethod::AutoDetect { .. } => None,
+        })
+    }
+
     pub fn validate(&self) -> Result<(), DescriptorError> {
         let fail = |problem| DescriptorError {
             provider: self.id.to_string(),
@@ -102,6 +110,15 @@ impl AddAccountMethod {
 }
 
 impl CliLogin {
+    /// The login as a person types it in a terminal.
+    #[must_use]
+    pub fn command_line(&self) -> String {
+        std::iter::once(self.program)
+            .chain(self.args.iter().copied())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     #[must_use]
     pub fn credentials_path(&self, home: &Path) -> PathBuf {
         self.home_var.config_dir(home).join(self.credentials_file)

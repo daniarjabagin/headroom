@@ -314,7 +314,7 @@ async fn a_different_login_is_not_fetched_under_the_old_account() {
         "pro",
     );
     let error = provider.fetch_limits(&account).await.unwrap_err();
-    assert!(matches!(error, ProviderError::LocalData(_)));
+    assert!(matches!(error, ProviderError::AccountChanged(_)));
 }
 
 #[tokio::test]

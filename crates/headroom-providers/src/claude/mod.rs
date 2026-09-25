@@ -9,14 +9,16 @@ mod local_usage;
 mod log_record;
 mod mapper;
 mod number;
+mod oauth;
 mod raw;
+mod refresh;
 mod subscription;
 mod usage_homes;
 
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
-use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
+use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
 use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
 use headroom_core::event::UsageEvent;
@@ -24,11 +26,15 @@ use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
 use jiff::Timestamp;
 
+use self::auth::Credentials;
 use self::client::UsageClient;
 use self::identity::ClaudeIdentity;
+use self::oauth::TokenClient;
+use self::raw::RawUsage;
 use crate::http;
 
 pub use self::config::{ClaudeConfig, DEFAULT_API_BASE};
+pub use self::oauth::DEFAULT_TOKEN_URL;
 
 pub const ID: ProviderId = ProviderId::from_static("claude");
 
@@ -53,6 +59,7 @@ pub type Clock = fn() -> Timestamp;
 pub struct ClaudeProvider {
     config: ClaudeConfig,
     client: UsageClient,
+    tokens: TokenClient,
     clock: Clock,
 }
 
@@ -72,7 +79,8 @@ impl ClaudeProvider {
 
     fn assemble(config: ClaudeConfig, clock: Clock, http: reqwest::Client) -> ClaudeProvider {
         ClaudeProvider {
-            client: UsageClient::new(http, &config.api_base),
+            client: UsageClient::new(http.clone(), &config.api_base),
+            tokens: TokenClient::new(http, &config.token_url),
             config,
             clock,
         }
@@ -84,10 +92,45 @@ impl ClaudeProvider {
         if identity.account_id() == account.id {
             Ok(identity)
         } else {
-            Err(ProviderError::LocalData(format!(
+            Err(ProviderError::AccountChanged(format!(
                 "the Claude account signed in at {} has changed",
                 account.home.display()
             )))
+        }
+    }
+}
+
+impl ClaudeProvider {
+    fn refreshable(&self, account: &AccountRef) -> bool {
+        account.owner == CredentialOwner::Headroom && self.config.keychain.is_none()
+    }
+
+    async fn fetch_usage(
+        &self,
+        credentials: &Credentials,
+        now: Timestamp,
+    ) -> Result<RawUsage, ProviderError> {
+        let token = credentials.usable_token(now)?;
+        self.client.fetch(token, now).await
+    }
+
+    async fn fetch_refreshing(
+        &self,
+        account: &AccountRef,
+        credentials: Credentials,
+        now: Timestamp,
+    ) -> (Credentials, Result<RawUsage, ProviderError>) {
+        match self.fetch_usage(&credentials, now).await {
+            Err(ProviderError::SignInExpired) if self.refreshable(account) => {
+                match refresh::refresh(&self.tokens, &account.home, &credentials, now).await {
+                    Ok(fresh) => {
+                        let fetched = self.fetch_usage(&fresh, now).await;
+                        (fresh, fetched)
+                    }
+                    Err(error) => (credentials, Err(error)),
+                }
+            }
+            fetched => (credentials, fetched),
         }
     }
 }
@@ -114,10 +157,7 @@ impl Provider for ClaudeProvider {
         let identity = self.current_identity(account)?;
         let credentials = credentials::load(&self.config, account).await?;
         let now = (self.clock)();
-        let fetched = match credentials.usable_token(now) {
-            Ok(token) => self.client.fetch(token, now).await,
-            Err(error) => Err(error),
-        };
+        let (credentials, fetched) = self.fetch_refreshing(account, credentials, now).await;
         let mapped = subscription::require_subscription(
             &credentials,
             fetched.map(|raw| mapper::map_usage(&raw)),
@@ -148,3 +188,7 @@ impl Provider for ClaudeProvider {
 #[cfg(test)]
 #[path = "provider_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "owned_refresh_tests.rs"]
+mod owned_refresh_tests;

@@ -3,6 +3,7 @@ use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, Quota
 use jiff::Timestamp;
 
 use super::AssembleContext;
+use super::account_recovery::recovery;
 use super::payload::{
     AccountView, BalanceAmountView, BalanceView, NoticeView, PaceView, WindowView,
 };
@@ -17,9 +18,8 @@ pub fn account_view(
     ctx: &AssembleContext<'_>,
 ) -> AccountView {
     let runtime = model.runtime.get(record.id());
-    let lapsed = runtime
-        .and_then(|r| r.failure.as_ref())
-        .is_some_and(RefreshFailure::is_no_subscription);
+    let failure = runtime.and_then(|r| r.failure.as_ref());
+    let lapsed = failure.is_some_and(RefreshFailure::is_no_subscription);
     let entry = model.snapshots.get(record.id()).filter(|_| !lapsed);
     let snapshot = entry.map(|e| &e.snapshot);
     AccountView {
@@ -44,7 +44,8 @@ pub fn account_view(
         hidden: record.hidden,
         owner: record.reference.owner,
         status: status(runtime, entry, ctx.now),
-        error: runtime.and_then(|r| r.failure.as_ref()).map(error_view),
+        error: failure.map(error_view),
+        recovery: recovery(failure, &record.reference, ctx.catalog),
         updated_at: entry.map(crate::model::SnapshotEntry::data_time),
         source: entry.map(source),
         windows: snapshot.map_or_else(Vec::new, |s| windows(s, record, model, ctx.now)),

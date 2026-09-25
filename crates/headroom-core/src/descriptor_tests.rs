@@ -46,6 +46,20 @@ fn well_formed_descriptors_pass() {
 }
 
 #[test]
+fn the_cli_login_is_the_first_login_method_as_typed() {
+    static METHODS: [AddAccountMethod; 2] = [
+        AddAccountMethod::ApiKey(KEY),
+        AddAccountMethod::CliLogin(LOGIN),
+    ];
+    let login = descriptor(&METHODS).cli_login().unwrap();
+    assert_eq!(login.command_line(), "tool login");
+    assert_eq!(
+        descriptor(&[AddAccountMethod::ApiKey(KEY)]).cli_login(),
+        None
+    );
+}
+
+#[test]
 fn identity_problems_are_reported() {
     let mut bad = descriptor(&[]);
     assert_eq!(

@@ -85,7 +85,7 @@ impl MiniMaxProvider {
         if identity.account_id(&ID) == account.id {
             Ok(identity)
         } else {
-            Err(ProviderError::LocalData(format!(
+            Err(ProviderError::AccountChanged(format!(
                 "the MiniMax account stored at {} has changed",
                 account.home.display()
             )))

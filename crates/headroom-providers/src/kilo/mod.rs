@@ -113,7 +113,7 @@ fn key_token(key: SecretString, account: &AccountRef) -> Result<KiloToken, Provi
     if token.account_id() == account.id {
         Ok(token)
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Kilo API key stored for {} has changed",
             account.home.display()
         )))

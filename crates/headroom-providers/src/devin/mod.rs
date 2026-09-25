@@ -83,7 +83,7 @@ fn current_key(account: &AccountRef) -> Result<DevinKey, ProviderError> {
     if key.account_id() == account.id {
         Ok(key)
     } else {
-        Err(ProviderError::LocalData(format!(
+        Err(ProviderError::AccountChanged(format!(
             "the Devin account signed in at {} has changed",
             account.home.display()
         )))

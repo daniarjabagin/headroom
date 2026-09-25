@@ -37,6 +37,10 @@ pub(super) struct Credentials {
 }
 
 impl Credentials {
+    pub(super) fn token_secret(&self) -> &str {
+        self.access_token.secret()
+    }
+
     pub(super) fn usable_token(&self, now: Timestamp) -> Result<&AccessToken, ProviderError> {
         let expired = self.expires_at.is_some_and(|at| at <= now);
         if expired || !self.has_profile_scope {

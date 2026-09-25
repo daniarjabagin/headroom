@@ -17,6 +17,7 @@ fn view(id: &str, hidden: bool, windows: Vec<WindowView>) -> AccountView {
         owner: CredentialOwner::Cli,
         status: AccountStatus::Fresh,
         error: None,
+        recovery: None,
         updated_at: None,
         source: None,
         windows,

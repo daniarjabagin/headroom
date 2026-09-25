@@ -124,6 +124,7 @@ impl Setup {
                 keychain: None,
             },
             api_base: api_base.to_owned(),
+            auth_base: api_base.to_owned(),
             clock: Arc::new(|| at(NOW)),
         })
         .unwrap()

@@ -43,9 +43,10 @@ impl fmt::Debug for Credentials {
     }
 }
 
-struct AuthFile {
-    document: Value,
-    modified_at: Option<Timestamp>,
+pub(super) struct AuthFile {
+    pub bytes: Vec<u8>,
+    pub document: Value,
+    pub modified_at: Option<Timestamp>,
 }
 
 pub(super) fn load_credentials(home: &Path) -> Result<Credentials, ProviderError> {
@@ -53,7 +54,7 @@ pub(super) fn load_credentials(home: &Path) -> Result<Credentials, ProviderError
     credentials_from(&file.document, file.modified_at)
 }
 
-fn read_auth_file(home: &Path) -> Result<AuthFile, ProviderError> {
+pub(super) fn read_auth_file(home: &Path) -> Result<AuthFile, ProviderError> {
     let path = home.join(AUTH_FILE);
     let mut file = match File::open(&path) {
         Ok(file) => file,
@@ -68,6 +69,7 @@ fn read_auth_file(home: &Path) -> Result<AuthFile, ProviderError> {
     let document = parse_auth_document(&bytes)
         .ok_or_else(|| ProviderError::LocalData(format!("{} is not valid JSON", path.display())))?;
     Ok(AuthFile {
+        bytes,
         document,
         modified_at: modified_at(&file),
     })
@@ -104,7 +106,7 @@ fn parse_hex_document(bytes: &[u8]) -> Option<Value> {
         .filter(Value::is_object)
 }
 
-fn credentials_from(
+pub(super) fn credentials_from(
     document: &Value,
     modified_at: Option<Timestamp>,
 ) -> Result<Credentials, ProviderError> {
