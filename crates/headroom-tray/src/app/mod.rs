@@ -1,4 +1,5 @@
 mod handlers;
+mod onboarding;
 mod prefs;
 mod recovery;
 mod render;
@@ -56,6 +57,7 @@ pub struct App {
     tray: tokio::sync::mpsc::UnboundedSender<TrayUpdate>,
     ticker: RefCell<Option<glib::SourceId>>,
     prefs: RefCell<Option<Rc<SettingsWindow>>>,
+    onboarding: RefCell<onboarding::OnboardingSlot>,
     tree: RefCell<PopupTree>,
     shortcuts: RefCell<Shortcuts>,
 }
@@ -99,6 +101,7 @@ impl App {
             tray: channels.tray,
             ticker: RefCell::new(None),
             prefs: RefCell::new(None),
+            onboarding: RefCell::default(),
             tree: RefCell::default(),
             shortcuts: RefCell::default(),
         });

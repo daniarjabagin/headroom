@@ -9,9 +9,10 @@ use super::flow_page::{
     stack_of, wrapping,
 };
 use super::login_page::with;
+use super::target::Target;
 use crate::i18n::fill;
 use crate::preferences::flow::{Flow, Phase, parse_add_event};
-use crate::preferences::registry::{AddMethod, ProviderInfo, add_account_args};
+use crate::preferences::registry::{AddMethod, ProviderInfo};
 use crate::process::ProgressProcess;
 
 struct Widgets {
@@ -28,6 +29,7 @@ pub struct KeyPage {
     ctx: DialogCtx,
     provider: ProviderInfo,
     method: AddMethod,
+    target: Target,
     widgets: Widgets,
     flow: RefCell<Flow>,
     process: RefCell<Option<ProgressProcess>>,
@@ -59,7 +61,12 @@ fn console_url(method: &AddMethod) -> Option<String> {
 }
 
 impl KeyPage {
-    pub fn new(ctx: &DialogCtx, provider: &ProviderInfo, method: &AddMethod) -> Rc<Self> {
+    pub fn new(
+        ctx: &DialogCtx,
+        provider: &ProviderInfo,
+        method: &AddMethod,
+        target: &Target,
+    ) -> Rc<Self> {
         let lang = ctx.lang;
         let heading = fill(
             lang.tr("Connect {provider}"),
@@ -80,15 +87,14 @@ impl KeyPage {
             add: gtk::Button::new(),
             error: wrapping("", &["error"]),
         };
-        let title = fill(
-            lang.tr("Add {provider} Account"),
-            &[("provider", &provider.display_name)],
-        );
+        widgets.label.set_visible(!target.is_login());
+        let title = target.title(lang, &provider.display_name);
         let page = Rc::new(Self {
             page: navigation_page(&title, &body.column),
             ctx: ctx.clone(),
             provider: provider.clone(),
             method: method.clone(),
+            target: target.clone(),
             widgets,
             flow: RefCell::default(),
             process: RefCell::default(),
@@ -167,7 +173,9 @@ impl KeyPage {
         if key.is_empty() || self.process.borrow().is_some() {
             return;
         }
-        let args = add_account_args(&self.provider.id, &self.method, &self.widgets.label.text());
+        let args = self
+            .target
+            .args(&self.provider.id, &self.method, &self.widgets.label.text());
         let words: Vec<&str> = args.iter().map(String::as_str).collect();
         self.flow.borrow_mut().start();
         let (on_line, on_exit) = (Rc::downgrade(self), Rc::downgrade(self));
@@ -238,11 +246,7 @@ impl KeyPage {
             Phase::Running => (PROGRESS, lang.tr("This takes a moment.").to_owned()),
             Phase::Done => {
                 widgets.key.set_text("");
-                (
-                    DONE,
-                    lang.tr("Account added. It shows up in the tray in a moment.")
-                        .to_owned(),
-                )
+                (DONE, self.target.done_text(lang).to_owned())
             }
             Phase::Failed(message) => (ERROR, message),
         };

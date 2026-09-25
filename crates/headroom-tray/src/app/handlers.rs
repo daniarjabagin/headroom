@@ -37,13 +37,15 @@ impl App {
             Event::UpdateChecked(result) => self.update_checked(result),
             Event::ServiceStarted(result) => self.service_started(result),
             Event::SettingsWritten(result) => self.settings_written(result),
-            Event::AccountsWritten(result) | Event::SettingsReset(result) => {
+            Event::AccountsWritten(result) => {
                 if let Err(message) = result {
                     self.toast(&message);
                 }
             }
+            Event::SettingsReset(result) => self.settings_reset(result),
+            Event::DiagnosticsReceived(result) => self.diagnostics_received(result),
             Event::Restored(result) => self.restored(&result),
-            Event::SpendReceived { .. } | Event::DiagnosticsReceived(_) => {}
+            Event::SpendReceived { .. } => {}
             Event::OpenRequested | Event::Menu(MenuAction::Open) => self.show(None),
             Event::Menu(MenuAction::Settings) => self.open_settings(),
             Event::Activate { x, y } => self.toggle(Some((x, y))),
@@ -60,6 +62,7 @@ impl App {
         self.render(false);
         self.sync_tray();
         self.sync_prefs();
+        self.sync_onboarding();
     }
 
     fn receive_providers(&self, json: &str) {
@@ -88,6 +91,7 @@ impl App {
                 self.sync_prefs();
                 self.sync_tray();
                 self.sync_shortcut();
+                self.sync_onboarding();
             }
             Ok(false) => {}
             Err(error) => tracing::warn!(%error, "ignoring unreadable settings"),
@@ -142,7 +146,7 @@ impl App {
         Lang::resolve(language, system_locale().as_deref())
     }
 
-    fn patch(&self, change: impl Fn(&crate::payload::Display) -> Change) {
+    fn patch(self: &Rc<Self>, change: impl Fn(&crate::payload::Display) -> Change) {
         let change = self
             .model
             .borrow()

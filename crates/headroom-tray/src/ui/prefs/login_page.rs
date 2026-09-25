@@ -8,9 +8,10 @@ use super::flow_page::{
     DONE, ERROR, FORM, LogView, PROGRESS, busy_line, flow_body, navigation_page, pill, result_page,
     stack_of, wrapping,
 };
+use super::target::Target;
 use crate::i18n::fill;
 use crate::preferences::flow::{Flow, Phase, parse_add_event};
-use crate::preferences::registry::{AddMethod, ProviderInfo, add_account_args};
+use crate::preferences::registry::{AddMethod, ProviderInfo};
 use crate::process::ProgressProcess;
 
 struct Widgets {
@@ -31,6 +32,7 @@ pub struct LoginPage {
     ctx: DialogCtx,
     provider: ProviderInfo,
     method: AddMethod,
+    target: Target,
     widgets: Widgets,
     flow: RefCell<Flow>,
     process: RefCell<Option<ProgressProcess>>,
@@ -87,7 +89,12 @@ fn widgets(ctx: &DialogCtx, description: gtk::Label, stack: gtk::Stack) -> Widge
 }
 
 impl LoginPage {
-    pub fn new(ctx: &DialogCtx, provider: &ProviderInfo, method: &AddMethod) -> Rc<Self> {
+    pub fn new(
+        ctx: &DialogCtx,
+        provider: &ProviderInfo,
+        method: &AddMethod,
+        target: &Target,
+    ) -> Rc<Self> {
         let lang = ctx.lang;
         let body = flow_body(
             &provider.id,
@@ -99,21 +106,22 @@ impl LoginPage {
         );
         let widgets = widgets(ctx, body.description, body.stack);
         body.column.append(&widgets.log.widget);
-        let title = fill(
-            lang.tr("Add {provider} Account"),
-            &[("provider", &provider.display_name)],
-        );
+        let title = target.title(lang, &provider.display_name);
         let page = Rc::new(Self {
             page: navigation_page(&title, &body.column),
             ctx: ctx.clone(),
             provider: provider.clone(),
             method: method.clone(),
+            target: target.clone(),
             widgets,
             flow: RefCell::default(),
             process: RefCell::default(),
         });
         page.assemble();
         page.render();
+        if target.is_login() {
+            page.start();
+        }
         page
     }
 
@@ -125,6 +133,7 @@ impl LoginPage {
             .connect_entry_activated(move |_| with(&weak, Self::start));
         let group = adw::PreferencesGroup::new();
         group.add(&widgets.label);
+        group.set_visible(!self.target.is_login());
         let weak = Rc::downgrade(self);
         let form = stack_of(&[
             group.upcast_ref(),
@@ -179,7 +188,9 @@ impl LoginPage {
         if self.process.borrow().is_some() {
             return;
         }
-        let args = add_account_args(&self.provider.id, &self.method, &self.widgets.label.text());
+        let args = self
+            .target
+            .args(&self.provider.id, &self.method, &self.widgets.label.text());
         let words: Vec<&str> = args.iter().map(String::as_str).collect();
         self.flow.borrow_mut().start();
         let (on_line, on_exit) = (Rc::downgrade(self), Rc::downgrade(self));
@@ -258,7 +269,7 @@ impl LoginPage {
             Phase::Form => (FORM, fill(lang.tr("Headroom signs in with the {provider} CLI in its own folder, so the account you use today stays signed in."), &[("provider", &self.provider.display_name)])),
             Phase::Running if waiting => (PROGRESS, lang.tr("Open the sign-in page and finish in your browser.").to_owned()),
             Phase::Running => (PROGRESS, lang.tr("This takes a moment.").to_owned()),
-            Phase::Done => (DONE, lang.tr("Account added. It shows up in the tray in a moment.").to_owned()),
+            Phase::Done => (DONE, self.target.done_text(lang).to_owned()),
             Phase::Failed(message) => (ERROR, message.clone()),
         };
         widgets.stack.set_visible_child_name(child);

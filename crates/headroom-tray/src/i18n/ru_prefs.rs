@@ -88,10 +88,6 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
         "Скрытые аккаунты и лимиты не присылают уведомлений.",
     ),
     ("Almost out", "Почти исчерпан"),
-    (
-        "A limit drops under 10% left",
-        "Остаток лимита опускается ниже 10%",
-    ),
     ("Cutting it close", "На грани"),
     (
         "The pace says a limit will barely last until reset",

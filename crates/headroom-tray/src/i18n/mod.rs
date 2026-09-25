@@ -1,6 +1,8 @@
 mod ru;
+mod ru_onboarding;
 mod ru_options;
 mod ru_prefs;
+mod ru_settings;
 
 use gtk::gio;
 use gtk::prelude::SettingsExt;
