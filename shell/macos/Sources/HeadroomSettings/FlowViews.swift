@@ -6,25 +6,31 @@
         let context: SettingsContext
         let provider: ProviderInfo
         let method: AddAccountMethod
+        let accountID: String?
         let onClose: () -> Void
 
         var body: some View {
             Group {
                 switch method {
                 case .cliLogin:
-                    SignInFlowView(context: context, provider: provider, onClose: onClose)
+                    SignInFlowView(context: context, provider: provider, accountID: accountID, onClose: onClose)
                 case .apiKey(let label, let consoleURL, let hint):
                     APIKeyFlowView(
                         context: context, provider: provider, field: APIKeyField(label, consoleURL, hint),
-                        onClose: onClose)
+                        accountID: accountID, onClose: onClose)
                 case .autoDetect(let reason):
                     AutoDetectFlowView(context: context, provider: provider, reason: reason)
                 case .unsupported:
                     EmptyView()
                 }
             }
-            .navigationTitle(
-                context.strings.fill(AddAccountText.addProviderAccount, ["provider": provider.displayName]))
+            .navigationTitle(title)
+        }
+
+        private var title: String {
+            let values = ["provider": provider.displayName]
+            guard accountID != nil else { return context.strings.fill(AddAccountText.addProviderAccount, values) }
+            return context.strings.fill(SignInAgainText.signInAgainTitle, values)
         }
     }
 
@@ -50,6 +56,7 @@
     struct FlowResult: View {
         let strings: UIStrings
         let phase: AddAccountPhase
+        var signingInAgain = false
         let onClose: () -> Void
         let onRetry: () -> Void
 
@@ -58,7 +65,8 @@
             case .done:
                 VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
-                    Text(strings.text(SignInText.accountAdded)).multilineTextAlignment(.center)
+                    Text(strings.text(signingInAgain ? SignInAgainText.signedInAgain : SignInText.accountAdded))
+                        .multilineTextAlignment(.center)
                     Button(strings.text(SignInText.done)) { onClose() }.keyboardShortcut(.defaultAction)
                 }
             case .failed(let failure):

@@ -46,12 +46,13 @@
     }
 
     enum SettingsTab: Hashable, CaseIterable {
-        case general, accounts, notifications, service
+        case general, accounts, notifications, service, advanced
     }
 
     struct AddAccountRequest: Identifiable, Hashable {
         let id = UUID()
         let provider: String?
+        var accountID: String?
     }
 
     @MainActor
@@ -69,6 +70,9 @@
             case .addAccount(let provider):
                 tab = .accounts
                 addAccount = AddAccountRequest(provider: provider)
+            case .signInAgain(let accountID, let provider):
+                tab = .accounts
+                addAccount = AddAccountRequest(provider: provider, accountID: accountID)
             }
         }
     }

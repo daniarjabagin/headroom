@@ -2,6 +2,7 @@ import Foundation
 
 public enum AccountCommand: Sendable, Hashable {
     case add(provider: String, label: String, apiKeyOnStdin: Bool)
+    case login(accountID: String, apiKeyOnStdin: Bool)
     case remove(accountID: String)
 
     public var arguments: [String] {
@@ -11,6 +12,8 @@ public enum AccountCommand: Sendable, Hashable {
             let keyFlag = apiKeyOnStdin ? ["--api-key-stdin"] : []
             let labelFlag = trimmed.isEmpty ? [] : ["--label=\(trimmed)"]
             return ["accounts", "add", provider] + keyFlag + labelFlag + Self.progress
+        case .login(let accountID, let apiKeyOnStdin):
+            return ["accounts", "login", accountID] + (apiKeyOnStdin ? ["--api-key-stdin"] : []) + Self.progress
         case .remove(let accountID):
             return ["accounts", "remove", accountID, "--yes"] + Self.progress
         }

@@ -7,16 +7,36 @@
 
         @Bindable var flow: WelcomeFlow
         let model: AppModel
+        let store: SettingsStore
         let reducedMotion: Bool
         @Environment(\.accessibilityReduceMotion) private var systemReducedMotion
 
-        public init(flow: WelcomeFlow, model: AppModel, reducedMotion: Bool) {
+        public init(flow: WelcomeFlow, model: AppModel, store: SettingsStore, reducedMotion: Bool) {
             self.flow = flow
             self.model = model
+            self.store = store
             self.reducedMotion = reducedMotion
         }
 
         public var body: some View {
+            Group {
+                switch flow.step {
+                case .found:
+                    WelcomeFoundView(flow: flow, model: model, store: store).padding(.top, 16)
+                case .menuBar:
+                    menuBarStep.transition(.opacity)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 44)
+            .padding(.bottom, 20)
+            .frame(width: Self.width)
+            .fixedSize(horizontal: false, vertical: true)
+            .animation(Motion.animation(Motion.fade, reduced: motionReduced), value: flow.step)
+            .environment(\.headroomReducedMotion, motionReduced)
+        }
+
+        private var menuBarStep: some View {
             VStack(spacing: 0) {
                 WelcomeIllustration(reducedMotion: motionReduced)
                     .padding(.bottom, 4)
@@ -28,12 +48,6 @@
                     .padding(.bottom, 24)
                 buttons
             }
-            .padding(.horizontal, 28)
-            .padding(.top, 44)
-            .padding(.bottom, 20)
-            .frame(width: Self.width)
-            .fixedSize(horizontal: false, vertical: true)
-            .environment(\.headroomReducedMotion, motionReduced)
         }
 
         private var strings: UIStrings { model.formatter.strings }

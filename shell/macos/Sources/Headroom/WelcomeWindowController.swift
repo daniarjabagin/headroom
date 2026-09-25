@@ -3,44 +3,82 @@
     import HeadroomKit
     import HeadroomSettings
     import HeadroomUI
+    import Observation
     import SwiftUI
 
     @MainActor
     final class WelcomeWindowController: NSObject, NSWindowDelegate {
-        private let flow: WelcomeFlow
-        private let model: AppModel
-        private let reducedMotion: Bool
-        private var window: NSWindow?
+        static let settingsTimeout: Duration = .seconds(5)
 
-        private init(flow: WelcomeFlow, model: AppModel, reducedMotion: Bool) {
-            self.flow = flow
+        private let model: AppModel
+        private let store: SettingsStore
+        private let loginItem: LoginItem
+        private let flag: FirstRunFlag
+        private var flow: WelcomeFlow?
+        private var window: NSWindow?
+        private var timedOut = false
+        private var timeout: Task<Void, Never>?
+        private var onExit: (@MainActor (WelcomeExit) -> Void)?
+
+        init(model: AppModel, store: SettingsStore, loginItem: LoginItem, flag: FirstRunFlag = FirstRunFlag()) {
             self.model = model
-            self.reducedMotion = reducedMotion
+            self.store = store
+            self.loginItem = loginItem
+            self.flag = flag
             super.init()
         }
 
-        static func makeIfNeeded(
-            model: AppModel, loginItem: LoginItem, reducedMotion: Bool, flag: FirstRunFlag = FirstRunFlag()
-        ) -> WelcomeWindowController? {
-            guard !flag.isCompleted else { return nil }
-            let flow = WelcomeFlow(flag: flag) { enable(loginItem) }
-            return WelcomeWindowController(flow: flow, model: model, reducedMotion: reducedMotion)
+        func showWhenNeeded(onExit: @escaping @MainActor (WelcomeExit) -> Void) {
+            self.onExit = onExit
+            timeout = Task { [weak self] in
+                try? await Task.sleep(for: Self.settingsTimeout)
+                guard !Task.isCancelled else { return }
+                self?.timedOut = true
+                self?.decide()
+            }
+            decide()
         }
 
-        func show(onExit: @escaping @MainActor (WelcomeExit) -> Void) {
-            flow.onFinish = { [weak self] exit in
-                self?.close()
-                onExit(exit)
+        func windowWillClose(_ notification: Notification) {
+            flow?.choose(.dismissed)
+        }
+
+        private func decide() {
+            guard flow == nil else { return }
+            let settings = withObservationTracking {
+                store.settings
+            } onChange: { [weak self] in
+                Task { @MainActor in self?.decide() }
             }
-            let window = self.window ?? makeWindow()
+            switch WelcomePlan.decide(firstRunCompleted: flag.isCompleted, settings: settings, timedOut: timedOut) {
+            case .wait: return
+            case .skip: finish(.dismissed)
+            case .show(let steps): present(steps)
+            }
+        }
+
+        private func present(_ steps: [WelcomeStep]) {
+            timeout?.cancel()
+            let store = store
+            let loginItem = loginItem
+            let flow = WelcomeFlow(
+                flag: flag, steps: steps, completeOnboarding: { store.change(.onboardingCompleted(true)) },
+                enableLoginItem: { Self.enable(loginItem) })
+            flow.onFinish = { [weak self] exit in self?.finish(exit) }
+            self.flow = flow
+            let window = makeWindow(flow)
             self.window = window
             NSApp.activate()
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
         }
 
-        func windowWillClose(_ notification: Notification) {
-            flow.choose(.dismissed)
+        private func finish(_ exit: WelcomeExit) {
+            timeout?.cancel()
+            close()
+            let onExit = onExit
+            self.onExit = nil
+            onExit?(exit)
         }
 
         private static func enable(_ loginItem: LoginItem) -> String? {
@@ -56,8 +94,9 @@
             window = nil
         }
 
-        private func makeWindow() -> NSWindow {
-            let view = WelcomeView(flow: flow, model: model, reducedMotion: reducedMotion)
+        private func makeWindow(_ flow: WelcomeFlow) -> NSWindow {
+            let reducedMotion = store.settings?.reducedMotion ?? false
+            let view = WelcomeView(flow: flow, model: model, store: store, reducedMotion: reducedMotion)
             let hosting = NSHostingController(rootView: view)
             hosting.sizingOptions = .preferredContentSize
             let window = NSWindow(contentViewController: hosting)

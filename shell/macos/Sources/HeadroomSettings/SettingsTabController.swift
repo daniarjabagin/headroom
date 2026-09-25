@@ -13,15 +13,17 @@
             case .accounts: "person.2"
             case .notifications: "bell.badge"
             case .service: "server.rack"
+            case .advanced: "slider.horizontal.3"
             }
         }
 
         var contentSize: NSSize {
             switch self {
-            case .general: NSSize(width: Self.width, height: 580)
+            case .general: NSSize(width: Self.width, height: 620)
             case .accounts: NSSize(width: Self.width, height: 440)
-            case .notifications: NSSize(width: Self.width, height: 340)
+            case .notifications: NSSize(width: Self.width, height: 560)
             case .service: NSSize(width: Self.width, height: 420)
+            case .advanced: NSSize(width: Self.width, height: 460)
             }
         }
 
@@ -31,6 +33,7 @@
             case .accounts: strings.text(AccountsText.accounts)
             case .notifications: strings.text(SettingsText.notifications)
             case .service: strings.text(SettingsText.service)
+            case .advanced: strings.text(AdvancedText.advanced)
             }
         }
     }
@@ -136,13 +139,14 @@
             case .accounts: accounts
             case .notifications: NotificationsSettingsView(context: context)
             case .service: ServiceSettingsView(context: context)
+            case .advanced: AdvancedSettingsView(context: context)
             }
         }
 
         private var accounts: some View {
             @Bindable var navigation = context.navigation
             return AccountsSettingsView(context: context).sheet(item: $navigation.addAccount) { request in
-                AddAccountSheet(context: context, initialProvider: request.provider)
+                AddAccountSheet(context: context, initialProvider: request.provider, accountID: request.accountID)
             }
         }
     }

@@ -2,6 +2,7 @@ public enum SettingsRoute: Sendable, Hashable {
     case general
     case accounts
     case addAccount(provider: String?)
+    case signInAgain(accountID: String, provider: String)
     case notifications
     case service
 }
@@ -47,6 +48,10 @@ extension AppModel {
 
     public func signIn(provider: String) {
         settingsPresenter?(.addAccount(provider: provider))
+    }
+
+    public func signInAgain(accountID: String, provider: String) {
+        settingsPresenter?(.signInAgain(accountID: accountID, provider: provider))
     }
 
     @discardableResult

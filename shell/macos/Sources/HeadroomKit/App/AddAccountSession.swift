@@ -26,14 +26,16 @@ public enum AddAccountPhase: Sendable, Hashable {
 @Observable
 public final class AddAccountSession {
     public let provider: ProviderInfo
+    public let accountID: String?
     public private(set) var phase: AddAccountPhase = .form
 
     private let launcher: any HelperLaunching
     private var handle: (any HelperProcessHandle)?
     private var pump: Task<Void, Never>?
 
-    public init(provider: ProviderInfo, launcher: any HelperLaunching) {
+    public init(provider: ProviderInfo, launcher: any HelperLaunching, accountID: String? = nil) {
         self.provider = provider
+        self.accountID = accountID
         self.launcher = launcher
     }
 
@@ -44,7 +46,7 @@ public final class AddAccountSession {
 
     public func start(label: String, apiKey: String? = nil) {
         guard !isRunning else { return }
-        let command = AccountCommand.add(provider: provider.id, label: label, apiKeyOnStdin: apiKey != nil)
+        let command = command(label: label, apiKeyOnStdin: apiKey != nil)
         do {
             let handle = try launcher.launch(command)
             self.handle = handle
@@ -59,6 +61,11 @@ public final class AddAccountSession {
         } catch {
             phase = .failed(error)
         }
+    }
+
+    private func command(label: String, apiKeyOnStdin: Bool) -> AccountCommand {
+        guard let accountID else { return .add(provider: provider.id, label: label, apiKeyOnStdin: apiKeyOnStdin) }
+        return .login(accountID: accountID, apiKeyOnStdin: apiKeyOnStdin)
     }
 
     public func sendCode(_ code: String) {

@@ -44,7 +44,11 @@
         }
 
         private var statusText: String {
-            switch context.model.phase {
+            Self.statusText(context.model.phase, strings: strings)
+        }
+
+        static func statusText(_ phase: ConnectionPhase, strings: UIStrings) -> String {
+            switch phase {
             case .connected: strings.text(ServiceText.running)
             case .starting, .connecting: strings.text(ServiceText.connectingToHeadroom)
             case .disconnected: strings.text(ServiceText.notRunning)
