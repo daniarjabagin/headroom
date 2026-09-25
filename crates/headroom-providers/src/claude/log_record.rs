@@ -15,6 +15,7 @@ struct RawLine {
     kind: Option<String>,
     timestamp: Option<String>,
     request_id: Option<String>,
+    cwd: Option<Value>,
     message: Option<RawMessage>,
 }
 
@@ -72,6 +73,7 @@ struct Record {
     at: Timestamp,
     model: String,
     id: Option<String>,
+    project: Option<String>,
     usage: RawTokenUsage,
 }
 
@@ -102,6 +104,7 @@ fn parse_record(line: &str) -> Option<Record> {
         at,
         model,
         id,
+        project: project(raw.cwd),
         usage,
     })
 }
@@ -159,6 +162,7 @@ impl Record {
             tokens,
             web_search_requests,
             reported_cost: None,
+            project: self.project.clone(),
         }
     }
 }
@@ -205,6 +209,13 @@ fn service_tier(usage: &RawTokenUsage) -> ServiceTier {
         ServiceTier::Priority
     } else {
         ServiceTier::Standard
+    }
+}
+
+fn project(cwd: Option<Value>) -> Option<String> {
+    match cwd {
+        Some(Value::String(path)) => non_empty(Some(path)),
+        _ => None,
     }
 }
 

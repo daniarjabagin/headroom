@@ -8,6 +8,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/003_reported_cost.sql"),
     include_str!("migrations/004_dismissed_homes.sql"),
     include_str!("migrations/005_update_check.sql"),
+    include_str!("migrations/006_project.sql"),
 ];
 
 pub fn migrate(conn: &mut Connection) -> Result<(), StorageError> {

@@ -15,5 +15,6 @@ pub(crate) fn event(
         tokens: *tokens,
         web_search_requests: web_search,
         reported_cost: None,
+        project: None,
     }
 }

@@ -3,14 +3,14 @@ use serde_json::json;
 use super::super::test_support::at;
 use super::*;
 
-const RECORDS: &str = include_str!("fixtures/rollout_records.jsonl");
-const LEGACY: &str = include_str!("fixtures/rollout_legacy.jsonl");
+pub(super) const RECORDS: &str = include_str!("fixtures/rollout_records.jsonl");
+pub(super) const LEGACY: &str = include_str!("fixtures/rollout_legacy.jsonl");
 const CUMULATIVE: &str = include_str!("fixtures/rollout_cumulative.jsonl");
 const GUARDIAN: &str = include_str!("fixtures/rollout_guardian.jsonl");
 const GUARDIAN_AT: &str = "2026-09-12T14:01:34.836Z";
-const LONG_AFTER: &str = "2026-12-01T00:00:00Z";
+pub(super) const LONG_AFTER: &str = "2026-12-01T00:00:00Z";
 
-fn parse_with(state: &mut ParserState, content: &str, now: &str) -> Vec<UsageEvent> {
+pub(super) fn parse_with(state: &mut ParserState, content: &str, now: &str) -> Vec<UsageEvent> {
     let mut events = Vec::new();
     for line in content.lines() {
         state.consume(line, &mut events);
@@ -19,7 +19,7 @@ fn parse_with(state: &mut ParserState, content: &str, now: &str) -> Vec<UsageEve
     events
 }
 
-fn parse(content: &str) -> Vec<UsageEvent> {
+pub(super) fn parse(content: &str) -> Vec<UsageEvent> {
     parse_with(&mut ParserState::default(), content, LONG_AFTER)
 }
 
@@ -33,11 +33,11 @@ fn counts(input: u64, cache_read: u64, output: u64, reasoning: u64) -> TokenCoun
     }
 }
 
-fn line(value: &serde_json::Value) -> String {
+pub(super) fn line(value: &serde_json::Value) -> String {
     value.to_string()
 }
 
-fn usage(input: u64, cached: u64, output: u64, reasoning: u64) -> serde_json::Value {
+pub(super) fn usage(input: u64, cached: u64, output: u64, reasoning: u64) -> serde_json::Value {
     json!({
         "input_tokens": input,
         "cached_input_tokens": cached,
@@ -56,7 +56,7 @@ fn token_count(ts: &str, last: &serde_json::Value, total: &serde_json::Value) ->
     }))
 }
 
-fn usage_record(ts: &str, response_id: &str, usage: &serde_json::Value) -> String {
+pub(super) fn usage_record(ts: &str, response_id: &str, usage: &serde_json::Value) -> String {
     line(&json!({
         "timestamp": ts,
         "type": "token_usage_record",

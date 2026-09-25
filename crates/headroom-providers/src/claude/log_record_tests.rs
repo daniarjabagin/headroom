@@ -292,3 +292,38 @@ fn null_or_empty_iterations_add_nothing() {
     assert_eq!(parse_line(&with_iterations(&json!(null), true)).len(), 1);
     assert_eq!(parse_line(&with_iterations(&json!([]), true)).len(), 1);
 }
+
+#[test]
+fn session_cwd_becomes_the_project() {
+    assert_eq!(
+        parsed(1).unwrap().project.as_deref(),
+        Some("/home/user/project")
+    );
+    assert_eq!(parsed(5).unwrap().project, None);
+}
+
+fn with_cwd(cwd: &serde_json::Value) -> String {
+    let iterations = json!([iteration(9, Some("claude-fable-5-1")), iteration(2, None)]);
+    let mut line: serde_json::Value =
+        serde_json::from_str(&with_iterations(&iterations, true)).unwrap();
+    line["cwd"] = cwd.clone();
+    line.to_string()
+}
+
+#[test]
+fn every_event_of_a_line_carries_its_cwd() {
+    let rows = [
+        (json!("/home/user/work/app"), Some("/home/user/work/app")),
+        (json!(""), None),
+        (json!(null), None),
+        (json!(5), None),
+        (json!({ "path": "/home/user/work/app" }), None),
+    ];
+    for (cwd, expected) in rows {
+        let events = parse_line(&with_cwd(&cwd));
+        assert_eq!(events.len(), 2, "{cwd}");
+        for event in events {
+            assert_eq!(event.project.as_deref(), expected, "{cwd}");
+        }
+    }
+}

@@ -9,7 +9,8 @@ use super::timestamp::parse_log_timestamp;
 
 pub(super) const PAIRING_WINDOW: SignedDuration = SignedDuration::from_mins(15);
 const UNKNOWN_MODEL: &str = "unknown";
-const INTERESTING: [&str; 4] = [
+const INTERESTING: [&str; 5] = [
+    "session_meta",
     "token_count",
     "token_usage_record",
     "turn_context",
@@ -78,6 +79,7 @@ struct RawLine {
 struct RawPayload {
     #[serde(rename = "type")]
     kind: Option<String>,
+    cwd: Option<Value>,
     model: Option<String>,
     service_tier: Option<String>,
     thread_settings: Option<RawThreadSettings>,
@@ -102,6 +104,7 @@ struct RawTokenInfo {
 #[serde(default)]
 pub(super) struct ParserState {
     model: Option<String>,
+    project: Option<String>,
     tier: ServiceTier,
     previous_totals: Option<RawTokenUsage>,
     has_records: bool,
@@ -128,7 +131,9 @@ impl ParserState {
         let at = raw.timestamp.as_deref().and_then(parse_log_timestamp);
         let payload = raw.payload.unwrap_or_default();
         match (raw.kind.as_deref(), payload.kind.as_deref()) {
+            (Some("session_meta"), _) => self.set_project(payload.cwd),
             (Some("turn_context"), _) => {
+                self.set_project(payload.cwd);
                 self.set_model(payload.model);
                 self.attribute(events);
             }
@@ -152,6 +157,14 @@ impl ParserState {
             && !model.is_empty()
         {
             self.model = Some(model);
+        }
+    }
+
+    fn set_project(&mut self, cwd: Option<Value>) {
+        if let Some(Value::String(path)) = cwd
+            && !path.is_empty()
+        {
+            self.project = Some(path);
         }
     }
 
@@ -195,13 +208,17 @@ impl ParserState {
         let Some(model) = self.model.clone() else {
             return;
         };
-        let tier = self.tier;
+        let source = Attribution {
+            model: &model,
+            tier: self.tier,
+            project: self.project.as_deref(),
+        };
         self.pending
             .iter_mut()
             .filter(|event| event.model == UNKNOWN_MODEL)
-            .for_each(|event| attribute_event(event, &model, tier));
+            .for_each(|event| source.apply(event));
         events.extend(self.unattributed.drain(..).map(|mut event| {
-            attribute_event(&mut event, &model, tier);
+            source.apply(&mut event);
             event
         }));
     }
@@ -263,16 +280,28 @@ impl ParserState {
             tokens,
             web_search_requests: 0,
             reported_cost: None,
+            project: self.project.clone(),
         }
     }
 }
 
-fn attribute_event(event: &mut UsageEvent, model: &str, tier: ServiceTier) {
-    if event.key.is_fallback() {
-        event.key = EventKey::fallback(event.at, model, &event.tokens);
+struct Attribution<'a> {
+    model: &'a str,
+    tier: ServiceTier,
+    project: Option<&'a str>,
+}
+
+impl Attribution<'_> {
+    fn apply(&self, event: &mut UsageEvent) {
+        if event.key.is_fallback() {
+            event.key = EventKey::fallback(event.at, self.model, &event.tokens);
+        }
+        self.model.clone_into(&mut event.model);
+        event.tier = self.tier;
+        if event.project.is_none() {
+            event.project = self.project.map(str::to_owned);
+        }
     }
-    model.clone_into(&mut event.model);
-    event.tier = tier;
 }
 
 fn take_settled(events: &mut Vec<UsageEvent>, now: Timestamp) -> Vec<UsageEvent> {
@@ -299,3 +328,7 @@ fn tier(raw: Option<&str>) -> ServiceTier {
 #[cfg(test)]
 #[path = "usage_parser_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "usage_parser_project_tests.rs"]
+mod project_tests;
