@@ -22,7 +22,11 @@ Item {
             "utilities-terminal": "legacy/utilities-terminal-symbolic.svg",
             "application-x-executable": "legacy/system-users-symbolic.svg",
             "system-software-update": "status/software-update-available-symbolic.svg",
-            "checkmark": "actions/object-select-symbolic.svg"
+            "checkmark": "actions/object-select-symbolic.svg",
+            "starred-symbolic": "status/starred-symbolic.svg",
+            "non-starred-symbolic": "status/non-starred-symbolic.svg",
+            "edit-copy": "actions/edit-copy-symbolic.svg",
+            "folder-open": "status/folder-open-symbolic.svg"
         })
     readonly property string url: {
         const value = String(source);

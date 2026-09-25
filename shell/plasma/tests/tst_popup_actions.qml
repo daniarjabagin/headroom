@@ -166,6 +166,16 @@ TestCase {
         compare(refreshCalls(), []);
     }
 
+    function test_sign_in_again_logs_the_account_in_through_terminal() {
+        open("ready");
+        const section = sections().find(item => item.account.status === "signed_out");
+        section.runAction("signin", section.account.id);
+        const runner = findAll(plasmoid, item => item.engine === "executable", [])[0];
+        const command = Commands.loginAccountCommand(section.account.id, "Press Enter to close this window");
+        compare(runner.connectedSources, [command]);
+        verify(command.includes("headroom accounts login "));
+    }
+
     function test_signed_out_retry_shows_progress_while_refreshing() {
         open("retrying");
         const section = sections().find(item => item.account.id === "claude:5e4d3c2b1a0f");

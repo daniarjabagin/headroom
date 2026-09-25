@@ -24,4 +24,10 @@ ConfigModel {
         icon: "preferences-desktop-notification"
         source: "ConfigNotifications.qml"
     }
+
+    ConfigCategory {
+        name: I18n.tr(model.lang, "Advanced")
+        icon: "preferences-other"
+        source: "ConfigAdvanced.qml"
+    }
 }

@@ -58,8 +58,8 @@ PlasmoidItem {
         Plasmoid.globalShortcut = next;
     }
 
-    function signIn(providerId) {
-        runner.run(Commands.addAccountCommand(providerId, "", I18n.tr(lang, "Press Enter to close this window")));
+    function signIn(target) {
+        runner.run(Commands.signInCommand(target, I18n.tr(lang, "Press Enter to close this window")));
     }
 
     compactRepresentation: CompactRepresentation {

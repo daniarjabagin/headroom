@@ -65,6 +65,14 @@ function signInAction(lang, account, providers, msgid) {
     };
 }
 
+function loginAction(lang, accountId) {
+    return {
+        kind: "signin",
+        label: I18n.tr(lang, "Sign in again…"),
+        value: accountId
+    };
+}
+
 function copyAction(lang, command) {
     return {
         kind: "copy",
@@ -78,7 +86,7 @@ function actions(lang, account, providers, signedOut) {
     const recovery = effective(account, signedOut);
     switch (recovery?.action) {
     case "sign_in":
-        return [signInAction(lang, account, providers, I18n.N("Sign in again…"))];
+        return [loginAction(lang, recovery.accountId ?? account.id)];
     case "cli_login":
         return [copyAction(lang, recovery.command), retryAction(lang, account)];
     case "retry":

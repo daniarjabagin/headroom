@@ -154,12 +154,19 @@ TestCase {
             {
                 kind: "signin",
                 label: "Sign in again…",
-                value: "claude"
+                value: "claude:5e4d3c2b1a0f"
             }
         ]);
         compare(notice.detail, "Headroom's sign-in for this account has expired. Sign in again or remove the account.");
         compare(Account.notices("ru", expired, false, providers())[0].actions[0].label, "Войти снова…");
-        compare(Account.notices("en", expired, false, [])[0].actions.map(action => action.kind), ["settings"]);
+        compare(Account.notices("en", expired, false, [])[0].actions.map(action => [action.kind, action.value]), [["signin", "claude:5e4d3c2b1a0f"]]);
+        const withoutId = Object.assign({}, expired, {
+            recovery: {
+                action: "sign_in",
+                accountId: null
+            }
+        });
+        compare(Account.notices("en", withoutId, false, providers())[0].actions[0].value, expired.id);
     }
 
     function test_retry_recovery_and_waiting_errors() {

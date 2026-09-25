@@ -5,38 +5,15 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Options.js" as Options
+import "logic/Preferences.js" as Preferences
 import "logic/Settings.js" as Settings
-import "logic/Update.js" as Update
-import "logic/UpdateCheck.js" as UpdateCheck
 
 ConfigScaffold {
     id: page
 
     readonly property var display: current.display
+    readonly property bool capable: daemon.supports06
     readonly property real controlWidth: Kirigami.Units.gridUnit * 13
-    readonly property int clockTickMs: 30000
-    property var now: new Date()
-    property bool checking: false
-    property var checkResult: null
-    readonly property var shownCheck: snapshot !== null ? UpdateCheck.shown(snapshot, checkResult) : null
-
-    function checkNow() {
-        if (checking)
-            return;
-        checking = true;
-        const previous = snapshot?.updateCheck?.checkedAt ?? null;
-        daemon.checkForUpdates((errorName, value) => {
-            page.checkResult = UpdateCheck.outcome(errorName, value, previous);
-            page.now = new Date();
-            page.checking = false;
-        });
-    }
-
-    function releaseActionLabel() {
-        if (updater.kind === "command")
-            return updater.copied ? tr("Copied") : tr("Copy");
-        return Update.actionLabel(lang, updater.kind);
-    }
 
     SettingsGroup {
         title: page.tr("Appearance")
@@ -66,12 +43,49 @@ ConfigScaffold {
         }
 
         SettingsRow {
+            objectName: "densityRow"
+            visible: page.capable
+            title: page.tr("Density")
+            subtitle: page.tr("Compact fits more accounts into the popup")
+
+            SegmentedControl {
+                Layout.preferredWidth: page.controlWidth
+                options: Options.densityOptions(page.lang)
+                current: page.display.density
+                onSelected: value => page.setDisplay("density", value)
+            }
+        }
+
+        SettingsRow {
+            visible: page.capable
+            title: page.tr("Time format")
+
+            SegmentedControl {
+                Layout.preferredWidth: page.controlWidth
+                options: Options.timeFormatOptions(page.lang)
+                current: page.display.timeFormat
+                onSelected: value => page.setDisplay("timeFormat", value)
+            }
+        }
+
+        SettingsRow {
             title: page.tr("Translucent popup")
             subtitle: page.tr("Let the blurred desktop show through the popup")
 
             QQC2.Switch {
                 checked: page.display.translucent
                 onToggled: page.setDisplay("translucent", checked)
+            }
+        }
+
+        SettingsRow {
+            title: page.tr("Reduce motion")
+            subtitle: page.tr("Skip popup and meter animations")
+
+            QQC2.Switch {
+                objectName: "reducedMotion"
+                checked: page.current.reducedMotion
+                onToggled: page.updateSettings(Preferences.reducedMotionPatch(checked))
             }
         }
     }
@@ -116,39 +130,23 @@ ConfigScaffold {
         }
     }
 
-    SettingsGroup {
-        title: page.tr("Top Panel")
+    PanelGroup {
+        page: page
+        capable: page.capable
+        controlWidth: page.controlWidth
+    }
 
-        SettingsRow {
-            separated: false
-            title: page.tr("Panel limit")
-            subtitle: page.tr("The limit shown next to the clock")
-
-            OptionCombo {
-                Layout.preferredWidth: page.controlWidth
-                options: Options.limitOptions(page.lang, page.snapshot, page.current.headline)
-                value: Options.headlineKey(page.current.headline)
-                onPicked: value => page.updateSettings(Settings.headlinePatch(Options.headlineFor(value)))
-            }
-        }
-
-        SettingsRow {
-            title: page.tr("Panel label")
-
-            SegmentedControl {
-                Layout.preferredWidth: page.controlWidth
-                options: Options.panelLabelOptions(page.lang)
-                current: page.display.panelLabel
-                onSelected: value => page.setDisplay("panelLabel", value)
-            }
-        }
+    SpendGroup {
+        visible: page.capable
+        page: page
+        controlWidth: page.controlWidth
     }
 
     SettingsGroup {
         title: page.tr("Sections")
 
         Repeater {
-            model: Options.SECTIONS
+            model: Preferences.sections(page.capable)
 
             SettingsRow {
                 id: sectionRow
@@ -168,6 +166,11 @@ ConfigScaffold {
         }
     }
 
+    CardsGroup {
+        visible: page.capable
+        page: page
+    }
+
     SettingsGroup {
         title: page.tr("Data refresh")
 
@@ -183,84 +186,27 @@ ConfigScaffold {
                 onPicked: value => page.updateSettings(Settings.refreshIntervalPatch(value))
             }
         }
-    }
-
-    SettingsGroup {
-        title: page.tr("Updates")
 
         SettingsRow {
-            separated: false
-            title: page.tr("Check for updates")
-            subtitle: page.tr("Once a day, asks GitHub for the latest release. Nothing else is sent.")
+            visible: page.capable
+            title: page.tr("Faster while coding tools run")
+            subtitle: page.tr("Every minute while Claude Code, Codex or Cursor is open")
 
             QQC2.Switch {
-                objectName: "updatesCheck"
-                checked: page.current.updates.check
-                onToggled: page.updateSettings(Settings.updatesPatch(checked))
-            }
-        }
-
-        SettingsRow {
-            objectName: "updateCheckRow"
-            visible: UpdateCheck.visible(page.current.updates.check, page.snapshot)
-            title: page.shownCheck !== null ? UpdateCheck.statusLine(page.lang, page.shownCheck, page.snapshot.appVersion, page.now) : ""
-
-            QQC2.BusyIndicator {
-                objectName: "updateCheckBusy"
-                visible: page.checking
-                running: visible
-            }
-
-            QQC2.Button {
-                objectName: "updateCheckNow"
-                enabled: !page.checking
-                text: page.tr("Check now")
-                onClicked: page.checkNow()
-            }
-        }
-
-        SettingsRow {
-            id: releaseRow
-
-            readonly property var run: updater.kind === "install" ? updater.run : Update.IDLE
-
-            objectName: "updateRelease"
-            visible: updater.update !== null
-            title: updater.update !== null ? Update.title(page.lang, updater.update) : ""
-            subtitle: Update.runLine(page.lang, run) || (updater.kind === "command" ? updater.update.command : "")
-
-            QQC2.Button {
-                visible: updater.update !== null && Update.showsWhatsNew(updater.update) && releaseRow.run.phase === "idle"
-                flat: true
-                text: page.tr("What's new")
-                onClicked: updater.openRelease()
-            }
-
-            QQC2.BusyIndicator {
-                visible: releaseRow.run.phase === "running"
-                running: visible
-            }
-
-            QQC2.Button {
-                objectName: "updateReleaseAction"
-                visible: updater.kind !== "" && (releaseRow.run.phase === "idle" || releaseRow.run.phase === "failed")
-                highlighted: updater.kind === "install" && releaseRow.run.phase === "idle"
-                text: releaseRow.run.phase === "failed" ? page.tr("Retry") : page.releaseActionLabel()
-                onClicked: updater.trigger()
+                objectName: "adaptiveRefresh"
+                checked: page.current.adaptiveRefresh
+                onToggled: page.updateSettings(Settings.adaptiveRefreshPatch(checked))
             }
         }
     }
 
-    Timer {
-        interval: page.clockTickMs
-        repeat: true
-        running: page.visible
-        onTriggered: page.now = new Date()
+    PrivacyGroup {
+        page: page
+        capable: page.capable
     }
 
-    UpdateActions {
-        id: updater
-
-        update: page.snapshot?.update ?? null
+    ShortcutGroup {
+        visible: page.capable
+        page: page
     }
 }
