@@ -57,6 +57,18 @@ Window {
             findObjects(stage, item => item.objectName === "updateRow", []).forEach(row => row.activate());
         if (flag("--tooltip"))
             findObjects(stage, item => item.breakdown !== undefined && item.breakdown !== null && item.tip !== undefined, []).slice(0, 1).forEach(handler => handler.tip.visible = true);
+        if (flag("--popover"))
+            findObjects(stage, item => item.notes !== undefined && item.rows !== undefined && item.tip !== undefined, []).slice(0, 1).forEach(handler => handler.tip.visible = true);
+        if (flag("--unit-menu"))
+            findObjects(stage, item => item.objectName === "unitTitle", []).forEach(title => title.clicked());
+        if (flag("--menu"))
+            findObjects(stage, item => typeof item.openMenu === "function", []).slice(1, 2).forEach(header => header.openMenu());
+        if (flag("--unfold"))
+            findObjects(stage, item => typeof item.setFolded === "function", []).forEach(dashboard => dashboard.setFolded(true));
+        if (option("--share", "") !== "") {
+            findObjects(stage, item => item.picturesUrl !== undefined, []).forEach(exporter => exporter.picturesUrl = `file://${option("--share", "")}`);
+            findObjects(stage, item => typeof item.shareRequested === "function" && item.windows !== undefined && item.windows.length > 0, []).slice(0, 1).forEach(section => section.shareRequested());
+        }
     }
 
     function capture(name, next) {

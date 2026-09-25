@@ -3,10 +3,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Collapse.js" as Collapse
 import "logic/Combined.js" as Combined
-import "logic/Metrics.js" as Metrics
+import "logic/Density.js" as Density
+import "logic/Incident.js" as Incident
 import "logic/Motion.js" as Motion
 import "logic/Order.js" as Order
+import "logic/ProviderStatus.js" as ProviderStatus
+import "logic/Registry.js" as Registry
 import "logic/Settings.js" as Settings
 import "logic/State.js" as State
 
@@ -21,13 +25,24 @@ ColumnLayout {
     required property string lang
     required property real reveal
     required property bool reducedMotion
+    readonly property bool capable: snapshot.supports06
     readonly property var accounts: State.visibleAccounts(snapshot)
-    readonly property var cards: Combined.cards(snapshot, accounts)
+    readonly property var parts: Collapse.partition(Combined.cards(snapshot, accounts))
+    readonly property var cards: parts.shown
+    readonly property var folded: parts.folded
     readonly property bool showSpend: display.showSpend && snapshot.spend !== null
     readonly property int spendOffset: showSpend ? 1 : 0
     readonly property int itemCount: cards.length + spendOffset
-    property string period: "today"
+    readonly property bool motion: Motion.enabled(Kirigami.Units, reducedMotion)
+    property string localPeriod: "today"
+    property string localUnit: "cost"
+    property string localBreakdown: "models"
+    readonly property string period: capable ? display.spendPeriod : localPeriod
+    readonly property string unit: capable ? display.spendUnit : localUnit
+    readonly property string breakdown: capable ? display.spendBreakdown : localBreakdown
     property var expandedIds: []
+    property bool foldedOpen: false
+    property real foldReveal: 0
     property int dragIndex: -1
     property real dragOffset: 0
     property int dropTarget: -1
@@ -38,6 +53,10 @@ ColumnLayout {
     signal settingsRequested
     signal orderRequested(var ids)
     signal displayPatched(var patch)
+    signal hideRequested(var accountIds)
+    signal linkRequested(string url)
+    signal shareRequested(var card, string plan)
+    signal copyRequested(var card, string plan)
 
     function toggleExpanded(accountId) {
         expandedIds = expandedIds.includes(accountId) ? expandedIds.filter(id => id !== accountId) : expandedIds.concat([accountId]);
@@ -45,6 +64,55 @@ ColumnLayout {
 
     function appear(index) {
         return Motion.easeOutCubic(Motion.stagger(reveal, index, itemCount));
+    }
+
+    function foldAppear(index) {
+        return Motion.easeOutCubic(Motion.stagger(foldReveal, index, folded.length));
+    }
+
+    function setFolded(open) {
+        foldAnimation.stop();
+        if (open)
+            foldedOpen = true;
+        if (!motion) {
+            foldReveal = open ? 1 : 0;
+            foldedOpen = open;
+            return;
+        }
+        foldAnimation.to = open ? 1 : 0;
+        foldAnimation.duration = open ? Kirigami.Units.longDuration : Kirigami.Units.shortDuration;
+        foldAnimation.start();
+    }
+
+    function pick(key, localKey, value) {
+        if (capable)
+            displayPatched({
+                [key]: value
+            });
+        else
+            dashboard[localKey] = value;
+    }
+
+    function cardPlan(card) {
+        return (card.kind === "account" ? card.account.plan : Combined.headerAccount(lang, card).plan) ?? "";
+    }
+
+    function isStarred(card) {
+        return card.accountIds.some(id => Settings.isStarred(display, id));
+    }
+
+    function toggleStar(card) {
+        const starred = isStarred(card);
+        const next = card.accountIds.reduce((current, id) => Object.assign({}, current, {
+                starredAccounts: Settings.starredPatch(current, id, !starred).starredAccounts
+            }), display);
+        displayPatched({
+            starredAccounts: next.starredAccounts
+        });
+    }
+
+    function refreshCard(card) {
+        card.accountIds.forEach(id => refreshRequested(id));
     }
 
     function centers() {
@@ -76,7 +144,49 @@ ColumnLayout {
         orderRequested(Order.reorderedGroups(all, cards.map(card => card.accountIds), index, target));
     }
 
-    spacing: Metrics.sectionGap(Kirigami.Units)
+    component CardSection: AccountSection {
+        id: cardSection
+
+        required property var card
+
+        account: card.account ?? Combined.headerAccount(dashboard.lang, card)
+        group: card.group
+        members: card.members
+        providers: dashboard.providers
+        showName: card.kind === "account" && State.showsName(account, dashboard.accounts)
+        offline: dashboard.snapshot.offline
+        now: dashboard.now
+        live: dashboard.live
+        display: dashboard.display
+        lang: dashboard.lang
+        expanded: dashboard.expandedIds.includes(account.id)
+        gap: dashboard.spacing
+        reducedMotion: dashboard.reducedMotion
+        links: Registry.providerLinks(dashboard.providers, account.provider)
+        incident: Incident.notice(dashboard.lang, ProviderStatus.forProvider(dashboard.snapshot.providerStatus, account.provider), dashboard.now)
+        starred: dashboard.isStarred(card)
+        canStar: dashboard.capable
+        onRefreshRequested: accountId => dashboard.refreshRequested(accountId)
+        onMenuRefreshRequested: dashboard.refreshCard(cardSection.card)
+        onSignInRequested: providerId => dashboard.signInRequested(providerId)
+        onSettingsRequested: dashboard.settingsRequested()
+        onExpandToggled: accountId => dashboard.toggleExpanded(accountId)
+        onValueModeToggled: dashboard.displayPatched(Settings.toggledValueMode(dashboard.display))
+        onResetFormatToggled: dashboard.displayPatched(Settings.toggledResetFormat(dashboard.display))
+        onHideRequested: dashboard.hideRequested(cardSection.card.accountIds)
+        onStarToggled: dashboard.toggleStar(cardSection.card)
+        onLinkOpened: url => dashboard.linkRequested(url)
+        onShareRequested: dashboard.shareRequested(cardSection.card, dashboard.cardPlan(cardSection.card))
+        onCopyRequested: dashboard.copyRequested(cardSection.card, dashboard.cardPlan(cardSection.card))
+    }
+
+    spacing: Density.sectionGap(Kirigami.Units, Density.isCompact(display))
+    onFoldedChanged: {
+        if (folded.length === 0) {
+            foldedOpen = false;
+            foldReveal = 0;
+        }
+    }
 
     Loader {
         Layout.fillWidth: true
@@ -86,9 +196,15 @@ ColumnLayout {
         sourceComponent: SpendCard {
             spend: dashboard.snapshot.spend
             period: dashboard.period
+            unit: dashboard.unit
+            breakdown: dashboard.breakdown
+            capable: dashboard.capable
+            compact: Density.isCompact(dashboard.display)
             lang: dashboard.lang
             appear: dashboard.appear(0)
-            onPeriodSelected: key => dashboard.period = key
+            onPeriodSelected: key => dashboard.pick("spendPeriod", "localPeriod", key)
+            onUnitSelected: key => dashboard.pick("spendUnit", "localUnit", key)
+            onBreakdownSelected: key => dashboard.pick("spendBreakdown", "localBreakdown", key)
         }
     }
 
@@ -97,36 +213,60 @@ ColumnLayout {
 
         model: dashboard.cards.length
 
-        AccountSection {
+        CardSection {
             required property int index
-            readonly property var card: dashboard.cards[index]
 
-            account: card.account ?? Combined.headerAccount(dashboard.lang, card)
-            group: card.group
-            members: card.members
-            providers: dashboard.providers
-            showName: card.kind === "account" && State.showsName(account, dashboard.accounts)
-            offline: dashboard.snapshot.offline
-            now: dashboard.now
-            live: dashboard.live
-            display: dashboard.display
-            lang: dashboard.lang
+            card: dashboard.cards[index]
             appear: dashboard.appear(index + dashboard.spendOffset)
-            expanded: dashboard.expandedIds.includes(account.id)
             canReorder: dashboard.cards.length > 1
             lifted: dashboard.dragIndex === index
             dragOffset: lifted ? dashboard.dragOffset : 0
             indicator: dashboard.dropSlot?.index === index ? (dashboard.dropSlot.below ? "below" : "above") : ""
-            gap: dashboard.spacing
-            reducedMotion: dashboard.reducedMotion
-            onRefreshRequested: accountId => dashboard.refreshRequested(accountId)
-            onSignInRequested: providerId => dashboard.signInRequested(providerId)
-            onSettingsRequested: dashboard.settingsRequested()
-            onExpandToggled: accountId => dashboard.toggleExpanded(accountId)
             onDragMoved: offset => dashboard.dragMoved(index, offset)
             onDragFinished: dashboard.dragFinished(index)
-            onValueModeToggled: dashboard.displayPatched(Settings.toggledValueMode(dashboard.display))
-            onResetFormatToggled: dashboard.displayPatched(Settings.toggledResetFormat(dashboard.display))
+        }
+    }
+
+    CollapsedRow {
+        visible: dashboard.folded.length > 0 && !dashboard.foldedOpen
+        folded: dashboard.folded
+        lang: dashboard.lang
+        opacity: dashboard.appear(dashboard.itemCount - 1)
+        onClicked: dashboard.setFolded(true)
+    }
+
+    FoldDivider {
+        visible: dashboard.foldedOpen
+        Layout.bottomMargin: -Math.round(Kirigami.Units.smallSpacing * 1.5)
+        lang: dashboard.lang
+        opacity: dashboard.foldReveal
+        onCollapseRequested: dashboard.setFolded(false)
+    }
+
+    Repeater {
+        model: dashboard.foldedOpen ? dashboard.folded.length : 0
+
+        CardSection {
+            required property int index
+
+            card: dashboard.folded[index]
+            appear: dashboard.foldAppear(index)
+            canReorder: false
+            lifted: false
+            dragOffset: 0
+            indicator: ""
+        }
+    }
+
+    NumberAnimation {
+        id: foldAnimation
+
+        target: dashboard
+        property: "foldReveal"
+        easing.type: Easing.OutCubic
+        onFinished: {
+            if (dashboard.foldReveal === 0)
+                dashboard.foldedOpen = false;
         }
     }
 }

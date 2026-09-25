@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/Density.js" as Density
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Spend.js" as Spend
+import "logic/SpendBreakdown.js" as SpendBreakdown
+import "logic/SpendUnits.js" as SpendUnits
 import "logic/Tokens.js" as Tokens
 
 ColumnLayout {
@@ -13,13 +16,20 @@ ColumnLayout {
     required property string period
     required property string lang
     required property real appear
+    property string unit: "cost"
+    property string breakdown: "models"
+    property bool capable: false
+    property bool compact: false
     readonly property var current: Spend.periodTotals(spend, period)
     readonly property string body: Spend.bodyKind(current)
+    readonly property real padding: Density.spendPadding(Kirigami.Units, compact)
 
     signal periodSelected(string key)
+    signal unitSelected(string key)
+    signal breakdownSelected(string key)
 
     Layout.fillWidth: true
-    spacing: Kirigami.Units.smallSpacing
+    spacing: Density.headerGap(Kirigami.Units, compact)
     opacity: appear
 
     transform: [
@@ -33,8 +43,18 @@ ColumnLayout {
         spacing: Kirigami.Units.mediumSpacing
 
         TextLabel {
+            visible: !spendCard.capable
             role: "title"
+            step: Density.fontStep(spendCard.compact)
             text: I18n.tr(spendCard.lang, "Total Spend")
+        }
+
+        UnitTitle {
+            visible: spendCard.capable
+            unit: spendCard.unit
+            lang: spendCard.lang
+            step: Density.fontStep(spendCard.compact)
+            onPicked: key => spendCard.unitSelected(key)
         }
 
         Kirigami.Icon {
@@ -51,15 +71,16 @@ ColumnLayout {
     }
 
     Card {
-        verticalPadding: Metrics.cardPadding(Kirigami.Units)
-        spacing: Metrics.cardPadding(Kirigami.Units)
+        verticalPadding: spendCard.padding
+        spacing: spendCard.padding
 
         SegmentedControl {
+            objectName: "periodControl"
             Layout.fillWidth: true
             Layout.leftMargin: Metrics.rowInset(Kirigami.Units)
             Layout.rightMargin: Metrics.rowInset(Kirigami.Units)
-            options: Spend.periodOptions(spendCard.lang)
-            current: spendCard.period
+            options: Spend.periodOptions(spendCard.lang, spendCard.spend)
+            current: Spend.hasPeriod(spendCard.spend, spendCard.period) ? spendCard.period : "30d"
             onSelected: value => spendCard.periodSelected(value)
         }
 
@@ -72,6 +93,9 @@ ColumnLayout {
             Donut {
                 period: spendCard.current
                 progress: spendCard.appear
+                unit: spendCard.unit
+                lang: spendCard.lang
+                size: Density.donutSize(Kirigami.Units, spendCard.compact)
             }
 
             SpendLegend {
@@ -79,15 +103,25 @@ ColumnLayout {
                 Layout.alignment: Qt.AlignVCenter
                 period: spendCard.current
                 periodKey: spendCard.period
+                unit: spendCard.unit
                 lang: spendCard.lang
             }
+        }
+
+        SpendBreakdownList {
+            visible: spendCard.body === "ring" && SpendBreakdown.hasProjects(spendCard.current)
+            period: spendCard.current
+            mode: spendCard.breakdown
+            byTokens: SpendUnits.byTokens(spendCard.unit)
+            lang: spendCard.lang
+            onModeSelected: key => spendCard.breakdownSelected(key)
         }
 
         TextLabel {
             visible: spendCard.body === "empty"
             Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: Kirigami.Units.gridUnit - Metrics.cardPadding(Kirigami.Units)
-            Layout.bottomMargin: Kirigami.Units.gridUnit - Metrics.cardPadding(Kirigami.Units)
+            Layout.topMargin: Kirigami.Units.gridUnit - spendCard.padding
+            Layout.bottomMargin: Kirigami.Units.gridUnit - spendCard.padding
             emphasis: "secondary"
             text: I18n.tr(spendCard.lang, "No usage in this period")
         }

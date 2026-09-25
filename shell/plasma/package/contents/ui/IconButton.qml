@@ -10,6 +10,9 @@ T.AbstractButton {
 
     required property string iconName
     property bool animated: true
+    property real iconSize: Kirigami.Units.iconSizes.small
+    property bool round: false
+    property string tipText: text
     readonly property bool active: pointer.shown || button.down || button.visualFocus
 
     implicitWidth: Metrics.controlHeight(Kirigami.Units)
@@ -25,7 +28,7 @@ T.AbstractButton {
     contentItem: Item {
         Kirigami.Icon {
             anchors.centerIn: parent
-            implicitWidth: Kirigami.Units.iconSizes.small
+            implicitWidth: button.iconSize
             implicitHeight: implicitWidth
             source: button.iconName
             isMask: true
@@ -34,7 +37,7 @@ T.AbstractButton {
     }
 
     background: Rectangle {
-        radius: Metrics.controlRadius(Kirigami.Units)
+        radius: button.round ? button.height / 2 : Metrics.controlRadius(Kirigami.Units)
         color: button.down ? Tokens.pressed(Kirigami.Theme) : Tokens.hover(Kirigami.Theme)
         border.width: button.visualFocus ? Metrics.hairline(Kirigami.Units) : 0
         border.color: Kirigami.Theme.highlightColor
@@ -51,7 +54,7 @@ T.AbstractButton {
     HoverTip {
         id: pointer
 
-        text: button.text
+        text: button.tipText
     }
 
     Behavior on scale {

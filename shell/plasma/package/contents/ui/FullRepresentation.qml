@@ -8,6 +8,7 @@ import org.kde.plasma.components as PlasmaComponents3
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Motion.js" as Motion
+import "logic/Share.js" as Share
 import "logic/State.js" as State
 import "logic/Tokens.js" as Tokens
 
@@ -25,6 +26,7 @@ Item {
     required property bool reducedMotion
     required property string versionText
     required property UpdateActions updater
+    required property var settings
     readonly property bool ready: view.kind === "ready"
     readonly property bool empty: ready && State.visibleAccounts(view.state).length === 0 && !(display.showSpend && view.state.spend !== null)
     readonly property var popupColors: Tokens.popupPalette(systemTheme, display.theme, display.translucent)
@@ -39,6 +41,8 @@ Item {
     signal displayPatched(var patch)
     signal startServiceRequested
     signal settingsRequested
+    signal onboardingDismissed
+    signal hideRequested(var accountIds)
 
     function applyTheme() {
         const colors = popupColors;
@@ -55,6 +59,26 @@ Item {
         Kirigami.Theme.backgroundColor = colors.backgroundColor;
         Kirigami.Theme.textColor = colors.textColor;
         themed = true;
+    }
+
+    function tr(msgid, values) {
+        return I18n.tr(lang, msgid, values);
+    }
+
+    function openLink(url) {
+        Qt.openUrlExternally(url);
+    }
+
+    function sharedCard(card, plan) {
+        return Share.model(lang, card, plan, view.state.headline, new Date(), display);
+    }
+
+    function shareCard(card, plan) {
+        exporter.share(sharedCard(card, plan), card.members);
+    }
+
+    function copyCard(card, plan) {
+        exporter.copy(Share.copyText(sharedCard(card, plan)));
     }
 
     function playOpen() {
@@ -74,6 +98,8 @@ Item {
     onExpandedChanged: {
         if (expanded)
             playOpen();
+        else
+            toast.dismiss();
     }
     Component.onCompleted: {
         applyTheme();
@@ -118,6 +144,15 @@ Item {
                 width: scroll.availableWidth
                 spacing: 0
 
+                OnboardingBanner {
+                    settings: full.settings
+                    snapshot: full.ready ? full.view.state : null
+                    capable: full.ready && full.view.state.supports06
+                    lang: full.lang
+                    onReviewRequested: full.settingsRequested()
+                    onDismissed: full.onboardingDismissed()
+                }
+
                 Loader {
                     active: full.ready && !full.empty
                     visible: active
@@ -138,6 +173,10 @@ Item {
                         onSettingsRequested: full.settingsRequested()
                         onOrderRequested: ids => full.orderRequested(ids)
                         onDisplayPatched: patch => full.displayPatched(patch)
+                        onHideRequested: ids => full.hideRequested(ids)
+                        onLinkRequested: url => full.openLink(url)
+                        onShareRequested: (card, plan) => full.shareCard(card, plan)
+                        onCopyRequested: (card, plan) => full.copyCard(card, plan)
                     }
                 }
 
@@ -185,6 +224,26 @@ Item {
             onRefreshRequested: refreshButton.trigger()
             onSettingsRequested: full.settingsRequested()
         }
+    }
+
+    Toast {
+        id: toast
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: footer.height + Math.round(Kirigami.Units.gridUnit * 0.75)
+        animated: Motion.enabled(Kirigami.Units, full.reducedMotion)
+        onActionTriggered: url => full.openLink(url)
+    }
+
+    ShareExporter {
+        id: exporter
+
+        display: full.display
+        dark: Tokens.isDark(Kirigami.Theme)
+        onSaved: folder => toast.show(full.tr("Saved to Pictures/Headroom"), "", false, full.tr("Open folder"), Share.folderUrl(folder))
+        onFailed: toast.show(full.tr("Could not save the image"), "", true, "", "")
+        onCopied: toast.show(full.tr("Copied as text"), "", false, "", "")
     }
 
     NumberAnimation {

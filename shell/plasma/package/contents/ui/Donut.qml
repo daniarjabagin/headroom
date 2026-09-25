@@ -3,10 +3,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
-import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 import "logic/Sector.js" as Sector
 import "logic/Spend.js" as Spend
+import "logic/SpendUnits.js" as SpendUnits
 import "logic/Tokens.js" as Tokens
 
 Item {
@@ -14,11 +14,14 @@ Item {
 
     required property var period
     property real progress: 1
-    readonly property real size: Metrics.donutSize(Kirigami.Units)
+    property string unit: "cost"
+    property string lang: "en"
+    property real size: Metrics.donutSize(Kirigami.Units)
+    readonly property string caption: SpendUnits.ringCaption(lang, unit)
     readonly property real holeRatio: 0.618
     readonly property bool gapped: period.providers.length > 1
     readonly property var geometry: Sector.geometry(size, holeRatio, gapped ? Metrics.donutGap(Kirigami.Units) : 0)
-    readonly property var slices: Spend.slices(period.providers, Sector.minSweep(geometry), Tokens.isDark(Kirigami.Theme))
+    readonly property var slices: Spend.slices(period.providers, Sector.minSweep(geometry), Tokens.isDark(Kirigami.Theme), SpendUnits.byTokens(unit))
 
     implicitWidth: size
     implicitHeight: size
@@ -68,10 +71,25 @@ Item {
         }
     }
 
-    TextLabel {
+    Column {
         anchors.centerIn: parent
         opacity: donut.progress
-        role: "label"
-        text: FormatSpend.ringUsd(donut.period.costMicros)
+
+        TextLabel {
+            objectName: "ringValue"
+            anchors.horizontalCenter: parent.horizontalCenter
+            role: "label"
+            step: donut.size < Metrics.donutSize(Kirigami.Units) ? 1 : 0
+            text: SpendUnits.ringValue(donut.period, donut.unit)
+        }
+
+        TextLabel {
+            visible: donut.caption !== ""
+            anchors.horizontalCenter: parent.horizontalCenter
+            role: "micro"
+            emphasis: "secondary"
+            weight: Font.Medium
+            text: donut.caption
+        }
     }
 }

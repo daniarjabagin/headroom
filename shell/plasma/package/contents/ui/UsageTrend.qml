@@ -16,7 +16,7 @@ Item {
     required property string lang
     readonly property var days: Trend.lastDays(usage.daily)
     readonly property int peak: Trend.peakOf(days)
-    readonly property real stripHeight: Metrics.trendHeight(Kirigami.Units)
+    property real stripHeight: Metrics.trendHeight(Kirigami.Units)
     readonly property real barWidth: Kirigami.Units.smallSpacing
     readonly property real barGap: Metrics.hairline(Kirigami.Units)
     readonly property int hoveredIndex: stripHover.shown ? Trend.indexAt(stripHover.point.position.x, barWidth + barGap, days.length) : -1

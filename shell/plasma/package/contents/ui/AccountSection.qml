@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Account.js" as Account
+import "logic/Density.js" as Density
 import "logic/Metrics.js" as Metrics
 import "logic/Motion.js" as Motion
 import "logic/State.js" as State
@@ -29,6 +30,11 @@ Item {
     required property bool reducedMotion
     property var group: null
     property var members: []
+    property var links: ({})
+    property var incident: null
+    property bool starred: false
+    property bool canStar: false
+    readonly property bool compact: Density.isCompact(display)
     readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var plates: Account.plates(notices)
     readonly property var infoLines: Account.infoLines(notices)
@@ -43,6 +49,12 @@ Item {
     signal dragFinished
     signal valueModeToggled
     signal resetFormatToggled
+    signal menuRefreshRequested
+    signal hideRequested
+    signal starToggled
+    signal linkOpened(string url)
+    signal shareRequested
+    signal copyRequested
 
     function runAction(kind, value) {
         if (kind === "signin")
@@ -68,7 +80,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        spacing: Kirigami.Units.smallSpacing
+        spacing: Density.headerGap(Kirigami.Units, section.compact)
 
         AccountHeader {
             account: section.account
@@ -77,14 +89,27 @@ Item {
             now: section.now
             lang: section.lang
             canReorder: section.canReorder
+            links: section.links
+            incident: section.incident
+            compact: section.compact
+            starred: section.starred
+            canStar: section.canStar
+            canShare: section.windows.length > 0
             onDragMoved: offset => section.dragMoved(offset)
             onDragFinished: section.dragFinished()
+            onRefreshRequested: section.menuRefreshRequested()
+            onHideRequested: section.hideRequested()
+            onStarToggled: section.starToggled()
+            onLinkOpened: url => section.linkOpened(url)
+            onShareRequested: section.shareRequested()
+            onCopyRequested: section.copyRequested()
         }
 
         Card {
-            visible: section.notices.length > 0 || section.windows.length > 0 || trend.active || section.extrasOpen
+            visible: section.notices.length > 0 || section.incident !== null || section.windows.length > 0 || trend.active || section.extrasOpen
             hoverable: true
             lifted: section.lifted
+            verticalPadding: Density.cardGutter(Kirigami.Units, section.compact)
 
             Repeater {
                 model: section.plates.length
@@ -95,6 +120,20 @@ Item {
                     entry: section.plates[index]
                     animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
                     onActionTriggered: (kind, value) => section.runAction(kind, value)
+                }
+            }
+
+            Loader {
+                Layout.fillWidth: true
+                active: section.incident !== null
+                visible: active
+
+                sourceComponent: StatusNotice {
+                    notice: section.incident
+                    lang: section.lang
+                    compact: section.compact
+                    animated: Motion.enabled(Kirigami.Units, section.reducedMotion)
+                    onLinkActivated: url => section.linkOpened(url)
                 }
             }
 
@@ -136,11 +175,14 @@ Item {
                 sourceComponent: UsageTrend {
                     usage: section.account.usage
                     lang: section.lang
+                    stripHeight: Density.trendHeight(Kirigami.Units, section.compact)
                 }
             }
 
             Caret {
                 visible: Account.hasExtras(section.account, section.display) && !section.extrasOpen
+                topPadding: Density.cardGutter(Kirigami.Units, section.compact)
+                bottomPadding: Density.cardGutter(Kirigami.Units, section.compact)
                 expanded: section.expanded
                 onClicked: section.expandToggled(section.account.id)
             }

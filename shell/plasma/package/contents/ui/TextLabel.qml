@@ -7,6 +7,7 @@ PlasmaComponents3.Label {
     property string role: "body"
     property string emphasis: "primary"
     property int weight: role === "title" || role === "label" ? Font.DemiBold : Font.Normal
+    property real step: 0
 
     function pointSizeFor(role) {
         const base = Kirigami.Theme.defaultFont.pointSize;
@@ -36,7 +37,7 @@ PlasmaComponents3.Label {
     color: colorFor(emphasis)
     textFormat: Text.PlainText
     font.family: Kirigami.Theme.defaultFont.family
-    font.pointSize: pointSizeFor(role)
+    font.pointSize: pointSizeFor(role) - step
     font.weight: weight
     font.features: {
         "tnum": 1
