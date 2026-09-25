@@ -3,6 +3,8 @@ const SIGNED_OUT = 'signed_out';
 const SIGN_IN_ERRORS = new Set(['not_signed_in', 'sign_in_expired']);
 const NO_SUBSCRIPTION_TITLE = 'no active subscription';
 
+export const RETRY_FEEDBACK_MS = 800;
+
 function normalized(text) {
     return text
         .toLowerCase()
@@ -30,4 +32,34 @@ export function subscriptionNote(error) {
     const text = normalized(message);
     if (text === '' || text === NO_SUBSCRIPTION_TITLE || text === normalized(NO_SUBSCRIPTION)) return null;
     return message;
+}
+
+function hasErrorNotice(account, offline) {
+    if (account.error === null) return false;
+    if (account.status !== 'error' && account.status !== 'refreshing') return false;
+    return !(offline && account.error.kind === 'network');
+}
+
+export function accountNotice(account, offline) {
+    if (isSignedOut(account)) return 'signed_out';
+    if (lacksSubscription(account)) return 'no_subscription';
+    return hasErrorNotice(account, offline) ? 'error' : null;
+}
+
+export function recoveryActions(account) {
+    const action = account.recovery?.action;
+    if (action === 'sign_in') return ['sign_in', 'retry'];
+    if (action === 'cli_login') return ['copy_command', 'retry'];
+    if (account.recovery === null && isSignedOut(account)) return ['sign_in', 'retry'];
+    return ['retry'];
+}
+
+export function noticeShape(account, offline) {
+    const notice = accountNotice(account, offline);
+    if (notice === null) return null;
+    return { notice, actions: recoveryActions(account), command: account.recovery?.command ?? null };
+}
+
+export function retryBusy(refreshing, clickedAt, now) {
+    return refreshing || (clickedAt !== null && now - clickedAt < RETRY_FEEDBACK_MS);
 }

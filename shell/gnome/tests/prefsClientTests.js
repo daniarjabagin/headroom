@@ -1,3 +1,4 @@
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { PrefsClient } from '../src/prefs/client.js';
 import { check } from './check.js';
@@ -83,7 +84,48 @@ async function testDestroyCancelsDelivery() {
     check('connection destroyed', connection.destroyed, true);
 }
 
+function answering(reply) {
+    const calls = [];
+    const proxy = {
+        ...fakeProxy,
+        call: (method, parameters, flags, timeout, cancellable, callback) => {
+            calls.push({ method, timeout });
+            callback(proxy, reply);
+        },
+        call_finish: response => {
+            if (response instanceof GLib.Error) throw response;
+            return new GLib.Variant('(s)', [response]);
+        },
+    };
+    return { proxy, calls };
+}
+
+async function checkWith(reply) {
+    const { client, connection } = await readyClient([]);
+    const { proxy, calls } = answering(reply);
+    connection.proxy = proxy;
+    const result = await client.checkForUpdates();
+    client.destroy();
+    return { result, calls };
+}
+
+async function testCheckForUpdates() {
+    const { result, calls } = await checkWith(
+        '{"status":"up_to_date","checked_at":"2026-09-23T10:00:00Z","version":"0.6.0"}'
+    );
+    check('check method', calls[0].method, 'CheckForUpdates');
+    check('check waits at least a minute', calls[0].timeout >= 60_000, true);
+    check('check result', [result.status, result.version], ['up_to_date', '0.6.0']);
+    const unsupported = Gio.DBusError.new_for_dbus_error('org.freedesktop.DBus.Error.NotSupported', 'off');
+    check('check not supported', (await checkWith(unsupported)).result.status, 'unsupported');
+    const failed = Gio.DBusError.new_for_dbus_error('org.freedesktop.DBus.Error.Failed', 'shutting down');
+    check('check failed', (await checkWith(failed)).result.status, 'failed');
+    const cancelled = new GLib.Error(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED, 'cancelled');
+    check('check cancelled', (await checkWith(cancelled)).result, null);
+}
+
 export async function testPrefsClient() {
     await testOptimisticSettingsDeferred();
     await testDestroyCancelsDelivery();
+    await testCheckForUpdates();
 }

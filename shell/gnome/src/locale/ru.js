@@ -107,7 +107,12 @@ export const RU = {
     'Refresh failed': 'Не удалось обновить',
     Retry: 'Повторить',
     'Retrying…': 'Повторяем…',
-    'Sign in…': 'Войти…',
+    'Sign in again…': 'Войти снова…',
+    'Copy command': 'Скопировать команду',
+    'Run `{command}` in a terminal — Headroom picks it up automatically.':
+        'Выполните `{command}` в терминале — Headroom подхватит вход автоматически.',
+    'Sign in to {provider} again, then retry.': 'Войдите в {provider} снова и повторите.',
+    '{provider} is signed in to another account': 'В {provider} выполнен вход в другой аккаунт',
     'Signed out of {provider}': 'Выполнен выход из {provider}',
     'Sign in again through Headroom (Preferences → Accounts → Add account), or remove the account there.':
         'Войдите снова через Headroom (Параметры → Аккаунты → Добавить аккаунт) или удалите там этот аккаунт.',
@@ -304,4 +309,14 @@ export const RU = {
     Copy: 'Копировать',
     Copied: 'Скопировано',
     "Couldn't open the release page": 'Не удалось открыть страницу выпуска',
+    'Headroom {version}': 'Headroom {version}',
+    'checked {ago}': 'проверено {ago}',
+    'Try again at {time}': 'Повторите в {time}',
+    'Try again later': 'Повторите позже',
+    'Checking for updates…': 'Проверяем обновления…',
+    "Couldn't check for updates": 'Не удалось проверить обновления',
+    'GitHub rate limit': 'Лимит запросов GitHub',
+    'Not checked yet': 'Ещё не проверялось',
+    "You're up to date": 'У вас последняя версия',
+    'Check now': 'Проверить сейчас',
 };

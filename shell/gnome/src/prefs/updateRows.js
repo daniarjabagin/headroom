@@ -3,6 +3,7 @@ import Gtk from 'gi://Gtk';
 import { _ } from '../i18n.js';
 import { updatesPatch } from '../settings.js';
 import { IDLE, runLine, showsWhatsNew, updateAction, updateTitle } from '../update.js';
+import { checkRow } from '../updateCheck.js';
 import { switchRow } from './rows.js';
 import { spinner } from './widgets.js';
 
@@ -14,9 +15,11 @@ function suffixButton(onClick, cssClasses = []) {
 
 export class UpdateRows {
     constructor(client, runner) {
+        this._client = client;
         this._runner = runner;
         this._update = null;
         this._copied = false;
+        this._check = { enabled: false, appVersion: null, updateCheck: null, result: null, checking: false };
         this.check = switchRow({
             title: _('Check for updates'),
             subtitle: _('Once a day, asks GitHub for the latest release. Nothing else is sent.'),
@@ -28,16 +31,49 @@ export class UpdateRows {
         this._whatsNew = suffixButton(() => this._openRelease(), ['flat']);
         this._action = suffixButton(() => this._onAction());
         for (const widget of [this._spinner, this._whatsNew, this._action]) this.release.add_suffix(widget);
+        this.status = new Adw.ActionRow({ visible: false, use_markup: false });
+        this._statusSpinner = spinner();
+        this._statusSpinner.valign = Gtk.Align.CENTER;
+        this._checkButton = suffixButton(() => this._checkNow());
+        this.status.add_suffix(this._statusSpinner);
+        this.status.add_suffix(this._checkButton);
     }
 
-    update(settings, update) {
+    update(settings, state) {
         this.check.set(settings.updates.check);
-        if (update?.command !== this._update?.command) this._copied = false;
-        this._update = update;
+        if (state.update?.command !== this._update?.command) this._copied = false;
+        this._update = state.update;
+        Object.assign(this._check, {
+            enabled: settings.updates.check,
+            appVersion: state.appVersion,
+            updateCheck: state.updateCheck,
+        });
         this.sync();
     }
 
+    _syncStatus() {
+        const row = checkRow({ ...this._check, update: this._update, now: new Date() });
+        this.status.visible = row.visible;
+        if (!row.visible) return;
+        this.status.title = row.title;
+        this.status.subtitle = row.subtitle;
+        this._statusSpinner.visible = row.busy;
+        this._checkButton.label = row.action;
+        this._checkButton.sensitive = !row.busy;
+    }
+
+    async _checkNow() {
+        if (this._check.checking) return;
+        this._check.checking = true;
+        this._syncStatus();
+        const result = await this._client.checkForUpdates();
+        if (result === null) return;
+        Object.assign(this._check, { checking: false, result });
+        this._syncStatus();
+    }
+
     sync() {
+        this._syncStatus();
         const update = this._update;
         this.release.visible = update !== null;
         if (!update) return;
