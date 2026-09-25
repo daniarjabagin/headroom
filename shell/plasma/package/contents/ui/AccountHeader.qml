@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PlasmaComponents3
 import "logic/Account.js" as Account
-import "logic/Format.js" as Format
+import "logic/FormatTime.js" as FormatTime
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Motion.js" as Motion
@@ -100,7 +100,7 @@ Item {
 
             HoverTip {
                 text: header.account.updatedAt ? header.tr("Last updated {ago}", {
-                    ago: Format.agoText(header.lang, header.account.updatedAt, header.now)
+                    ago: FormatTime.agoText(header.lang, header.account.updatedAt, header.now)
                 }) : ""
             }
         }

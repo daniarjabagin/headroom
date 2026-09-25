@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "logic/Format.js" as Format
+import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 
 RowLayout {
@@ -50,7 +50,7 @@ RowLayout {
             lang: valueRow.lang
             title: valueRow.breakdownTitle
             totals: valueRow.hasTip ? valueRow.totals : null
-            fallback: valueRow.hasTip ? Format.spendTooltip(valueRow.lang, valueRow.totals) : ""
+            fallback: valueRow.hasTip ? FormatSpend.spendTooltip(valueRow.lang, valueRow.totals) : ""
         }
     }
 }

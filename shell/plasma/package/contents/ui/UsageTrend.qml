@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "logic/Format.js" as Format
+import "logic/FormatSpend.js" as FormatSpend
 import "logic/I18n.js" as I18n
 import "logic/Metrics.js" as Metrics
 import "logic/Tokens.js" as Tokens
@@ -20,7 +20,7 @@ Item {
     readonly property real barWidth: Kirigami.Units.smallSpacing
     readonly property real barGap: Metrics.hairline(Kirigami.Units)
     readonly property int hoveredIndex: stripHover.shown ? Trend.indexAt(stripHover.point.position.x, barWidth + barGap, days.length) : -1
-    readonly property string tipText: hoveredIndex >= 0 ? Format.dayTooltip(lang, days[hoveredIndex]) : Trend.peakDescription(lang, days)
+    readonly property string tipText: hoveredIndex >= 0 ? FormatSpend.dayTooltip(lang, days[hoveredIndex]) : Trend.peakDescription(lang, days)
 
     Layout.fillWidth: true
     implicitHeight: content.implicitHeight + Metrics.textRowPadding(Kirigami.Units) * 2

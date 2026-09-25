@@ -1,7 +1,9 @@
 .pragma library
 
 .import "Format.js" as Format
+.import "FormatTime.js" as FormatTime
 .import "I18n.js" as I18n
+.import "Panel.js" as Panel
 .import "Providers.js" as Providers
 .import "State.js" as State
 
@@ -17,7 +19,7 @@ function offlineLine(lang, state) {
     if (state.lastSuccessAt === null)
         return line(I18n.tr(lang, "Offline"), true, false);
     return line(I18n.tr(lang, "Offline — last update {time}", {
-        time: Format.clockTime(state.lastSuccessAt)
+        time: FormatTime.clockTime(state.lastSuccessAt, state.display.timeFormat)
     }), true, false);
 }
 
@@ -32,10 +34,10 @@ function footerLine(lang, view, now) {
     if (State.isRefreshing(state))
         return line(I18n.tr(lang, "Updating…"), false, true);
     if (state.nextRefreshAt)
-        return line(Format.nextUpdateText(lang, state.nextRefreshAt, now), false, false);
+        return line(FormatTime.nextUpdateText(lang, state.nextRefreshAt, now), false, false);
     if (state.lastSuccessAt)
         return line(I18n.tr(lang, "Updated {time}", {
-            time: Format.clockTime(state.lastSuccessAt)
+            time: FormatTime.clockTime(state.lastSuccessAt, state.display.timeFormat)
         }), false, false);
     return line("", false, false);
 }
@@ -55,11 +57,11 @@ function headlineTitle(lang, state) {
 
 function headlineDetail(lang, state, now) {
     const display = state.display;
-    const reading = Format.readingFor(lang, State.headlinePercent(state.headline, display.valueMode), display.valueMode);
+    const reading = Format.readingFor(lang, Panel.headlinePercent(state.headline, display.valueMode), display.valueMode);
     const window = State.headlineWindow(state);
     if (window === null)
         return reading;
-    return `${reading} · ${Format.resetText(lang, window.resetsAt, now, display.resetFormat, false)}`;
+    return `${reading} · ${FormatTime.resetText(lang, window.resetsAt, now, display.resetFormat, false, display.timeFormat)}`;
 }
 
 function tooltip(lang, view, now) {

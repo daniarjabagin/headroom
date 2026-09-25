@@ -3,7 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import "logic/Format.js" as Format
+import "logic/FormatSpend.js" as FormatSpend
 import "logic/Metrics.js" as Metrics
 import "logic/Providers.js" as Providers
 import "logic/Spend.js" as Spend
@@ -71,7 +71,7 @@ ColumnLayout {
                         Layout.fillWidth: true
                         role: "caption"
                         emphasis: "secondary"
-                        text: Format.tokenCount(legend.lang, entry.modelData.totalTokens)
+                        text: FormatSpend.tokenCount(legend.lang, entry.modelData.totalTokens)
                         elide: Text.ElideRight
                     }
                 }
@@ -79,7 +79,7 @@ ColumnLayout {
                 TextLabel {
                     Layout.alignment: Qt.AlignVCenter
                     weight: Font.Medium
-                    text: Format.usd(entry.modelData.costMicros)
+                    text: FormatSpend.usd(entry.modelData.costMicros)
                 }
             }
 
@@ -89,7 +89,7 @@ ColumnLayout {
                 lang: legend.lang
                 title: Spend.breakdownTitle(legend.lang, legend.periodKey, entry.modelData)
                 totals: entry.modelData
-                fallback: Format.spendTooltip(legend.lang, entry.modelData)
+                fallback: FormatSpend.spendTooltip(legend.lang, entry.modelData)
             }
         }
     }

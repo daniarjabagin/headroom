@@ -2,8 +2,13 @@
 
 .import "Combined.js" as Combined
 .import "I18n.js" as I18n
+.import "Panel.js" as Panel
+.import "Parse.js" as Parse
+.import "ProviderStatus.js" as ProviderStatus
 .import "Recovery.js" as Recovery
+.import "Refresh.js" as Refresh
 .import "Settings.js" as Settings
+.import "SpendState.js" as SpendState
 .import "Update.js" as Update
 .import "UpdateCheck.js" as UpdateCheck
 
@@ -18,68 +23,40 @@ const SEVERITIES = ["untracked", "healthy", "close", "running_out", "spent"];
 const BALANCE_KINDS = ["usd", "money", "count"];
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 const OWNERS = ["cli", "headroom"];
+const SOURCES = ["live", "local_log", "cache"];
 
 class StateError extends I18n.LocalizedError {}
 
-function isObject(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function text(value) {
-    return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function number(value) {
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function count(value) {
-    return number(value) ?? 0;
-}
-
-function list(value) {
-    return Array.isArray(value) ? value.filter(isObject) : [];
-}
-
-function timestamp(value) {
-    const ms = typeof value === "string" ? Date.parse(value) : NaN;
-    return Number.isNaN(ms) ? null : new Date(ms);
-}
-
-function oneOf(allowed, value, fallback) {
-    return allowed.includes(value) ? value : fallback;
-}
-
 function parseError(raw) {
-    if (!isObject(raw))
+    if (!Parse.isObject(raw))
         return null;
-    const kind = text(raw.kind) ?? "unknown";
+    const kind = Parse.text(raw.kind) ?? "unknown";
     return {
         kind,
-        message: text(raw.message) ?? kind
+        message: Parse.text(raw.message) ?? kind
     };
 }
 
 function parsePace(raw) {
-    const pace = isObject(raw) ? raw : {};
+    const pace = Parse.object(raw);
     return {
-        severity: oneOf(SEVERITIES, pace.severity, "untracked"),
-        evenPacePercent: number(pace.even_pace_percent),
-        projectedPercent: number(pace.projected_percent),
-        sparePercent: number(pace.spare_percent),
-        runsOutAt: timestamp(pace.runs_out_at)
+        severity: Parse.oneOf(SEVERITIES, pace.severity, "untracked"),
+        evenPacePercent: Parse.number(pace.even_pace_percent),
+        projectedPercent: Parse.number(pace.projected_percent),
+        sparePercent: Parse.number(pace.spare_percent),
+        runsOutAt: Parse.timestamp(pace.runs_out_at)
     };
 }
 
 function parseWindow(raw) {
     return {
-        id: text(raw.id) ?? text(raw.label) ?? "window",
-        label: text(raw.label) ?? text(raw.id) ?? "",
-        usedPercent: number(raw.used_percent),
-        remainingPercent: number(raw.remaining_percent),
-        resetsAt: timestamp(raw.resets_at),
+        id: Parse.text(raw.id) ?? Parse.text(raw.label) ?? "window",
+        label: Parse.text(raw.label) ?? Parse.text(raw.id) ?? "",
+        usedPercent: Parse.number(raw.used_percent),
+        remainingPercent: Parse.number(raw.remaining_percent),
+        resetsAt: Parse.timestamp(raw.resets_at),
         hidden: raw.hidden === true,
-        tone: oneOf(TONES, raw.tone, "neutral"),
+        tone: Parse.oneOf(TONES, raw.tone, "neutral"),
         pace: parsePace(raw.pace)
     };
 }
@@ -89,178 +66,49 @@ function currencyCode(value) {
 }
 
 function parseBalance(raw) {
-    const kind = oneOf(BALANCE_KINDS, raw.kind, null);
+    const kind = Parse.oneOf(BALANCE_KINDS, raw.kind, null);
     return {
-        id: text(raw.id) ?? text(raw.label) ?? "balance",
-        label: text(raw.label) ?? "",
+        id: Parse.text(raw.id) ?? Parse.text(raw.label) ?? "balance",
+        label: Parse.text(raw.label) ?? "",
         kind,
-        usdMicros: kind === "usd" ? number(raw.usd_micros) : null,
+        usdMicros: kind === "usd" ? Parse.number(raw.usd_micros) : null,
         currency: kind === "money" ? currencyCode(raw.currency) : null,
-        micros: kind === "money" ? number(raw.micros) : null,
-        value: kind === "count" ? number(raw.value) : null,
-        unit: kind === "count" ? text(raw.unit) : null
+        micros: kind === "money" ? Parse.number(raw.micros) : null,
+        value: kind === "count" ? Parse.number(raw.value) : null,
+        unit: kind === "count" ? Parse.text(raw.unit) : null
     };
 }
 
 function parseNotice(raw) {
     return {
-        tone: oneOf(TONES, raw.tone, "warning"),
-        text: text(raw.text) ?? ""
-    };
-}
-
-function parseTokens(raw) {
-    const tokens = isObject(raw) ? raw : {};
-    return {
-        input: count(tokens.input),
-        cacheRead: count(tokens.cache_read),
-        cacheWrite: count(tokens.cache_write),
-        output: count(tokens.output),
-        reasoning: count(tokens.reasoning),
-        total: count(tokens.total)
-    };
-}
-
-function parseModel(raw) {
-    return {
-        model: text(raw.model) ?? "unknown",
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true
-    };
-}
-
-function parseModels(raw) {
-    return list(raw).map(parseModel);
-}
-
-function parseModelsOther(raw) {
-    if (!isObject(raw) || count(raw.count) === 0)
-        return null;
-    return {
-        count: count(raw.count),
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true
-    };
-}
-
-function parseTotals(raw) {
-    const totals = isObject(raw) ? raw : {};
-    const tokens = parseTokens(totals.tokens);
-    return {
-        tokens,
-        costMicros: count(totals.cost_usd_micros),
-        totalTokens: tokens.total,
-        partial: totals.partial === true,
-        unpricedTokens: count(totals.unpriced_tokens),
-        unpricedModels: Array.isArray(totals.unpriced_models) ? totals.unpriced_models.filter(text) : [],
-        models: parseModels(totals.models),
-        modelsOther: parseModelsOther(totals.models_other)
-    };
-}
-
-function parseDay(raw) {
-    return {
-        date: text(raw.date) ?? "",
-        totalTokens: count(raw.total_tokens),
-        costMicros: count(raw.cost_usd_micros),
-        partial: raw.partial === true
-    };
-}
-
-function providerName(raw, provider) {
-    return text(raw.provider_name) ?? provider;
-}
-
-function parseUsage(raw) {
-    const provider = text(raw.provider) ?? "unknown";
-    return {
-        provider,
-        providerName: providerName(raw, provider),
-        usageHome: text(raw.usage_home),
-        today: parseTotals(raw.today),
-        yesterday: parseTotals(raw.yesterday),
-        last30Days: parseTotals(raw.last_30_days),
-        daily: list(raw.daily).map(parseDay)
+        tone: Parse.oneOf(TONES, raw.tone, "warning"),
+        text: Parse.text(raw.text) ?? ""
     };
 }
 
 function parseAccount(raw, usage) {
-    const provider = text(raw.provider) ?? "unknown";
-    const usageHome = text(raw.usage_home);
+    const provider = Parse.text(raw.provider) ?? "unknown";
+    const usageHome = Parse.text(raw.usage_home);
     return {
-        id: text(raw.id) ?? "",
+        id: Parse.text(raw.id) ?? "",
         provider,
-        providerName: providerName(raw, provider),
-        label: text(raw.label),
-        email: text(raw.email),
-        plan: text(raw.plan),
-        owner: oneOf(OWNERS, raw.owner, "cli"),
-        status: oneOf(STATUSES, raw.status, "fresh"),
+        providerName: Parse.text(raw.provider_name) ?? provider,
+        label: Parse.text(raw.label),
+        email: Parse.text(raw.email),
+        plan: Parse.text(raw.plan),
+        owner: Parse.oneOf(OWNERS, raw.owner, "cli"),
+        status: Parse.oneOf(STATUSES, raw.status, "fresh"),
         error: parseError(raw.error),
         recovery: Recovery.parseRecovery(raw.recovery),
-        updatedAt: timestamp(raw.updated_at),
+        updatedAt: Parse.timestamp(raw.updated_at),
+        source: Parse.oneOf(SOURCES, raw.source, null),
         hidden: raw.hidden === true,
-        windows: list(raw.windows).map(parseWindow),
-        balances: list(raw.balances).map(parseBalance),
-        notices: list(raw.notices).map(parseNotice),
+        collapsed: raw.collapsed === true,
+        refresh: Refresh.parseRefresh(raw.refresh),
+        windows: Parse.list(raw.windows).map(parseWindow),
+        balances: Parse.list(raw.balances).map(parseBalance),
+        notices: Parse.list(raw.notices).map(parseNotice),
         usage: usage.find(entry => entry.provider === provider && entry.usageHome === usageHome) ?? null
-    };
-}
-
-function parseHeadline(raw) {
-    if (!isObject(raw))
-        return null;
-    const remainingPercent = number(raw.remaining_percent);
-    if (remainingPercent === null)
-        return null;
-    const provider = text(raw.provider);
-    return {
-        accountId: text(raw.account_id),
-        windowId: text(raw.window),
-        provider,
-        providerName: text(raw.provider_name) ?? provider,
-        accountLabel: text(raw.account_label),
-        windowLabel: text(raw.window_label),
-        usedPercent: number(raw.used_percent),
-        remainingPercent,
-        tone: oneOf(TONES, raw.tone, "neutral"),
-        combined: raw.combined === true,
-        accountCount: number(raw.account_count)
-    };
-}
-
-function parseProviderSpend(raw) {
-    const provider = text(raw.provider) ?? "unknown";
-    return {
-        provider,
-        providerName: providerName(raw, provider),
-        costMicros: count(raw.cost_usd_micros),
-        totalTokens: count(raw.total_tokens),
-        partial: raw.partial === true,
-        models: parseModels(raw.models),
-        modelsOther: parseModelsOther(raw.models_other)
-    };
-}
-
-function parsePeriod(raw) {
-    const period = isObject(raw) ? raw : {};
-    return {
-        costMicros: count(period.cost_usd_micros),
-        totalTokens: count(period.total_tokens),
-        partial: period.partial === true,
-        providers: list(period.by_provider).map(parseProviderSpend)
-    };
-}
-
-function parseSpend(raw, usage) {
-    if (usage.length === 0 || !isObject(raw))
-        return null;
-    return {
-        today: parsePeriod(raw.today),
-        yesterday: parsePeriod(raw.yesterday),
-        last30Days: parsePeriod(raw.last_30_days)
     };
 }
 
@@ -276,27 +124,35 @@ function decode(json) {
 
 function parseState(json) {
     const raw = decode(json);
-    if (!isObject(raw))
+    if (!Parse.isObject(raw))
         throw new StateError(I18n.N("Unexpected state from the Headroom service"));
     if (raw.version !== SCHEMA_VERSION)
         throw new StateError(I18n.N("Headroom service speaks state version {version}, expected {expected}"), {
             version: raw.version,
             expected: SCHEMA_VERSION
         });
-    const usage = list(raw.usage).map(parseUsage);
+    const usage = Parse.list(raw.usage).map(SpendState.parseUsage);
+    const display = Settings.parseDisplay(raw.display);
+    const headline = Panel.parseHeadline(raw.headline);
+    const accounts = Parse.list(raw.accounts).map(account => parseAccount(account, usage));
+    const panelServed = Panel.served(raw);
     return {
-        generatedAt: timestamp(raw.generated_at),
-        nextRefreshAt: timestamp(raw.next_refresh_at),
+        generatedAt: Parse.timestamp(raw.generated_at),
+        nextRefreshAt: Parse.timestamp(raw.next_refresh_at),
         offline: raw.offline === true,
-        lastSuccessAt: timestamp(raw.last_success_at),
-        headline: parseHeadline(raw.headline),
-        display: Settings.parseDisplay(raw.display),
-        accounts: list(raw.accounts).map(account => parseAccount(account, usage)),
-        combined: Combined.parseGroups(list(raw.combined), parseWindow),
-        spend: parseSpend(raw.spend, usage),
+        lastSuccessAt: Parse.timestamp(raw.last_success_at),
+        headline,
+        panelItems: Panel.items(raw.panel_items, headline, accounts, display.valueMode),
+        panelTone: Panel.tone(raw.panel_tone, panelServed, headline),
+        supports06: panelServed,
+        display,
+        accounts,
+        combined: Combined.parseGroups(Parse.list(raw.combined), parseWindow),
+        providerStatus: ProviderStatus.parseStatuses(raw.provider_status),
+        spend: SpendState.parseSpend(raw.spend, usage),
         update: Update.parseUpdate(raw.update),
         updateCheck: UpdateCheck.parseUpdateCheck(raw.update_check),
-        appVersion: text(raw.app_version)
+        appVersion: Parse.text(raw.app_version)
     };
 }
 
@@ -355,12 +211,6 @@ function hasQuotas(account) {
 
 function isRefreshing(state) {
     return state.accounts.some(account => account.status === "refreshing");
-}
-
-function headlinePercent(headline, valueMode) {
-    if (valueMode === "used" && headline.usedPercent !== null)
-        return headline.usedPercent;
-    return headline.remainingPercent;
 }
 
 function resetsWithinHour(window, now) {

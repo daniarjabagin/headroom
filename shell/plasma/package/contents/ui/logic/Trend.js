@@ -1,6 +1,7 @@
 .pragma library
 
-.import "Format.js" as Format
+.import "FormatSpend.js" as FormatSpend
+.import "FormatTime.js" as FormatTime
 .import "I18n.js" as I18n
 
 const TREND_DAYS = 30;
@@ -34,8 +35,8 @@ function peakDescription(lang, days) {
     if (peakDay.totalTokens === 0)
         return I18n.tr(lang, "No usage in the last 30 days");
     return I18n.tr(lang, "Peak {tokens} tokens on {date}", {
-        tokens: Format.compactTokens(peakDay.totalTokens),
-        date: Format.dayText(lang, peakDay.date)
+        tokens: FormatSpend.compactTokens(peakDay.totalTokens),
+        date: FormatTime.dayText(lang, peakDay.date)
     });
 }
 

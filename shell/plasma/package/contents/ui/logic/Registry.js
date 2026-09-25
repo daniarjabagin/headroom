@@ -1,6 +1,7 @@
 .pragma library
 
 .import "I18n.js" as I18n
+.import "Parse.js" as Parse
 
 const SCHEMA_VERSION = 1;
 const PROVIDER_ID = /^[a-z0-9][a-z0-9_-]*$/;
@@ -20,6 +21,15 @@ function text(value) {
 function webUrl(value) {
     const url = text(value);
     return url !== null && WEB_URL.test(url) ? url : null;
+}
+
+function parseLinks(raw) {
+    const links = isObject(raw) ? raw : {};
+    return {
+        status: Parse.httpsUrl(links.status),
+        dashboard: Parse.httpsUrl(links.dashboard),
+        usage: Parse.httpsUrl(links.usage)
+    };
 }
 
 function parseMethod(raw) {
@@ -47,7 +57,8 @@ function parseProvider(raw) {
         name: text(raw.display_name) ?? id,
         method,
         multiAccount: raw.multi_account === true,
-        localUsage: raw.local_usage === true
+        localUsage: raw.local_usage === true,
+        links: parseLinks(raw.links)
     };
 }
 
@@ -94,4 +105,8 @@ function methodHint(lang, provider) {
     if (method.kind === "api_key")
         return I18n.tr(lang, "Asks for an API key in a terminal");
     return method.reason ?? I18n.tr(lang, "Found automatically");
+}
+
+function providerLinks(providers, id) {
+    return findProvider(providers ?? [], id)?.links ?? parseLinks(null);
 }

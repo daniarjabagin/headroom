@@ -2,6 +2,8 @@ import QtQuick
 import QtTest
 import "../package/contents/ui/logic/Breakdown.js" as Breakdown
 import "../package/contents/ui/logic/Format.js" as Format
+import "../package/contents/ui/logic/FormatSpend.js" as FormatSpend
+import "../package/contents/ui/logic/FormatTime.js" as FormatTime
 import "../package/contents/ui/logic/Money.js" as Money
 import "../package/contents/ui/logic/Quota.js" as Quota
 import "../package/contents/ui/logic/Sector.js" as Sector
@@ -103,37 +105,37 @@ TestCase {
     }
 
     function test_durations(row) {
-        compare(Format.duration("en", row.ms, row.live), row.en);
-        compare(Format.duration("ru", row.ms, row.live), row.ru);
+        compare(FormatTime.duration("en", row.ms, row.live), row.en);
+        compare(FormatTime.duration("ru", row.ms, row.live), row.ru);
     }
 
     function test_countdowns() {
-        compare(Format.resetText("en", new Date("2026-09-23T12:41:00Z"), now), "Resets in 2h 41m");
-        compare(Format.resetText("ru", new Date("2026-09-23T12:41:00Z"), now), "Сброс через 2 ч 41 мин");
-        compare(Format.resetText("en", new Date("2026-09-23T10:00:30Z"), now), "Resets soon");
-        compare(Format.resetText("en", new Date("2026-09-23T10:12:07Z"), now, "countdown", true), "Resets in 12m 07s");
-        compare(Format.resetText("ru", null, now), "Не начато");
+        compare(FormatTime.resetText("en", new Date("2026-09-23T12:41:00Z"), now), "Resets in 2h 41m");
+        compare(FormatTime.resetText("ru", new Date("2026-09-23T12:41:00Z"), now), "Сброс через 2 ч 41 мин");
+        compare(FormatTime.resetText("en", new Date("2026-09-23T10:00:30Z"), now), "Resets soon");
+        compare(FormatTime.resetText("en", new Date("2026-09-23T10:12:07Z"), now, "countdown", true), "Resets in 12m 07s");
+        compare(FormatTime.resetText("ru", null, now), "Не начато");
         compare(Format.limitText("en", new Date("2026-09-24T19:00:00Z"), now), "Limit in 1d 9h");
         compare(Format.limitText("ru", new Date("2026-09-24T19:00:00Z"), now), "Лимит через 1 д 9 ч");
         compare(Format.limitText("en", null, now), "Limit soon");
-        compare(Format.nextUpdateText("en", new Date("2026-09-23T10:03:10Z"), now), "Next update in 3m");
-        compare(Format.nextUpdateText("ru", new Date("2026-09-23T10:03:10Z"), now), "Обновление через 3 мин");
-        compare(Format.nextUpdateText("en", new Date("2026-09-23T10:00:40Z"), now), "Next update in <1m");
-        compare(Format.agoText("en", new Date("2026-09-23T07:00:00Z"), now), "3h 0m ago");
+        compare(FormatTime.nextUpdateText("en", new Date("2026-09-23T10:03:10Z"), now), "Next update in 3m");
+        compare(FormatTime.nextUpdateText("ru", new Date("2026-09-23T10:03:10Z"), now), "Обновление через 3 мин");
+        compare(FormatTime.nextUpdateText("en", new Date("2026-09-23T10:00:40Z"), now), "Next update in <1m");
+        compare(FormatTime.agoText("en", new Date("2026-09-23T07:00:00Z"), now), "3h 0m ago");
     }
 
     function test_exact_moments() {
         const base = localDate(23, 10, 0);
-        compare(Format.resetText("en", localDate(23, 17, 5), base, "exact"), "Resets today at 17:05");
-        compare(Format.resetText("ru", localDate(23, 17, 5), base, "exact"), "Сброс сегодня в 17:05");
-        compare(Format.resetText("ru", localDate(24, 9, 30), base, "exact"), "Сброс завтра в 09:30");
-        compare(Format.resetText("en", localDate(24, 9, 30), base, "exact"), "Resets tomorrow at 09:30");
-        compare(Format.resetText("en", localDate(26, 8, 0), base, "exact"), "Resets Sat at 08:00");
-        compare(Format.resetText("ru", localDate(26, 8, 0), base, "exact"), "Сброс сб в 08:00");
-        compare(Format.resetText("ru", new Date(2026, 9, 12, 8, 0), base, "exact"), "Сброс 12 окт в 08:00");
-        compare(Format.resetText("en", localDate(23, 9, 59), base, "exact"), "Reset pending");
-        compare(Format.resetText("ru", localDate(22, 23, 0), base, "exact"), "Ожидается сброс");
-        compare(Format.resetText("en", base, base, "exact"), "Reset pending");
+        compare(FormatTime.resetText("en", localDate(23, 17, 5), base, "exact", false, "24h"), "Resets today at 17:05");
+        compare(FormatTime.resetText("ru", localDate(23, 17, 5), base, "exact", false, "24h"), "Сброс сегодня в 17:05");
+        compare(FormatTime.resetText("ru", localDate(24, 9, 30), base, "exact", false, "24h"), "Сброс завтра в 09:30");
+        compare(FormatTime.resetText("en", localDate(24, 9, 30), base, "exact", false, "24h"), "Resets tomorrow at 09:30");
+        compare(FormatTime.resetText("en", localDate(26, 8, 0), base, "exact", false, "24h"), "Resets Sat at 08:00");
+        compare(FormatTime.resetText("ru", localDate(26, 8, 0), base, "exact", false, "24h"), "Сброс сб в 08:00");
+        compare(FormatTime.resetText("ru", new Date(2026, 9, 12, 8, 0), base, "exact", false, "24h"), "Сброс 12 окт в 08:00");
+        compare(FormatTime.resetText("en", localDate(23, 9, 59), base, "exact", false, "24h"), "Reset pending");
+        compare(FormatTime.resetText("ru", localDate(22, 23, 0), base, "exact", false, "24h"), "Ожидается сброс");
+        compare(FormatTime.resetText("en", base, base, "exact", false, "24h"), "Reset pending");
     }
 
     function test_forecast() {
@@ -172,33 +174,33 @@ TestCase {
     }
 
     function test_tokens() {
-        compare(Format.compactTokens(1200), "1.2K");
-        compare(Format.compactTokens(35812904), "35.8M");
-        compare(Format.compactTokens(1500000000), "1.5B");
-        compare(Format.compactTokens(999), "999");
-        compare(Format.compactTokens(3000000), "3M");
-        compare(Format.exactTokens(1203448), "1,203,448");
-        compare(Format.tokenCount("ru", 1203448), "1,203,448 токенов");
-        compare(Format.tokenCount("ru", 21), "21 токен");
-        compare(Format.tokenCount("ru", 3), "3 токена");
-        compare(Format.tokenCount("en", 1), "1 token");
+        compare(FormatSpend.compactTokens(1200), "1.2K");
+        compare(FormatSpend.compactTokens(35812904), "35.8M");
+        compare(FormatSpend.compactTokens(1500000000), "1.5B");
+        compare(FormatSpend.compactTokens(999), "999");
+        compare(FormatSpend.compactTokens(3000000), "3M");
+        compare(FormatSpend.exactTokens(1203448), "1,203,448");
+        compare(FormatSpend.tokenCount("ru", 1203448), "1,203,448 токенов");
+        compare(FormatSpend.tokenCount("ru", 21), "21 токен");
+        compare(FormatSpend.tokenCount("ru", 3), "3 токена");
+        compare(FormatSpend.tokenCount("en", 1), "1 token");
     }
 
     function test_money() {
-        compare(Format.usd(14370000), "$14.37");
-        compare(Format.usd(2064000000), "$2.06K");
-        compare(Format.exactUsd(1234567890), "$1,234.57");
-        compare(Format.ringUsd(463120000), "$463");
-        compare(Format.ringUsd(18420000), "$18.42");
-        compare(Format.spendLine("en", {
+        compare(FormatSpend.usd(14370000), "$14.37");
+        compare(FormatSpend.usd(2064000000), "$2.06K");
+        compare(FormatSpend.exactUsd(1234567890), "$1,234.57");
+        compare(FormatSpend.ringUsd(463120000), "$463");
+        compare(FormatSpend.ringUsd(18420000), "$18.42");
+        compare(FormatSpend.spendLine("en", {
             costMicros: 4080000,
             totalTokens: 1203448
         }), "$4.08 · 1.2M tokens");
-        compare(Format.spendLine("ru", {
+        compare(FormatSpend.spendLine("ru", {
             costMicros: 0,
             totalTokens: 0
         }), "Нет данных");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "count",
             value: 1200,
             unit: "requests"
@@ -206,32 +208,32 @@ TestCase {
     }
 
     function test_money_balances() {
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: "CNY",
             micros: 12500000
         }), "¥12.50");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: "CNY",
             micros: -3000000
         }), "-¥3.00");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: "USD",
             micros: 1234567890
         }), "$1,234.57");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: "EUR",
             micros: 990000
         }), "€0.99");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: "GBP",
             micros: -1234567890
         }), "-1,234.57 GBP");
-        compare(Format.balanceValue("en", {
+        compare(FormatSpend.balanceValue("en", {
             kind: "money",
             currency: null,
             micros: 1
@@ -244,7 +246,7 @@ TestCase {
         compare(Money.money("CNY", 4999), "¥0.00");
         compare(Money.money("CNY", -4999), "¥0.00");
         compare(Money.money("CNY", 0), "¥0.00");
-        compare(Format.exactUsd(-500000), "-$0.50");
+        compare(FormatSpend.exactUsd(-500000), "-$0.50");
     }
 
     function test_quota_rows() {
@@ -399,7 +401,7 @@ TestCase {
     }
 
     function test_spend_titles() {
-        compare(Spend.periodTitle("ru", "last30Days"), "30 дней");
+        compare(Spend.periodTitle("ru", "30d"), "30 дней");
         compare(Spend.breakdownTitle("en", "today", {
             provider: "claude",
             providerName: "Claude"
@@ -484,9 +486,9 @@ TestCase {
         compare(Trend.barShare(0, 100), 0);
         compare(Trend.peakDescription("en", days), "Peak 1.2M tokens on Sep 21");
         compare(Trend.peakDescription("ru", days), "Пик: 1.2M токенов, 21 сен");
-        compare(Format.dayTooltip("en", days[29]), "Sep 21 · 1.2M tokens · $3.40");
-        compare(Format.dayTooltip("ru", days[29]), "21 сен · 1.2M токенов · $3.40");
-        compare(Format.dayTooltip("en", days[0]), "");
+        compare(FormatSpend.dayTooltip("en", days[29]), "Sep 21 · 1.2M tokens · $3.40");
+        compare(FormatSpend.dayTooltip("ru", days[29]), "21 сен · 1.2M токенов · $3.40");
+        compare(FormatSpend.dayTooltip("en", days[0]), "");
         compare(Trend.indexAt(9, 5, 30), 1);
         compare(Trend.indexAt(160, 5, 30), -1);
         compare(Trend.indexAt(-1, 5, 30), -1);
