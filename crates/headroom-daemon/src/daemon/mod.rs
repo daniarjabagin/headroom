@@ -1,5 +1,8 @@
 #[cfg(target_os = "linux")]
 mod bus;
+pub mod diagnostics;
+pub mod log_level;
+pub mod system_info;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,10 +22,13 @@ use crate::service::Service;
 use crate::storage::Storage;
 use crate::update::UpdateConfig;
 use crate::{credentials, registry, rescan, update};
+use diagnostics::{DiagnosticsContext, TransportKind};
+use log_level::LogControl;
 
 pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let socket = config.socket.as_deref().map(ipc::bind).transpose()?;
     let hub = Arc::new(Hub::default());
+    let logging = config.logging.clone();
     let storage = open_storage(config.db_path.clone()).await?;
     #[cfg(target_os = "linux")]
     let bus = bus::BusTransport::connect(&config.bus).await?;
@@ -34,7 +40,8 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();
     let (update_checks, update_requests) = update::channel();
-    let mut service = Service::new(core.clone(), rescans);
+    let diagnostics = diagnostics_context(&core, socket.is_some(), logging.clone());
+    let mut service = Service::new(core.clone(), rescans).with_diagnostics(diagnostics);
     if updates.is_some() {
         service = service.with_update_checks(update_checks);
     }
@@ -52,6 +59,9 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
         service.clone(),
         credentials::TIMING,
     ));
+    if let Some(control) = logging {
+        tasks.spawn(log_level::follow(core.clone(), control));
+    }
     if let Some(updates) = updates {
         tasks.spawn(update::run(core.clone(), updates, update_requests));
     }
@@ -61,6 +71,27 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     tracing::info!("headroom daemon running");
     stop(shutdown, tasks, socket_file).await;
     Ok(())
+}
+
+fn diagnostics_context(
+    core: &Core,
+    socket: bool,
+    logging: Option<Arc<dyn LogControl>>,
+) -> DiagnosticsContext {
+    let mut transports = Vec::new();
+    if cfg!(target_os = "linux") {
+        transports.push(TransportKind::Dbus);
+    }
+    if socket {
+        transports.push(TransportKind::Socket);
+    }
+    DiagnosticsContext {
+        started_at: core.clock.now(),
+        system: system_info::detect(),
+        transports,
+        logging,
+        homes: HomeDisplay::new(dirs::home_dir()),
+    }
 }
 
 fn serve_socket(

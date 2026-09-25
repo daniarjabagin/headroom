@@ -37,6 +37,7 @@ fn every_method_takes_its_d_bus_arguments_in_order() {
         ("RefreshNow", json!([]), Command::RefreshNow),
         ("Rescan", json!([]), Command::Rescan),
         ("CheckForUpdates", json!([]), Command::CheckForUpdates),
+        ("GetDiagnostics", json!([]), Command::GetDiagnostics),
         (
             "SetSettings",
             json!(["{}"]),
@@ -108,6 +109,7 @@ fn wrong_arguments_are_invalid_params() {
         ("Refresh", json!([1])),
         ("Refresh", json!(["a", "b"])),
         ("GetState", json!([null])),
+        ("GetDiagnostics", json!([true])),
         ("Subscribe", json!([true])),
         ("Subscribe", json!([[1]])),
         ("Subscribe", json!([["state"], ["alerts"]])),
@@ -165,4 +167,17 @@ async fn update_checks_return_the_outcome_as_an_object() {
         serde_json::from_str::<Value>(result.get()).unwrap(),
         json!({"status": "disabled", "checked_at": null, "version": null})
     );
+}
+
+#[tokio::test]
+async fn diagnostics_return_the_report_as_an_object() {
+    let harness = harness(Vec::new()).await;
+    let (rescans, _rescan_requests) = rescan::channel();
+    let service = Service::new(harness.core.clone(), rescans);
+    let result = execute(&service, Command::GetDiagnostics).await.unwrap();
+    let report: Value = serde_json::from_str(result.get()).unwrap();
+    assert_eq!(report["app_version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(report["log_level"], "info");
+    assert_eq!(report["log_level_source"], "settings");
+    assert!(report["text"].as_str().unwrap().starts_with("Headroom "));
 }

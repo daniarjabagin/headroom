@@ -171,3 +171,16 @@ async fn responses_over_the_size_cap_are_refused() {
     assert!(feed.release().await.is_err());
     assert!(matches!(feed.latest(None).await, Err(FeedError::Failed(_))));
 }
+
+#[test]
+fn release_checks_finish_before_a_d_bus_call_times_out() {
+    let feed = GithubFeed::new(
+        "http://127.0.0.1:9/releases/latest",
+        Origins::plain_http("127.0.0.1"),
+    )
+    .unwrap();
+    let request = feed.api(Some("W/\"e1\"")).build().unwrap();
+    assert_eq!(request.timeout(), Some(&API_TIMEOUT));
+    assert!(API_TIMEOUT <= Duration::from_secs(20));
+    assert!(CONNECT_TIMEOUT < API_TIMEOUT);
+}

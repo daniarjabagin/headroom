@@ -3,22 +3,28 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use headroom_daemon::{DaemonConfig, DaemonError, Shutdown, SocketError};
+use headroom_daemon::{DaemonConfig, DaemonError, LogControl, Shutdown, SocketError};
 use tokio::signal::unix::{SignalKind, signal};
 
 use crate::cli::DaemonArgs;
+use crate::logging::DaemonLogging;
 use crate::paths::{Globals, pricing_cache_dir};
 use crate::pricing::{ReloadablePrices, keep_fresh};
 use crate::providers::{self, LocalRegistry};
 use crate::update;
 
-pub async fn run(globals: &Globals, args: DaemonArgs) -> Result<ExitCode> {
+pub async fn run(
+    globals: &Globals,
+    args: DaemonArgs,
+    logging: Option<Arc<DaemonLogging>>,
+) -> Result<ExitCode> {
     let prices = Arc::new(ReloadablePrices::load(pricing_cache_dir()?)?);
     let http = headroom_providers::http::client().context("cannot create the HTTP client")?;
     let registry = LocalRegistry::new(globals, http.clone())?;
     let mut config = DaemonConfig::new(registry.all(), prices.clone(), shutdown_signal()?)?;
     config.catalog = providers::catalog();
     config.db_path = globals.db_path()?;
+    config.logging = logging.map(|logging| logging as Arc<dyn LogControl>);
     #[cfg(target_os = "linux")]
     {
         config.bus = globals.bus.clone();

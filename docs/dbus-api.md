@@ -849,7 +849,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
 | `status_pages.enabled` | bool | `false` | Since 0.6.0. Poll the public status pages of the providers that have accounts and report incidents as `provider_status` (see [0.6 payload additions](#06-payload-additions)). Off by default because it sends new network requests: one `GET` of each provider's public Statuspage `summary.json` every 5–10 minutes, without identifiers, accounts or usage. |
 | `shortcuts.open` | string | `""` | Since 0.6.0. Global shortcut that opens the popup, in GTK accelerator syntax (`<Super>u`, `<Control><Alt>h`): any number of `<Modifier>` groups (ASCII letters) followed by a key name of ASCII letters, digits and `_`. At most 64 characters. `""` disables it. Each shell registers it with its own platform API. |
-| `logging.level` | string | `"info"` | Since 0.6.0. Daemon log level: `error`, `warn`, `info` or `debug`. Applied without a restart; `RUST_LOG` wins when set. |
+| `logging.level` | string | `"info"` | Since 0.6.0. Daemon log level: `error`, `warn`, `info` or `debug`. Applied without a restart; `RUST_LOG` wins when set (see [Daemon log](#daemon-log)). |
 | `onboarding.completed` | bool | `false` | Since 0.6.0. `false` until the user finishes (or skips for good) the first-run window. Settings stored by a daemon older than 0.6.0 load with `true`, so existing users never see onboarding; a fresh install starts with `false`. `ResetSettings` keeps it. |
 
 Dismissed accounts are not a setting: `DismissAccount` and `RestoreAccounts` manage them in the
@@ -1198,20 +1198,56 @@ GetSpend('{"since":"2026-09-17","by":"model","provider":"claude"}')
 ### GetDiagnostics
 
 `GetDiagnostics() → s` returns a report for bug reports. It never contains tokens, API keys, emails,
-account labels or home paths outside `~`-relative form.
+account labels, account ids, error messages or usage home paths; the log path is `~`-relative when it
+is below the user's home. Over the socket the result is the JSON object itself.
 
 | field | type | description |
 | --- | --- | --- |
 | `app_version` | string | Daemon release. |
-| `os` | string | OS name and version (`/etc/os-release` `PRETTY_NAME`, or the macOS version). |
-| `desktop` | string \| null | `XDG_CURRENT_DESKTOP` and session type, e.g. `GNOME (wayland)`. |
-| `transports` | string[] | `dbus`, `socket`. |
-| `log_level` | string | Effective level (`error`, `warn`, `info`, `debug`). |
-| `log_level_source` | string | `settings` (`logging.level`) or `env` (`RUST_LOG` is set and wins). |
-| `log_file` | string | Path of the daemon's log file, `~`-relative. |
-| `providers` | object[] | `{provider, accounts, usage_homes}` counts per provider. |
-| `accounts` | object[] | `{provider, status, error_kind, source, updated_at, refresh_mode}` per account, in account order, without ids. |
+| `os` | string \| null | OS name and version: the macOS `ProductVersion` (`macOS 27.0`) or `/etc/os-release` `PRETTY_NAME` (then `NAME`); `null` when neither is readable. |
+| `desktop` | string \| null | The daemon's `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE`, e.g. `GNOME (wayland)`; `null` when both are unset (e.g. on macOS or a unit started before the session imported them). |
+| `uptime_secs` | number | Seconds since the daemon started. |
+| `transports` | string[] | IPC the daemon serves: `dbus` (Linux) and `socket` when the socket API is on. |
+| `log_level` | string | Effective level: `error`, `warn`, `info` or `debug` from `logging.level`; with `RUST_LOG` the most verbose level it enables, which can also be `trace` or `off`. |
+| `log_level_source` | string | `settings` (`logging.level`) or `env` (`RUST_LOG` is set, valid and wins). |
+| `log_file` | string \| null | Path of the daemon's log file (see [Daemon log](#daemon-log)); `null` when it could not be opened. |
+| `providers` | object[] | `{provider, accounts, usage_homes}` counts, in registry order, for providers with at least one account or usage home. |
+| `accounts` | object[] | `{provider, status, error_kind, source, owner, hidden, updated_at}` per account, in account order, without ids. `error_kind` is `accounts[].error.kind` or `null`; `source`, `owner`, `status` and `updated_at` are as in `accounts[]`. |
 | `text` | string | The same report as plain text, ready for "Copy diagnostics". Shells copy it as is. |
+
+```json
+{
+  "app_version": "0.6.0", "os": "Arch Linux", "desktop": "GNOME (wayland)", "uptime_secs": 7530,
+  "transports": ["dbus"], "log_level": "info", "log_level_source": "settings",
+  "log_file": "~/.local/state/headroom/headroom.log",
+  "providers": [{"provider": "claude", "accounts": 1, "usage_homes": 1}],
+  "accounts": [{"provider": "claude", "status": "fresh", "error_kind": null, "source": "live",
+                "owner": "cli", "hidden": false, "updated_at": "2026-09-23T09:58:00Z"}],
+  "text": "Headroom 0.6.0\nOS: Arch Linux\nDesktop: GNOME (wayland)\nUptime: 2h 5m\nIPC: dbus\nLog level: info (settings)\nLog file: ~/.local/state/headroom/headroom.log\nProviders:\n  claude: 1 account(s), 1 usage home(s)\nAccounts:\n  1. claude · fresh · live · cli · updated 2026-09-23T09:58:00Z\n"
+}
+```
+
+`headroom diagnostics` prints `text` from the running daemon. Without a daemon it prints the local
+part only (version, OS, desktop, `Daemon: not running` and the log path).
+
+### Daemon log
+
+`headroom daemon` logs to stderr (the journal under systemd; the macOS app redirects it) and to a
+file:
+
+| platform | path |
+| --- | --- |
+| Linux | `$XDG_STATE_HOME/headroom/headroom.log`, default `~/.local/state/headroom/headroom.log` |
+| macOS | `~/Library/Logs/Headroom/headroom.log` |
+
+- The file is created `0600` in a `0700` directory (existing ones are tightened). When a record would
+  take it past 2 MiB it is renamed to `headroom.log.1` (replacing the previous one) and a new file is
+  started, so the log never takes more than about 4 MiB.
+- The level follows `logging.level` at start and on every settings change. `debug` turns on debug
+  records of Headroom's own crates only; libraries stay at `info`. When `RUST_LOG` is set to a valid
+  filter it is used as is for the whole run and `logging.level` is ignored.
+- Other commands (`headroom status`, …) log only to stderr, at `warn` unless `RUST_LOG` says otherwise.
+- The macOS app's own stderr capture (`~/Library/Logs/Headroom/daemon.log`) is a different file.
 
 ### Other 0.6 methods
 
@@ -1263,8 +1299,9 @@ release costs a `304`) and returns:
 - While a rate-limit hold (`403`/`429`) is active, calls return `rate_limited` without a request.
 - A check that reaches GitHub moves the daily schedule: the next scheduled check follows 24 h
   (± 10 %) later, or 1 h (± 10 %) after a failure, or at the end of a rate-limit hold.
-- The request may take up to 30 s plus the connection time; D-Bus clients should call it
-  asynchronously with a timeout of at least 60 s (`gdbus` and `QDBus` default to 25 s).
+- The GitHub request is bounded to 20 s in total, connection included (the connection alone to
+  10 s), so a call answers within the 25 s default timeout of `gdbus` and `QDBus`. Shells should
+  still call it asynchronously.
 - A daemon started with `--no-update-check` answers with `org.freedesktop.DBus.Error.NotSupported`
   (socket: `-32000`); `headroom update --check` still works there because it asks GitHub itself.
 

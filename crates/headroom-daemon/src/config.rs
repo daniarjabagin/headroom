@@ -9,6 +9,7 @@ use jiff::tz::TimeZone;
 
 use crate::catalog::ProviderCatalog;
 use crate::clock::{Clock, SystemClock};
+use crate::daemon::log_level::LogControl;
 use crate::error::DaemonError;
 use crate::notify::text::Locale;
 use crate::update::UpdateConfig;
@@ -40,6 +41,7 @@ pub struct DaemonConfig {
     pub socket: Option<PathBuf>,
     pub system_locale: Locale,
     pub updates: Option<UpdateConfig>,
+    pub logging: Option<Arc<dyn LogControl>>,
     pub shutdown: Shutdown,
 }
 
@@ -64,6 +66,7 @@ impl DaemonConfig {
             socket: Some(crate::ipc::default_socket_path()?),
             system_locale: Locale::from_env(),
             updates: None,
+            logging: None,
             shutdown,
         })
     }

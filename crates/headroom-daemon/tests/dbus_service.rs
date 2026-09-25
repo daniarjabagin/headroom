@@ -210,6 +210,7 @@ fn config(
         socket: Some(socket),
         system_locale: Locale::En,
         updates: None,
+        logging: None,
         shutdown: Box::pin(async move {
             shutdown.await.ok();
         }),

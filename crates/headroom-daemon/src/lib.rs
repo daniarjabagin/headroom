@@ -35,7 +35,10 @@ pub use commands::MAX_LABEL_CHARS;
 #[cfg(target_os = "linux")]
 pub use config::BusTarget;
 pub use config::{DaemonConfig, Shutdown, app_dir, default_db_path};
+pub use daemon::diagnostics::{self, Diagnostics};
+pub use daemon::log_level::{EffectiveLevel, LevelSource, LogControl, LogStatus};
 pub use daemon::run;
+pub use daemon::system_info::{self, SystemInfo};
 pub use error::{DaemonError, SocketError};
 pub use ipc::{SOCKET_ENV, default_socket_path};
 pub use once::{OnceContext, assemble_state_once};

@@ -34,6 +34,8 @@ pub enum Command {
     Providers(ProvidersArgs),
     #[command(about = "Check for a new Headroom release and install it")]
     Update(UpdateArgs),
+    #[command(about = "Print a diagnostics report for bug reports, without secrets or emails")]
+    Diagnostics,
 }
 
 #[derive(Debug, Args)]

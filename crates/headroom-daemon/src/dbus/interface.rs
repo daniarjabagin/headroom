@@ -51,6 +51,11 @@ impl DaemonInterface {
         serde_json::to_string(&outcome).map_err(|error| fdo::Error::Failed(error.to_string()))
     }
 
+    fn get_diagnostics(&self) -> fdo::Result<String> {
+        serde_json::to_string(&self.service.diagnostics())
+            .map_err(|error| fdo::Error::Failed(error.to_string()))
+    }
+
     fn list_providers(&self) -> fdo::Result<String> {
         self.core()
             .providers_json()
