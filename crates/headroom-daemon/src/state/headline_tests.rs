@@ -23,6 +23,7 @@ fn view(id: &str, hidden: bool, windows: Vec<WindowView>) -> AccountView {
         balances: Vec::new(),
         notices: Vec::new(),
         usage_home: "~/.codex".into(),
+        collapsed: false,
     }
 }
 

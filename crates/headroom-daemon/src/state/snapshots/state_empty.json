@@ -37,6 +37,8 @@
     "hide_on_screen_share": true
   },
   "headline": null,
+  "panel_items": [],
+  "panel_tone": null,
   "accounts": [],
   "combined": [],
   "usage": [],

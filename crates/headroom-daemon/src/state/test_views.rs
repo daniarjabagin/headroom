@@ -22,6 +22,7 @@ pub fn account(provider: &ProviderId, name: &str, windows: Vec<WindowView>) -> A
         balances: Vec::new(),
         notices: Vec::new(),
         usage_home: format!("~/.{provider}"),
+        collapsed: false,
     }
 }
 

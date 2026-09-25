@@ -6,27 +6,27 @@ use super::payload::{
 use crate::settings::HeadlineMode;
 
 #[derive(Debug, Clone, Copy)]
-enum Candidate<'a> {
+pub(super) enum Candidate<'a> {
     Single(&'a AccountView, &'a WindowView),
     Combined(&'a CombinedView, &'a CombinedWindowView),
 }
 
 impl Candidate<'_> {
-    fn tone(self) -> Tone {
+    pub(super) fn tone(self) -> Tone {
         match self {
             Candidate::Single(_, w) => w.tone,
             Candidate::Combined(_, w) => w.tone,
         }
     }
 
-    fn remaining_percent(self) -> f64 {
+    pub(super) fn remaining_percent(self) -> f64 {
         match self {
             Candidate::Single(_, w) => w.remaining_percent,
             Candidate::Combined(_, w) => share(w, w.remaining_percent),
         }
     }
 
-    fn is(self, account_id: &str, window: &str) -> bool {
+    pub(super) fn is(self, account_id: &str, window: &str) -> bool {
         match self {
             Candidate::Single(a, w) => a.id == account_id && w.id == window,
             Candidate::Combined(g, w) => {
@@ -41,7 +41,7 @@ impl Candidate<'_> {
                 && self.remaining_percent() < current.remaining_percent())
     }
 
-    fn headline(self) -> Headline {
+    pub(super) fn headline(self) -> Headline {
         match self {
             Candidate::Single(account, window) => single_headline(account, window),
             Candidate::Combined(group, window) => combined_headline(group, window),
@@ -55,10 +55,14 @@ pub fn headline(
     combined: &[CombinedView],
     mode: &HeadlineMode,
 ) -> Option<Headline> {
-    let candidates = candidates(accounts, combined);
-    pinned(&candidates, mode)
-        .or_else(|| most_critical(&candidates))
-        .map(Candidate::headline)
+    select(&candidates(accounts, combined), mode).map(Candidate::headline)
+}
+
+pub(super) fn select<'a>(
+    candidates: &[Candidate<'a>],
+    mode: &HeadlineMode,
+) -> Option<Candidate<'a>> {
+    pinned(candidates, mode).or_else(|| most_critical(candidates))
 }
 
 fn pinned<'a>(candidates: &[Candidate<'a>], mode: &HeadlineMode) -> Option<Candidate<'a>> {
@@ -81,7 +85,10 @@ fn most_critical<'a>(candidates: &[Candidate<'a>]) -> Option<Candidate<'a>> {
         })
 }
 
-fn candidates<'a>(accounts: &'a [AccountView], combined: &'a [CombinedView]) -> Vec<Candidate<'a>> {
+pub(super) fn candidates<'a>(
+    accounts: &'a [AccountView],
+    combined: &'a [CombinedView],
+) -> Vec<Candidate<'a>> {
     let mut candidates = Vec::new();
     let listed = accounts
         .iter()
@@ -111,7 +118,7 @@ fn leads(group: &CombinedView, account: &AccountView) -> bool {
     group.account_ids.first() == Some(&account.id)
 }
 
-fn share(window: &CombinedWindowView, value: f64) -> f64 {
+pub(super) fn share(window: &CombinedWindowView, value: f64) -> f64 {
     value / f64::from(window.capacity_percent) * 100.0
 }
 

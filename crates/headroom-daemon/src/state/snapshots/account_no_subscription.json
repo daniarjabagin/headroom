@@ -17,5 +17,6 @@
   "windows": [],
   "balances": [],
   "notices": [],
-  "usage_home": "~/.codex"
+  "usage_home": "~/.codex",
+  "collapsed": false
 }

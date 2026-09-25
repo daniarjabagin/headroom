@@ -66,6 +66,7 @@ fn group_view(group: &Group<'_>) -> CombinedView {
             .into_iter()
             .map(|lead| combined_window(lead, &segments_of(members, &lead.id)))
             .collect(),
+        collapsed: false,
     }
 }
 

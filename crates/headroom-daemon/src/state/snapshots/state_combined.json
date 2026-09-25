@@ -55,6 +55,25 @@
     "combined": false,
     "account_count": 1
   },
+  "panel_items": [
+    {
+      "account_id": "claude:main",
+      "provider": "claude",
+      "provider_name": "Claude",
+      "account_label": "ada@claude.example",
+      "window": "session",
+      "window_label": "Session",
+      "used_percent": 92.0,
+      "remaining_percent": 8.0,
+      "tone": "critical",
+      "combined": false,
+      "account_count": 1,
+      "value_percent": 8.0,
+      "even_pace_percent": 90.0,
+      "logo": "claude"
+    }
+  ],
+  "panel_tone": "critical",
   "accounts": [
     {
       "id": "codex:work",
@@ -119,7 +138,8 @@
           "text": "Weekly limit shared with Codex Cloud"
         }
       ],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "collapsed": false
     },
     {
       "id": "claude:main",
@@ -158,7 +178,8 @@
       ],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.claude"
+      "usage_home": "~/.claude",
+      "collapsed": false
     },
     {
       "id": "codex:hidden",
@@ -176,7 +197,8 @@
       "windows": [],
       "balances": [],
       "notices": [],
-      "usage_home": "/srv/codex"
+      "usage_home": "/srv/codex",
+      "collapsed": false
     },
     {
       "id": "codex:personal",
@@ -229,7 +251,8 @@
       ],
       "balances": [],
       "notices": [],
-      "usage_home": "~/.codex"
+      "usage_home": "~/.codex",
+      "collapsed": false
     }
   ],
   "combined": [
@@ -313,7 +336,8 @@
             }
           ]
         }
-      ]
+      ],
+      "collapsed": false
     }
   ],
   "usage": [

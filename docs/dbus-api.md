@@ -164,7 +164,7 @@ Top level:
 | `spend` | Spend | `usage` summed across usage homes, per period and per provider. Shells show these totals as they are and never add up `usage` themselves. |
 
 Headroom 0.6 adds `panel_items`, `panel_tone` and `provider_status` at the top level,
-`collapsed` and `refresh` per account, `spend.last_7_days`, project breakdowns and
+`collapsed` and `refresh` per account, `collapsed` per combined group, `spend.last_7_days`, project breakdowns and
 `cost_per_mtok_usd_micros`; see [0.6 payload additions](#06-payload-additions).
 
 All timestamps are RFC 3339 strings in UTC (`2026-09-23T10:00:00Z`, fractional seconds when present).
@@ -267,6 +267,7 @@ renders every other account as usual. Groups follow the order of their first acc
 | `account_ids` | string[] | Grouped account ids in account order. |
 | `accounts` | object[] | `{account_id, label, plan}` per grouped account; `label` is the user label, else the email, else `provider_name`; `plan` may be `null`. |
 | `windows` | CombinedWindow[] | One entry per window id found in the group. |
+| `collapsed` | bool | Since 0.6.0: fold the card into the "N more" row, see [Account additions](#account-additions). Missing: `false`. |
 
 Windows are matched by `id`. A window that is hidden for an account (`display.hidden_windows`) does
 not count for that account. A window id that only some accounts have still forms a combined window,
@@ -949,6 +950,7 @@ Summary:
 | state, top level | `provider_status` | implemented in 0.6 |
 | state, top level | `update_check` | defined by the update-check work, see [Update checks](#update-checks) |
 | `accounts[]` | `collapsed`, `refresh` | implemented in 0.6 |
+| `combined[]` | `collapsed` | implemented in 0.6 |
 | `accounts[]` | `recovery` | defined by the account-recovery work, see [Account](#account) |
 | `spend` | `last_7_days` | implemented in 0.6 |
 | PeriodSpend | `projects`, `projects_other` | implemented in 0.6 |
@@ -962,14 +964,16 @@ Summary:
 
 `panel_items` (PanelItem[], always present) is what a panel indicator draws, already resolved from
 `display.panel_mode` and `display.panel_limits`; shells never pick limits themselves.
-`panel_tone` (Tone | null) is the worst tone among the visible windows of visible accounts
-(`critical` > `warning` > `good` > `neutral`), used to tint the mark in `icon` mode; `null` when no
-visible account has a visible window. Both are computed in every mode.
+`panel_tone` (Tone | null) is the worst tone among the windows the headline chooses from
+(`critical` > `warning` > `good` > `neutral`): the visible windows of accounts that are not hidden and
+not `no_subscription`, and with `display.combine_accounts` on the combined windows in place of the
+grouped accounts' own windows. It tints the mark in `icon` mode; `null` when there is no such window.
+Both are computed in every mode.
 
 | `panel_mode` | `panel_items` |
 | --- | --- |
 | `headline` | The headline as one item, or `[]` when `headline` is `null`. |
-| `several` | The entries of `display.panel_limits` in order, each resolved like a pinned headline (skipped when the account is not listed, hidden, `no_subscription`, lacks the window or the window is hidden; a limit inside a combined group resolves to the combined window). An empty `panel_limits` yields the 2 most critical windows by the headline's auto rule. At most 3 items; `[]` when nothing resolves. |
+| `several` | The entries of `display.panel_limits` in order, each resolved like a pinned headline (skipped when the account is not listed, hidden, `no_subscription`, lacks the window or the window is hidden; a limit inside a combined group resolves to the combined window, and a limit that resolves to an item already listed is skipped). An empty `panel_limits` yields the 2 most critical windows by the headline's auto rule (highest `tone`, then lowest `remaining_percent` share, then account order). At most 3 items; `[]` when nothing resolves. |
 | `icon` | `[]`. The shell draws only the Headroom mark tinted with `panel_tone`. |
 
 PanelItem has the [Headline](#headline) fields plus:
@@ -1005,7 +1009,8 @@ Older daemons: no `panel_items`; build one item from `headline`.
 
 | field | type | description |
 | --- | --- | --- |
-| `collapsed` | bool | `true` when `display.collapse_unstarred` is on, the account is not in `display.starred_accounts`, and none of its visible windows has tone `warning` or `critical`. Always `false` when the setting is off. Shells fold collapsed accounts into one "N more · Copilot, Grok ›" row in account order. Missing: `false`. |
+| `collapsed` | bool | `true` when `display.collapse_unstarred` is on, the account is not in `display.starred_accounts`, it does not need attention, and none of its visible windows has tone `warning` or `critical`. An account needs attention when its `error` is not `null` (signed out, sign-in expired, account changed, rate limited, any failed refresh — so also whenever `recovery` is set) or its status is `signed_out`, `error` or `no_subscription`; such an account is never collapsed, even while it is `refreshing`. Always `false` when the setting is off. Shells fold collapsed accounts into one "N more · Copilot, Grok ›" row in account order. Missing: `false`. |
+| `combined[].collapsed` | bool | The same rule for a [combined](#combined-accounts) card, which a shell folds instead of its members: `true` when `display.collapse_unstarred` is on, none of the group's `account_ids` is starred, no member needs attention (as for accounts), and none of its combined windows has tone `warning` or `critical`. Missing: `false`. |
 | `refresh` | Refresh | How the daemon is polling this account now. Missing: show `next_refresh_at` only. |
 | `recovery` | object \| null | What a card's primary button does after an error (`retry`, `sign_in`, `cli_login`); defined in [Account](#account) by the account-recovery work, not redefined here. |
 
