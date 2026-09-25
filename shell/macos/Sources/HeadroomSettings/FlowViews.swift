@@ -60,12 +60,17 @@
         let onClose: () -> Void
         let onRetry: () -> Void
 
+        private var successText: String {
+            if signingInAgain { return strings.text(SignInAgainText.signedInAgain) }
+            return strings.text(SignInText.accountAdded)
+        }
+
         var body: some View {
             switch phase {
             case .done:
                 VStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
-                    Text(strings.text(signingInAgain ? SignInAgainText.signedInAgain : SignInText.accountAdded))
+                    Text(successText)
                         .multilineTextAlignment(.center)
                     Button(strings.text(SignInText.done)) { onClose() }.keyboardShortcut(.defaultAction)
                 }

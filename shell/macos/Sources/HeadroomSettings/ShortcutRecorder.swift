@@ -42,12 +42,14 @@
     @MainActor
     final class KeyDownMonitor {
         private var token: Any?
+        private var handler: (@MainActor (ShortcutCapture) -> Void)?
 
         func start(_ handler: @escaping @MainActor (ShortcutCapture) -> Void) {
             stop()
-            token = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                let capture = Self.capture(event)
-                MainActor.assumeIsolated { handler(capture) }
+            self.handler = handler
+            token = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                let capture = KeyDownMonitor.capture(event)
+                MainActor.assumeIsolated { self?.handler?(capture) }
                 return nil
             }
         }
@@ -68,6 +70,7 @@
         }
 
         func stop() {
+            handler = nil
             guard let token else { return }
             NSEvent.removeMonitor(token)
             self.token = nil

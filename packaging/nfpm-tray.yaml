@@ -30,17 +30,20 @@ overrides:
       - headroom
       - libgtk-4-1 (>= 4.14)
       - libadwaita-1-0 (>= 1.5)
+      - librsvg2-common
   rpm:
     depends:
       - headroom
       - gtk4 >= 4.14
       - libadwaita >= 1.5
+      - librsvg2
       - gtk4-layer-shell
   archlinux:
     depends:
       - headroom
       - gtk4
       - libadwaita
+      - librsvg
       - gtk4-layer-shell
 
 contents:
