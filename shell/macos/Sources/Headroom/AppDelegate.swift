@@ -76,7 +76,8 @@
                 signIn: { model.signIn(provider: $0) },
                 setAccountOrder: { model.setAccountOrder($0) },
                 updateSettings: { store.change($0) },
-                reducedMotion: { store.settings?.reducedMotion ?? false })
+                reducedMotion: { store.settings?.reducedMotion ?? false },
+                providerLinks: { store.links(for: $0) })
         }
 
         private static func reducedMotion(_ store: SettingsStore) -> Bool {
