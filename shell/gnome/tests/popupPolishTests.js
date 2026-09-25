@@ -41,6 +41,7 @@ const PERIOD = {
             totalTokens: 5_000_000,
             partial: false,
             sharePermille: 666,
+            costPerMtokMicros: 8_000_000,
             providers: [{ provider: 'claude', providerName: 'Claude', costMicros: 40_000_000, totalTokens: 5_000_000 }],
         },
         {
@@ -49,6 +50,7 @@ const PERIOD = {
             totalTokens: 35_000_000,
             partial: false,
             sharePermille: 333,
+            costPerMtokMicros: null,
             providers: [{ provider: 'codex', providerName: 'Codex', costMicros: 20_000_000, totalTokens: 35_000_000 }],
         },
     ],
@@ -126,20 +128,27 @@ function testProjectUnits() {
     );
     const rate = projectsTable(PERIOD, 'cost_per_mtok');
     check(
-        'project rate derived from totals',
+        'project rate from payload',
         rate.rows.map(row => breakdownValue(row, 'cost_per_mtok')),
-        ['$0.57', '$8.00']
+        ['—', '$8.00']
     );
-    const other = projectsTable(
-        { ...PERIOD, projectsOther: { count: 3, costMicros: 1, totalTokens: 50_000_000, sharePermille: 1 } },
-        'tokens'
-    );
+    const folded = { count: 3, costMicros: 1, totalTokens: 50_000_000, sharePermille: 1, costPerMtokMicros: 366_667 };
+    const other = projectsTable({ ...PERIOD, projectsOther: folded }, 'tokens');
     check('other stays last', other.rows.map(row => row.name).at(-1), 'Other');
+    check('other rate from payload', breakdownValue(other.rows.at(-1), 'cost_per_mtok'), '$0.37');
+    const unrated = projectsTable({ ...PERIOD, projectsOther: { ...folded, costPerMtokMicros: null } }, 'cost');
+    check('other without rate', breakdownValue(unrated.rows.at(-1), 'cost_per_mtok'), '—');
 }
 
 function testPartialRate() {
-    const partial = { ...PERIOD, projects: [{ ...PERIOD.projects[0], partial: true }] };
-    check('partial project has no rate', projectsTable(partial, 'cost_per_mtok').rows[0].costPerMtokMicros, null);
+    const legacy = { ...PERIOD.projects[0] };
+    delete legacy.costPerMtokMicros;
+    const partial = { ...PERIOD, projects: [{ ...PERIOD.projects[0], partial: true }, legacy] };
+    check(
+        'project rate is not recomputed',
+        projectsTable(partial, 'cost_per_mtok').rows.map(row => row.costPerMtokMicros),
+        [8_000_000, null]
+    );
 }
 
 function testLegendTitle() {

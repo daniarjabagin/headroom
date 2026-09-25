@@ -131,11 +131,18 @@ const PERIOD = {
             cost_usd_micros: 900,
             total_tokens: 9,
             share_permille: 733,
+            cost_per_mtok_usd_micros: 189189,
             by_provider: [{ provider: 'claude', provider_name: 'Claude', cost_usd_micros: 900, total_tokens: 9 }],
         },
         { project: null, cost_usd_micros: 100, total_tokens: 1, partial: true },
     ],
-    projects_other: { count: 4, cost_usd_micros: 3, total_tokens: 2, share_permille: 266 },
+    projects_other: {
+        count: 4,
+        cost_usd_micros: 3,
+        total_tokens: 2,
+        share_permille: 266,
+        cost_per_mtok_usd_micros: 366667,
+    },
 };
 
 function testSpendAdditions() {
@@ -152,6 +159,11 @@ function testSpendAdditions() {
             [null, 0, true],
         ]
     );
+    check(
+        'project cost per mtok',
+        parsed.today.projects.map(entry => entry.costPerMtokMicros),
+        [189189, null]
+    );
     check('project providers', parsed.today.projects[0].providers[0].providerName, 'Claude');
     check('projects other', parsed.today.projectsOther, {
         count: 4,
@@ -159,6 +171,7 @@ function testSpendAdditions() {
         totalTokens: 2,
         partial: false,
         sharePermille: 266,
+        costPerMtokMicros: 366667,
     });
     const legacy = state({ usage, spend: { today: { cost_usd_micros: 5 } } }).spend;
     check('legacy 7 days', legacy.last7Days, null);
@@ -208,6 +221,7 @@ export function testSampleAdditions(sample) {
     check('sample 7 days', sample.spend.last7Days.providers.length, 3);
     check('sample projects', sample.spend.today.projects[0].project, '~/code/headroom');
     check('sample folded projects', sample.spend.today.projectsOther.count, 3);
+    check('sample project rate', typeof sample.spend.today.projects[0].costPerMtokMicros, 'number');
     check('sample cost per mtok', sample.spend.today.costPerMtokMicros, 2_964_489);
 }
 

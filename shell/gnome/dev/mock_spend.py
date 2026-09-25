@@ -6,7 +6,8 @@ SPEND_PERIODS = ("today", "yesterday", "last_7_days", "last_30_days")
 TOP_MODELS = 5
 PROJECT_SHARES = [("~/code/headroom", 460), ("~/code/app", 270), (None, 110), ("~/work/api", 70),
                   ("~/code/dotfiles", 40), ("~/work/infra", 30), ("~/scratch", 20)]
-LISTED_PROJECTS = 4
+TOP_PROJECTS = 5
+MIN_LISTED_PERMILLE = 50
 UNPRICED_PROJECT = "~/code/app"
 
 
@@ -100,6 +101,8 @@ def models_other(rest):
 
 def with_top_models(entry):
     models = entry["models"]
+    if len(models) <= TOP_MODELS + 1:
+        return {**entry, "models_other": None}
     return {**entry, "models": models[:TOP_MODELS], "models_other": models_other(models[TOP_MODELS:])}
 
 
@@ -196,19 +199,29 @@ def folded_projects(rest, period_cost, period_tokens):
             "cost_per_mtok_usd_micros": rate}
 
 
+def listed_count(rows, period_cost, period_tokens):
+    listed = 0
+    for row in rows[:TOP_PROJECTS]:
+        if share_permille(row, period_cost, period_tokens) < MIN_LISTED_PERMILLE:
+            break
+        listed += 1
+    return len(rows) if len(rows) - listed == 1 else listed
+
+
 def period_spend(usage, period):
     rows = provider_rows(usage, period)
     cost = sum(row["cost_usd_micros"] for row in rows)
     total = sum(row["total_tokens"] for row in rows)
     projects = project_rows(rows) if rows else []
+    listed = listed_count(projects, cost, total)
     return {
         "cost_usd_micros": cost,
         "total_tokens": total,
         "partial": any(row["partial"] for row in rows),
         "cost_per_mtok_usd_micros": cost_per_mtok(cost, sum(priced_tokens(row["models"]) for row in rows)),
         "by_provider": [with_top_models(row) for row in rows],
-        "projects": with_shares(projects[:LISTED_PROJECTS], cost, total),
-        "projects_other": folded_projects(projects[LISTED_PROJECTS:], cost, total),
+        "projects": with_shares(projects[:listed], cost, total),
+        "projects_other": folded_projects(projects[listed:], cost, total),
     }
 
 
