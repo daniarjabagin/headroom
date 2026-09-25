@@ -4,7 +4,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 
 use super::found::{Found, FoundRow, found_rows};
-use super::{Ctx, page_column, title_block};
+use super::{Ctx, page_column, pinned_page, title_block};
 use crate::payload::State;
 use crate::preferences::registry::ProviderInfo;
 use crate::ui::prefs::{PrefsAction, pill_button, provider_image};
@@ -18,7 +18,7 @@ struct Line {
 }
 
 pub struct Welcome {
-    pub widget: gtk::ScrolledWindow,
+    pub widget: gtk::Box,
     list: adw::PreferencesGroup,
     add: adw::ActionRow,
     rows: RefCell<Vec<Line>>,
@@ -73,12 +73,7 @@ impl Welcome {
         column.append(&list);
         let on_start = Rc::clone(&ctx.on_start);
         let start = pill_button(lang.tr("Start"), true, move || on_start());
-        column.append(&start);
-        column.append(&later_button(ctx));
-        let widget = gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .child(&column)
-            .build();
+        let widget = pinned_page(&column, &[start.upcast(), later_button(ctx).upcast()]);
         Self {
             widget,
             list,

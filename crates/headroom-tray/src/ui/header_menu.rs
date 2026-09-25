@@ -12,6 +12,7 @@ use crate::ui::popover::{point_at, transient};
 use crate::ui::widgets::{Textures, column, icon, label, row};
 
 const ITEM_ICON: i32 = 14;
+const CHECK_ICON: i32 = 12;
 
 #[derive(Clone)]
 pub struct MenuContext {
@@ -48,12 +49,29 @@ pub struct MenuInput {
 struct Entry {
     icon: gtk::Widget,
     title: String,
-    detail: Option<String>,
+    suffix: Suffix,
     actions: Vec<Action>,
+}
+
+enum Suffix {
+    Nothing,
+    Detail(String),
+    Check,
 }
 
 fn named(name: &str) -> gtk::Widget {
     icon(name, ITEM_ICON, &["headroom-menu-icon"]).upcast()
+}
+
+fn check_mark() -> gtk::Image {
+    let check = icon(
+        "object-select-symbolic",
+        CHECK_ICON,
+        &["headroom-menu-check"],
+    );
+    check.set_valign(gtk::Align::Center);
+    check.set_margin_start(12);
+    check
 }
 
 fn account_entries(ctx: &MenuContext, input: &MenuInput) -> Vec<Entry> {
@@ -66,26 +84,25 @@ fn account_entries(ctx: &MenuContext, input: &MenuInput) -> Vec<Entry> {
                 lang.tr("Refresh {provider}"),
                 &[("provider", &input.provider_name)],
             ),
-            detail: None,
+            suffix: Suffix::Nothing,
             actions: ids.iter().map(|id| Action::Refresh(id.clone())).collect(),
         },
         Entry {
             icon: named("view-conceal-symbolic"),
             title: lang.tr("Hide from popup").to_owned(),
-            detail: None,
+            suffix: Suffix::Nothing,
             actions: vec![Action::HideAccounts(ids.clone())],
         },
     ];
     if ctx.recent {
-        let star = if input.starred {
-            "starred-symbolic"
-        } else {
-            "non-starred-symbolic"
-        };
         entries.push(Entry {
-            icon: named(star),
+            icon: named("starred-symbolic"),
             title: lang.tr("Always show").to_owned(),
-            detail: None,
+            suffix: if input.starred {
+                Suffix::Check
+            } else {
+                Suffix::Nothing
+            },
             actions: vec![Action::SetStarred(ids.clone(), !input.starred)],
         });
     }
@@ -100,7 +117,7 @@ fn link_entries(ctx: &MenuContext, links: &[QuickLink]) -> Vec<Entry> {
         .map(|link| Entry {
             icon: link_icon(&ctx.textures, &ctx.icon_color, link.kind, ITEM_ICON).upcast(),
             title: link.kind.title(ctx.lang).to_owned(),
-            detail: Some(link.host.clone()),
+            suffix: Suffix::Detail(link.host.clone()),
             actions: vec![Action::OpenUrl(link.url.clone())],
         })
         .collect()
@@ -111,13 +128,13 @@ fn share_entries(lang: Lang, target: &ShareTarget) -> Vec<Entry> {
         Entry {
             icon: named("send-to-symbolic"),
             title: lang.tr("Share as image…").to_owned(),
-            detail: None,
+            suffix: Suffix::Nothing,
             actions: vec![Action::Share(target.clone())],
         },
         Entry {
             icon: named("edit-copy-symbolic"),
             title: lang.tr("Copy as text").to_owned(),
-            detail: None,
+            suffix: Suffix::Nothing,
             actions: vec![Action::CopySummary(target.clone())],
         },
     ]
@@ -130,8 +147,10 @@ fn item(ctx: &MenuContext, entry: Entry, menu: &WeakRef<gtk::Popover>) -> gtk::B
     let title = label(&entry.title, &["headroom-menu-title"]);
     title.set_hexpand(true);
     line.append(&title);
-    if let Some(detail) = &entry.detail {
-        line.append(&label(detail, &["headroom-menu-detail"]));
+    match &entry.suffix {
+        Suffix::Nothing => {}
+        Suffix::Detail(detail) => line.append(&label(detail, &["headroom-menu-detail"])),
+        Suffix::Check => line.append(&check_mark()),
     }
     let button = gtk::Button::new();
     button.set_child(Some(&line));
