@@ -1,15 +1,16 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.components as PlasmaComponents3
-import "logic/Format.js" as Format
-import "logic/Panel.js" as Panel
+import "logic/PanelLayout.js" as PanelLayout
 import "logic/Settings.js" as Settings
 
 MouseArea {
     id: compact
 
-    property var headline: null
+    property var items: []
+    property var panelTone: null
     property var display: Settings.parseDisplay(null)
     property string lang: "en"
     property bool stale: false
@@ -17,11 +18,13 @@ MouseArea {
     property bool vertical: false
     property bool expanded: false
     property bool wasExpanded: false
-    readonly property bool hasHeadline: headline !== null
-    readonly property bool windowMode: hasHeadline && display.panelLabel === "window"
-    readonly property real percent: hasHeadline ? Panel.headlinePercent(headline, display.valueMode) : 0
     readonly property real thickness: vertical ? width : height
     readonly property int glyphSize: thickness >= Kirigami.Units.iconSizes.medium ? Kirigami.Units.iconSizes.smallMedium : Kirigami.Units.iconSizes.small
+    readonly property bool markShown: PanelLayout.showsMark(items, display)
+    readonly property string markTone: PanelLayout.markTone(display, panelTone)
+    readonly property var shownItems: markShown ? [] : PanelLayout.shownItems(items, vertical, thickness, Kirigami.Units)
+    readonly property string itemKeys: PanelLayout.keys(shownItems)
+    readonly property var parts: PanelLayout.parts(display, vertical)
 
     signal activated(bool wasExpanded)
 
@@ -30,7 +33,7 @@ MouseArea {
     Layout.preferredWidth: Layout.minimumWidth
     Layout.preferredHeight: Layout.minimumHeight
     hoverEnabled: true
-    opacity: hasHeadline && stale ? 0.55 : 1
+    opacity: !markShown && stale ? PanelLayout.staleOpacity() : 1
     onPressed: wasExpanded = expanded
     onClicked: activated(wasExpanded)
 
@@ -39,71 +42,42 @@ MouseArea {
 
         anchors.centerIn: parent
         flow: compact.vertical ? GridLayout.TopToBottom : GridLayout.LeftToRight
-        rowSpacing: 0
-        columnSpacing: Math.round(Kirigami.Units.smallSpacing * 1.25)
+        rowSpacing: Math.round(Kirigami.Units.gridUnit * 0.72)
+        columnSpacing: Math.round(Kirigami.Units.gridUnit * 0.72)
 
         Kirigami.Icon {
-            visible: !compact.hasHeadline
+            id: mark
+
+            objectName: "compactMark"
+            visible: compact.markShown
             Layout.alignment: Qt.AlignCenter
             implicitWidth: compact.glyphSize
             implicitHeight: compact.glyphSize
             source: Qt.resolvedUrl("../icons/headroom-symbolic.svg")
             isMask: true
-            color: Kirigami.Theme.textColor
+            color: PanelLayout.toneColor(Kirigami.Theme, compact.markTone)
         }
 
-        PanelRing {
-            visible: compact.hasHeadline && !compact.windowMode
-            Layout.alignment: Qt.AlignCenter
-            size: compact.glyphSize - Kirigami.Units.smallSpacing / 4
-            fraction: compact.percent / 100
-            tone: compact.hasHeadline ? compact.headline.tone : "neutral"
-            reducedMotion: compact.reducedMotion
-        }
+        Repeater {
+            model: PanelLayout.keyList(compact.itemKeys)
 
-        ProviderIcon {
-            visible: compact.windowMode
-            Layout.alignment: Qt.AlignCenter
-            implicitWidth: compact.glyphSize
-            implicitHeight: compact.glyphSize
-            provider: compact.headline?.provider ?? "unknown"
-            color: Kirigami.Theme.textColor
-        }
+            PanelItem {
+                required property int index
 
-        PlasmaComponents3.Label {
-            objectName: "compactCountLabel"
-            visible: compact.windowMode && compact.headline.combined === true && typeof compact.headline.accountCount === "number"
-            Layout.alignment: Qt.AlignCenter
-            opacity: 0.7
-            textFormat: Text.PlainText
-            text: visible ? Format.panelCount(compact.headline.accountCount) : ""
-            font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
-            font.weight: Font.DemiBold
-        }
-
-        PlasmaComponents3.Label {
-            objectName: "compactWindowLabel"
-            visible: compact.windowMode
-            Layout.alignment: Qt.AlignCenter
-            opacity: 0.7
-            textFormat: Text.PlainText
-            text: compact.windowMode ? Format.shortWindowLabel(compact.lang, compact.headline.windowId, compact.headline.windowLabel) : ""
-            font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
-            font.weight: Font.DemiBold
-        }
-
-        PlasmaComponents3.Label {
-            objectName: "compactPercentLabel"
-            visible: compact.hasHeadline
-            Layout.alignment: Qt.AlignCenter
-            textFormat: Text.PlainText
-            text: compact.hasHeadline ? Format.panelPercent(compact.percent) : ""
-            color: compact.windowMode && compact.headline.tone === "critical" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
-            font.pointSize: compact.vertical ? Kirigami.Theme.smallFont.pointSize : Kirigami.Theme.defaultFont.pointSize
-            font.weight: Font.DemiBold
-            font.features: {
-                "tnum": 1
+                Layout.alignment: Qt.AlignCenter
+                item: PanelLayout.itemAt(compact.shownItems, index)
+                parts: compact.parts
+                vertical: compact.vertical
+                glyphSize: compact.glyphSize
+                lang: compact.lang
+                valueMode: compact.display.valueMode
+                reducedMotion: compact.reducedMotion
             }
         }
+    }
+
+    PanelPulse {
+        subject: mark
+        running: compact.markShown && PanelLayout.pulses(compact.markTone, Kirigami.Units, compact.reducedMotion)
     }
 }

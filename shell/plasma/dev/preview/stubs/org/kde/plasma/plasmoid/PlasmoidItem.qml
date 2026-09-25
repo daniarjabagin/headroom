@@ -11,6 +11,7 @@ Item {
     property bool expanded: true
     property string toolTipMainText: ""
     property string toolTipSubText: ""
+    property Item toolTipItem: null
     readonly property int panelThickness: 44
     readonly property Item fullItem: fullLoader.item as Item
     readonly property real fullWidth: fullItem ? fullItem.Layout.preferredWidth : 0

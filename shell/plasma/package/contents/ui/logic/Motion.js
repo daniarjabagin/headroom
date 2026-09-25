@@ -3,7 +3,6 @@
 const MAX_STEP = 0.12;
 const SPREAD = 0.45;
 const OPEN_FACTOR = 3;
-const PULSE_FACTOR = 6;
 const SHIMMER_FACTOR = 7;
 const SPIN_FACTOR = 7;
 const TURN = 360;
@@ -38,10 +37,6 @@ function moved(from, to) {
 
 function openDuration(units) {
     return units.longDuration * OPEN_FACTOR;
-}
-
-function pulseDuration(units) {
-    return units.longDuration * PULSE_FACTOR;
 }
 
 function shimmerDuration(units) {
