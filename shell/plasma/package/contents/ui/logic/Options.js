@@ -104,7 +104,7 @@ function densityOptions(lang) {
 }
 
 function timeFormatOptions(lang) {
-    return choices(lang, [["auto", I18n.N("Automatic")], ["12h", I18n.N("12-hour")], ["24h", I18n.N("24-hour")]]);
+    return choices(lang, [["auto", I18n.N("Automatic")], ["24h", I18n.N("24-hour")], ["12h", I18n.N("12-hour")]]);
 }
 
 function panelModeOptions(lang) {

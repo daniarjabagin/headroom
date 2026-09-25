@@ -14,10 +14,10 @@ ColumnLayout {
 
     required property var period
     required property string mode
-    required property bool byTokens
+    required property string unit
     required property string lang
     property bool animated: true
-    readonly property var model: SpendBreakdown.breakdown(lang, period, mode, byTokens)
+    readonly property var model: SpendBreakdown.breakdown(lang, period, mode, unit)
     readonly property var rows: model?.rows ?? []
     readonly property bool dark: Tokens.isDark(Kirigami.Theme)
     readonly property real barHeight: Math.max(2, Math.round(Kirigami.Units.smallSpacing * 0.75))

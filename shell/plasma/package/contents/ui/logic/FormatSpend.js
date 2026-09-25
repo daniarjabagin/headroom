@@ -77,6 +77,11 @@ function costPerMtok(lang, micros) {
     });
 }
 
+function shareText(lang, permille) {
+    const separator = lang === "ru" ? "," : ".";
+    return `${Math.floor(permille / 10)}${separator}${permille % 10}%`;
+}
+
 function unitValue(totals, unit) {
     if (unit === "tokens")
         return compactTokens(totals.totalTokens);

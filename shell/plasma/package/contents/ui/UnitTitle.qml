@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Templates as T
 import org.kde.kirigami as Kirigami
@@ -63,30 +62,25 @@ T.AbstractButton {
         id: pointer
     }
 
-    QQC2.Menu {
+    FittedMenu {
         id: menu
 
         objectName: "unitMenu"
+        maximumWidth: Kirigami.Units.gridUnit * 13
 
         Instantiator {
             model: SpendUnits.unitOptions(title.lang)
 
-            delegate: QQC2.MenuItem {
-                id: option
-
+            delegate: MenuEntry {
                 required property var modelData
 
                 objectName: `unit-${modelData.value}`
-                checkable: true
-                checked: modelData.value === title.unit
+                markable: true
+                marked: modelData.value === title.unit
+                stacked: true
                 text: modelData.title
-                QQC2.ToolTip.text: modelData.subtitle
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.veryLongDuration
-                onTriggered: {
-                    title.picked(modelData.value);
-                    checked = Qt.binding(() => option.modelData.value === title.unit);
-                }
+                detail: modelData.subtitle
+                onTriggered: title.picked(modelData.value)
             }
 
             onObjectAdded: (index, object) => menu.insertItem(index, object)

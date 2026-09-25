@@ -43,8 +43,15 @@ Item {
     signal shareRequested
     signal copyRequested
 
-    function openMenu() {
-        menuLoader.open();
+    function openMenu(point) {
+        menuLoader.open(point ?? Qt.point(Metrics.headerInset(Kirigami.Units), height));
+    }
+
+    function incidentTip() {
+        const title = incident?.title ?? "";
+        if (slot !== "warning")
+            return title;
+        return `${title}\n${account.error?.message ?? tr("Refresh failed")}`;
     }
 
     function tr(msgid, values) {
@@ -62,15 +69,15 @@ Item {
 
     TapHandler {
         acceptedButtons: Qt.RightButton
-        onTapped: header.openMenu()
+        onTapped: eventPoint => header.openMenu(eventPoint.position)
     }
 
     Loader {
         id: menuLoader
 
-        function open() {
+        function open(point) {
             active = true;
-            (item as AccountMenu).popup();
+            (item as AccountMenu).popup(header, point.x, point.y);
         }
 
         active: false
@@ -163,7 +170,8 @@ Item {
         }
 
         Kirigami.Icon {
-            visible: header.slot === "warning"
+            objectName: "warningIcon"
+            visible: header.slot === "warning" && header.incident === null
             Layout.alignment: Qt.AlignVCenter
             implicitWidth: Metrics.tinyIcon(Kirigami.Units)
             implicitHeight: implicitWidth
@@ -187,7 +195,7 @@ Item {
             color: Tokens.noticeColor(Kirigami.Theme, header.incident?.kind ?? "warning")
 
             HoverTip {
-                text: header.incident?.title ?? ""
+                text: header.incidentTip()
             }
         }
 

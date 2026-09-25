@@ -1,5 +1,6 @@
 .pragma library
 
+.import "FormatSpend.js" as FormatSpend
 .import "I18n.js" as I18n
 
 const KINDS = {
@@ -21,6 +22,7 @@ const HEADER_ORDER = ["status", "usage", "dashboard"];
 const MENU_ORDER = ["status", "dashboard", "usage"];
 const SCHEME = /^https:\/\//;
 const WWW = /^www\./;
+const MENU_HOST_CHARS = 40;
 
 function host(url) {
     return url.replace(SCHEME, "").split(/[/?#]/)[0].replace(WWW, "");
@@ -41,6 +43,7 @@ function entry(lang, links, kind) {
         icon: KINDS[kind].icon,
         label,
         host: host(links[kind]),
+        menuHost: FormatSpend.middleEllipsis(host(links[kind]), MENU_HOST_CHARS),
         tip: `${label} · ${host(links[kind])}`
     };
 }

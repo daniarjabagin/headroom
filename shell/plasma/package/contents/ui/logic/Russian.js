@@ -289,7 +289,7 @@ const MESSAGES = {
     "Bar": "Полоса",
     "Cost": "Стоимость",
     "Tokens": "Токены",
-    "Cost per MTok": "Цена за 1 млн токенов",
+    "Cost per MTok": "Цена за 1 млн",
     "Models": "Модели",
     "Projects": "Проекты",
     "Errors only": "Только ошибки",
@@ -428,5 +428,6 @@ const MESSAGES = {
     "tokens": "токенов",
     "blended": "в среднем",
     "{count} model": ["{count} модель", "{count} модели", "{count} моделей"],
-    "{count} project": ["{count} проект", "{count} проекта", "{count} проектов"]
+    "{count} project": ["{count} проект", "{count} проекта", "{count} проектов"],
+    "by spend": "по расходам"
 };
