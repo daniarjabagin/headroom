@@ -1,6 +1,9 @@
 use serde_json::json;
 
 use super::*;
+use crate::rescan;
+use crate::testing::harness;
+use crate::update::{self, CheckOutcome};
 
 fn call(method: &str, params: Value) -> Result<Call, RpcError> {
     let Value::Array(params) = params else {
@@ -33,6 +36,7 @@ fn every_method_takes_its_d_bus_arguments_in_order() {
         ),
         ("RefreshNow", json!([]), Command::RefreshNow),
         ("Rescan", json!([]), Command::Rescan),
+        ("CheckForUpdates", json!([]), Command::CheckForUpdates),
         (
             "SetSettings",
             json!(["{}"]),
@@ -138,4 +142,26 @@ fn command_errors_keep_the_d_bus_classification() {
     assert_eq!(unknown.code, ErrorCode::InvalidParams);
     assert_eq!(unknown.message, "unknown account: codex:zz");
     assert_eq!(rpc_error(&CommandError::Stopping).code, ErrorCode::Internal);
+    let unsupported = rpc_error(&CommandError::UpdateChecksUnavailable);
+    assert_eq!(unsupported.code, ErrorCode::Internal);
+}
+
+#[tokio::test]
+async fn update_checks_return_the_outcome_as_an_object() {
+    let harness = harness(Vec::new()).await;
+    let (rescans, _rescan_requests) = rescan::channel();
+    let (checks, mut requests) = update::channel();
+    tokio::spawn(async move {
+        while let Some(waiters) = requests.next().await {
+            for waiter in waiters {
+                waiter.send(CheckOutcome::disabled()).ok();
+            }
+        }
+    });
+    let service = Service::new(harness.core.clone(), rescans).with_update_checks(checks);
+    let result = execute(&service, Command::CheckForUpdates).await.unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(result.get()).unwrap(),
+        json!({"status": "disabled", "checked_at": null, "version": null})
+    );
 }

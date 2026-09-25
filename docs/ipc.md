@@ -68,6 +68,7 @@ socket. The socket is removed on shutdown; the lock file stays and is simply unl
 | `Refresh` | `[account_id]` | `null` |
 | `RefreshNow` | `[]` | `null` |
 | `Rescan` | `[]` | `null` |
+| `CheckForUpdates` | `[]` | update check result as a JSON **object** (see [dbus-api.md](dbus-api.md#checking-on-demand)) |
 | `SetSettings` | `[json_string]` | `null` |
 | `UpdateSettings` | `[patch_string]` | `null` |
 | `SetAccountLabel` | `[account_id, label]` | `null` |
@@ -100,7 +101,7 @@ string, as on D-Bus.
 | `-32600` | not a JSON-RPC 2.0 request object | — |
 | `-32601` | unknown method | `UnknownMethod` |
 | `-32602` | invalid arguments: wrong param count/types, plus every `InvalidArgs` case in dbus-api.md | `InvalidArgs` |
-| `-32000` | failure inside the daemon | `Failed` |
+| `-32000` | failure inside the daemon; also `CheckForUpdates` on a daemon started with `--no-update-check` | `Failed` (`NotSupported` for `CheckForUpdates`) |
 
 `message` is human readable and safe to show. `-32700` and `-32600` responses carry `"id": null`
 when the id could not be read. A line longer than 1 MiB (1,048,576 bytes before the `\n`) closes the

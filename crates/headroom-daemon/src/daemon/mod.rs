@@ -33,7 +33,11 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let (parts, updates, shutdown) = core_parts(config, storage, notifier);
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();
-    let service = Service::new(core.clone(), rescans);
+    let (update_checks, update_requests) = update::channel();
+    let mut service = Service::new(core.clone(), rescans);
+    if updates.is_some() {
+        service = service.with_update_checks(update_checks);
+    }
     let mut sinks = EventSinks::default();
     #[cfg(target_os = "linux")]
     bus.serve(service.clone(), &mut sinks).await?;
@@ -45,7 +49,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let sink: Arc<dyn EventSink> = Arc::new(sinks);
     tasks.spawn(registry::supervise(core.clone(), rescan_requests));
     if let Some(updates) = updates {
-        tasks.spawn(update::run(core.clone(), updates));
+        tasks.spawn(update::run(core.clone(), updates, update_requests));
     }
     #[cfg(target_os = "linux")]
     tasks.spawn(bus.forward_actions(sink.clone()));

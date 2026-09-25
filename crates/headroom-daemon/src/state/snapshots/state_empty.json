@@ -6,6 +6,7 @@
   "last_success_at": null,
   "offline": false,
   "update": null,
+  "update_check": null,
   "display": {
     "theme": "system",
     "language": "system",
