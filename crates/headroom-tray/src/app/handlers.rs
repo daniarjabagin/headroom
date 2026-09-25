@@ -33,6 +33,8 @@ impl App {
             }
             Event::CallFailed(message) => self.call_failed(message),
             Event::RefreshSettled(succeeded) => self.refresh_settled(succeeded),
+            Event::RetrySettled(account_id) => self.retry_settled(&account_id),
+            Event::UpdateChecked(result) => self.update_checked(result),
             Event::ServiceStarted(result) => self.service_started(result),
             Event::SettingsWritten(result) => self.settings_written(result),
             Event::AccountsWritten(result) => {
@@ -153,6 +155,12 @@ impl App {
         match action {
             Action::RefreshNow => self.refresh_now(),
             Action::Refresh(id) => self.send(Command::Refresh(id)),
+            Action::Retry(id) => self.retry(id),
+            Action::SignInAgain(account_id) => self.sign_in_again(&account_id),
+            Action::CopyCommand {
+                account_id,
+                command,
+            } => self.copy_command(account_id, &command),
             Action::ToggleValueMode => self.patch(toggled_value_mode),
             Action::ToggleResetFormat => self.patch(toggled_reset_format),
             Action::OpenSettings => self.open_settings(),
@@ -181,7 +189,10 @@ impl App {
         }
     }
 
-    fn update_ui(self: &Rc<Self>, change: impl FnOnce(&mut crate::ui::context::UiState)) {
+    pub(super) fn update_ui(
+        self: &Rc<Self>,
+        change: impl FnOnce(&mut crate::ui::context::UiState),
+    ) {
         change(&mut self.model.borrow_mut().ui);
         self.render(false);
         self.sync_prefs();

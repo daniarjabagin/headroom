@@ -72,6 +72,7 @@ impl App {
             state: model.view.state(),
             providers: model.providers.as_ref(),
             update_run: &model.ui.update_run,
+            update_check: &model.ui.update_check,
         };
         window.update(&snapshot);
     }
@@ -130,6 +131,7 @@ impl App {
             PrefsAction::StartService => self.act(crate::ui::context::Action::StartService),
             PrefsAction::InstallUpdate => self.act(crate::ui::context::Action::InstallUpdate),
             PrefsAction::OpenUrl(url) => self.open_uri(&url),
+            PrefsAction::CheckForUpdates => self.check_for_updates(),
         }
     }
 

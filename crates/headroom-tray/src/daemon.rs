@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures_util::StreamExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 use zbus::Connection;
@@ -6,6 +8,7 @@ use crate::events::{AccountCommand, Command, Event, Events};
 
 const SYSTEMD_UNIT: &str = "headroom.service";
 const BUS_NAME: &str = "io.github.daniarjabagin.Headroom";
+const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[zbus::proxy(
     interface = "io.github.daniarjabagin.Headroom1",
@@ -33,6 +36,8 @@ trait Daemon {
     fn set_account_order(&self, ids: &[&str]) -> zbus::Result<()>;
 
     fn restore_accounts(&self, provider: &str) -> zbus::Result<()>;
+
+    fn check_for_updates(&self) -> zbus::Result<String>;
 
     #[zbus(signal)]
     fn state_changed(&self, state: String) -> zbus::Result<()>;
@@ -113,9 +118,20 @@ async fn account_command(proxy: &DaemonProxy<'_>, command: AccountCommand, event
     events.send(Event::AccountsWritten(outcome(result)));
 }
 
+fn spawn_update_check(proxy: DaemonProxy<'static>, events: Events) {
+    tokio::spawn(async move {
+        let answer = tokio::time::timeout(UPDATE_CHECK_TIMEOUT, proxy.check_for_updates()).await;
+        let result = match answer {
+            Ok(result) => result.map_err(|error| message(&error)),
+            Err(_) => Err(String::from("the update check timed out")),
+        };
+        events.send(Event::UpdateChecked(result));
+    });
+}
+
 async fn run_command(
     connection: &Connection,
-    proxy: &DaemonProxy<'_>,
+    proxy: &DaemonProxy<'static>,
     command: Command,
     events: &Events,
 ) {
@@ -131,7 +147,9 @@ async fn run_command(
             if let Err(error) = proxy.refresh(&id).await {
                 events.send(Event::CallFailed(message(&error)));
             }
+            events.send(Event::RetrySettled(id));
         }
+        Command::CheckForUpdates => spawn_update_check(proxy.clone(), events.clone()),
         Command::UpdateSettings(patch) => {
             let result = outcome(proxy.update_settings(&patch).await);
             events.send(Event::SettingsWritten(result));

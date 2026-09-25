@@ -15,8 +15,8 @@ use crate::palette::{Palette, Scheme};
 use crate::payload::Display;
 use crate::ui::context::{Action, Ctx, RefreshMode};
 use crate::ui::popup::Frame;
+use crate::ui::reduced_motion;
 use crate::ui::style::resolve_theme;
-use crate::ui::{build, reduced_motion};
 use crate::view::tray_look;
 
 const TICK_SECONDS: u32 = 1;
@@ -140,9 +140,13 @@ impl App {
             animate: entrance && ctx.motion,
         };
         let view = self.model.borrow().view.clone();
-        let (root, ticks) = build(ctx, &view, &frame);
+        let mut tree = self.tree.take();
+        let (root, ticks) = crate::ui::render(&mut tree, ctx, &view, &frame, entrance);
+        self.tree.replace(tree);
         self.model.borrow_mut().ticks = ticks;
-        self.window.borrow().set_content(&root);
+        if let Some(root) = root {
+            self.window.borrow().set_content(&root);
+        }
     }
 
     pub(super) fn refresh_look(self: &Rc<Self>) {

@@ -263,6 +263,36 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
     ),
     ("No newer release known", "Более новых версий нет"),
     ("Update checks are off", "Проверка обновлений выключена"),
+    ("Check now", "Проверить сейчас"),
+    ("Checking for updates…", "Проверяем обновления…"),
+    (
+        "You're up to date · Headroom {version} · checked {ago}",
+        "У вас последняя версия · Headroom {version} · проверено {ago}",
+    ),
+    (
+        "Headroom {version} · not checked yet",
+        "Headroom {version} · ещё не проверялось",
+    ),
+    (
+        "Headroom {version} is available · checked {ago}",
+        "Доступна Headroom {version} · проверено {ago}",
+    ),
+    (
+        "Couldn't check for updates",
+        "Не удалось проверить обновления",
+    ),
+    (
+        "Couldn't check for updates · last checked {ago}",
+        "Не удалось проверить обновления · последняя проверка {ago}",
+    ),
+    (
+        "GitHub is limiting checks until {moment}",
+        "GitHub временно ограничил проверки · снова можно {moment}",
+    ),
+    (
+        "GitHub is limiting checks. Try again later.",
+        "GitHub временно ограничил проверки. Попробуйте позже.",
+    ),
     (
         "Settings live in the Headroom service. Start it to change them.",
         "Настройки хранятся в службе Headroom. Запустите её, чтобы изменить их.",

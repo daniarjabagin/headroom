@@ -22,6 +22,7 @@ use crate::preferences::change::Change;
 use crate::preferences::model::Settings;
 use crate::preferences::registry::{ProviderInfo, RegistryError};
 use crate::update::UpdateRun;
+use crate::update_check::CheckRun;
 use about::AboutPage;
 use accounts::AccountsPage;
 use add_account::{AddAccountDialog, DialogCtx};
@@ -44,6 +45,7 @@ pub enum PrefsAction {
     StartService,
     InstallUpdate,
     OpenUrl(String),
+    CheckForUpdates,
 }
 
 pub type Act = Rc<dyn Fn(PrefsAction)>;
@@ -66,6 +68,7 @@ pub struct Snapshot<'a> {
     pub state: Option<&'a State>,
     pub providers: Option<&'a Result<Vec<ProviderInfo>, RegistryError>>,
     pub update_run: &'a UpdateRun,
+    pub update_check: &'a CheckRun,
 }
 
 struct Pages {
@@ -225,6 +228,17 @@ impl SettingsWindow {
         let dialog = AddAccountDialog::new(ctx, self.providers.borrow().as_ref());
         dialog.dialog.present(Some(&self.window));
         *self.dialog.borrow_mut() = Some(dialog);
+    }
+
+    pub fn focus_account(&self, account_id: &str) {
+        let pages = self.pages.borrow();
+        let Some(pages) = pages.as_ref() else {
+            return;
+        };
+        if pages.accounts.page.parent().is_some() {
+            self.window.set_visible_page(&pages.accounts.page);
+            pages.accounts.focus(account_id);
+        }
     }
 
     pub fn restored(&self, result: &Result<(), String>) {

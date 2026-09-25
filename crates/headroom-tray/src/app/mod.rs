@@ -1,5 +1,6 @@
 mod handlers;
 mod prefs;
+mod recovery;
 mod render;
 mod runtime;
 mod subprocess;
@@ -17,6 +18,7 @@ use crate::palette::Palettes;
 use crate::preferences::registry::{ProviderInfo, RegistryError};
 use crate::preferences::sync::SettingsSync;
 use crate::ui::context::{Tick, UiState};
+use crate::ui::popup_tree::PopupTree;
 use crate::ui::prefs::SettingsWindow;
 use crate::ui::style::Styles;
 use crate::ui::svg_texture_at;
@@ -53,6 +55,7 @@ pub struct App {
     tray: tokio::sync::mpsc::UnboundedSender<TrayUpdate>,
     ticker: RefCell<Option<glib::SourceId>>,
     prefs: RefCell<Option<Rc<SettingsWindow>>>,
+    tree: RefCell<PopupTree>,
 }
 
 fn mark_pixmaps() -> Vec<Pixmap> {
@@ -94,6 +97,7 @@ impl App {
             tray: channels.tray,
             ticker: RefCell::new(None),
             prefs: RefCell::new(None),
+            tree: RefCell::default(),
         });
         app.listen(channels.events);
         app.watch_theme();
