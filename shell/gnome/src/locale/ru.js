@@ -319,4 +319,8 @@ export const RU = {
     'Not checked yet': 'Ещё не проверялось',
     "You're up to date": 'У вас последняя версия',
     'Check now': 'Проверить сейчас',
+    '{hours}:{minutes} AM': '{hours}:{minutes} AM',
+    '{hours}:{minutes} PM': '{hours}:{minutes} PM',
+    '{cost}/MTok': '{cost} за 1 млн токенов',
+    'No project': 'Без проекта',
 };

@@ -1,4 +1,6 @@
+import { clockTime, usesHour12 } from '../src/dates.js';
 import * as format from '../src/format.js';
+import { setLanguage } from '../src/i18n.js';
 import { check } from './check.js';
 
 export function testExactReset() {
@@ -59,4 +61,62 @@ export function testForecast() {
     check('forecast untracked', format.forecastText(paceWindow({ severity: 'untracked' }, resets), now, LEFT), null);
     check('forecast spent', format.forecastText(paceWindow({ severity: 'spent' }, resets), now, LEFT), null);
     check('forecast no data', format.forecastText({ ...healthy, remainingPercent: null }, now, LEFT), null);
+}
+
+function testTwelveHour() {
+    const at = (hour, minute) => new Date(2026, 8, 23, hour, minute);
+    check(
+        '12h clock',
+        [at(0, 0), at(0, 5), at(11, 59), at(12, 0), at(13, 7), at(23, 59)].map(date => clockTime(date, true)),
+        ['12:00 AM', '12:05 AM', '11:59 AM', '12:00 PM', '1:07 PM', '11:59 PM']
+    );
+    check(
+        '24h clock',
+        [at(0, 0), at(12, 0), at(9, 5), at(23, 59)].map(date => clockTime(date)),
+        ['00:00', '12:00', '09:05', '23:59']
+    );
+    const now = at(10, 0);
+    check('exact 12h', format.resetText(at(14, 30), now, 'exact', false, true), 'Resets today at 2:30 PM');
+    check(
+        'exact 12h midnight',
+        format.resetText(new Date(2026, 8, 24, 0, 0), now, 'exact', false, true),
+        'Resets tomorrow at 12:00 AM'
+    );
+    check(
+        'exact 24h midnight',
+        format.resetText(new Date(2026, 8, 24, 0, 0), now, 'exact'),
+        'Resets tomorrow at 00:00'
+    );
+    const running = paceWindow({ severity: 'running_out', runsOutAt: at(10, 45) }, at(12, 0));
+    const exact = { valueMode: 'left', resetFormat: 'exact' };
+    check(
+        'forecast 12h noon',
+        format.forecastText(running, now, exact, true),
+        'At this pace: runs out in 45m · resets today at 12:00 PM'
+    );
+    setLanguage('ru');
+    try {
+        check('ru 12h clock', clockTime(at(15, 4), true), '3:04 PM');
+    } finally {
+        setLanguage('en');
+    }
+}
+
+function testHourCycle() {
+    check(
+        'hour cycle',
+        [
+            usesHour12('12h', '24h'),
+            usesHour12('24h', '12h'),
+            usesHour12('auto', '12h'),
+            usesHour12('auto', '24h'),
+            usesHour12('auto', null),
+        ],
+        [true, false, true, false, false]
+    );
+}
+
+export function testClockFormats() {
+    testTwelveHour();
+    testHourCycle();
 }

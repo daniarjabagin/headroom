@@ -1,10 +1,14 @@
+import Gio from 'gi://Gio';
+import { requestDiagnostics, requestReset, requestSpend } from './daemonCalls.js';
 import { DaemonConnection } from './daemonConnection.js';
 import { remoteMessage } from './daemonInterface.js';
+import { parseProviders } from './prefs/registry.js';
 import { parseSettings } from './settings.js';
 
 export class DaemonClient {
     constructor({ onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested }) {
         this._handlers = { onAvailable, onUnavailable, onState, onSettings, onError, onOpenRequested };
+        this._cancellable = new Gio.Cancellable();
         this._connection = new DaemonConnection({
             signals: {
                 StateChanged: json => this._onStateChanged(json),
@@ -17,6 +21,7 @@ export class DaemonClient {
     }
 
     destroy() {
+        this._cancellable.cancel();
         this._connection.destroy();
         this._handlers = null;
     }
@@ -35,6 +40,25 @@ export class DaemonClient {
 
     updateSettings(patch) {
         this._connection.enqueue(proxy => proxy.UpdateSettingsAsync(JSON.stringify(patch)));
+    }
+
+    getSpend(options) {
+        return requestSpend(this._connection.proxy, options, this._cancellable);
+    }
+
+    getDiagnostics() {
+        return requestDiagnostics(this._connection.proxy, this._cancellable);
+    }
+
+    resetSettings() {
+        return requestReset(this._connection.proxy, this._cancellable);
+    }
+
+    async listProviders() {
+        const proxy = this._connection.proxy;
+        if (!proxy) return null;
+        const [json] = await proxy.ListProvidersAsync();
+        return parseProviders(json);
     }
 
     _onReady() {

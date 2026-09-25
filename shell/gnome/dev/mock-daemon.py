@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import copy
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -12,8 +11,12 @@ gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mock_combined import SCENARIOS, build, with_combined
-from mock_state import DEFAULT_SETTINGS, PROVIDERS, choose_headline, iso
+from mock_accounts import recovery
+from mock_common import iso
+from mock_methods import APP_VERSION, check_result, diagnostics, spend_report
+from mock_registry import PROVIDERS
+from mock_scenarios import SCENARIOS, base_state, build, finished, initial_settings
+from mock_settings import merge_patch, normalized_settings, reset_settings
 
 BUS_NAME = "io.github.daniarjabagin.Headroom"
 OBJECT_PATH = "/io/github/daniarjabagin/Headroom"
@@ -32,6 +35,12 @@ INTERFACE_XML = f"""
     <method name="GetSettings"><arg type="s" name="settings" direction="out"/></method>
     <method name="SetSettings"><arg type="s" name="json" direction="in"/></method>
     <method name="UpdateSettings"><arg type="s" name="patch" direction="in"/></method>
+    <method name="ResetSettings"/>
+    <method name="GetSpend">
+      <arg type="s" name="query" direction="in"/>
+      <arg type="s" name="result" direction="out"/>
+    </method>
+    <method name="GetDiagnostics"><arg type="s" name="report" direction="out"/></method>
     <method name="SetAccountLabel">
       <arg type="s" name="account_id" direction="in"/>
       <arg type="s" name="label" direction="in"/>
@@ -48,63 +57,10 @@ INTERFACE_XML = f"""
 """
 REFRESH_SECONDS = 2
 CHECK_MS = 1500
-APP_VERSION = "0.6.0"
-SIGN_IN_ERRORS = ("not_signed_in", "sign_in_expired", "api_key_only")
-WAITING_ERRORS = ("no_subscription", "rate_limited", "unsupported", "no_provider")
-CLI_LOGINS = {"claude": "claude auth login", "codex": "codex login"}
 CHECK_OUTCOMES = ("up_to_date", "available", "failed", "rate_limited", "unsupported")
 REFRESH_NOW_MS = 1500
 SAMPLE_TIME = datetime(2026, 9, 23, 10, 0, tzinfo=timezone.utc)
-
-
-def merged(defaults, raw):
-    if not isinstance(defaults, dict) or not isinstance(raw, dict):
-        return copy.deepcopy(raw if raw is not None and type(raw) is type(defaults) else defaults)
-    if not defaults:
-        return copy.deepcopy(raw)
-    return {key: merged(value, raw.get(key)) for key, value in defaults.items()}
-
-
-def merge_patch(target, patch):
-    if not isinstance(patch, dict):
-        return copy.deepcopy(patch)
-    result = copy.deepcopy(target) if isinstance(target, dict) else {}
-    for key, value in patch.items():
-        if value is None:
-            result.pop(key, None)
-        else:
-            result[key] = merge_patch(result.get(key), value)
-    return result
-
-
-def normalized_settings(raw):
-    settings = merged(DEFAULT_SETTINGS, raw)
-    headline = raw.get("headline") if isinstance(raw.get("headline"), dict) else {}
-    if headline.get("mode") == "pinned" and headline.get("account_id") and headline.get("window"):
-        settings["headline"] = {"mode": "pinned", "account_id": headline["account_id"], "window": headline["window"]}
-    else:
-        settings["headline"] = {"mode": "auto"}
-    return settings
-
-
-def recovery(account):
-    error = account.get("error")
-    if not error or error["kind"] in WAITING_ERRORS:
-        return None
-    if error["kind"] not in SIGN_IN_ERRORS:
-        return {"action": "retry"}
-    if account["owner"] == "headroom":
-        return {"action": "sign_in", "account_id": account["id"]}
-    command = CLI_LOGINS.get(account["provider"])
-    return {"action": "cli_login", "command": command} if command else {"action": "retry"}
-
-
-def check_result(outcome, checked_at, now):
-    if outcome == "rate_limited":
-        until = iso(now + timedelta(minutes=30))
-        return {"status": outcome, "checked_at": checked_at, "version": APP_VERSION, "until": until}
-    version = "0.7.0" if outcome == "available" else APP_VERSION
-    return {"status": outcome, "checked_at": checked_at, "version": version}
+STRING_REPLIES = {"GetState", "ListProviders", "GetSettings", "GetSpend", "GetDiagnostics"}
 
 
 def ordered(accounts, order):
@@ -117,13 +73,13 @@ class MockDaemon:
         self.scenario = scenario
         self.interval = interval
         self.check_outcome = check_outcome
-        self.checked_at = datetime.now(timezone.utc) - timedelta(hours=3)
+        self.started_at = datetime.now(timezone.utc)
+        self.checked_at = self.started_at - timedelta(hours=3)
         self.hidden = set()
         self.dismissed = set()
         self.labels = {}
         self.order = []
-        self.settings = copy.deepcopy(DEFAULT_SETTINGS)
-        self.settings["display"] = merged(DEFAULT_SETTINGS["display"], build(scenario)["display"])
+        self.settings = initial_settings(scenario)
         self.refreshing = set()
         self.refreshed_at = None
         self.connection = None
@@ -132,7 +88,7 @@ class MockDaemon:
         return [entry for entry in state.get("accounts", []) if entry["id"] not in self.dismissed]
 
     def account_ids(self):
-        return [account["id"] for account in self.shown(build(self.scenario))]
+        return [account["id"] for account in self.shown(base_state(self.scenario))]
 
     def decorate(self, account):
         hidden_windows = self.settings["display"]["hidden_windows"].get(account["id"], [])
@@ -150,18 +106,12 @@ class MockDaemon:
         if self.refreshed_at and account["status"] == "fresh":
             account["updated_at"] = iso(self.refreshed_at)
 
-    def state(self):
-        state = build(self.scenario)
+    def live_state(self):
+        state = base_state(self.scenario)
         state["accounts"] = self.shown(state)
-        preferred = state["headline"] and (state["headline"]["account_id"], state["headline"]["window"])
-        for account in state.get("accounts", []):
+        for account in state["accounts"]:
             self.decorate(account)
-        state["accounts"] = ordered(state.get("accounts", []), self.order)
-        pin = self.settings["headline"]
-        pinned = (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
-        state["headline"] = choose_headline(state["accounts"], pinned, preferred)
-        state["display"] = self.settings["display"]
-        state = with_combined(state)
+        state["accounts"] = ordered(state["accounts"], self.order)
         state["app_version"] = APP_VERSION
         state["update_check"] = {"checked_at": iso(self.checked_at)}
         if not self.settings["updates"]["check"]:
@@ -169,7 +119,14 @@ class MockDaemon:
             state["update_check"] = None
         if self.refreshed_at and state.get("last_success_at"):
             state["last_success_at"] = iso(self.refreshed_at)
-        return json.dumps(state)
+        return state
+
+    def state(self):
+        return json.dumps(finished(self.live_state(), self.settings, self.pinned()))
+
+    def pinned(self):
+        pin = self.settings["headline"]
+        return (pin.get("account_id"), pin.get("window")) if pin["mode"] == "pinned" else None
 
     def emit(self):
         if self.connection:
@@ -200,7 +157,7 @@ class MockDaemon:
             invocation.return_dbus_error("org.freedesktop.DBus.Error.NotSupported", "update checks are off")
             return
         if not self.settings["updates"]["check"]:
-            self.reply_check(invocation, {"status": "disabled", "checked_at": None, "version": None})
+            self.reply(invocation, json.dumps({"status": "disabled", "checked_at": None, "version": None}))
             return
         GLib.timeout_add(CHECK_MS, self.finish_check, invocation)
 
@@ -209,11 +166,11 @@ class MockDaemon:
         if self.check_outcome in ("up_to_date", "available"):
             self.checked_at = now
             self.emit()
-        self.reply_check(invocation, check_result(self.check_outcome, iso(self.checked_at), now))
+        self.reply(invocation, json.dumps(check_result(self.check_outcome, iso(self.checked_at), now)))
         return GLib.SOURCE_REMOVE
 
-    def reply_check(self, invocation, result):
-        invocation.return_value(GLib.Variant("(s)", (json.dumps(result),)))
+    def reply(self, invocation, text):
+        invocation.return_value(GLib.Variant("(s)", (text,)))
 
     def set_order(self, ids):
         if len(set(ids)) != len(ids):
@@ -241,6 +198,19 @@ class MockDaemon:
             raise ValueError("settings patch must be a JSON object")
         self.settings = normalized_settings(merge_patch(self.settings, patch))
 
+    def string_reply(self, method, args):
+        if method == "GetState":
+            return self.state()
+        if method == "ListProviders":
+            return json.dumps({"version": 1, "providers": PROVIDERS})
+        if method == "GetSettings":
+            return json.dumps(self.settings)
+        if method == "GetSpend":
+            usage = base_state(self.scenario)["usage_source"]
+            return json.dumps(spend_report(args[0], usage, datetime.now().date()))
+        now = datetime.now(timezone.utc)
+        return json.dumps(diagnostics(self.live_state()["accounts"], self.settings, self.started_at, now))
+
     def apply(self, method, args):
         if method == "Refresh":
             self.refresh(args[0])
@@ -258,6 +228,8 @@ class MockDaemon:
             self.set_settings(args[0])
         elif method == "UpdateSettings":
             self.update_settings(args[0])
+        elif method == "ResetSettings":
+            self.settings = reset_settings(self.settings)
         elif method == "DismissAccount":
             self.dismiss(args[0])
         elif method == "RestoreAccounts":
@@ -267,19 +239,13 @@ class MockDaemon:
     def on_method(self, _connection, _sender, _path, _interface, method, parameters, invocation):
         args = parameters.unpack()
         print(f"{method}{args}", flush=True)
-        if method == "GetState":
-            invocation.return_value(GLib.Variant("(s)", (self.state(),)))
-            return
-        if method == "ListProviders":
-            invocation.return_value(GLib.Variant("(s)", (json.dumps({"version": 1, "providers": PROVIDERS}),)))
-            return
         if method == "CheckForUpdates":
             self.check_for_updates(invocation)
             return
-        if method == "GetSettings":
-            invocation.return_value(GLib.Variant("(s)", (json.dumps(self.settings),)))
-            return
         try:
+            if method in STRING_REPLIES:
+                self.reply(invocation, self.string_reply(method, args))
+                return
             self.apply(method, args)
         except ValueError as error:
             invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs", str(error))
