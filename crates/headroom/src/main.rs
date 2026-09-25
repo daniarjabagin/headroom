@@ -4,6 +4,7 @@ mod client;
 mod commands;
 mod daemon;
 mod diagnostics;
+mod guard;
 mod logging;
 mod paths;
 mod pricing;
@@ -74,7 +75,8 @@ async fn dispatch(
         Command::Status(args) => commands::status(globals, &args).await?,
         Command::Refresh(args) => commands::refresh(globals, &args).await?,
         Command::Accounts(args) => accounts_action(globals, args.action).await?,
-        Command::Waybar => waybar::run(globals).await?,
+        Command::Waybar(args) => waybar::run(globals, &args).await?,
+        Command::Guard(args) => return guard::run(globals, &args).await,
         Command::Providers(args) => providers::list(&args)?,
         Command::Update(args) => update::run(&args).await?,
         Command::Diagnostics => diagnostics::print(globals).await?,

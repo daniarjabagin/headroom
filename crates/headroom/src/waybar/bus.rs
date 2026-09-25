@@ -7,6 +7,7 @@ use zbus::Connection;
 use zbus::proxy::OwnerChangedStream;
 
 use super::{Printer, RERENDER_EVERY, RETRY_AFTER};
+use crate::cli::WaybarArgs;
 use crate::client::bus::{self, DaemonProxy, StateChanged};
 use crate::client::parse_state;
 use crate::render::waybar::{absent_line, state_line};
@@ -16,13 +17,13 @@ enum Ended {
     Unreadable,
 }
 
-pub async fn run(target: &BusTarget, printer: &mut Printer) -> Result<()> {
+pub async fn run(target: &BusTarget, args: &WaybarArgs, printer: &mut Printer) -> Result<()> {
     let conn = bus::connect(target).await?;
     let proxy = bus::daemon_proxy(&conn).await?;
     let mut owners = proxy.inner().receive_owner_changed().await?;
     loop {
         let ended = if bus::daemon_running(&conn).await? {
-            follow(&conn, &proxy, printer).await?
+            follow(&conn, &proxy, args, printer).await?
         } else {
             Ended::OwnerLost
         };
@@ -45,6 +46,7 @@ async fn wait_for_owner(owners: &mut OwnerChangedStream<'_>) {
 async fn follow(
     conn: &Connection,
     proxy: &DaemonProxy<'_>,
+    args: &WaybarArgs,
     printer: &mut Printer,
 ) -> Result<Ended> {
     let mut changes = proxy.receive_state_changed().await?;
@@ -67,7 +69,7 @@ async fn follow(
                 }
             }
         }
-        printer.print(state_line(&state, Timestamp::now()))?;
+        printer.print(state_line(&state, Timestamp::now(), args))?;
     }
 }
 

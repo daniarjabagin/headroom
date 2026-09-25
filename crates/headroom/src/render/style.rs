@@ -74,6 +74,11 @@ impl Palette {
     }
 }
 
+pub fn tone_hex(tone: Tone) -> String {
+    let Rgb(r, g, b) = tone_color(tone);
+    format!("#{r:02x}{g:02x}{b:02x}")
+}
+
 fn tone_color(tone: Tone) -> Rgb {
     match tone {
         Tone::Good => ACCENT,
@@ -106,6 +111,12 @@ mod tests {
             "\x1b[38;2;255;214;10mx\x1b[0m"
         );
         assert_eq!(palette.tone("", Tone::Warning), "");
+    }
+
+    #[test]
+    fn tone_hex_matches_the_terminal_colors() {
+        assert_eq!(tone_hex(Tone::Warning), "#ffd60a");
+        assert_eq!(tone_hex(Tone::Critical), "#ff453a");
     }
 
     #[test]

@@ -390,6 +390,69 @@ account and your spend, and a `good`, `warning`, `critical` or `neutral` class.
 #custom-headroom.neutral  { opacity: 0.6; }
 ```
 
+**New in 0.6:** several providers in one module. `--providers claude,codex` shows one value per
+provider, in that order (`Claude 72% · Codex 40%`); without it, every visible provider is shown.
+`--window session|weekly|any` picks the window each value comes from (default `any`, the provider's
+lowest), and `--labels none` drops the names (`72% · 40%`). Values follow the "left"/"used" setting,
+warning and critical values are colored with Pango `<span>` markup, the class is the worst tone of
+the shown values, and the tooltip lists every visible window with bold provider headers and your
+spend. Without any of these flags the output is exactly the single-headline module above.
+
+```jsonc
+// ~/.config/waybar/config.jsonc
+"custom/headroom": {
+    "exec": "headroom waybar --providers claude,codex",
+    "return-type": "json",
+    "format": "󰚩 {text}",
+    "tooltip": true,
+    "on-click": "headroom refresh"
+}
+```
+
+```css
+/* ~/.config/waybar/style.css */
+#custom-headroom          { padding: 0 10px; }
+#custom-headroom.critical { background: alpha(#ff453a, 0.2); }
+#custom-headroom.neutral  { opacity: 0.6; }
+```
+
+Keep Waybar's default `"escape": false` so the markup renders; Headroom escapes account labels and
+other text itself.
+
+### Scripting
+
+`headroom guard` exits non-zero when a limit has less than a given share left, so scripts and git
+hooks can skip agent runs that would hit a limit. It asks the running daemon; it never falls back to
+cached data.
+
+```sh
+headroom guard --min 20 --window weekly     # ✓ Weekly limits ok · lowest Codex 40% left (min 20%)
+headroom guard --min 15 && claude -p "fix the failing tests"
+headroom guard --min 25 --window weekly --provider codex --quiet || exit 0
+headroom guard --min 20 --provider claude --json
+```
+
+- Exit status: `0` every checked limit has at least `--min` percent left, `1` at least one is below
+  (one `✗` line per failing window), `2` no data for the checked limits or the daemon is not running.
+- Only visible accounts and windows are checked (not hidden in settings, not removed). Balances and
+  credits without a percentage are not limits and are skipped; `--window weekly` skips accounts
+  without a weekly window.
+- The share is always the part left, whatever the popup's "left"/"used" setting.
+- `--provider` repeats or takes a comma list, `--account` takes an id from `headroom accounts`,
+  `--quiet` prints nothing and `--json` prints `ok`, `min_percent`, `window`, `checked[]` and
+  `failing[]`.
+
+A `pre-push` hook that lets the agent review a push only while Claude has room left:
+
+```sh
+#!/bin/sh
+if headroom guard --min 15 --provider claude --quiet; then
+    claude -p "review the commits about to be pushed" --output-format text
+else
+    echo "headroom: Claude is below 15%, skipping the AI review" >&2
+fi
+```
+
 ### Custom CLI homes
 
 The daemon finds Codex in `$CODEX_HOME` (default `~/.codex`) and Claude Code in

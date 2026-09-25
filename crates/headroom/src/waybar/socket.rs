@@ -6,21 +6,22 @@ use jiff::Timestamp;
 use serde_json::json;
 
 use super::{Printer, RERENDER_EVERY, RETRY_AFTER};
+use crate::cli::WaybarArgs;
 use crate::client::parse_state;
 use crate::client::socket::SocketDaemon;
 use crate::render::waybar::{absent_line, state_line};
 
-pub async fn run(path: &Path, printer: &mut Printer) -> Result<()> {
+pub async fn run(path: &Path, args: &WaybarArgs, printer: &mut Printer) -> Result<()> {
     loop {
         if let Ok(Some(daemon)) = SocketDaemon::connect(path).await {
-            follow(&daemon, printer).await?;
+            follow(&daemon, args, printer).await?;
         }
         printer.print(absent_line())?;
         tokio::time::sleep(RETRY_AFTER).await;
     }
 }
 
-async fn follow(daemon: &SocketDaemon, printer: &mut Printer) -> Result<()> {
+async fn follow(daemon: &SocketDaemon, args: &WaybarArgs, printer: &mut Printer) -> Result<()> {
     let Some(mut state) = subscribed_state(daemon).await else {
         return Ok(());
     };
@@ -33,7 +34,7 @@ async fn follow(daemon: &SocketDaemon, printer: &mut Printer) -> Result<()> {
                 Ok(None) | Err(_) => return Ok(()),
             },
         }
-        printer.print(state_line(&state, Timestamp::now()))?;
+        printer.print(state_line(&state, Timestamp::now(), args))?;
     }
 }
 

@@ -1,16 +1,17 @@
 use headroom_core::pace::Tone;
-use headroom_daemon::state::payload::{AccountView, Headline, StatePayload, WindowView};
+use headroom_daemon::settings::ValueMode;
+use headroom_daemon::state::payload::{StatePayload, WindowView};
 use jiff::Timestamp;
 use serde::Serialize;
 
-use super::format::{
-    account_title, pace_note, percent_left, reset_text, rounded_percent, shown_windows,
-};
-use super::spend::{PERIODS, summary};
+use super::format::{rounded_percent, shown_windows};
+use super::pango::{escape, toned};
+use super::waybar_tooltip::{TooltipStyle, tooltip};
+use crate::cli::{LabelStyle, WaybarArgs, WindowScope};
 
 const DAEMON_ABSENT: &str = "Headroom daemon is not running";
-const NO_DATA: &str = "No limits reported yet";
 const EMPTY_TEXT: &str = "—";
+const VALUE_SEPARATOR: &str = " · ";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct WaybarLine {
@@ -18,6 +19,11 @@ pub struct WaybarLine {
     pub tooltip: String,
     pub class: &'static str,
     pub percentage: u8,
+}
+
+struct ProviderValue<'a> {
+    name: String,
+    window: Option<&'a WindowView>,
 }
 
 pub fn absent_line() -> WaybarLine {
@@ -29,14 +35,22 @@ pub fn absent_line() -> WaybarLine {
     }
 }
 
-pub fn state_line(state: &StatePayload, now: Timestamp) -> WaybarLine {
-    let tooltip = escape_markup(&tooltip(state, now));
+pub fn state_line(state: &StatePayload, now: Timestamp, args: &WaybarArgs) -> WaybarLine {
+    if args.is_headline() {
+        headline_line(state, now)
+    } else {
+        providers_line(state, now, args)
+    }
+}
+
+fn headline_line(state: &StatePayload, now: Timestamp) -> WaybarLine {
+    let tooltip = tooltip(state, now, TooltipStyle::PLAIN);
     match &state.headline {
         Some(headline) => WaybarLine {
             text: format!("{}%", rounded_percent(headline.remaining_percent)),
             tooltip,
             class: tone_class(headline.tone),
-            percentage: gauge(headline),
+            percentage: gauge(headline.remaining_percent),
         },
         None => WaybarLine {
             text: EMPTY_TEXT.to_owned(),
@@ -44,6 +58,81 @@ pub fn state_line(state: &StatePayload, now: Timestamp) -> WaybarLine {
             class: tone_class(Tone::Neutral),
             percentage: 0,
         },
+    }
+}
+
+fn providers_line(state: &StatePayload, now: Timestamp, args: &WaybarArgs) -> WaybarLine {
+    let mode = state.display.value_mode;
+    let scope = args.window.unwrap_or(WindowScope::Any);
+    let values: Vec<ProviderValue> = provider_ids(state, args)
+        .iter()
+        .map(|id| provider_value(state, id, scope))
+        .collect();
+    let windows: Vec<&WindowView> = values.iter().filter_map(|value| value.window).collect();
+    let labels = args.labels.unwrap_or(LabelStyle::Full);
+    let text: Vec<String> = values.iter().map(|v| value_text(v, labels, mode)).collect();
+    WaybarLine {
+        text: if text.is_empty() {
+            EMPTY_TEXT.to_owned()
+        } else {
+            text.join(VALUE_SEPARATOR)
+        },
+        tooltip: tooltip(state, now, TooltipStyle { rich: true, mode }),
+        class: tone_class(windows.iter().map(|w| w.tone).max().unwrap_or_default()),
+        percentage: windows
+            .iter()
+            .map(|w| w.remaining_percent)
+            .min_by(f64::total_cmp)
+            .map_or(0, gauge),
+    }
+}
+
+fn provider_ids(state: &StatePayload, args: &WaybarArgs) -> Vec<String> {
+    if !args.providers.is_empty() {
+        return args.providers.clone();
+    }
+    let mut ids: Vec<String> = Vec::new();
+    for account in state.accounts.iter().filter(|account| !account.hidden) {
+        let id = account.provider.as_str();
+        if !ids.iter().any(|seen| seen == id) {
+            ids.push(id.to_owned());
+        }
+    }
+    ids
+}
+
+fn provider_value<'a>(state: &'a StatePayload, id: &str, scope: WindowScope) -> ProviderValue<'a> {
+    let accounts: Vec<_> = state
+        .accounts
+        .iter()
+        .filter(|account| !account.hidden && account.provider.as_str() == id)
+        .collect();
+    let window = accounts
+        .iter()
+        .flat_map(|account| shown_windows(account))
+        .filter(|window| scope.includes(&window.id))
+        .min_by(|a, b| a.remaining_percent.total_cmp(&b.remaining_percent));
+    let name = accounts
+        .first()
+        .map_or_else(|| id.to_owned(), |account| account.provider_name.clone());
+    ProviderValue { name, window }
+}
+
+fn value_text(value: &ProviderValue, labels: LabelStyle, mode: ValueMode) -> String {
+    let number = match value.window {
+        Some(window) => toned(&format!("{}%", shown_percent(window, mode)), window.tone),
+        None => EMPTY_TEXT.to_owned(),
+    };
+    match labels {
+        LabelStyle::Full => format!("{} {number}", escape(&value.name)),
+        LabelStyle::None => number,
+    }
+}
+
+fn shown_percent(window: &WindowView, mode: ValueMode) -> String {
+    match mode {
+        ValueMode::Left => rounded_percent(window.remaining_percent),
+        ValueMode::Used => rounded_percent(window.used_percent),
     }
 }
 
@@ -61,52 +150,8 @@ fn tone_class(tone: Tone) -> &'static str {
     clippy::cast_sign_loss,
     reason = "the value is rounded and clamped to 0..=100 first"
 )]
-fn gauge(headline: &Headline) -> u8 {
-    headline.remaining_percent.clamp(0.0, 100.0).round() as u8
-}
-
-fn tooltip(state: &StatePayload, now: Timestamp) -> String {
-    let mut lines: Vec<String> = Vec::new();
-    for account in state.accounts.iter().filter(|a| !a.hidden) {
-        lines.extend(account_lines(account, now));
-    }
-    if lines.is_empty() {
-        lines.push(NO_DATA.to_owned());
-    }
-    if !state.usage.is_empty() {
-        lines.push(String::new());
-        lines.extend(
-            PERIODS
-                .iter()
-                .map(|(name, period)| format!("{name}: {}", summary(period(&state.spend)))),
-        );
-    }
-    lines.join("\n")
-}
-
-fn account_lines(account: &AccountView, now: Timestamp) -> Vec<String> {
-    let mut title = account_title(account);
-    if let Some(plan) = &account.plan {
-        title = format!("{title} ({plan})");
-    }
-    let mut lines = vec![title];
-    if let Some(error) = &account.error {
-        lines.push(format!("  {}", error.message));
-    }
-    lines.extend(shown_windows(account).map(|window| window_line(window, now)));
-    lines
-}
-
-fn window_line(window: &WindowView, now: Timestamp) -> String {
-    let mut parts = vec![percent_left(window), reset_text(window.resets_at, now)];
-    parts.extend(pace_note(&window.pace, now).map(|note| note.text));
-    format!("  {}: {}", window.label, parts.join(" · "))
-}
-
-fn escape_markup(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+fn gauge(remaining_percent: f64) -> u8 {
+    remaining_percent.clamp(0.0, 100.0).round() as u8
 }
 
 #[cfg(test)]

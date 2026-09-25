@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 
+use crate::cli::WaybarArgs;
 use crate::client::{self, Transport};
 use crate::paths::Globals;
 use crate::render::waybar::WaybarLine;
@@ -31,11 +32,11 @@ impl Printer {
     }
 }
 
-pub async fn run(globals: &Globals) -> Result<()> {
+pub async fn run(globals: &Globals, args: &WaybarArgs) -> Result<()> {
     let mut printer = Printer { last: None };
     match client::transport(globals)? {
         #[cfg(target_os = "linux")]
-        Transport::Bus(target) => bus::run(&target, &mut printer).await,
-        Transport::Socket(path) => socket::run(&path, &mut printer).await,
+        Transport::Bus(target) => bus::run(&target, args, &mut printer).await,
+        Transport::Socket(path) => socket::run(&path, args, &mut printer).await,
     }
 }
