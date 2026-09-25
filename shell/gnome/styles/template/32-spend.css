@@ -1,0 +1,182 @@
+.headroom-section-header.with-pull {
+    padding-left: 4px;
+}
+
+.headroom-title-pull {
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition-duration: 180ms;
+}
+
+.headroom-title-pull:hover,
+.headroom-title-pull:focus {
+    background-color: var(--hover);
+}
+
+.headroom-title-pull:active {
+    background-color: var(--pressed);
+}
+
+.headroom-title-pull-box {
+    spacing: 4px;
+}
+
+.headroom-title-pull-icon {
+    icon-size: 10px;
+    color: var(--text-secondary);
+}
+
+.headroom-segmented.tight .headroom-segment {
+    padding: 4px 6px;
+}
+
+.headroom-donut-caption {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-breakdown {
+    margin-right: 6px;
+    spacing: 2px;
+}
+
+.headroom-breakdown-separator {
+    height: 1px;
+    margin-bottom: 10px;
+    background-color: var(--separator);
+}
+
+.headroom-breakdown-head {
+    margin-bottom: 4px;
+}
+
+.headroom-segmented.mini {
+    margin-right: 0;
+    padding: 2px;
+}
+
+.headroom-segmented.mini .headroom-segment {
+    padding: 3px 10px;
+    font-size: 8.25pt;
+}
+
+.headroom-breakdown-caption {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-breakdown-list {
+    spacing: 2px;
+}
+
+.headroom-breakdown-row {
+    padding: 4px 6px 5px;
+    spacing: 4px;
+}
+
+.headroom-breakdown-line {
+    spacing: 6px;
+}
+
+.headroom-breakdown-folder {
+    icon-size: 12px;
+    color: var(--text-secondary);
+}
+
+.headroom-breakdown-name {
+    font-size: 9pt;
+    color: var(--text);
+    font-feature-settings: normal;
+}
+
+.headroom-breakdown-share {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-breakdown-value {
+    min-width: 46px;
+    font-size: 9pt;
+    font-weight: 500;
+    text-align: right;
+    color: var(--text);
+}
+
+.headroom-share-bar {
+    height: 3px;
+    border-radius: 1.5px;
+    background-color: var(--track);
+}
+
+.headroom-share-part {
+    border-radius: 1.5px;
+}
+
+.headroom-share-part.other {
+    background-color: var(--text-tertiary);
+}
+
+.headroom-pop {
+    width: 244px;
+    padding: 4px 2px 3px;
+    spacing: 7px;
+}
+
+.headroom-pop-separator {
+    height: 1px;
+    background-color: var(--separator);
+}
+
+.headroom-pop-row {
+    spacing: 3px;
+}
+
+.headroom-pop-line {
+    spacing: 8px;
+}
+
+.headroom-pop-title {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-pop-strong {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-pop-name {
+    color: var(--text);
+    font-feature-settings: normal;
+}
+
+.headroom-pop-dim {
+    color: var(--text-secondary);
+}
+
+.headroom-pop-figures {
+    width: 118px;
+    text-align: right;
+}
+
+.headroom-pop-note {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-share-palette {
+    -headroom-share-bg: var(--share-bg);
+    -headroom-share-fg: var(--share-fg);
+    -headroom-share-dim: var(--share-dim);
+    -headroom-share-line: var(--share-line);
+    -headroom-share-accent: var(--share-accent);
+    -headroom-share-card: var(--card);
+    -headroom-share-track: var(--track);
+    -headroom-share-tick: var(--tick);
+    -headroom-share-text: var(--text);
+    -headroom-share-text-secondary: var(--text-secondary);
+    -headroom-share-ok: var(--accent);
+    -headroom-share-warn: var(--warn);
+    -headroom-share-crit: var(--crit);
+    -headroom-share-none: var(--track);
+}

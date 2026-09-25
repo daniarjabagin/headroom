@@ -1,0 +1,123 @@
+.headroom-compact .headroom-content {
+    padding: var(--compact-content-padding);
+    spacing: var(--compact-section-gap);
+}
+
+.headroom-compact .headroom-section {
+    spacing: var(--compact-header-gap);
+}
+
+.headroom-compact .headroom-card {
+    padding: var(--compact-card-padding-y) 0;
+}
+
+.headroom-compact .headroom-section-header {
+    min-height: var(--compact-header-height);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.headroom-compact .headroom-section-header.spend {
+    min-height: var(--compact-top-header-height);
+}
+
+.headroom-compact .headroom-provider-icon {
+    icon-size: var(--compact-provider-icon);
+}
+
+.headroom-compact .headroom-title {
+    font-size: 9.75pt;
+}
+
+.headroom-compact .headroom-plan {
+    font-size: 7.5pt;
+}
+
+.headroom-compact .headroom-quota-row {
+    padding: var(--compact-bar-row-padding);
+    spacing: var(--compact-bar-row-gap);
+}
+
+.headroom-compact .headroom-row-line.compact {
+    spacing: var(--compact-limit-line-gap);
+}
+
+.headroom-compact .headroom-row-line.compact .headroom-toggle {
+    padding: 0 3px;
+}
+
+.headroom-compact .headroom-metric-label {
+    font-size: 9pt;
+}
+
+.headroom-compact .headroom-meter {
+    height: var(--compact-tick-height);
+}
+
+.headroom-compact .headroom-meter-track,
+.headroom-compact .headroom-meter-fill {
+    height: var(--compact-meter-height);
+    border-radius: var(--compact-meter-radius);
+}
+
+.headroom-compact .headroom-flame {
+    icon-size: 10px;
+}
+
+.headroom-compact .headroom-text-row {
+    padding: var(--compact-text-row-padding);
+}
+
+.headroom-compact .headroom-value-label,
+.headroom-compact .headroom-value,
+.headroom-compact .headroom-reading,
+.headroom-compact .headroom-legend-name,
+.headroom-compact .headroom-legend-value {
+    font-size: 8.25pt;
+}
+
+.headroom-compact .headroom-trend {
+    height: var(--compact-trend-height);
+}
+
+.headroom-compact .headroom-caret {
+    padding: var(--compact-caret-padding-y) 0;
+}
+
+.headroom-compact .headroom-spend-card {
+    padding: var(--compact-spend-card-padding);
+    spacing: var(--compact-spend-card-gap);
+}
+
+.headroom-compact .headroom-segment {
+    padding: var(--compact-segment-padding);
+    font-size: 7.5pt;
+}
+
+.headroom-compact .headroom-donut,
+.headroom-compact .headroom-donut-area {
+    width: var(--compact-donut);
+    height: var(--compact-donut);
+}
+
+.headroom-compact .headroom-donut-value {
+    font-size: 9.5pt;
+}
+
+.headroom-compact .headroom-footer {
+    padding: var(--compact-footer-padding);
+}
+
+.headroom-compact .headroom-icon-button {
+    width: var(--compact-footer-button);
+    height: var(--compact-footer-button);
+}
+
+.headroom-compact .headroom-refresh-button {
+    width: 22px;
+    height: 22px;
+}
+
+.headroom-compact .headroom-status-line {
+    margin: 5px 14px 1px;
+}

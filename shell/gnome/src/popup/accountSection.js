@@ -15,6 +15,7 @@ import { noticeKind, noticeText } from '../notices.js';
 import { CopyButton, Notice, noticeLine, noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
 import { skeletonRows } from './skeleton.js';
+import { StatusNotice, statusShape } from './statusNotice.js';
 import { ExtraRows, showsSpend, TrendRow } from './usageRows.js';
 
 const SKELETON_ROWS = 2;
@@ -114,6 +115,7 @@ export class AccountSection {
         this._extras = null;
         this._retry = null;
         this._notice = null;
+        this._status = null;
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
         this._build(account, showName);
     }
@@ -134,9 +136,14 @@ export class AccountSection {
         return this._showName === showName && JSON.stringify(this._shape(account)) === this._shapeKey;
     }
 
+    get card() {
+        return { kind: 'account', id: this._account.id, accountIds: [this._account.id], account: this._account };
+    }
+
     update(account) {
         this._account = account;
         this._header.update(account);
+        this._status?.update();
         this._retry?.setBusy(isRetrying(account));
         this._notice?.update(noticeTexts(this._ctx, account));
         shownWindows(account).forEach((window, index) => this._rows[index]?.update(window));
@@ -157,6 +164,7 @@ export class AccountSection {
     }
 
     tick(now) {
+        this._status?.update();
         for (const quotaRow of this._rows) quotaRow.tick(now);
     }
 
@@ -166,6 +174,7 @@ export class AccountSection {
             windows: shownWindows(account).map(window => window.id),
             skeleton: awaitingFirstData(account),
             notice: noticeShape(account, ctx.offline),
+            status: statusShape(ctx, account.provider),
             notices: account.notices,
             plan: account.plan,
             label: account.label,
@@ -181,12 +190,20 @@ export class AccountSection {
         this._showName = showName;
         this._shapeKey = JSON.stringify(this._shape(account));
         this._header = new AccountHeader(this._ctx, account, showName);
+        this._header.onSecondaryClick(point => this._ctx.openCardMenu(this.card, point));
         this.actor.add_child(this._header.actor);
         const card = column({ style_class: 'headroom-card', x_expand: true, reactive: true });
+        this._addStatus(card, account);
         if (isBlocked(account)) this._addNotice(card, account);
         else this._addLimits(card, account);
         card.visible = card.get_n_children() > 0;
         this.actor.add_child(card);
+    }
+
+    _addStatus(card, account) {
+        if (statusShape(this._ctx, account.provider) === null) return;
+        this._status = new StatusNotice(this._ctx, account.provider);
+        card.add_child(this._status.actor);
     }
 
     _addNotice(card, account) {

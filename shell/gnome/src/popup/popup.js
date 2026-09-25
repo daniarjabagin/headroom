@@ -1,32 +1,31 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
-import { dashboardCards } from '../combined.js';
-import { enter, settle, STAGGER_MS } from '../motion.js';
-import { mergeOrder, moveItem } from '../order.js';
-import { showsName } from '../providers.js';
-import { parseDisplay } from '../settings.js';
+import { usesHour12 } from '../dates.js';
+import { DesktopClock } from '../desktopClock.js';
+import { parseDisplay, supports06 } from '../settings.js';
 import { isRefreshing } from '../state.js';
-import { column, row, spacer } from '../widgets.js';
-import { AccountSection } from './accountSection.js';
-import { CombinedSection } from './combinedSection.js';
+import { column } from '../widgets.js';
+import { CardActions } from './cardActions.js';
+import { Dashboard } from './dashboard.js';
+import { FloatingMenu } from './floatingMenu.js';
 import { Footer } from './footer.js';
+import { MaskBanner } from './maskBanner.js';
+import { Overlay } from './overlay.js';
 import { RefreshButton } from './refreshButton.js';
 import { RefreshControl } from './refreshControl.js';
 import { Reorderer } from './reorder.js';
-import { SpendSection } from './spendCard.js';
+import { Sharer } from './share/sharer.js';
 import { loadingSections } from './skeleton.js';
+import { SpendChoices } from './spendChoices.js';
 import { emptyView, errorView, serviceView } from './statusViews.js';
+import { Toast } from './toast.js';
 import { Tooltips } from './tooltip.js';
 import { UpdateRow } from './updateRow.js';
 
 const SCROLLBAR_LINGER_MS = 800;
 const ENTRANCE_WINDOW_MS = 400;
-const LEADING_ACTORS = 1;
-
-function visibleAccounts(state) {
-    return state.accounts.filter(account => !account.hidden);
-}
+const COMPACT_CLASS = 'headroom-compact';
 
 function applyOrder(state, order) {
     const rank = new Map(order.map((id, index) => [id, index]));
@@ -35,62 +34,34 @@ function applyOrder(state, order) {
     );
 }
 
-function layoutKey(display) {
-    return JSON.stringify([display.showSpend, display.showAccountSpend, display.showTrend, display.combineAccounts]);
-}
-
-function cardSubject(card) {
-    return card.kind === 'account' ? card.account : card;
-}
-
-function sectionFor(ctx, card, accounts) {
-    if (card.kind === 'combined') return new CombinedSection(ctx, card);
-    return new AccountSection(ctx, card.account, showsName(card.account, accounts));
-}
-
-function canUpdateSection(section, card, accounts) {
-    if (section.id !== card.id) return false;
-    if (card.kind === 'combined') return section instanceof CombinedSection && section.canUpdate(card);
-    return section instanceof AccountSection && section.canUpdate(card.account, showsName(card.account, accounts));
-}
-
-function shownSpend(state) {
-    return state.display.showSpend ? state.spend : null;
-}
-
-function topBar(trailing) {
-    const actor = row({ style_class: 'headroom-top-bar', x_expand: true });
-    actor.add_child(spacer());
-    actor.add_child(trailing);
-    return actor;
+function layoutKey(ctx, state) {
+    const display = state.display;
+    return [
+        display.showSpend,
+        display.showAccountSpend,
+        display.showTrend,
+        display.combineAccounts,
+        display.density,
+        ctx.masked,
+        ctx.linksVersion,
+        supports06(state),
+    ];
 }
 
 export class PopupView {
     constructor({ dir, versionText, motion, actions }) {
         this._view = { kind: 'loading', state: null };
         this._entranceUntil = 0;
-        this._generation = 0;
-        this._sections = [];
-        this._spendSection = null;
-        this._refreshControl = new RefreshControl(() => actions.refreshNow());
-        this._layoutKey = null;
         this._pendingView = null;
         this._scrollbarTimeoutId = 0;
+        this._requestedMask = false;
+        this._revealed = false;
+        this._links = new Map();
+        this._linksRequested = false;
         this._tooltips = new Tooltips();
-        this._ctx = {
-            dir,
-            motion,
-            display: parseDisplay(null),
-            canReorder: () => this._reorderer.enabled,
-            tooltips: this._tooltips,
-            now: () => new Date(),
-            expanded: new Map(),
-            offline: false,
-            period: 'today',
-            selectPeriod: period => (this._ctx.period = period),
-            actions,
-            pressRefresh: () => this._refreshControl.press(),
-        };
+        this._clock = new DesktopClock(() => this._rerender());
+        this._refreshControl = new RefreshControl(() => actions.refreshNow());
+        this._ctx = this._createContext(dir, motion, actions);
         this._refreshButton = new RefreshButton(this._ctx);
         this._refreshControl.attach(this._refreshButton);
         this.actor = new St.Widget({
@@ -99,7 +70,38 @@ export class PopupView {
             x_expand: true,
             y_expand: true,
         });
+        this._tooltips.setSideAnchor(this.actor);
         this._buildLayout(versionText);
+    }
+
+    _createContext(dir, motion, actions) {
+        const ctx = {
+            dir,
+            motion,
+            actions,
+            display: parseDisplay(null),
+            tooltips: this._tooltips,
+            now: () => new Date(),
+            expanded: new Map(),
+            offline: false,
+            masked: false,
+            moreExpanded: false,
+            linksVersion: 0,
+            canReorder: () => this._reorderer.enabled,
+            pressRefresh: () => this._refreshControl.press(),
+            hour12: () => usesHour12(ctx.display.timeFormat, this._clock.format),
+            links: provider => this._links.get(provider) ?? null,
+            providerStatus: () => this._view.state?.providerStatus ?? [],
+            canWriteSettings: () => supports06(this._view.state) && Boolean(actions.updateDisplay),
+            canChooseUnit: () => supports06(this._view.state),
+            openCardMenu: (card, point) => this._cardActions.open(card, point),
+            toast: (title, detail, icon) => this._toast.show(title, detail, icon),
+            rerender: () => this._rerender(),
+        };
+        this._spendChoices = new SpendChoices(ctx, () => this._view.state);
+        ctx.spendSettings = () => this._spendChoices.current();
+        ctx.selectSpend = changes => this._spendChoices.select(changes);
+        return ctx;
     }
 
     _buildLayout(versionText) {
@@ -115,8 +117,17 @@ export class PopupView {
         });
         this._scroll.child = this._content;
         this._scroll.vadjustment.connectObject('notify::value', () => this._revealScrollbar(), this);
+        this._banner = new MaskBanner(() => this._reveal());
         this._footer = new Footer(this._ctx, versionText);
         this._updateRow = new UpdateRow(this._ctx);
+        for (const actor of [this._banner.actor, this._scroll, this._updateRow.actor, this._footer.actor])
+            main.add_child(actor);
+        this.actor.add_child(main);
+        this.actor.add_child(this._buildDragLayer());
+        this._buildOverlay();
+    }
+
+    _buildDragLayer() {
         const dragLayer = new St.Widget({
             style_class: 'headroom-drag-layer',
             layout_manager: new Clutter.FixedLayout(),
@@ -129,31 +140,93 @@ export class PopupView {
             onDrop: (from, to) => this._onDrop(from, to),
             onSettled: () => this._renderPending(),
         });
-        main.add_child(this._scroll);
-        main.add_child(this._updateRow.actor);
-        main.add_child(this._footer.actor);
-        this.actor.add_child(main);
-        this.actor.add_child(dragLayer);
+        this._dashboard = new Dashboard(this._ctx, this._content, this._reorderer, this._refreshButton.actor);
+        return dragLayer;
+    }
+
+    _buildOverlay() {
+        const overlay = new Overlay();
+        this._palette = new St.Widget({ style_class: 'headroom-share-palette', width: 0, height: 0 });
+        overlay.add(this._palette);
+        this._ctx.menu = new FloatingMenu(this._ctx, overlay);
+        this._toast = new Toast(this._ctx, overlay, () => this._bottomAnchor());
+        this._cardActions = new CardActions(this._ctx, new Sharer(this._ctx, this._palette));
+        this.actor.add_child(overlay.actor);
+    }
+
+    _bottomAnchor() {
+        return this._updateRow.actor.visible ? this._updateRow.actor : this._footer.actor;
     }
 
     setTheme(themeClass) {
         this._tooltips.setTheme(themeClass);
     }
 
-    render(view) {
+    render(view, { masked = false } = {}) {
+        this._requestedMask = masked;
+        if (!masked) this._revealed = false;
         if (this._reorderer.dragging) {
             this._pendingView = view;
             return;
         }
         this._view = view;
-        if (view.kind === 'ready') this._ctx.display = view.state.display;
+        this._syncContext(view);
         this._footer.update(view);
         this._updateRow.update(view.kind === 'ready' ? view.state.update : null);
-        const generation = this._generation;
+        const generation = this._dashboard.generation;
         if (view.kind === 'ready') this._renderState(view.state);
-        else this._replaceContent(this._statusView(view));
+        else this._dashboard.replace(this._statusView(view));
         this._refreshControl.setDaemonBusy(view.kind === 'ready' && isRefreshing(view.state));
-        if (generation !== this._generation && Date.now() < this._entranceUntil) this._playEntrance();
+        if (generation !== this._dashboard.generation && Date.now() < this._entranceUntil) this._playEntrance();
+    }
+
+    _syncContext(view) {
+        const masked = this._requestedMask && !this._revealed;
+        this._ctx.masked = masked;
+        this._banner.show(masked);
+        if (view.kind !== 'ready') {
+            if (view.kind === 'unavailable') this._linksRequested = false;
+            return;
+        }
+        this._ctx.display = view.state.display;
+        if (view.state.display.density === 'compact') this.actor.add_style_class_name(COMPACT_CLASS);
+        else this.actor.remove_style_class_name(COMPACT_CLASS);
+        this._requestLinks();
+    }
+
+    _renderState(state) {
+        if (this._dashboard.isEmpty(state)) {
+            this._dashboard.replace([emptyView(this._ctx)]);
+            return;
+        }
+        const offlineChanged = this._ctx.offline !== state.offline;
+        this._ctx.offline = state.offline;
+        if (offlineChanged) this._dashboard.replace([]);
+        this._dashboard.renderState(state, layoutKey(this._ctx, state));
+    }
+
+    _rerender() {
+        this.render(this._view, { masked: this._requestedMask });
+    }
+
+    _reveal() {
+        this._revealed = true;
+        this._rerender();
+    }
+
+    async _requestLinks() {
+        const list = this._ctx.actions.listProviders;
+        if (this._linksRequested || !list) return;
+        this._linksRequested = true;
+        try {
+            const providers = await list();
+            if (!providers) return;
+            this._links = new Map(providers.map(provider => [provider.id, provider.links ?? null]));
+            this._ctx.linksVersion += 1;
+            this._rerender();
+        } catch (error) {
+            logError(error, 'Headroom could not list provider links');
+        }
     }
 
     setUpdateRun(run) {
@@ -164,25 +237,25 @@ export class PopupView {
         this._footer.relabel();
         this._updateRow.relabel();
         this._refreshButton.relabel();
-        this._replaceContent([]);
-        this.render(this._view);
+        this._banner.relabel();
+        this._dashboard.replace([]);
+        this._rerender();
     }
 
     _renderPending() {
         const view = this._pendingView;
         this._pendingView = null;
-        if (view) this.render(view);
+        if (view) this.render(view, { masked: this._requestedMask });
     }
 
     tick() {
         const now = this._ctx.now();
-        for (const section of this._sections) section.tick(now);
+        this._dashboard.tick(now);
         this._footer.tick(now);
     }
 
     needsSecondTicks() {
-        const now = this._ctx.now();
-        return this._sections.some(section => section.needsSecondTicks(now));
+        return this._dashboard.needsSecondTicks(this._ctx.now());
     }
 
     setMaxHeight(pixels) {
@@ -199,8 +272,10 @@ export class PopupView {
 
     onClose() {
         this._entranceUntil = 0;
-        this._settleEntrance();
+        this._dashboard.settleEntrance();
         this._reorderer.cancel();
+        this._ctx.menu.close(false);
+        this._toast.hide();
         this._tooltips.hide();
         this._hideScrollbar();
     }
@@ -208,6 +283,8 @@ export class PopupView {
     destroy() {
         this._reorderer.destroy();
         this._hideScrollbar();
+        this._toast.hide();
+        this._clock.destroy();
         this._scroll.vadjustment.disconnectObject(this);
         this._refreshControl.destroy();
         this._refreshButton.actor.destroy();
@@ -243,80 +320,14 @@ export class PopupView {
     }
 
     _playEntrance() {
-        const motion = this._ctx.motion;
-        this._content.get_children().forEach((actor, index) => enter(motion, actor, index));
-        if (!motion.enabled) return;
-        this._spendSection?.grow();
-        this._sections.forEach((section, index) => section.grow((index + LEADING_ACTORS) * STAGGER_MS));
-    }
-
-    _settleEntrance() {
-        for (const actor of this._content.get_children()) settle(actor);
-        for (const section of this._sections) section.settle();
-    }
-
-    _renderState(state) {
-        const accounts = visibleAccounts(state);
-        if (accounts.length === 0 && !shownSpend(state)) {
-            this._replaceContent([emptyView(this._ctx)]);
-            return;
-        }
-        const offlineChanged = this._ctx.offline !== state.offline;
-        this._ctx.offline = state.offline;
-        const cards = dashboardCards(state, accounts);
-        if (!offlineChanged && this._canUpdateInPlace(state, cards, accounts)) {
-            this._spendSection?.update(state.spend);
-            cards.forEach((card, index) => this._sections[index].update(cardSubject(card)));
-            return;
-        }
-        this._rebuild(state, cards, accounts);
-    }
-
-    _canUpdateInPlace(state, cards, accounts) {
-        if (this._layoutKey !== layoutKey(state.display)) return false;
-        if (Boolean(this._spendSection) !== Boolean(shownSpend(state))) return false;
-        if (this._sections.length !== cards.length || this._sections.length === 0) return false;
-        return cards.every((card, index) => canUpdateSection(this._sections[index], card, accounts));
-    }
-
-    _rebuild(state, cards, accounts) {
-        const spendState = shownSpend(state);
-        const refresh = this._detachedRefresh();
-        const spend = spendState ? new SpendSection(this._ctx, spendState, this._ctx.period, refresh) : null;
-        const sections = cards.map(card => sectionFor(this._ctx, card, accounts));
-        const leading = spend ? spend.actor : topBar(refresh);
-        this._replaceContent([leading, ...sections.map(section => section.actor)]);
-        this._spendSection = spend;
-        this._sections = sections;
-        this._layoutKey = layoutKey(state.display);
-        this._reorderer.setSections(sections);
-    }
-
-    _replaceContent(actors) {
-        this._generation += 1;
-        this._tooltips.hide();
-        this._reorderer.setSections([]);
-        if (this._content.contains(this._refreshButton.actor)) this._detachedRefresh();
-        this._content.destroy_all_children();
-        this._spendSection = null;
-        this._sections = [];
-        this._layoutKey = null;
-        for (const actor of actors) this._content.add_child(actor);
-    }
-
-    _detachedRefresh() {
-        const actor = this._refreshButton.actor;
-        actor.get_parent()?.remove_child(actor);
-        return actor;
+        this._dashboard.playEntrance();
     }
 
     _onDrop(from, to) {
-        const moved = this._sections[from];
-        this._sections = moveItem(this._sections, from, to);
-        this._content.set_child_at_index(moved.actor, to + LEADING_ACTORS);
-        const order = mergeOrder(
-            this._view.state.accounts.map(account => account.id),
-            this._sections.flatMap(section => section.accountIds)
+        const order = this._dashboard.drop(
+            from,
+            to,
+            this._view.state.accounts.map(account => account.id)
         );
         for (const view of [this._view, this._pendingView]) if (view?.state) applyOrder(view.state, order);
         this._ctx.actions.setOrder(order);
