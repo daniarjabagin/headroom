@@ -9,11 +9,13 @@ use crate::palette::{Palette, Rgba};
 use crate::payload::{Display, Tone};
 use crate::spend::Period;
 use crate::update::UpdateRun;
+use crate::update_check::CheckRun;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     RefreshNow,
     Refresh(String),
+    Retry(String),
     ToggleValueMode,
     ToggleResetFormat,
     SelectPeriod(Period),
@@ -24,6 +26,8 @@ pub enum Action {
     Copy(String),
     OpenUrl(String),
     SignIn(String),
+    SignInAgain(String),
+    CopyCommand { account_id: String, command: String },
     OpenSettings,
     Quit,
 }
@@ -46,6 +50,9 @@ pub struct UiState {
     pub copied: bool,
     pub service_starting: bool,
     pub service_error: Option<String>,
+    pub retrying: BTreeSet<String>,
+    pub copied_command: Option<String>,
+    pub update_check: CheckRun,
 }
 
 const FALLBACK: Rgba = Rgba {

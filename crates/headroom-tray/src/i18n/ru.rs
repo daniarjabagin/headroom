@@ -81,6 +81,16 @@ const CATALOG: &[(&str, &str)] = &[
     ("Retry", "Повторить"),
     ("Retrying…", "Повторяем…"),
     ("Sign in…", "Войти…"),
+    ("Sign in again…", "Войти снова…"),
+    ("Copy command", "Скопировать команду"),
+    (
+        "Run `{command}` in a terminal — Headroom picks it up automatically.",
+        "Выполните `{command}` в терминале — Headroom подхватит вход сам.",
+    ),
+    (
+        "Another account is signed in to {provider}",
+        "В {provider} выполнен вход в другой аккаунт",
+    ),
     ("Signed out of {provider}", "Выполнен выход из {provider}"),
     (
         "Sign in again to keep this account up to date.",

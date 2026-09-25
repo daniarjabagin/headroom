@@ -104,3 +104,90 @@ fn finds_the_usage_of_an_account() {
         .find(|account| state.usage_of(account).is_some());
     assert!(with_usage.is_some());
 }
+
+#[test]
+fn parses_recovery_and_update_check_from_the_daemon_snapshot() {
+    let full = parse_state(FULL).unwrap();
+    assert_eq!(
+        full.update_check,
+        Some(UpdateCheck {
+            checked_at: Some("2026-09-23T04:00:00Z".parse().unwrap())
+        })
+    );
+    assert_eq!(full.accounts[0].recovery, RecoveryField::Wait);
+    assert_eq!(
+        full.accounts[1].recovery,
+        RecoveryField::Offered(Recovery::Retry)
+    );
+}
+
+fn with_first_account(field: &str, value: serde_json::Value) -> State {
+    let mut state: serde_json::Value = serde_json::from_str(FULL).unwrap();
+    state["accounts"][0][field] = value;
+    parse_state(&state.to_string()).unwrap()
+}
+
+#[test]
+fn recovery_is_parsed_tolerantly() {
+    let cases = [
+        (
+            serde_json::json!({"action": "cli_login", "command": "codex login"}),
+            RecoveryField::Offered(Recovery::CliLogin {
+                command: "codex login".into(),
+            }),
+        ),
+        (
+            serde_json::json!({"action": "sign_in", "account_id": "claude:work"}),
+            RecoveryField::Offered(Recovery::SignIn {
+                account_id: Some("claude:work".into()),
+            }),
+        ),
+        (
+            serde_json::json!({"action": "teleport"}),
+            RecoveryField::Offered(Recovery::Unknown),
+        ),
+        (
+            serde_json::json!({"action": "cli_login", "command": 7}),
+            RecoveryField::Offered(Recovery::Unknown),
+        ),
+        (
+            serde_json::json!(42),
+            RecoveryField::Offered(Recovery::Unknown),
+        ),
+    ];
+    for (value, expected) in cases {
+        let state = with_first_account("recovery", value.clone());
+        assert_eq!(state.accounts[0].recovery, expected, "{value}");
+    }
+    let mut old: serde_json::Value = serde_json::from_str(FULL).unwrap();
+    old["accounts"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("recovery");
+    let old = parse_state(&old.to_string()).unwrap();
+    assert_eq!(old.accounts[0].recovery, RecoveryField::Unreported);
+}
+
+#[test]
+fn account_changed_errors_parse() {
+    let state = with_first_account(
+        "error",
+        serde_json::json!({"kind": "account_changed", "message": "Another account"}),
+    );
+    let error = state.accounts[0].error.as_ref().unwrap();
+    assert_eq!(error.kind, "account_changed");
+}
+
+#[test]
+fn update_check_is_optional_and_tolerant() {
+    let mut state: serde_json::Value = serde_json::from_str(FULL).unwrap();
+    state["update_check"] = serde_json::json!({"checked_at": null});
+    let parsed = parse_state(&state.to_string()).unwrap();
+    assert_eq!(parsed.update_check, Some(UpdateCheck { checked_at: None }));
+    state["update_check"] = serde_json::json!({"checked_at": "yesterday"});
+    assert_eq!(parse_state(&state.to_string()).unwrap().update_check, None);
+    state["update_check"] = serde_json::Value::Null;
+    assert_eq!(parse_state(&state.to_string()).unwrap().update_check, None);
+    state.as_object_mut().unwrap().remove("update_check");
+    assert_eq!(parse_state(&state.to_string()).unwrap().update_check, None);
+}

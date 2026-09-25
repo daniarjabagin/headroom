@@ -16,6 +16,8 @@ pub enum Event {
     Vanished,
     CallFailed(String),
     RefreshSettled(bool),
+    RetrySettled(String),
+    UpdateChecked(Result<String, String>),
     ServiceStarted(Result<(), String>),
     SettingsWritten(Result<(), String>),
     AccountsWritten(Result<(), String>),
@@ -34,6 +36,7 @@ pub enum Command {
     ReloadSettings,
     Account(AccountCommand),
     StartService,
+    CheckForUpdates,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

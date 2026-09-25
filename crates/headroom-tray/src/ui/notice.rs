@@ -1,17 +1,67 @@
 use gtk::prelude::*;
 
 use crate::account::NoticeView;
+use crate::i18n::Lang;
 use crate::notices::NoticeKind;
-use crate::ui::context::Ctx;
-use crate::ui::widgets::{button, column, icon, label, row, text_button, wrapping_label};
+use crate::recovery::{ButtonModel, ButtonState, NoticeButton, button_model};
+use crate::ui::widgets::{button, column, icon, label, row, wrapping_label};
 
 const TILE_ICON: i32 = 14;
 const LINE_ICON: i32 = 12;
+const SPINNER_SIZE: i32 = 10;
 
-pub struct NoticeActions {
-    pub sign_in: Option<Box<dyn Fn()>>,
-    pub retry: Option<Box<dyn Fn()>>,
-    pub retrying: bool,
+struct ButtonHandle {
+    kind: NoticeButton,
+    button: gtk::Button,
+    spinner: gtk::Spinner,
+    label: gtk::Label,
+}
+
+pub struct MountedNotice {
+    pub widget: gtk::Box,
+    buttons: Vec<ButtonHandle>,
+    motion: bool,
+}
+
+impl ButtonHandle {
+    fn new(kind: &NoticeButton, on_press: Box<dyn Fn()>) -> Self {
+        let content = row(4, &[]);
+        let spinner = gtk::Spinner::new();
+        spinner.set_size_request(SPINNER_SIZE, SPINNER_SIZE);
+        let label = label("", &[]);
+        content.append(&spinner);
+        content.append(&label);
+        let button = button(&content, &["headroom-small-button"], on_press);
+        Self {
+            kind: kind.clone(),
+            button,
+            spinner,
+            label,
+        }
+    }
+
+    fn apply(&self, model: ButtonModel, motion: bool) {
+        self.label.set_text(model.label);
+        self.spinner.set_visible(model.busy);
+        self.spinner.set_spinning(model.busy && motion);
+        self.button.set_sensitive(!model.busy);
+        if model.primary {
+            self.button.add_css_class("primary");
+        } else {
+            self.button.remove_css_class("primary");
+        }
+    }
+}
+
+impl MountedNotice {
+    pub fn apply(&self, lang: Lang, state: impl Fn(&NoticeButton) -> ButtonState) {
+        for handle in &self.buttons {
+            handle.apply(
+                button_model(lang, &handle.kind, state(&handle.kind)),
+                self.motion,
+            );
+        }
+    }
 }
 
 fn kind_icon(kind: NoticeKind) -> &'static str {
@@ -19,6 +69,14 @@ fn kind_icon(kind: NoticeKind) -> &'static str {
         NoticeKind::Error => "dialog-error-symbolic",
         NoticeKind::SignIn => "system-users-symbolic",
         NoticeKind::Warning | NoticeKind::Info => "dialog-warning-symbolic",
+    }
+}
+
+fn kind_class(kind: NoticeKind) -> &'static str {
+    match kind {
+        NoticeKind::Error => "error",
+        NoticeKind::SignIn => "signin",
+        NoticeKind::Warning | NoticeKind::Info => "warning",
     }
 }
 
@@ -30,41 +88,6 @@ fn tile(kind: NoticeKind) -> gtk::Box {
     image.set_halign(gtk::Align::Center);
     tile.append(&image);
     tile
-}
-
-fn retry_button(ctx: &Ctx, run: Box<dyn Fn()>, retrying: bool) -> gtk::Button {
-    let content = row(4, &[]);
-    if retrying {
-        let spinner = gtk::Spinner::new();
-        spinner.set_spinning(ctx.motion);
-        spinner.set_size_request(10, 10);
-        content.append(&spinner);
-    }
-    let text = if retrying { "Retrying…" } else { "Retry" };
-    content.append(&label(ctx.locale.lang.tr(text), &[]));
-    let retry = button(&content, &["headroom-small-button"], run);
-    retry.set_sensitive(!retrying);
-    retry
-}
-
-fn action_row(ctx: &Ctx, actions: NoticeActions) -> Option<gtk::Box> {
-    let buttons = row(4, &[]);
-    buttons.set_valign(gtk::Align::Center);
-    let mut any = false;
-    if let Some(sign_in) = actions.sign_in {
-        let text = ctx.locale.lang.tr("Sign in…");
-        buttons.append(&text_button(
-            text,
-            &["headroom-small-button", "primary"],
-            sign_in,
-        ));
-        any = true;
-    }
-    if let Some(retry) = actions.retry {
-        buttons.append(&retry_button(ctx, retry, actions.retrying));
-        any = true;
-    }
-    any.then_some(buttons)
 }
 
 fn texts(notice: &NoticeView) -> gtk::Box {
@@ -84,27 +107,46 @@ fn texts(notice: &NoticeView) -> gtk::Box {
     texts
 }
 
-pub fn notice_row(ctx: &Ctx, notice: &NoticeView, actions: NoticeActions) -> gtk::Box {
-    let kind_class = match notice.kind {
-        NoticeKind::Error => "error",
-        NoticeKind::SignIn => "signin",
-        NoticeKind::Warning | NoticeKind::Info => "warning",
-    };
-    let body = row(8, &["headroom-notice", kind_class]);
+fn stacks_buttons(lang: Lang, buttons: &[NoticeButton]) -> bool {
+    buttons
+        .iter()
+        .any(|kind| button_model(lang, kind, ButtonState::default()).primary)
+}
+
+pub fn notice_row(
+    lang: Lang,
+    motion: bool,
+    notice: &NoticeView,
+    on_press: impl Fn(&NoticeButton) -> Box<dyn Fn()>,
+) -> MountedNotice {
+    let body = row(8, &["headroom-notice", kind_class(notice.kind)]);
     let texts = texts(notice);
-    let stacked = actions.sign_in.is_some();
     body.append(&tile(notice.kind));
     body.append(&texts);
-    if let Some(buttons) = action_row(ctx, actions) {
-        if stacked {
-            buttons.set_margin_top(6);
-            buttons.set_halign(gtk::Align::Start);
-            texts.append(&buttons);
+    let buttons: Vec<ButtonHandle> = notice
+        .buttons
+        .iter()
+        .map(|kind| ButtonHandle::new(kind, on_press(kind)))
+        .collect();
+    if !buttons.is_empty() {
+        let line = row(4, &[]);
+        line.set_valign(gtk::Align::Center);
+        for handle in &buttons {
+            line.append(&handle.button);
+        }
+        if stacks_buttons(lang, &notice.buttons) {
+            line.set_margin_top(6);
+            line.set_halign(gtk::Align::Start);
+            texts.append(&line);
         } else {
-            body.append(&buttons);
+            body.append(&line);
         }
     }
-    body
+    MountedNotice {
+        widget: body,
+        buttons,
+        motion,
+    }
 }
 
 pub fn notice_line(text: &str) -> gtk::Box {

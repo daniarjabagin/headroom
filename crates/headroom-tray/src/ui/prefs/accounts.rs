@@ -149,6 +149,13 @@ impl AccountsPage {
         }
     }
 
+    pub fn focus(&self, account_id: &str) {
+        if let Some(row) = self.rows.borrow().iter().find(|row| row.id == account_id) {
+            row.widget.set_expanded(true);
+            row.widget.grab_focus();
+        }
+    }
+
     fn rebuild(&self, accounts: &[Account], logo_color: &str, reuse: bool) {
         let mut previous = self.rows.take();
         self.list.remove_all();

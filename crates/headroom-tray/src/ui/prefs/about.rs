@@ -2,14 +2,18 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 
 use super::rows::group;
 use super::{Act, PrefsAction, Service, Snapshot};
+use crate::dates::Locale;
 use crate::i18n::Lang;
 use crate::payload::Update;
 use crate::update::{
     UpdateAction, UpdateRun, notes_url, update_action, update_title, whats_new_url,
 };
+use crate::update_check::{CheckContext, CheckRun, check_line, check_row_visible};
 
 const LOGS_COMMAND: &str = "journalctl --user -u headroom.service -f";
 
@@ -24,6 +28,7 @@ struct UpdateRow {
     spinner: gtk::Spinner,
     whats_new: gtk::Button,
     action: gtk::Button,
+    check: gtk::Button,
 }
 
 pub struct AboutPage {
@@ -81,20 +86,47 @@ fn logs_row(lang: Lang) -> adw::ActionRow {
     row
 }
 
-fn update_row(lang: Lang) -> UpdateRow {
+fn update_row(lang: Lang, act: &Act) -> UpdateRow {
     let row = action_row(lang.tr("Updates"), "");
     let spinner = gtk::Spinner::new();
     let whats_new = suffix_button(lang.tr("What's new"), &["flat"]);
     let action = suffix_button("", &[]);
+    let check = suffix_button(lang.tr("Check now"), &[]);
+    let act = Rc::clone(act);
+    check.connect_clicked(move |_| act(PrefsAction::CheckForUpdates));
     row.add_suffix(&spinner);
     row.add_suffix(&whats_new);
     row.add_suffix(&action);
+    row.add_suffix(&check);
     UpdateRow {
         row,
         spinner,
         whats_new,
         action,
+        check,
     }
+}
+
+fn update_check_line(snapshot: &Snapshot) -> Option<String> {
+    let state = snapshot.state?;
+    let checks_on = snapshot
+        .settings
+        .is_some_and(|settings| settings.updates.check);
+    let version = state.app_version.as_deref();
+    if !check_row_visible(version, state.update_check.as_ref(), checks_on) {
+        return None;
+    }
+    let locale = Locale::new(snapshot.lang, TimeZone::system());
+    let ctx = CheckContext {
+        locale: &locale,
+        version: version.unwrap_or_default(),
+        checked_at: state
+            .update_check
+            .as_ref()
+            .and_then(|check| check.checked_at),
+        now: Timestamp::now(),
+    };
+    Some(check_line(&ctx, snapshot.update_check))
 }
 
 impl AboutPage {
@@ -105,7 +137,7 @@ impl AboutPage {
             .build();
         let version = action_row(lang.tr("Headroom tray"), env!("CARGO_PKG_VERSION"));
         let service = service_row(lang, act);
-        let update = update_row(lang);
+        let update = update_row(lang, act);
         page.add(&group(
             lang.tr("Version"),
             "",
@@ -162,6 +194,24 @@ impl AboutPage {
             .settings
             .is_none_or(|settings| settings.updates.check);
         self.update_release(snapshot.lang, update, checking, snapshot.update_run);
+        let line = update
+            .is_none()
+            .then(|| update_check_line(snapshot))
+            .flatten();
+        self.sync_check(line.as_deref(), snapshot.update_check);
+    }
+
+    fn sync_check(&self, line: Option<&str>, run: &CheckRun) {
+        let row = &self.update;
+        row.check.set_visible(line.is_some());
+        let Some(line) = line else {
+            return;
+        };
+        let checking = *run == CheckRun::Checking;
+        row.row.set_subtitle(line);
+        row.check.set_sensitive(!checking);
+        row.spinner.set_visible(checking);
+        row.spinner.set_spinning(checking);
     }
 
     fn update_service(&self, snapshot: &Snapshot) {
@@ -202,6 +252,7 @@ impl AboutPage {
             } else {
                 lang.tr("Update checks are off")
             };
+            row.row.set_title(lang.tr("Updates"));
             row.row.set_subtitle(text);
             for widget in [
                 row.spinner.upcast_ref::<gtk::Widget>(),

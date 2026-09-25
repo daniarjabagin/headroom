@@ -1,9 +1,11 @@
 use crate::i18n::{Lang, fill};
 use crate::notices::{NoticeKind, notice_text};
 use crate::payload::{Account, AccountError, Status, Window};
+use crate::recovery::{NoticeButton, cli_login_hint, notice_buttons};
 
 const NO_SUBSCRIPTION: &str = "no_subscription";
 const NETWORK: &str = "network";
+const ACCOUNT_CHANGED: &str = "account_changed";
 const SIGN_IN_ERRORS: [&str; 2] = ["not_signed_in", "sign_in_expired"];
 const SKELETON_ROWS: usize = 2;
 
@@ -20,7 +22,7 @@ pub struct NoticeView {
     pub title: String,
     pub detail: Option<String>,
     pub note: Option<String>,
-    pub retry: bool,
+    pub buttons: Vec<NoticeButton>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,6 +30,7 @@ pub enum CardBody<'a> {
     Blocked(NoticeView),
     Skeleton(usize),
     Limits {
+        alert: Option<NoticeView>,
         notices: Vec<NoticeView>,
         windows: Vec<&'a Window>,
     },
@@ -116,19 +119,20 @@ pub fn subscription_note(error: Option<&AccountError>) -> Option<String> {
     (!redundant).then(|| error.message.clone())
 }
 
-fn signed_out_notice(lang: Lang, account: &Account) -> NoticeView {
+fn signed_out_notice(lang: Lang, account: &Account, terminal_sign_in: bool) -> NoticeView {
+    let detail = cli_login_hint(lang, account).unwrap_or_else(|| {
+        lang.tr("Sign in again to keep this account up to date.")
+            .to_owned()
+    });
     NoticeView {
         kind: NoticeKind::SignIn,
         title: fill(
             lang.tr("Signed out of {provider}"),
             &[("provider", &account.provider_name)],
         ),
-        detail: Some(
-            lang.tr("Sign in again to keep this account up to date.")
-                .to_owned(),
-        ),
+        detail: Some(detail),
         note: account.error.as_ref().map(|error| error.message.clone()),
-        retry: true,
+        buttons: notice_buttons(account, true, terminal_sign_in),
     }
 }
 
@@ -143,20 +147,26 @@ fn no_subscription_notice(lang: Lang, account: &Account) -> NoticeView {
             .to_owned(),
         ),
         note: subscription_note(account.error.as_ref()),
-        retry: true,
+        buttons: notice_buttons(account, false, false),
     }
+}
+
+fn error_title(lang: Lang, account: &Account) -> String {
+    let template = if error_kind(account) == Some(ACCOUNT_CHANGED) {
+        "Another account is signed in to {provider}"
+    } else {
+        "Couldn't refresh {provider}"
+    };
+    fill(lang.tr(template), &[("provider", &account.provider_name)])
 }
 
 fn error_notice(lang: Lang, account: &Account) -> NoticeView {
     NoticeView {
         kind: NoticeKind::Error,
-        title: fill(
-            lang.tr("Couldn't refresh {provider}"),
-            &[("provider", &account.provider_name)],
-        ),
+        title: error_title(lang, account),
         detail: account.error.as_ref().map(|error| error.message.clone()),
-        note: None,
-        retry: true,
+        note: cli_login_hint(lang, account),
+        buttons: notice_buttons(account, false, false),
     }
 }
 
@@ -166,7 +176,7 @@ fn daemon_notices(lang: Lang, account: &Account) -> impl Iterator<Item = NoticeV
         title: notice_text(lang, &notice.text),
         detail: None,
         note: None,
-        retry: false,
+        buttons: Vec::new(),
     })
 }
 
@@ -184,24 +194,35 @@ fn awaiting_first_data(account: &Account) -> bool {
 }
 
 #[must_use]
-pub fn card_body(lang: Lang, account: &Account, offline: bool) -> CardBody<'_> {
+pub fn shows_error_notice(account: &Account, offline: bool) -> bool {
+    let reported = match account.status {
+        Status::Error => true,
+        Status::Refreshing => account.error.is_some(),
+        _ => false,
+    };
+    reported && !failed_offline(account, offline)
+}
+
+#[must_use]
+pub fn card_body(
+    lang: Lang,
+    account: &Account,
+    offline: bool,
+    terminal_sign_in: bool,
+) -> CardBody<'_> {
     if is_signed_out(account) {
-        return CardBody::Blocked(signed_out_notice(lang, account));
+        return CardBody::Blocked(signed_out_notice(lang, account, terminal_sign_in));
     }
     if lacks_subscription(account) {
         return CardBody::Blocked(no_subscription_notice(lang, account));
     }
-    if awaiting_first_data(account) {
+    let failed = shows_error_notice(account, offline);
+    if awaiting_first_data(account) && !failed {
         return CardBody::Skeleton(SKELETON_ROWS.max(account.windows.len()));
     }
-    let failed = account.status == Status::Error && !failed_offline(account, offline);
-    let notices = failed
-        .then(|| error_notice(lang, account))
-        .into_iter()
-        .chain(daemon_notices(lang, account))
-        .collect();
     CardBody::Limits {
-        notices,
+        alert: failed.then(|| error_notice(lang, account)),
+        notices: daemon_notices(lang, account).collect(),
         windows: shown_windows(account),
     }
 }

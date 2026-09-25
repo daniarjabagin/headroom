@@ -13,6 +13,7 @@ use headroom_tray::preferences::model::{decode_settings, settings_from};
 use headroom_tray::preferences::registry::parse_providers;
 use headroom_tray::ui::prefs::{Service, SettingsWindow, Snapshot};
 use headroom_tray::update::UpdateRun;
+use headroom_tray::update_check::CheckRun;
 
 const USAGE: &str = "usage: settings_snapshot <state.json> <settings.json> <providers.json> \
                      <general|accounts|notifications|about|add|service> <out.png> [dark] [ru]";
@@ -97,6 +98,7 @@ fn show(options: &Options) -> Result<Rc<SettingsWindow>> {
         state: Some(&state),
         providers: Some(&providers),
         update_run: &UpdateRun::Idle,
+        update_check: &CheckRun::Idle,
     };
     window.update(&snapshot);
     window.present();

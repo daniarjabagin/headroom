@@ -1,0 +1,88 @@
+use gtk::prelude::*;
+
+use crate::account::{CardBody, NoticeView, card_body, is_retrying};
+use crate::notices::NoticeKind;
+use crate::payload::{Account, Window};
+use crate::recovery::{ButtonState, NoticeButton};
+use crate::ui::context::{Action, Ctx};
+use crate::ui::notice::{MountedNotice, notice_line, notice_row};
+use crate::ui::status_views::skeleton_rows;
+
+pub struct Card<'a> {
+    pub alert: Option<NoticeView>,
+    pub rest: Vec<gtk::Widget>,
+    pub windows: Option<Vec<&'a Window>>,
+}
+
+fn press(ctx: &Ctx, account: &Account, button: &NoticeButton) -> Box<dyn Fn()> {
+    let action = match button {
+        NoticeButton::Retry => Action::Retry(account.id.clone()),
+        NoticeButton::SignIn => Action::SignIn(account.provider.clone()),
+        NoticeButton::SignInAgain { account_id } => Action::SignInAgain(account_id.clone()),
+        NoticeButton::CopyCommand { command } => Action::CopyCommand {
+            account_id: account.id.clone(),
+            command: command.clone(),
+        },
+    };
+    Box::new(ctx.action(action))
+}
+
+pub fn button_state(ctx: &Ctx, account: &Account) -> ButtonState {
+    ButtonState {
+        busy: is_retrying(account) || ctx.ui.retrying.contains(&account.id),
+        copied: ctx.ui.copied_command.as_deref() == Some(account.id.as_str()),
+    }
+}
+
+pub fn mount_notice(ctx: &Ctx, account: &Account, notice: &NoticeView) -> MountedNotice {
+    let mounted = notice_row(ctx.locale.lang, ctx.motion, notice, |button| {
+        press(ctx, account, button)
+    });
+    mounted.apply(ctx.locale.lang, |_| button_state(ctx, account));
+    mounted
+}
+
+fn notice_widget(ctx: &Ctx, account: &Account, notice: &NoticeView) -> gtk::Widget {
+    if notice.kind == NoticeKind::Info {
+        return notice_line(&notice.title).upcast();
+    }
+    mount_notice(ctx, account, notice).widget.upcast()
+}
+
+pub fn card<'a>(ctx: &Ctx, account: &'a Account) -> Card<'a> {
+    let terminal_sign_in = ctx.sign_in.contains(&account.provider);
+    match card_body(ctx.locale.lang, account, ctx.offline, terminal_sign_in) {
+        CardBody::Blocked(notice) => Card {
+            alert: Some(notice),
+            rest: Vec::new(),
+            windows: None,
+        },
+        CardBody::Skeleton(rows) => Card {
+            alert: None,
+            rest: vec![skeleton_rows(rows).upcast()],
+            windows: None,
+        },
+        CardBody::Limits {
+            alert,
+            notices,
+            windows,
+        } => Card {
+            alert,
+            rest: notices
+                .iter()
+                .map(|notice| notice_widget(ctx, account, notice))
+                .collect(),
+            windows: Some(windows),
+        },
+    }
+}
+
+pub fn clear_except(container: &gtk::Box, kept: Option<&gtk::Box>) {
+    let mut child = container.first_child();
+    while let Some(current) = child {
+        child = current.next_sibling();
+        if kept.is_none_or(|kept| kept.upcast_ref::<gtk::Widget>() != &current) {
+            container.remove(&current);
+        }
+    }
+}

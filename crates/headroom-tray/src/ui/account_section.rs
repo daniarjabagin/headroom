@@ -1,19 +1,15 @@
 use gtk::prelude::*;
 use jiff::Timestamp;
 
-use crate::account::{
-    CardBody, HeaderStatus, NoticeView, account_title, card_body, header_status, is_retrying,
-    is_signed_out, shown_plan,
-};
+use crate::account::{HeaderStatus, NoticeView, account_title, header_status, shown_plan};
 use crate::assets::{CLAUDE_COLOR, Tint, provider_logo};
 use crate::format::ago_text;
 use crate::i18n::fill;
-use crate::notices::NoticeKind;
 use crate::payload::{Account, Usage, Window};
 use crate::ui::context::{Action, Ctx};
-use crate::ui::notice::{NoticeActions, notice_line, notice_row};
+use crate::ui::notice::MountedNotice;
 use crate::ui::quota_row::quota_row;
-use crate::ui::status_views::skeleton_rows;
+use crate::ui::section_card::{Card, button_state, card, clear_except, mount_notice};
 use crate::ui::usage_rows::{extra_rows, trend_row};
 use crate::ui::widgets::{button, column, icon, label, row, svg_image};
 
@@ -90,33 +86,6 @@ fn header(ctx: &Ctx, input: &SectionInput) -> gtk::Box {
     line
 }
 
-fn retry(ctx: &Ctx, account: &Account) -> Box<dyn Fn()> {
-    Box::new(ctx.action(Action::Refresh(account.id.clone())))
-}
-
-fn blocked(ctx: &Ctx, account: &Account, notice: &NoticeView) -> gtk::Box {
-    let sign_in = (is_signed_out(account) && ctx.sign_in.contains(&account.provider))
-        .then(|| Box::new(ctx.action(Action::SignIn(account.provider.clone()))) as Box<dyn Fn()>);
-    let actions = NoticeActions {
-        sign_in,
-        retry: Some(retry(ctx, account)),
-        retrying: is_retrying(account),
-    };
-    notice_row(ctx, notice, actions)
-}
-
-fn notice_widget(ctx: &Ctx, account: &Account, notice: &NoticeView) -> gtk::Box {
-    if notice.kind == NoticeKind::Info {
-        return notice_line(&notice.title);
-    }
-    let actions = NoticeActions {
-        sign_in: None,
-        retry: notice.retry.then(|| retry(ctx, account)),
-        retrying: false,
-    };
-    notice_row(ctx, notice, actions)
-}
-
 fn caret_name(expanded: bool) -> &'static str {
     if expanded {
         "pan-up-symbolic"
@@ -164,21 +133,93 @@ fn limits(ctx: &Ctx, input: &SectionInput, card: &gtk::Box, windows: &[&Window])
     }
 }
 
-pub fn account_section(ctx: &Ctx, input: &SectionInput) -> gtk::Box {
-    let section = column(4, &[]);
-    section.append(&header(ctx, input));
-    let card = column(0, &["headroom-card"]);
-    match card_body(ctx.locale.lang, input.account, ctx.offline) {
-        CardBody::Blocked(notice) => card.append(&blocked(ctx, input.account, &notice)),
-        CardBody::Skeleton(rows) => card.append(&skeleton_rows(rows)),
-        CardBody::Limits { notices, windows } => {
-            for notice in &notices {
-                card.append(&notice_widget(ctx, input.account, notice));
-            }
-            limits(ctx, input, &card, &windows);
-        }
+#[derive(PartialEq)]
+struct AlertKey {
+    notice: NoticeView,
+    motion: bool,
+}
+
+struct MountedAlert {
+    key: AlertKey,
+    notice: MountedNotice,
+}
+
+pub struct MountedSection {
+    pub widget: gtk::Box,
+    header: gtk::Box,
+    card: gtk::Box,
+    alert: Option<MountedAlert>,
+}
+
+impl MountedSection {
+    pub fn new(ctx: &Ctx, input: &SectionInput) -> Self {
+        let widget = column(4, &[]);
+        let header = header(ctx, input);
+        let card = column(0, &["headroom-card"]);
+        widget.append(&header);
+        widget.append(&card);
+        let mut section = Self {
+            widget,
+            header,
+            card,
+            alert: None,
+        };
+        section.fill_card(ctx, input);
+        section
     }
-    card.set_visible(card.first_child().is_some());
-    section.append(&card);
-    section
+
+    pub fn update(&mut self, ctx: &Ctx, input: &SectionInput) {
+        let header = header(ctx, input);
+        self.widget.prepend(&header);
+        self.widget.remove(&self.header);
+        self.header = header;
+        self.fill_card(ctx, input);
+    }
+
+    fn fill_card(&mut self, ctx: &Ctx, input: &SectionInput) {
+        let account = input.account;
+        let Card {
+            alert,
+            rest,
+            windows,
+        } = card(ctx, account);
+        self.keep_alert(ctx, account, alert);
+        let kept = self.alert.as_ref().map(|alert| &alert.notice.widget);
+        clear_except(&self.card, kept);
+        if let Some(alert) = &self.alert {
+            alert
+                .notice
+                .apply(ctx.locale.lang, |_| button_state(ctx, account));
+            if alert.notice.widget.parent().is_none() {
+                self.card.prepend(&alert.notice.widget);
+            }
+        }
+        for widget in &rest {
+            self.card.append(widget);
+        }
+        if let Some(windows) = windows {
+            limits(ctx, input, &self.card, &windows);
+        }
+        self.card.set_visible(self.card.first_child().is_some());
+    }
+
+    fn keep_alert(&mut self, ctx: &Ctx, account: &Account, alert: Option<NoticeView>) {
+        let Some(notice) = alert else {
+            self.alert = None;
+            return;
+        };
+        let key = AlertKey {
+            notice,
+            motion: ctx.motion,
+        };
+        if self
+            .alert
+            .as_ref()
+            .is_some_and(|mounted| mounted.key == key)
+        {
+            return;
+        }
+        let notice = mount_notice(ctx, account, &key.notice);
+        self.alert = Some(MountedAlert { key, notice });
+    }
 }
