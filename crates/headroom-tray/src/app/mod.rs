@@ -17,6 +17,7 @@ use crate::icon::{Pixmap, SIZES, pixmap_from_rgba};
 use crate::palette::Palettes;
 use crate::preferences::registry::{ProviderInfo, RegistryError};
 use crate::preferences::sync::SettingsSync;
+use crate::shortcut::{Shortcuts, Support};
 use crate::ui::context::{Tick, UiState};
 use crate::ui::popup_tree::PopupTree;
 use crate::ui::prefs::SettingsWindow;
@@ -56,6 +57,7 @@ pub struct App {
     ticker: RefCell<Option<glib::SourceId>>,
     prefs: RefCell<Option<Rc<SettingsWindow>>>,
     tree: RefCell<PopupTree>,
+    shortcuts: RefCell<Shortcuts>,
 }
 
 fn mark_pixmaps() -> Vec<Pixmap> {
@@ -98,7 +100,9 @@ impl App {
             ticker: RefCell::new(None),
             prefs: RefCell::new(None),
             tree: RefCell::default(),
+            shortcuts: RefCell::default(),
         });
+        app.start_shortcuts();
         app.listen(channels.events);
         app.watch_theme();
         app.watch_hidden();
@@ -140,6 +144,31 @@ impl App {
                 app.stop_ticker();
             }
         });
+    }
+
+    fn start_shortcuts(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        *self.shortcuts.borrow_mut() = Shortcuts::start(move || {
+            if let Some(app) = weak.upgrade() {
+                app.toggle(None);
+            }
+        });
+    }
+
+    pub fn shortcut_support(&self) -> Support {
+        self.shortcuts.borrow().support()
+    }
+
+    fn sync_shortcut(&self) {
+        let accelerator = self
+            .model
+            .borrow()
+            .settings
+            .settings()
+            .map(|settings| settings.shortcuts.open.clone());
+        if let Some(accelerator) = accelerator {
+            self.shortcuts.borrow_mut().apply(&accelerator);
+        }
     }
 
     fn send(&self, command: Command) {

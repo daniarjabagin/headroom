@@ -24,6 +24,7 @@ pub mod providers;
 pub mod quota;
 pub mod recovery;
 pub mod settings;
+pub mod shortcut;
 pub mod spend;
 pub mod theme;
 pub mod tray;

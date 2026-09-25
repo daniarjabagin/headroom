@@ -86,6 +86,8 @@ impl App {
             Ok(true) => {
                 self.render(false);
                 self.sync_prefs();
+                self.sync_tray();
+                self.sync_shortcut();
             }
             Ok(false) => {}
             Err(error) => tracing::warn!(%error, "ignoring unreadable settings"),

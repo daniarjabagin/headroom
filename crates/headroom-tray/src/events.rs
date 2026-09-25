@@ -1,4 +1,4 @@
-use crate::icon::Pixmap;
+use crate::icon::{TrayIcon, TrayText};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuAction {
@@ -69,7 +69,8 @@ pub struct MenuLabels {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrayUpdate {
-    pub ring: Option<Vec<Pixmap>>,
+    pub icon: TrayIcon,
+    pub text: TrayText,
     pub tooltip: String,
     pub labels: MenuLabels,
 }
