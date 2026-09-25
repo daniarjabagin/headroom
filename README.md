@@ -440,7 +440,11 @@ headroom guard --min 20 --provider claude --json
 ```
 
 - Exit status: `0` every checked limit has at least `--min` percent left, `1` at least one is below
-  (one `✗` line per failing window), `2` no data for the checked limits or the daemon is not running.
+  (one `✗` line per failing window), `2` no fresh data for the checked limits or the daemon is not
+  running.
+- Only accounts with current limits are checked: an account that is outdated, signed out, without a
+  subscription or failing to refresh is skipped. When every matching account is skipped the guard
+  exits `2` and names each one, e.g. `no fresh limit data · Claude: signed out`.
 - Only visible accounts and windows are checked (not hidden in settings, not removed). Balances and
   credits without a percentage are not limits and are skipped; `--window weekly` skips accounts
   without a weekly window.

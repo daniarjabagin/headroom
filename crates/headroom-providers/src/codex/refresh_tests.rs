@@ -1,3 +1,4 @@
+use std::fs;
 use std::os::unix::fs::PermissionsExt;
 
 use serde_json::json;
@@ -139,4 +140,57 @@ async fn a_sign_in_without_a_refresh_token_needs_a_new_sign_in() {
     let client = TokenClient::new(reqwest::Client::new(), "http://127.0.0.1:9");
     let result = refresh(&client, home.path(), &stale, at(NOW)).await;
     assert_eq!(result, Err(ProviderError::SignInExpired));
+}
+
+async fn racing_token_server(home: &Path, concurrent: Value, body: Value) -> MockServer {
+    let server = MockServer::start().await;
+    let home = home.to_path_buf();
+    Mock::given(method("POST"))
+        .and(path("/oauth/token"))
+        .respond_with(move |_: &wiremock::Request| {
+            write_auth(&home, &concurrent);
+            ResponseTemplate::new(200).set_body_json(body.clone())
+        })
+        .expect(1)
+        .mount(&server)
+        .await;
+    server
+}
+
+fn stored_tokens(home: &Path) -> Value {
+    let bytes = fs::read(home.join(AUTH_FILE)).unwrap();
+    serde_json::from_slice::<Value>(&bytes).unwrap()["tokens"].clone()
+}
+
+async fn refresh_racing(home: &Path, concurrent: Value, rotated_access: &str) -> Credentials {
+    let stale = load_credentials(home).unwrap();
+    let rotated = json!({ "access_token": rotated_access, "refresh_token": "rt-new" });
+    let server = racing_token_server(home, concurrent, rotated).await;
+    let client = TokenClient::new(reqwest::Client::new(), &server.uri());
+    refresh(&client, home, &stale, at(NOW)).await.unwrap()
+}
+
+#[tokio::test]
+async fn a_new_sign_in_written_during_the_refresh_is_adopted() {
+    let home = expired_home();
+    let signed_in_access = access_token(at("2026-09-23T21:00:00Z"));
+    let mut signed_in = auth_document(&signed_in_access);
+    signed_in["tokens"]["refresh_token"] = json!("rt-other");
+    let rotated_access = access_token(at("2026-09-23T20:00:00Z"));
+    let fresh = refresh_racing(home.path(), signed_in, &rotated_access).await;
+    assert_eq!(fresh.access_token, signed_in_access);
+    assert_eq!(stored_tokens(home.path())["access_token"], signed_in_access);
+    assert_eq!(stored_tokens(home.path())["refresh_token"], "rt-other");
+}
+
+#[tokio::test]
+async fn an_expired_change_during_the_refresh_keeps_the_rotated_tokens() {
+    let home = expired_home();
+    let mut touched = auth_document(&access_token(at("2026-09-23T09:00:00Z")));
+    touched["last_refresh"] = json!("2026-09-23T09:59:00Z");
+    let rotated_access = access_token(at("2026-09-23T20:00:00Z"));
+    let fresh = refresh_racing(home.path(), touched, &rotated_access).await;
+    assert_eq!(fresh.access_token, rotated_access);
+    assert_eq!(stored_tokens(home.path())["access_token"], rotated_access);
+    assert_eq!(stored_tokens(home.path())["refresh_token"], "rt-new");
 }

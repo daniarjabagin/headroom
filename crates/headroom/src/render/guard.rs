@@ -104,6 +104,7 @@ pub fn no_data_text(reason: &NoData, palette: Palette) -> String {
         }
         NoData::Unreadable(error) => error.clone(),
         NoData::NoMatchingLimits => "no visible limit matches these options".to_owned(),
+        NoData::NoFreshLimits(excluded) => format!("no fresh limit data · {}", excluded.join("; ")),
     };
     format!(
         "{} no limit data · {detail}",

@@ -1,4 +1,4 @@
-use std::fs::{self, File, OpenOptions, TryLockError};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
@@ -6,7 +6,7 @@ use headroom_core::provider::ProviderError;
 use jiff::Timestamp;
 use serde_json::Value;
 
-use super::auth::{AUTH_FILE, Credentials, credentials_from, read_auth_file};
+use super::auth::{AUTH_FILE, AuthFile, Credentials, credentials_from, read_auth_file};
 use super::oauth::{RawTokens, TokenClient};
 use crate::fsio::write_private;
 
@@ -44,10 +44,19 @@ async fn refresh_locked(
     let tokens = client.refresh(&refresh_token, now).await?;
     let patched = patch(file.document, &tokens, now)?;
     let refreshed = credentials_from(&patched, current.signed_in_at)?;
-    if let Err(error) = store(home, &file.bytes, &patched) {
-        tracing::error!(home = %home.display(), %error, "refreshed codex sign-in not saved");
+    match store(home, &file.bytes, &patched, now) {
+        Ok(Stored::Written) => Ok(refreshed),
+        Ok(Stored::Adopted(current)) => Ok(current),
+        Err(error) => {
+            tracing::error!(home = %home.display(), %error, "refreshed codex sign-in not saved");
+            Ok(refreshed)
+        }
     }
-    Ok(refreshed)
+}
+
+enum Stored {
+    Written,
+    Adopted(Credentials),
 }
 
 fn lock_auth(home: &Path) -> Result<File, ProviderError> {
@@ -107,15 +116,30 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|text| !text.is_empty())
 }
 
-fn store(home: &Path, read: &[u8], document: &Value) -> Result<(), ProviderError> {
+fn store(
+    home: &Path,
+    read: &[u8],
+    document: &Value,
+    now: Timestamp,
+) -> Result<Stored, ProviderError> {
     let path = home.join(AUTH_FILE);
-    let on_disk = fs::read(&path).map_err(|error| local_error(&path, &error.to_string()))?;
-    if on_disk != read {
-        return Err(local_error(&path, "changed during the refresh"));
+    let on_disk = read_auth_file(home)?;
+    if on_disk.bytes != read {
+        if let Some(current) = unexpired(&on_disk, now) {
+            return Ok(Stored::Adopted(current));
+        }
+        tracing::warn!(path = %path.display(), "codex sign-in changed during the refresh, keeping the rotated tokens");
     }
     let bytes = serde_json::to_vec_pretty(document)
         .map_err(|error| local_error(&path, &error.to_string()))?;
-    write_private(&path, &bytes).map_err(|error| local_error(&path, &error.to_string()))
+    write_private(&path, &bytes).map_err(|error| local_error(&path, &error.to_string()))?;
+    Ok(Stored::Written)
+}
+
+fn unexpired(file: &AuthFile, now: Timestamp) -> Option<Credentials> {
+    credentials_from(&file.document, file.modified_at)
+        .ok()
+        .filter(|credentials| credentials.ensure_fresh(now).is_ok())
 }
 
 fn local_error(path: &Path, problem: &str) -> ProviderError {

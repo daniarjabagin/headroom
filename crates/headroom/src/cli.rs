@@ -259,7 +259,8 @@ const GUARD_AFTER_HELP: &str = "\
 \x1b[1m\x1b[4mExit status:\x1b[0m
   \x1b[1m0\x1b[0m  every checked limit has at least PERCENT left
   \x1b[1m1\x1b[0m  at least one checked limit is below PERCENT
-  \x1b[1m2\x1b[0m  no data for the checked limits, or the daemon is not running
+  \x1b[1m2\x1b[0m  no fresh data for the checked limits (stale, signed out, errors),
+     or the daemon is not running
 
 \x1b[1m\x1b[4mExamples:\x1b[0m
   headroom guard --min 15 && claude -p \"fix the failing tests\"

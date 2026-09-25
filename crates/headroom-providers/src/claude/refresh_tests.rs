@@ -188,3 +188,60 @@ async fn a_sign_in_without_a_refresh_token_needs_a_new_sign_in() {
     let result = refresh(&client, home.path(), &stale(), now()).await;
     assert_eq!(result.unwrap_err(), ProviderError::SignInExpired);
 }
+
+async fn racing_token_server(file: std::path::PathBuf, concurrent: Value) -> MockServer {
+    let server = MockServer::start().await;
+    let body = json!({
+        "access_token": "new-access",
+        "refresh_token": "new-refresh",
+        "expires_in": 28_800,
+        "scope": "user:inference user:profile"
+    });
+    Mock::given(method("POST"))
+        .and(path("/v1/oauth/token"))
+        .respond_with(move |_: &wiremock::Request| {
+            fs::write(&file, concurrent.to_string()).unwrap();
+            ResponseTemplate::new(200).set_body_json(body.clone())
+        })
+        .expect(1)
+        .mount(&server)
+        .await;
+    server
+}
+
+fn stored_oauth(home: &tempfile::TempDir) -> Value {
+    let bytes = fs::read(home.path().join(CREDENTIALS_FILE)).unwrap();
+    serde_json::from_slice::<Value>(&bytes).unwrap()["claudeAiOauth"].clone()
+}
+
+#[tokio::test]
+async fn a_new_sign_in_written_during_the_refresh_is_adopted() {
+    let home = home_with(&document());
+    let mut signed_in = document();
+    signed_in["claudeAiOauth"]["accessToken"] = json!("other-access");
+    signed_in["claudeAiOauth"]["refreshToken"] = json!("other-refresh");
+    signed_in["claudeAiOauth"]["expiresAt"] = json!(now().as_millisecond() + 3_600_000);
+    let file = home.path().join(CREDENTIALS_FILE);
+    let server = racing_token_server(file, signed_in).await;
+    let fresh = refresh(&client(&server), home.path(), &stale(), now())
+        .await
+        .unwrap();
+    assert_eq!(fresh.token_secret(), "other-access");
+    assert_eq!(stored_oauth(&home)["accessToken"], "other-access");
+    assert_eq!(stored_oauth(&home)["refreshToken"], "other-refresh");
+}
+
+#[tokio::test]
+async fn an_expired_change_during_the_refresh_keeps_the_rotated_tokens() {
+    let home = home_with(&document());
+    let mut touched = document();
+    touched["mcpOAuth"] = json!({ "keep": false });
+    let file = home.path().join(CREDENTIALS_FILE);
+    let server = racing_token_server(file, touched).await;
+    let fresh = refresh(&client(&server), home.path(), &stale(), now())
+        .await
+        .unwrap();
+    assert_eq!(fresh.token_secret(), "new-access");
+    assert_eq!(stored_oauth(&home)["accessToken"], "new-access");
+    assert_eq!(stored_oauth(&home)["refreshToken"], "new-refresh");
+}

@@ -18,9 +18,11 @@ use crate::home::HomeDisplay;
 use crate::ipc::{self, Hub, SocketFile};
 use crate::notify::{Notifier, release_task};
 use crate::random::ThreadRandom;
+use crate::rescan::{RescanRequests, Rescans};
 use crate::service::Service;
+use crate::status::StatusFetch;
 use crate::storage::Storage;
-use crate::update::UpdateConfig;
+use crate::update::{UpdateCheckRequests, UpdateChecks, UpdateConfig};
 use crate::{credentials, registry, rescan, status, update};
 use diagnostics::{DiagnosticsContext, TransportKind};
 use log_level::LogControl;
@@ -40,12 +42,9 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let (parts, updates, shutdown) = core_parts(config, storage, notifier);
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();
-    let (update_checks, update_requests) = update::channel();
+    let (update_checks, updates) = update_channel(updates);
     let diagnostics = diagnostics_context(&core, socket.is_some(), logging.clone());
-    let mut service = Service::new(core.clone(), rescans).with_diagnostics(diagnostics);
-    if updates.is_some() {
-        service = service.with_update_checks(update_checks);
-    }
+    let service = build_service(&core, rescans, update_checks, diagnostics);
     let mut sinks = EventSinks::default();
     #[cfg(target_os = "linux")]
     bus.serve(service.clone(), &mut sinks).await?;
@@ -55,27 +54,78 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
         serve_socket(socket, &service, &hub, &mut tasks)
     });
     let sink: Arc<dyn EventSink> = Arc::new(sinks);
-    tasks.spawn(registry::supervise(core.clone(), rescan_requests));
-    tasks.spawn(credentials::watch_signed_out(
-        service.clone(),
-        credentials::TIMING,
-    ));
-    if let Some(control) = logging {
-        tasks.spawn(log_level::follow(core.clone(), control));
-    }
-    tasks.spawn(release_task::run(core.clone()));
-    if let Some(updates) = updates {
-        tasks.spawn(update::run(core.clone(), updates, update_requests));
-    }
-    if let Some(fetch) = status_pages {
-        tasks.spawn(status::run(core.clone(), fetch));
-    }
+    let background = Background {
+        rescan_requests,
+        logging,
+        updates,
+        status_pages,
+    };
+    spawn_background(&mut tasks, &core, &service, background);
     #[cfg(target_os = "linux")]
     tasks.spawn(bus.forward_actions(sink.clone()));
     tasks.spawn(events::publish_changes(core, sink));
     tracing::info!("headroom daemon running");
     stop(shutdown, tasks, socket_file).await;
     Ok(())
+}
+
+fn update_channel(
+    updates: Option<UpdateConfig>,
+) -> (
+    Option<UpdateChecks>,
+    Option<(UpdateConfig, UpdateCheckRequests)>,
+) {
+    let (checks, requests) = update::channel();
+    match updates {
+        Some(updates) => (Some(checks), Some((updates, requests))),
+        None => (None, None),
+    }
+}
+
+fn build_service(
+    core: &Arc<Core>,
+    rescans: Rescans,
+    update_checks: Option<UpdateChecks>,
+    diagnostics: DiagnosticsContext,
+) -> Service {
+    let service = Service::new(core.clone(), rescans).with_diagnostics(diagnostics);
+    match update_checks {
+        Some(checks) => service.with_update_checks(checks),
+        None => service,
+    }
+}
+
+struct Background {
+    rescan_requests: RescanRequests,
+    logging: Option<Arc<dyn LogControl>>,
+    updates: Option<(UpdateConfig, UpdateCheckRequests)>,
+    status_pages: Option<Arc<dyn StatusFetch>>,
+}
+
+fn spawn_background(
+    tasks: &mut JoinSet<()>,
+    core: &Arc<Core>,
+    service: &Service,
+    background: Background,
+) {
+    tasks.spawn(registry::supervise(
+        core.clone(),
+        background.rescan_requests,
+    ));
+    tasks.spawn(credentials::watch_signed_out(
+        service.clone(),
+        credentials::TIMING,
+    ));
+    if let Some(control) = background.logging {
+        tasks.spawn(log_level::follow(core.clone(), control));
+    }
+    tasks.spawn(release_task::run(core.clone()));
+    if let Some((updates, requests)) = background.updates {
+        tasks.spawn(update::run(core.clone(), updates, requests));
+    }
+    if let Some(fetch) = background.status_pages {
+        tasks.spawn(status::run(core.clone(), fetch));
+    }
 }
 
 fn diagnostics_context(
