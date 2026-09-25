@@ -29,7 +29,8 @@ public struct NoticeModel: Sendable, Hashable, Identifiable {
     public let kind: NoticeKind
     public let title: String
     public let detail: String?
-    public let retryAccountID: String?
+    public let note: String?
+    public let recovery: NoticeRecovery?
 }
 
 public struct BlockingNotice: Sendable, Hashable {
@@ -37,8 +38,7 @@ public struct BlockingNotice: Sendable, Hashable {
     public let title: String
     public let detail: String
     public let note: String?
-    public let offersSignIn: Bool
-    public let retrying: Bool
+    public let recovery: NoticeRecovery
 }
 
 public struct AccountLimits: Sendable, Hashable {
@@ -122,16 +122,16 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
     }
 
     static func blockingNotice(_ account: Account, strings: UIStrings) -> BlockingNotice {
-        let retrying = account.status == .refreshing
+        let recovery = RecoveryRules.notice(account) ?? RecoveryRules.retryOnly(account)
         if AccountStatusRules.isSignedOut(account) {
             return BlockingNotice(
                 kind: .signIn, title: strings.fill(.signedOutOf, ["provider": account.providerName]),
-                detail: strings.text(.signedOutDetail), note: account.error?.message, offersSignIn: true,
-                retrying: retrying)
+                detail: RecoveryRules.signedOutDetail(account, strings: strings), note: account.error?.message,
+                recovery: recovery)
         }
         return BlockingNotice(
             kind: .warning, title: strings.text(.noSubscription), detail: strings.text(.noSubscriptionDetail),
-            note: AccountStatusRules.subscriptionNote(account.error), offersSignIn: false, retrying: retrying)
+            note: AccountStatusRules.subscriptionNote(account.error), recovery: recovery)
     }
 
     static func limits(_ account: Account, state: DaemonState, formatter: DisplayFormatter) -> AccountLimits {
@@ -160,15 +160,20 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
         let daemonNotices = account.notices.enumerated().map { index, notice in
             NoticeModel(
                 id: "notice:\(index)", kind: kind(of: notice.tone),
-                title: NoticeTranslation.translate(notice.text, language: strings.language), detail: nil,
-                retryAccountID: nil)
+                title: NoticeTranslation.translate(notice.text, language: strings.language), detail: nil, note: nil,
+                recovery: nil)
         }
         guard AccountStatusRules.showsErrorNotice(account, offline: offline) else { return daemonNotices }
-        let error = NoticeModel(
+        return [errorNotice(account, strings: strings, name: name ?? account.providerName)] + daemonNotices
+    }
+
+    static func errorNotice(_ account: Account, strings: UIStrings, name: String) -> NoticeModel {
+        let changed = AccountStatusRules.accountChanged(account)
+        return NoticeModel(
             id: "error", kind: .error,
-            title: strings.fill(.couldNotRefresh, ["provider": name ?? account.providerName]),
-            detail: account.error?.message, retryAccountID: account.id)
-        return [error] + daemonNotices
+            title: strings.fill(changed ? .accountChanged : .couldNotRefresh, ["provider": name]),
+            detail: changed ? strings.text(.accountChangedDetail) : account.error?.message,
+            note: RecoveryRules.terminalHint(account, strings: strings), recovery: RecoveryRules.notice(account))
     }
 
     static func kind(of tone: Tone) -> NoticeKind {

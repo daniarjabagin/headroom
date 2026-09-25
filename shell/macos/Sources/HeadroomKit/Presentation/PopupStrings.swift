@@ -1,7 +1,8 @@
 public enum PopupText: Sendable, CaseIterable {
     case totalSpend, today, yesterday, thirtyDays, last30Days, noUsageInPeriod
     case spendEstimate, spendUnpricedModels, usageTrend, noUsage, someModelsUnpriced, unpriced, partlyUnpriced
-    case outdated, refreshFailed, retry, retrying, signIn, signedOutDetail
+    case outdated, refreshFailed, retry, retrying, signInAgain, signedOutDetail, signInThenRetry
+    case copyCommand, copied, accountChangedDetail
     case noSubscriptionDetail, overPace, limitSoon, runsOutAnyMinute
     case serviceDownTitle, serviceDownDetail, stateUnreadable, tryAgain, noToolsFound, checkAgain, settings
 
@@ -24,9 +25,13 @@ public enum PopupText: Sendable, CaseIterable {
         case .refreshFailed: "Refresh failed"
         case .retry: "Retry"
         case .retrying: "Retrying…"
-        case .signIn: "Sign in…"
+        case .signInAgain: "Sign in again…"
         case .signedOutDetail:
             "Sign in again through Headroom (Settings → Accounts → Add account), or remove the account there."
+        case .signInThenRetry: "Sign in again with the provider's app, then press Retry."
+        case .copyCommand: "Copy command"
+        case .copied: "Copied"
+        case .accountChangedDetail: "Press Retry to switch to it."
         case .noSubscriptionDetail:
             "Limits aren't available for this account. Renew the plan or sign in with another account."
         case .overPace: "Over pace"
@@ -61,9 +66,13 @@ public enum PopupText: Sendable, CaseIterable {
         case .refreshFailed: "Не удалось обновить"
         case .retry: "Повторить"
         case .retrying: "Повторяем…"
-        case .signIn: "Войти…"
+        case .signInAgain: "Войти снова…"
         case .signedOutDetail:
             "Войдите снова через Headroom (Настройки → Аккаунты → Добавить аккаунт) или удалите там этот аккаунт."
+        case .signInThenRetry: "Войдите снова в приложении провайдера, затем нажмите «Повторить»."
+        case .copyCommand: "Скопировать команду"
+        case .copied: "Скопировано"
+        case .accountChangedDetail: "Нажмите «Повторить», чтобы переключиться на него."
         case .noSubscriptionDetail: "Данные о лимитах недоступны. Продлите подписку или войдите в другой аккаунт."
         case .overPace: "Темп превышен"
         case .limitSoon: "Скоро лимит"
@@ -82,6 +91,7 @@ public enum PopupText: Sendable, CaseIterable {
 public enum PopupTemplate: Sendable, CaseIterable {
     case spare, limitIn, runsOutIn, paceRunsOut, paceRunsOutResets, paceUsedAtReset, paceLeftAtReset
     case offlineSince, lastUpdated, signedOutOf, couldNotRefresh, otherModels, dayTitle, version
+    case accountChanged, runInTerminal
 
     var english: String {
         switch self {
@@ -99,6 +109,8 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .otherModels: "Other ({count})"
         case .dayTitle: "{weekday}, {day}"
         case .version: "Headroom {version}"
+        case .accountChanged: "Another account is signed in to {provider}"
+        case .runInTerminal: "Run `{command}` in Terminal, then press Retry."
         }
     }
 
@@ -118,6 +130,8 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .otherModels: "Другие ({count})"
         case .dayTitle: "{weekday}, {day}"
         case .version: "Headroom {version}"
+        case .accountChanged: "В {provider} выполнен вход в другой аккаунт"
+        case .runInTerminal: "Выполните `{command}` в Терминале, затем нажмите «Повторить»."
         }
     }
 }

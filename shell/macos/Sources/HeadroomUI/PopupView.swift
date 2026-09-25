@@ -6,7 +6,7 @@
 
     public struct PopupActions {
         public var refreshNow: @MainActor () async -> Bool
-        public var refreshAccount: @MainActor (String) -> Void
+        public var refreshAccount: @MainActor (String) async -> Bool
         public var openSettings: @MainActor () -> Void
         public var signIn: @MainActor (String) -> Void
         public var setAccountOrder: @MainActor ([String]) -> Void
@@ -15,7 +15,7 @@
 
         public init(
             refreshNow: @escaping @MainActor () async -> Bool,
-            refreshAccount: @escaping @MainActor (String) -> Void,
+            refreshAccount: @escaping @MainActor (String) async -> Bool,
             openSettings: @escaping @MainActor () -> Void,
             signIn: @escaping @MainActor (String) -> Void,
             setAccountOrder: @escaping @MainActor ([String]) -> Void,
@@ -39,6 +39,7 @@
         var expanded: Set<String> = []
         let tips = TipCenter()
         let refresh = RefreshControl()
+        let retries = RetryControl()
         let icons = ProviderIconStore()
     }
 
@@ -89,6 +90,9 @@
             .environment(ui.icons)
             .onChange(of: model.state.map(PopupScreen.isRefreshing) ?? false, initial: true) { _, busy in
                 ui.refresh.setDaemonBusy(busy)
+            }
+            .onChange(of: model.state.map(PopupScreen.refreshingIDs) ?? [], initial: true) { _, ids in
+                ui.retries.observe(refreshing: ids)
             }
         }
 
@@ -170,7 +174,7 @@
         @Environment(\.headroomReducedMotion) private var reducedMotion
 
         private var context: PopupContext {
-            PopupContext(formatter: formatter, display: state.display, actions: actions)
+            PopupContext(formatter: formatter, display: state.display, actions: actions, retries: ui.retries)
         }
 
         var body: some View {

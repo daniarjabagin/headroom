@@ -94,6 +94,8 @@ public struct Account: Decodable, Sendable, Hashable, Identifiable {
     public let owner: AccountOwner
     public let status: AccountStatus
     public let error: AccountError?
+    public let recovery: AccountRecovery?
+    let reportsRecovery: Bool
     public let updatedAt: Timestamp?
     public let source: DataSource?
     public let windows: [QuotaWindow]
@@ -104,11 +106,33 @@ public struct Account: Decodable, Sendable, Hashable, Identifiable {
     public var displayName: String { label ?? email ?? providerName }
 
     enum CodingKeys: String, CodingKey {
-        case id, provider, label, email, plan, hidden, owner, status, error, source, windows,
+        case id, provider, label, email, plan, hidden, owner, status, error, recovery, source, windows,
             balances, notices
         case providerName = "provider_name"
         case updatedAt = "updated_at"
         case usageHome = "usage_home"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        provider = try container.decode(String.self, forKey: .provider)
+        providerName = try container.decode(String.self, forKey: .providerName)
+        label = try container.decodeIfPresent(String.self, forKey: .label)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+        plan = try container.decodeIfPresent(String.self, forKey: .plan)
+        hidden = try container.decode(Bool.self, forKey: .hidden)
+        owner = try container.decode(AccountOwner.self, forKey: .owner)
+        status = try container.decode(AccountStatus.self, forKey: .status)
+        error = try container.decodeIfPresent(AccountError.self, forKey: .error)
+        recovery = try container.decodeIfPresent(AccountRecovery.self, forKey: .recovery)
+        reportsRecovery = container.contains(.recovery)
+        updatedAt = try container.decodeIfPresent(Timestamp.self, forKey: .updatedAt)
+        source = try container.decodeIfPresent(DataSource.self, forKey: .source)
+        windows = try container.decode([QuotaWindow].self, forKey: .windows)
+        balances = try container.decode([Balance].self, forKey: .balances)
+        notices = try container.decode([Notice].self, forKey: .notices)
+        usageHome = try container.decode(String.self, forKey: .usageHome)
     }
 }
 

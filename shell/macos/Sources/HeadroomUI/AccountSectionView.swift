@@ -6,6 +6,7 @@
         let formatter: DisplayFormatter
         let display: DisplaySettings
         let actions: PopupActions
+        let retries: RetryControl
 
         var strings: UIStrings { formatter.strings }
 
@@ -52,7 +53,9 @@
         private var card: some View {
             switch section.body {
             case .blocked(let notice):
-                BlockingNoticeView(notice: notice, section: section, context: context)
+                RecoveryPlate(
+                    kind: notice.kind, title: notice.title, detail: notice.detail, note: notice.note,
+                    recovery: notice.recovery, context: context)
             case .limits(let limits):
                 LimitsView(
                     accountID: section.id, limits: limits, context: context, now: now, expanded: expanded,
@@ -60,32 +63,6 @@
             case .combined(let limits):
                 CombinedLimitsView(sectionID: section.id, limits: limits, context: context, now: now)
             }
-        }
-    }
-
-    struct BlockingNoticeView: View {
-        let notice: BlockingNotice
-        let section: AccountSectionModel
-        let context: PopupContext
-
-        var body: some View {
-            NoticePlate(
-                kind: notice.kind, title: notice.title, detail: notice.detail, note: notice.note, actions: actions)
-        }
-
-        private var actions: [NoticeAction] {
-            let strings = context.strings
-            let actions = context.actions
-            let provider = section.provider
-            let accountID = section.id
-            let retry = NoticeAction(
-                id: "retry", title: strings.text(notice.retrying ? .retrying : .retry), primary: false,
-                busy: notice.retrying, run: { actions.refreshAccount(accountID) })
-            guard notice.offersSignIn else { return [retry] }
-            let signIn = NoticeAction(
-                id: "signin", title: strings.text(.signIn), primary: true, busy: false,
-                run: { actions.signIn(provider) })
-            return [signIn, retry]
         }
     }
 
@@ -141,20 +118,10 @@
             if notice.kind == .info {
                 NoticeLine(text: notice.title)
             } else {
-                NoticePlate(
-                    kind: notice.kind, title: notice.title, detail: notice.detail, note: nil,
-                    actions: retryActions)
+                RecoveryPlate(
+                    kind: notice.kind, title: notice.title, detail: notice.detail, note: notice.note,
+                    recovery: notice.recovery, context: context)
             }
-        }
-
-        private var retryActions: [NoticeAction] {
-            guard let accountID = notice.retryAccountID else { return [] }
-            let actions = context.actions
-            return [
-                NoticeAction(
-                    id: "retry", title: context.strings.text(.retry), primary: false, busy: false,
-                    run: { actions.refreshAccount(accountID) })
-            ]
         }
     }
 #endif

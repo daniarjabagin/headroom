@@ -42,8 +42,8 @@ extension AccountSectionModel {
         let collected = members.flatMap { member in
             Self.notices(member, offline: offline, strings: strings, name: title(member, showsName: true)).map {
                 NoticeModel(
-                    id: "\(member.id):\($0.id)", kind: $0.kind, title: $0.title, detail: $0.detail,
-                    retryAccountID: $0.retryAccountID)
+                    id: "\(member.id):\($0.id)", kind: $0.kind, title: $0.title, detail: $0.detail, note: $0.note,
+                    recovery: $0.recovery)
             }
         }
         return collected.filter { seen.insert($0.title).inserted }

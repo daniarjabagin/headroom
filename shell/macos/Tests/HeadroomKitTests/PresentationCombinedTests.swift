@@ -108,7 +108,7 @@ final class PresentationCombinedTests: XCTestCase {
         let notices = AccountSectionModel.memberNotices(state.accounts, offline: false, strings: Build.english.strings)
         XCTAssertEqual(notices.map(\.title), ["Couldn't refresh Codex: B"])
         XCTAssertEqual(notices.map(\.id), ["b:error"])
-        XCTAssertEqual(notices.first?.retryAccountID, "b")
+        XCTAssertEqual(notices.first?.recovery?.accountID, "b")
     }
 
     func testPooledRowReadsAndForecastsOnTheCapacityScale() throws {

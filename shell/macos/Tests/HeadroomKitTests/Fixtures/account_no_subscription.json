@@ -12,6 +12,7 @@
     "kind": "no_subscription",
     "message": "No active ChatGPT subscription (Free plan)."
   },
+  "recovery": null,
   "updated_at": null,
   "source": null,
   "windows": [],

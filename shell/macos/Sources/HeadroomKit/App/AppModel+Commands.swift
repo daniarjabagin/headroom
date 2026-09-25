@@ -25,8 +25,10 @@ extension AppModel {
         send(.refreshNow)
     }
 
-    public func refresh(accountID: String) {
-        send(.refresh(accountID: accountID))
+    public func refresh(accountID: String) async -> Bool {
+        guard let task = send(.refresh(accountID: accountID)) else { return false }
+        if case .success = await task.value { return true }
+        return false
     }
 
     public func setAccountOrder(_ accountIDs: [String]) {
