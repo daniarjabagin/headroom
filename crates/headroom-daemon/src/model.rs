@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use headroom_core::account::AccountId;
+use headroom_core::account::{AccountId, ProviderId};
 use headroom_core::provider::ProviderError;
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, WindowId};
 use headroom_core::usage::UsageSummary;
@@ -11,6 +11,7 @@ use crate::dismissed::DismissedHomes;
 use crate::error::StorageError;
 use crate::home::UsageHome;
 use crate::settings::Settings;
+use crate::status::ProviderStatus;
 use crate::storage::accounts::{self, AccountRecord};
 use crate::storage::lapses::{self, Lapse};
 use crate::storage::{dismissed, settings, snapshots};
@@ -27,6 +28,7 @@ pub struct Model {
     pub usage: BTreeMap<UsageHome, UsageSummary>,
     pub update: Option<AvailableUpdate>,
     pub update_check: Option<UpdateCheckState>,
+    pub provider_status: BTreeMap<ProviderId, ProviderStatus>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -121,6 +123,7 @@ impl Model {
             usage: BTreeMap::new(),
             update: None,
             update_check: None,
+            provider_status: BTreeMap::new(),
         })
     }
 

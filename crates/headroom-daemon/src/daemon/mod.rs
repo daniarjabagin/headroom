@@ -18,7 +18,7 @@ use crate::random::ThreadRandom;
 use crate::service::Service;
 use crate::storage::Storage;
 use crate::update::UpdateConfig;
-use crate::{credentials, registry, rescan, update};
+use crate::{credentials, registry, rescan, status, update};
 
 pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let socket = config.socket.as_deref().map(ipc::bind).transpose()?;
@@ -30,6 +30,7 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     let notifier = bus.notifier();
     #[cfg(not(target_os = "linux"))]
     let notifier: Arc<dyn Notifier> = hub.clone();
+    let status_pages = config.status_pages.clone();
     let (parts, updates, shutdown) = core_parts(config, storage, notifier);
     let core = Arc::new(Core::load(parts).await?);
     let (rescans, rescan_requests) = rescan::channel();
@@ -54,6 +55,9 @@ pub async fn run(config: DaemonConfig) -> Result<(), DaemonError> {
     ));
     if let Some(updates) = updates {
         tasks.spawn(update::run(core.clone(), updates, update_requests));
+    }
+    if let Some(fetch) = status_pages {
+        tasks.spawn(status::run(core.clone(), fetch));
     }
     #[cfg(target_os = "linux")]
     tasks.spawn(bus.forward_actions(sink.clone()));

@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
+use headroom_core::descriptor::{
+    AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
+};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
@@ -46,6 +48,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: false,
+    links: ProviderLinks {
+        status: Some("https://www.devinstatus.com"),
+        dashboard: Some("https://app.devin.ai"),
+        usage: None,
+    },
 };
 
 pub type Clock = fn() -> Timestamp;

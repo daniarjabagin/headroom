@@ -20,7 +20,9 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
+use headroom_core::descriptor::{
+    AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
+};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
@@ -51,6 +53,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: true,
+    links: ProviderLinks {
+        status: Some("https://status.claude.com"),
+        dashboard: Some("https://claude.ai"),
+        usage: None,
+    },
 };
 
 pub type Clock = fn() -> Timestamp;

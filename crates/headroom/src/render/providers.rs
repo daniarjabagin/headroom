@@ -54,6 +54,7 @@ mod tests {
             ],
             multi_account: false,
             local_usage: false,
+            links: headroom_daemon::catalog::LinksView::default(),
         };
         let mut payload = crate::providers::catalog().payload();
         payload

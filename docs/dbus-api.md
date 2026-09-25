@@ -846,7 +846,7 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.combine_accounts` | bool | `false` | Show accounts of the same provider as one card with summed windows. The daemon fills the state's `combined` list and picks the headline from combined windows (see [Combined accounts](#combined-accounts)); off leaves `combined` empty. |
 | `updates.check` | bool | `true` | Check GitHub once a day for a newer Headroom release and report it as the state's `update` (see [Update checks](#update-checks)). `false` stops the requests and hides `update` at once. |
 | `display.hidden_windows` | object | `{}` | Map of account id → array of window ids to hide, e.g. `{"codex:1a2b3c4d5e6f":["weekly","model:spark"]}`. Ids must be non-empty; duplicates in a list are dropped (first occurrence kept). Account ids that are not currently listed are allowed and kept. |
-| `status_pages.enabled` | bool | `false` | Since 0.6.0. Poll the public status pages of the providers that have accounts and report incidents as `provider_status` (see [0.6 payload additions](#06-payload-additions)). Off by default because it sends new network requests: one `GET` of each provider's public Statuspage `summary.json` every 5–10 minutes, without identifiers, accounts or usage. |
+| `status_pages.enabled` | bool | `false` | Since 0.6.0. Poll the public status pages of the providers that have accounts and report incidents as `provider_status` (see [0.6 payload additions](#06-payload-additions)). Off by default because it sends new network requests; see [Provider status](#provider-status) for exactly which. |
 | `shortcuts.open` | string | `""` | Since 0.6.0. Global shortcut that opens the popup, in GTK accelerator syntax (`<Super>u`, `<Control><Alt>h`): any number of `<Modifier>` groups (ASCII letters) followed by a key name of ASCII letters, digits and `_`. At most 64 characters. `""` disables it. Each shell registers it with its own platform API. |
 | `logging.level` | string | `"info"` | Since 0.6.0. Daemon log level: `error`, `warn`, `info` or `debug`. Applied without a restart; `RUST_LOG` wins when set. |
 | `onboarding.completed` | bool | `false` | Since 0.6.0. `false` until the user finishes (or skips for good) the first-run window. Settings stored by a daemon older than 0.6.0 load with `true`, so existing users never see onboarding; a fresh install starts with `false`. `ResetSettings` keeps it. |
@@ -1058,24 +1058,53 @@ Refresh:
 ### Provider status
 
 `provider_status` (ProviderStatus[], always present) lists public status-page state for providers
-that have at least one listed account. Empty when `status_pages.enabled` is off or no status page has
-been read yet, and for providers without a known status page. Ordered like `ListProviders`. Missing:
-`[]`.
+that have at least one listed account that is not hidden. It is empty when `status_pages.enabled`
+is off, and a provider is left out while its page has not been read yet, when its last good read is
+older than 30 minutes (stale data is dropped, never shown), and when it has no status page Headroom
+reads. Providers whose page is clear are listed with `indicator: "none"`, so a shell can tell "all
+clear" from "unknown". Ordered like `ListProviders`. Missing: `[]`.
+
+Headroom never uses a page's global indicator: it follows a fixed list of components per provider
+(for example Claude API, Claude Code and claude.ai on status.claude.com; the Codex components on
+status.openai.com; `Copilot` and `Copilot AI Model Providers` on githubstatus.com) and computes the
+indicator from their statuses (`degraded_performance` → `minor`, `partial_outage` → `major`,
+`major_outage`/`full_outage` → `critical`, `under_maintenance` → `maintenance`) and from unresolved
+incidents and in-progress maintenance that affect them (incident impact `minor`/`major`/`critical`).
+The worst of these wins; the worst incident or maintenance (latest on a tie) gives `title`, `stage`,
+`started_at` and `url`. An outage of an unrelated component, say GitHub Pages, leaves Copilot clear.
+
+Pages read: Atlassian Statuspage `/api/v2/summary.json` for Claude, Kimi Code and Moonshot API
+(status.moonshot.cn, one request for both), MiniMax, Devin, GitHub Copilot, Cursor, Kilo Code and
+Warp; incident.io `/api/v2/components.json` for OpenAI (Codex) and Poe, plus OpenAI's widget API
+`/api/v1/summary` for ongoing incidents (Poe does not serve it). Providers whose page has no
+documented API (OpenRouter, Grok, Cline, DeepSeek) and providers without a page have only a
+`links.status` link, if any, and never appear here.
+
+Privacy and polling: when enabled, the daemon sends one `GET` to each page above for providers you
+have an account with, every 5 minutes (± 10 %), with `User-Agent: Headroom/<version>`, `Accept:
+application/json` and the previous `ETag` as `If-None-Match` where the page sends one; nothing
+else, no identifiers, accounts, usage or settings. Answers are capped at 512 KiB and time out after
+15 s. Failures back off per page (5, 10, 20… minutes, at most 1 h), `429` waits for `Retry-After`
+(5 minutes to 1 h). The last answer of each page is cached in the database, so a restart shows the
+last known status until it is 30 minutes old and the first poll waits out the rest of the interval.
+Turning the setting on polls at once; a newly added provider is picked up by the next poll.
 
 | field | type | description |
 | --- | --- | --- |
 | `provider` | string | Provider id. |
 | `indicator` | string | Statuspage indicator of the components Headroom follows: `none`, `minor`, `major`, `critical` or `maintenance`. Shells show nothing for `none`. |
 | `tone` | Tone | `neutral` for `none`, `warning` for `minor` and `maintenance`, `critical` for `major` and `critical`. |
-| `title` | string \| null | Name of the current incident or maintenance; `null` for `none`. |
-| `stage` | string \| null | Its latest stage as reported (`investigating`, `identified`, `monitoring`, `scheduled`, `in_progress`, `verifying`); `null` for `none`. |
+| `title` | string \| null | Name of the current incident or maintenance; `null` for `none` and when components are degraded without a published incident. |
+| `stage` | string \| null | Its latest stage as reported (`investigating`, `identified`, `monitoring`, `in_progress`, `verifying`; incident.io's `maintenance_in_progress` is reported as `in_progress`); `null` when there is no incident or maintenance, including a degraded component without one. |
 | `started_at` | timestamp \| null | When the incident or maintenance started. |
-| `url` | string | `https` link to the incident, or to the status page for `none`. |
+| `url` | string | `https` link to the incident, or to the status page (`links.status`) when there is none. |
 
 ```json
 "provider_status": [
   { "provider": "claude", "indicator": "minor", "tone": "warning", "title": "Elevated errors on Claude Opus",
-    "stage": "identified", "started_at": "2026-09-23T09:12:00Z", "url": "https://status.anthropic.com/incidents/abc123" }
+    "stage": "identified", "started_at": "2026-09-23T09:12:00Z", "url": "https://stspg.io/abc123" },
+  { "provider": "codex", "indicator": "none", "tone": "neutral", "title": null, "stage": null,
+    "started_at": null, "url": "https://status.openai.com" }
 ]
 ```
 
@@ -1125,14 +1154,16 @@ OtherProjects: `count` (projects folded in, at least 1), `cost_usd_micros`, `tot
 ### Provider links
 
 `ListProviders` adds `providers[].links` (object, always present in 0.6): `status`, `dashboard` and
-`usage`, each an absolute `https://` URL or `null` when the provider has none. Shells open them with
-the desktop's URL handler and never build URLs themselves. Missing: no link actions.
+`usage`, each an absolute `https://` URL or `null` when the provider has none. Only addresses that
+were checked to exist are listed; `usage` may equal `dashboard` when the provider shows usage on the
+same page. Shells open them with the desktop's URL handler and never build URLs themselves.
+Missing: no link actions.
 
 ```json
 "links": {
-  "status": "https://status.anthropic.com",
-  "dashboard": "https://claude.ai/settings",
-  "usage": "https://claude.ai/settings/usage"
+  "status": "https://www.githubstatus.com",
+  "dashboard": "https://github.com/settings/copilot",
+  "usage": "https://github.com/settings/billing/summary"
 }
 ```
 

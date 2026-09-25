@@ -11,7 +11,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
+use headroom_core::descriptor::{
+    AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
+};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
@@ -44,6 +46,7 @@ static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: true,
+    links: ProviderLinks::NONE,
 };
 
 struct PrivateBus {
@@ -210,6 +213,7 @@ fn config(
         socket: Some(socket),
         system_locale: Locale::En,
         updates: None,
+        status_pages: None,
         shutdown: Box::pin(async move {
             shutdown.await.ok();
         }),
@@ -296,7 +300,8 @@ async fn providers_are_listed(proxy: &DaemonProxy<'_>) -> Checked {
             "display_name": "Codex",
             "add_account": [{ "kind": "cli_login", "program": "codex" }],
             "multi_account": true,
-            "local_usage": true
+            "local_usage": true,
+            "links": { "status": null, "dashboard": null, "usage": null }
         }]
     });
     Ok(listed == expected)

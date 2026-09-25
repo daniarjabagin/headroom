@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor, ProviderLinks};
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
@@ -36,6 +36,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     }],
     multi_account: false,
     local_usage: false,
+    links: ProviderLinks {
+        status: Some("https://status.cursor.com"),
+        dashboard: Some("https://cursor.com/dashboard"),
+        usage: Some("https://cursor.com/dashboard/usage"),
+    },
 };
 
 pub type Clock = fn() -> Timestamp;

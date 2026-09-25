@@ -5,7 +5,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use headroom_core::account::{AccountId, AccountIdentity, AccountRef, CredentialOwner, ProviderId};
 use headroom_core::cursor::LogCursors;
-use headroom_core::descriptor::{AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor};
+use headroom_core::descriptor::{
+    AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
+};
 use headroom_core::event::{EventKey, ServiceTier, UsageEvent};
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource, QuotaWindow, WindowId};
@@ -39,6 +41,10 @@ pub static CODEX_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: true,
+    links: ProviderLinks {
+        status: Some("https://status.openai.com"),
+        ..ProviderLinks::NONE
+    },
 };
 
 pub static CLAUDE_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
@@ -47,6 +53,10 @@ pub static CLAUDE_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     add_account: &[AddAccountMethod::AutoDetect { reason: "test" }],
     multi_account: true,
     local_usage: true,
+    links: ProviderLinks {
+        status: Some("https://status.claude.com"),
+        ..ProviderLinks::NONE
+    },
 };
 
 pub fn descriptor_of(id: &ProviderId) -> &'static ProviderDescriptor {

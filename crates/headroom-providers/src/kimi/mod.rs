@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use headroom_core::account::{AccountIdentity, AccountRef, ProviderId};
 use headroom_core::cursor::LogCursors;
 use headroom_core::descriptor::{
-    AddAccountMethod, ApiKeyPrompt, CliLogin, HomeVar, ProviderDescriptor,
+    AddAccountMethod, ApiKeyPrompt, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
 };
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
@@ -51,6 +51,11 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: false,
+    links: ProviderLinks {
+        status: Some("https://status.moonshot.cn"),
+        dashboard: Some("https://www.kimi.com/code/console"),
+        usage: Some("https://www.kimi.com/code/console"),
+    },
 };
 
 pub type Clock = fn() -> Timestamp;

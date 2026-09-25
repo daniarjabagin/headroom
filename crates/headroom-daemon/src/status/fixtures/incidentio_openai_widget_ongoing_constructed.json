@@ -1,0 +1,61 @@
+{
+ "page_title": "OpenAI",
+ "page_url": "https://status.openai.com/",
+ "ongoing_incidents": [
+  {
+   "id": "01KCONSTRUCTEDINCIDENT0001",
+   "name": "Increased Codex CLI errors",
+   "status": "identified",
+   "url": "https://status.openai.com//incidents/01KCONSTRUCTEDINCIDENT0001",
+   "last_update_at": "2026-09-23T09:40:00Z",
+   "last_update_message": "We have identified the cause.",
+   "current_worst_impact": "partial_outage",
+   "affected_components": [
+    {
+     "id": "01KMKFAMWKNQ84Z1766MV08ZDE",
+     "name": "CLI",
+     "group_name": "Codex",
+     "current_status": "partial_outage"
+    }
+   ]
+  },
+  {
+   "id": "01KCONSTRUCTEDINCIDENT0002",
+   "name": "Image generation unavailable",
+   "status": "investigating",
+   "url": "https://status.openai.com//incidents/01KCONSTRUCTEDINCIDENT0002",
+   "last_update_at": "2026-09-23T09:50:00Z",
+   "last_update_message": "We are investigating.",
+   "current_worst_impact": "full_outage",
+   "affected_components": [
+    {
+     "id": "01JMXBRMFE4MAP2BHSJNZ787WX",
+     "name": "Images",
+     "group_name": "APIs",
+     "current_status": "full_outage"
+    }
+   ]
+  }
+ ],
+ "in_progress_maintenances": [
+  {
+   "id": "01KCONSTRUCTEDMAINTENANCE1",
+   "name": "Codex Web database maintenance",
+   "status": "maintenance_in_progress",
+   "url": "https://status.openai.com//incidents/01KCONSTRUCTEDMAINTENANCE1",
+   "starts_at": "2026-09-23T09:00:00Z",
+   "ends_at": "2026-09-23T11:00:00Z",
+   "last_update_at": "2026-09-23T09:00:00Z",
+   "last_update_message": "Maintenance has started.",
+   "affected_components": [
+    {
+     "id": "01JVCV8YSWZFRSM1G5CVP253SK",
+     "name": "Codex Web",
+     "group_name": "Codex",
+     "current_status": "under_maintenance"
+    }
+   ]
+  }
+ ],
+ "scheduled_maintenances": []
+}

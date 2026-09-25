@@ -94,7 +94,7 @@ impl ProviderError {
 mod tests {
     use super::*;
     use crate::account::{AccountId, CredentialOwner};
-    use crate::descriptor::AddAccountMethod;
+    use crate::descriptor::{AddAccountMethod, ProviderLinks};
 
     static TOOL: ProviderDescriptor = ProviderDescriptor {
         id: ProviderId::from_static("tool"),
@@ -102,6 +102,7 @@ mod tests {
         add_account: &[AddAccountMethod::AutoDetect { reason: "found" }],
         multi_account: false,
         local_usage: false,
+        links: ProviderLinks::NONE,
     };
 
     struct Listed(Result<Vec<AccountRef>, ProviderError>);

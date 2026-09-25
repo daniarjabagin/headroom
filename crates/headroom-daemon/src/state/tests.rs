@@ -11,6 +11,7 @@ use super::payload::{AccountStatus, DataSource};
 use super::*;
 use crate::home::UsageHome;
 use crate::model::{AccountRuntime, RefreshFailure, SnapshotEntry, SnapshotOrigin};
+use crate::status::{Assessment, Indicator, ProviderStatus, StatusEvent};
 use crate::storage::accounts::AccountRecord;
 use crate::testing::{CLAUDE, CODEX, catalog};
 use crate::testing::{FlatPrices, account, event, session, snapshot, ts, usage_home_of, weekly};
@@ -134,7 +135,27 @@ pub(super) fn sample_model() -> Model {
     model.update_check = Some(UpdateCheckState {
         checked_at: Some(ts("2026-09-23T04:00:00Z")),
     });
+    model.settings.status_pages.enabled = true;
+    model.provider_status.insert(CLAUDE, claude_status());
     model
+}
+
+fn claude_status() -> ProviderStatus {
+    let event = StatusEvent {
+        title: "Elevated errors on Claude Code".into(),
+        stage: Some("identified".into()),
+        started_at: Some(ts("2026-09-23T09:12:00Z")),
+        url: Some("https://stspg.io/abc123".into()),
+    };
+    let indicator = Indicator::Minor;
+    let assessment = Assessment {
+        indicator,
+        event: Some(event),
+    };
+    ProviderStatus {
+        assessment,
+        fetched_at: ts("2026-09-23T09:58:00Z"),
+    }
 }
 
 pub(super) fn assemble_sample(model: &Model) -> StatePayload {

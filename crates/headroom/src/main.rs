@@ -8,6 +8,7 @@ mod pricing;
 mod providers;
 mod render;
 mod state;
+mod status_pages;
 mod update;
 mod waybar;
 

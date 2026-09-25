@@ -6,6 +6,7 @@ mod combined_pace;
 mod headline;
 mod models;
 pub mod payload;
+mod provider_status;
 mod spend;
 pub mod status;
 mod update;
@@ -61,6 +62,7 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         headline: headline::headline(&accounts, &combined, &model.settings.headline),
         accounts,
         combined,
+        provider_status: provider_status::provider_status(model, ctx),
         spend,
         usage,
     }

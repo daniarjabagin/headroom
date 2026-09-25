@@ -19,6 +19,7 @@ static XDG_TOOL: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: false,
+    links: headroom_core::descriptor::ProviderLinks::NONE,
 };
 
 static PTY_LOGIN: CliLogin = CliLogin {

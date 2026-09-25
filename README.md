@@ -130,6 +130,9 @@ the Keychain. `headroom providers` prints the same list for your build. Missing 
   Headroom exists; the macOS app reads the release feed (`appcast.xml`) from GitHub once a day.
   Nothing is sent besides the request itself: no identifiers, accounts, usage or settings. Turn it
   off in the settings (Check for updates on Linux, Settings → Service → App updates on macOS).
+- **Status pages only when you ask.** With provider status pages turned on (off by default), the
+  daemon reads the public status page of each provider you have an account with every 5 minutes:
+  one `GET` per page (two for OpenAI). Nothing else is sent.
 - **CLI credentials are read-only.** `~/.codex/auth.json`, `~/.claude/.credentials.json`, the
   Claude Code and Codex Keychain items on macOS and their friends are never written or refreshed.
   Headroom refreshes only the sign-ins it created itself, in its own data directory
