@@ -83,6 +83,25 @@ export function addAccountArgs(providerId, method, label) {
     return ['accounts', 'add', providerId, ...keyFlag, ...(trimmed ? [`--label=${trimmed}`] : [])];
 }
 
+export function loginArgs(accountId, method) {
+    return ['accounts', 'login', accountId, ...(method.kind === 'api_key' ? ['--api-key-stdin'] : [])];
+}
+
+export function loginMethod(provider) {
+    return (
+        provider.methods.find(method => method.kind === 'cli_login') ??
+        provider.methods.find(method => method.kind === 'api_key') ??
+        null
+    );
+}
+
+export function signInTarget(account, providers) {
+    if (account.recovery?.action !== 'sign_in') return null;
+    const provider = (providers ?? []).find(entry => entry.id === account.provider);
+    if (!provider || !loginMethod(provider)) return null;
+    return { provider, loginId: account.recovery.accountId ?? account.id };
+}
+
 export function providerSummary(provider) {
     return provider.methods.map(methodSummary).join(' · ');
 }

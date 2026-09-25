@@ -4,6 +4,7 @@ import { percentLeft, windowLabel } from '../format.js';
 import { _ } from '../i18n.js';
 import { accountName } from '../providers.js';
 import { hiddenWindowsAfter, hiddenWindowsPatch, isWindowHidden } from '../settings.js';
+import { signInTarget } from './registry.js';
 import { providerImage } from './widgets.js';
 
 function subtitleOf(account) {
@@ -28,9 +29,9 @@ function iconButton(iconName, tooltip, onClick) {
 }
 
 export class AccountRow {
-    constructor({ account, dir, client, onMove, onRemove }) {
+    constructor({ account, dir, client, onMove, onRemove, onSignIn }) {
         this._client = client;
-        this._actions = { onMove, onRemove };
+        this._actions = { onMove, onRemove, onSignIn };
         this._syncing = false;
         this._children = [];
         this.id = account.id;
@@ -38,6 +39,9 @@ export class AccountRow {
         const handle = new Gtk.Image({ icon_name: 'list-drag-handle-symbolic', css_classes: ['dim-label'] });
         this.widget.add_prefix(handle);
         this.widget.add_prefix(providerImage(dir, account.provider, 24));
+        this._signIn = new Gtk.Button({ label: _('Sign in again…'), valign: Gtk.Align.CENTER, visible: false });
+        this._signIn.connect('clicked', () => this._actions.onSignIn(this._account));
+        this.widget.add_suffix(this._signIn);
         this._visible = new Gtk.Switch({ valign: Gtk.Align.CENTER, tooltip_text: _('Show in the panel and popup') });
         this._visible.connect('notify::active', () => this._onVisibleToggled());
         this.widget.add_suffix(this._visible);
@@ -49,6 +53,7 @@ export class AccountRow {
         this.widget.title = accountName(account);
         this.widget.subtitle = subtitleOf(account);
         this._visible.active = !account.hidden;
+        this._signIn.visible = signInTarget(account, this._client.providers) !== null;
         if (this._shape !== shapeOf(account)) this._rebuild(account);
         this._syncChildren(account, settings);
         this._syncing = false;

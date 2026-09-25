@@ -4,14 +4,15 @@ import Gtk from 'gi://Gtk';
 import { _, fill } from '../i18n.js';
 import { ProgressProcess } from '../cli.js';
 import { flowBody, navigationPage, pageStack, resultPage, stack } from './flowPage.js';
-import { addAccountArgs, LABEL_MAX_CHARS } from './registry.js';
+import { addAccountArgs, LABEL_MAX_CHARS, loginArgs } from './registry.js';
 import { pillButton, spinner } from './widgets.js';
 
 export class ApiKeyPage {
-    constructor({ dir, provider, method, onClose }) {
+    constructor({ dir, provider, method, onClose, loginId = null }) {
         this._provider = provider;
         this._method = method;
         this._onClose = onClose;
+        this._loginId = loginId;
         this._process = null;
         const { box, description } = flowBody(
             dir,
@@ -31,7 +32,8 @@ export class ApiKeyPage {
             'error'
         );
         box.append(this._stack);
-        this.page = navigationPage(fill(_('Add {provider} Account'), { provider: provider.displayName }), box);
+        const title = loginId ? _('Sign In to {provider} Again') : _('Add {provider} Account');
+        this.page = navigationPage(fill(title, { provider: provider.displayName }), box);
         this._showForm();
     }
 
@@ -49,6 +51,7 @@ export class ApiKeyPage {
         this._keyRow.connect('entry-activated', () => this._start());
         this._labelRow = new Adw.EntryRow({ title: _('Label (optional)'), max_length: LABEL_MAX_CHARS });
         this._labelRow.connect('entry-activated', () => this._start());
+        this._labelRow.visible = this._loginId === null;
         const group = new Adw.PreferencesGroup({
             description: GLib.markup_escape_text(this._method.hint ?? '', -1),
         });
@@ -86,7 +89,9 @@ export class ApiKeyPage {
         if (!key || this._process) return;
         this._stack.visible_child_name = 'progress';
         this._description.label = _('This takes a moment.');
-        const args = addAccountArgs(this._provider.id, this._method, this._labelRow.text);
+        const args = this._loginId
+            ? loginArgs(this._loginId, this._method)
+            : addAccountArgs(this._provider.id, this._method, this._labelRow.text);
         try {
             this._process = new ProgressProcess(args, {
                 onEvent: event => this._onEvent(event),
@@ -115,7 +120,9 @@ export class ApiKeyPage {
     _succeed() {
         this._keyRow.text = '';
         this._stack.visible_child_name = 'done';
-        this._description.label = _('Account added. It shows up in the panel in a moment.');
+        this._description.label = this._loginId
+            ? _('Signed in again. The account updates in a moment.')
+            : _('Account added. It shows up in the panel in a moment.');
     }
 
     _fail(message) {

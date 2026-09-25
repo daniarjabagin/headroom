@@ -1,3 +1,5 @@
+import { RU_PREFS } from './ruPrefs.js';
+
 export const RU = {
     Session: 'Сессия',
     Weekly: 'Неделя',
@@ -181,8 +183,6 @@ export const RU = {
     "Couldn't find the headroom command. Install Headroom or add it to your PATH.":
         'Команда headroom не найдена. Установите Headroom или добавьте её в PATH.',
     'headroom exited with status {status}': 'headroom завершился с кодом {status}',
-    'Total spend': 'Всего потрачено',
-    'Spend ring for all tools at the top': 'Кольцо расходов по всем инструментам сверху',
     'Per-account spend': 'Расходы по аккаунтам',
     'Today, yesterday and 30 days under each account': 'Сегодня, вчера и за 30 дней под каждым аккаунтом',
     'Usage trend': 'Динамика использования',
@@ -199,7 +199,6 @@ export const RU = {
     Popup: 'Всплывающее окно',
     'Top Panel': 'Верхняя панель',
     Sections: 'Разделы',
-    Updates: 'Обновления',
     'Data refresh': 'Обновление данных',
     'Check for updates': 'Проверять обновления',
     'Once a day, asks GitHub for the latest release. Nothing else is sent.':
@@ -228,7 +227,6 @@ export const RU = {
     'Provider + limit': 'Провайдер + лимит',
     Details: 'Подробности',
     'Almost out': 'Почти исчерпан',
-    'A limit drops under 10% left': 'Остаток лимита опускается ниже 10%',
     'Cutting it close': 'На грани',
     'The pace says a limit will barely last until reset': 'По текущему темпу лимита едва хватит до сброса',
     'Will run out': 'Закончится раньше сброса',
@@ -323,4 +321,5 @@ export const RU = {
     '{hours}:{minutes} PM': '{hours}:{minutes} PM',
     '{cost}/MTok': '{cost} за 1 млн токенов',
     'No project': 'Без проекта',
+    ...RU_PREFS,
 };

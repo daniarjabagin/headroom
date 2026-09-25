@@ -3,12 +3,13 @@ import { ApiKeyPage } from './apiKeyPage.js';
 import { AutoDetectPage } from './autoDetectPage.js';
 import { CliLoginPage } from './cliLoginPage.js';
 import { methodPickerPage, providerPickerPage } from './providerPicker.js';
+import { loginMethod } from './registry.js';
 
 const CONTENT_WIDTH = 460;
 const CONTENT_HEIGHT = 600;
 
 export class AddAccountDialog {
-    constructor({ dir, providers, providersError, onRestore }) {
+    constructor({ dir, providers, providersError, onRestore, provider = null, loginId = null }) {
         this._dir = dir;
         this._onRestore = onRestore;
         this._flows = new Map();
@@ -17,13 +18,20 @@ export class AddAccountDialog {
         this._navigation.connect('popped', (_view, page) => this._dropFlow(page));
         this.dialog.connect('closed', () => this._cancelAll());
         this.dialog.child = this._navigation;
-        const picker = providerPickerPage({
-            dir,
-            providers,
-            error: providersError,
-            onPick: provider => this._pickProvider(provider),
-        });
-        this._navigation.push(picker);
+        this._loginId = loginId;
+        if (provider && loginId) this._startLogin(provider);
+        else if (provider) this._pickProvider(provider);
+        else this._showPicker(providers, providersError);
+    }
+
+    _showPicker(providers, error) {
+        const onPick = provider => this._pickProvider(provider);
+        this._navigation.push(providerPickerPage({ dir: this._dir, providers, error, onPick }));
+    }
+
+    _startLogin(provider) {
+        const method = loginMethod(provider);
+        if (method) this._startFlow(provider, method);
     }
 
     present(parent) {
@@ -46,10 +54,11 @@ export class AddAccountDialog {
 
     _createFlow(provider, method) {
         const onClose = () => this.dialog.close();
-        if (method.kind === 'api_key') return new ApiKeyPage({ dir: this._dir, provider, method, onClose });
+        const options = { dir: this._dir, provider, method, onClose, loginId: this._loginId };
+        if (method.kind === 'api_key') return new ApiKeyPage(options);
         if (method.kind === 'auto_detect')
             return new AutoDetectPage({ dir: this._dir, provider, method, onRestore: this._onRestore });
-        return new CliLoginPage({ dir: this._dir, provider, method, onClose });
+        return new CliLoginPage(options);
     }
 
     _dropFlow(page) {

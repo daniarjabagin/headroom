@@ -6,6 +6,7 @@ import { accountName } from '../providers.js';
 import { AccountRow } from './accountRow.js';
 import { AddAccountDialog } from './addAccountDialog.js';
 import { ProgressProcess } from '../cli.js';
+import { signInTarget } from './registry.js';
 import { RowDragger } from './rowDragger.js';
 
 function removalBody(account) {
@@ -73,6 +74,7 @@ export class AccountsPage {
             client: this._client,
             onMove: (id, delta) => this._moveTo(id, this._order.indexOf(id) + delta),
             onRemove: target => this._confirmRemove(target),
+            onSignIn: target => this.signIn(target),
         });
         this._dragger.attach(row.widget, row.id);
         return row;
@@ -99,18 +101,29 @@ export class AccountsPage {
         const row = new Adw.ActionRow({ title: _('Add account…'), activatable: true });
         row.add_prefix(new Gtk.Image({ icon_name: 'list-add-symbolic' }));
         row.add_suffix(new Gtk.Image({ icon_name: 'go-next-symbolic' }));
-        row.connect('activated', () => this._openAddDialog());
+        row.connect('activated', () => this.openAddDialog());
         group.add(row);
         return group;
     }
 
-    _openAddDialog() {
+    openAddDialog(options = {}) {
         new AddAccountDialog({
             dir: this._dir,
             providers: this._client.providers ?? [],
             providersError: this._client.providersError,
             onRestore: provider => this._client.restoreAccounts(provider),
+            ...options,
         }).present(this._window);
+    }
+
+    signIn(account) {
+        const target = signInTarget(account, this._client.providers);
+        if (target) this.openAddDialog(target);
+        else this.openAddDialog({ provider: this._providerOf(account.provider) });
+    }
+
+    _providerOf(id) {
+        return (this._client.providers ?? []).find(provider => provider.id === id) ?? null;
     }
 
     _confirmRemove(account) {
