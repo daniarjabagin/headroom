@@ -107,7 +107,7 @@ fn update_row(lang: Lang, act: &Act) -> UpdateRow {
     }
 }
 
-fn update_check_line(snapshot: &Snapshot) -> Option<String> {
+pub(super) fn update_check_line(snapshot: &Snapshot) -> Option<String> {
     let state = snapshot.state?;
     let checks_on = snapshot
         .settings

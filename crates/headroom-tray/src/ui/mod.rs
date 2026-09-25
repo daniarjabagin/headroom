@@ -9,6 +9,7 @@ mod layer;
 mod meter;
 mod motion;
 mod notice;
+pub mod onboarding;
 pub mod popup;
 pub mod popup_tree;
 pub mod prefs;

@@ -29,6 +29,7 @@ pub struct AccountRow {
     account: Rc<RefCell<Account>>,
 }
 
+#[must_use]
 pub fn provider_image(provider: &str, text_color: &str, size: i32) -> gtk::Image {
     let (svg, tint) = provider_logo(provider);
     let color = match tint {

@@ -6,16 +6,16 @@ use adw::prelude::*;
 use crate::preferences::choices::Choice;
 
 #[derive(Clone, Default)]
-struct Guard(Rc<Cell<bool>>);
+pub struct Guard(Rc<Cell<bool>>);
 
 impl Guard {
-    fn quietly(&self, update: impl FnOnce()) {
+    pub fn quietly(&self, update: impl FnOnce()) {
         self.0.set(true);
         update();
         self.0.set(false);
     }
 
-    fn active(&self) -> bool {
+    pub fn active(&self) -> bool {
         !self.0.get()
     }
 }
@@ -51,7 +51,10 @@ impl SwitchRow {
 
 pub struct SegmentedRow<T> {
     pub row: adw::ActionRow,
-    buttons: Vec<(T, gtk::ToggleButton)>,
+    group: gtk::Box,
+    buttons: RefCell<Vec<(T, gtk::ToggleButton)>>,
+    labels: RefCell<Vec<String>>,
+    on_change: Rc<dyn Fn(T)>,
     guard: Guard,
 }
 
@@ -62,46 +65,73 @@ impl<T: Clone + PartialEq + 'static> SegmentedRow<T> {
         options: Vec<Choice<T>>,
         on_change: impl Fn(T) + 'static,
     ) -> Self {
-        let row = adw::ActionRow::builder()
-            .title(title)
-            .subtitle(subtitle)
-            .use_markup(false)
-            .build();
+        let row = action_row(title, subtitle);
         let group = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         group.add_css_class("linked");
         group.set_valign(gtk::Align::Center);
-        let guard = Guard::default();
-        let on_change: Rc<dyn Fn(T)> = Rc::new(on_change);
+        row.add_suffix(&group);
+        let segmented = Self {
+            row,
+            group,
+            buttons: RefCell::default(),
+            labels: RefCell::default(),
+            on_change: Rc::new(on_change),
+            guard: Guard::default(),
+        };
+        segmented.replace(options);
+        segmented
+    }
+
+    fn replace(&self, options: Vec<Choice<T>>) {
+        for (_, button) in self.buttons.take() {
+            self.group.remove(&button);
+        }
+        *self.labels.borrow_mut() = options.iter().map(|option| option.label.clone()).collect();
         let mut buttons: Vec<(T, gtk::ToggleButton)> = Vec::new();
         for option in options {
             let button = gtk::ToggleButton::with_label(&option.label);
             if let Some((_, first)) = buttons.first() {
                 button.set_group(Some(first));
             }
-            let (watch, notify, value) =
-                (guard.clone(), Rc::clone(&on_change), option.value.clone());
+            let (watch, notify, value) = (
+                self.guard.clone(),
+                Rc::clone(&self.on_change),
+                option.value.clone(),
+            );
             button.connect_toggled(move |button| {
                 if button.is_active() && watch.active() {
                     notify(value.clone());
                 }
             });
-            group.append(&button);
+            self.group.append(&button);
             buttons.push((option.value, button));
         }
-        row.add_suffix(&group);
-        Self {
-            row,
-            buttons,
-            guard,
-        }
+        *self.buttons.borrow_mut() = buttons;
     }
 
     pub fn set(&self, value: &T) {
-        if let Some((_, button)) = self.buttons.iter().find(|(option, _)| option == value)
+        let buttons = self.buttons.borrow();
+        if let Some((_, button)) = buttons.iter().find(|(option, _)| option == value)
             && !button.is_active()
         {
             self.guard.quietly(|| button.set_active(true));
         }
+    }
+
+    pub fn set_choices(&self, options: Vec<Choice<T>>, value: &T) {
+        let labels: Vec<String> = options.iter().map(|option| option.label.clone()).collect();
+        let values_differ = {
+            let buttons = self.buttons.borrow();
+            buttons.len() != options.len()
+                || buttons
+                    .iter()
+                    .zip(&options)
+                    .any(|((known, _), option)| *known != option.value)
+        };
+        if values_differ || *self.labels.borrow() != labels {
+            self.guard.quietly(|| self.replace(options));
+        }
+        self.set(value);
     }
 }
 
@@ -159,6 +189,31 @@ impl<T: Clone + PartialEq + 'static> ComboRow<T> {
     }
 }
 
+pub fn action_row(title: &str, subtitle: &str) -> adw::ActionRow {
+    adw::ActionRow::builder()
+        .title(title)
+        .subtitle(subtitle)
+        .use_markup(false)
+        .build()
+}
+
+pub fn suffix_button(label: &str, classes: &[&str]) -> gtk::Button {
+    let button = gtk::Button::with_label(label);
+    button.set_valign(gtk::Align::Center);
+    for class in classes {
+        button.add_css_class(class);
+    }
+    button
+}
+
+pub fn icon_button(icon: &str, tooltip: &str) -> gtk::Button {
+    let button = gtk::Button::from_icon_name(icon);
+    button.set_tooltip_text(Some(tooltip));
+    button.set_valign(gtk::Align::Center);
+    button.add_css_class("flat");
+    button
+}
+
 pub fn group(title: &str, description: &str, rows: &[&gtk::Widget]) -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder()
         .title(title)
@@ -179,4 +234,12 @@ pub fn pill_button(label: &str, suggested: bool, on_click: impl Fn() + 'static) 
     button.set_halign(gtk::Align::Center);
     button.connect_clicked(move |_| on_click());
     button
+}
+
+pub fn changer<T: 'static>(
+    act: &super::Act,
+    change: impl Fn(T) -> crate::preferences::change::Change + 'static,
+) -> impl Fn(T) + 'static {
+    let act = Rc::clone(act);
+    move |value| act(super::PrefsAction::Change(change(value)))
 }

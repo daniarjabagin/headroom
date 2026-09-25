@@ -4,6 +4,7 @@ use gtk::glib;
 
 use super::App;
 use crate::events::Command;
+use crate::ui::prefs::target::provider_of_account;
 use crate::update_check::{CheckOutcome, CheckRun, parse_outcome};
 
 const COPIED_SECONDS: u32 = 2;
@@ -25,9 +26,33 @@ impl App {
 
     pub(super) fn sign_in_again(self: &Rc<Self>, account_id: &str) {
         self.open_settings();
-        if let Some(window) = self.prefs.borrow().clone() {
-            window.focus_account(account_id);
+        let Some(window) = self.prefs.borrow().clone() else {
+            return;
+        };
+        window.focus_account(account_id);
+        if self.capabilities().has_0_6_methods() {
+            let provider = self.provider_of(account_id);
+            if !window.open_login_dialog(&provider, account_id) {
+                tracing::debug!(account_id, "no sign-in flow to repeat for this account");
+            }
         }
+    }
+
+    fn provider_of(&self, account_id: &str) -> String {
+        self.model
+            .borrow()
+            .view
+            .state()
+            .and_then(|state| {
+                state
+                    .accounts
+                    .iter()
+                    .find(|account| account.id == account_id)
+            })
+            .map_or_else(
+                || provider_of_account(account_id).to_owned(),
+                |account| account.provider.clone(),
+            )
     }
 
     pub(super) fn copy_command(self: &Rc<Self>, account_id: String, command: &str) {

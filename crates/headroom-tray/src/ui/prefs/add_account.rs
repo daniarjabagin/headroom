@@ -9,6 +9,7 @@ use super::detect_page::DetectPage;
 use super::flow_page::{navigation_page, wrapping};
 use super::key_page::KeyPage;
 use super::login_page::{LoginPage, with};
+use super::target::Target;
 use crate::i18n::{Lang, fill};
 use crate::preferences::registry::{
     AddMethod, ProviderInfo, RegistryError, method_summary, provider_summary,
@@ -119,10 +120,7 @@ fn glib_escape(text: &str) -> String {
 }
 
 impl AddAccountDialog {
-    pub fn new(
-        ctx: DialogCtx,
-        providers: Option<&Result<Vec<ProviderInfo>, RegistryError>>,
-    ) -> Rc<Self> {
+    fn empty(ctx: DialogCtx) -> Rc<Self> {
         let dialog = adw::Dialog::builder()
             .content_width(CONTENT_WIDTH)
             .content_height(CONTENT_HEIGHT)
@@ -136,12 +134,49 @@ impl AddAccountDialog {
             flows: RefCell::default(),
         });
         this.connect();
+        this
+    }
+
+    #[must_use]
+    pub fn relogin(
+        ctx: DialogCtx,
+        provider: &ProviderInfo,
+        method: &AddMethod,
+        account_id: &str,
+    ) -> Rc<Self> {
+        let this = Self::empty(ctx);
+        this.start_flow(
+            provider,
+            method,
+            &Target::Login {
+                account_id: account_id.to_owned(),
+            },
+        );
+        this
+    }
+
+    #[must_use]
+    pub fn new(
+        ctx: DialogCtx,
+        providers: Option<&Result<Vec<ProviderInfo>, RegistryError>>,
+        provider_id: Option<&str>,
+    ) -> Rc<Self> {
+        let this = Self::empty(ctx);
         let first = match providers {
             Some(Ok(list)) if !list.is_empty() => this.provider_page(list),
             Some(Err(error)) => unavailable_page(this.ctx.lang, Some(error.message(this.ctx.lang))),
             _ => unavailable_page(this.ctx.lang, None),
         };
         this.navigation.push(&first);
+        let picked = providers
+            .and_then(|providers| providers.as_ref().ok())
+            .and_then(|list| {
+                list.iter()
+                    .find(|provider| Some(provider.id.as_str()) == provider_id)
+            });
+        if let Some(provider) = picked {
+            this.pick_provider(provider);
+        }
         this
     }
 
@@ -179,7 +214,7 @@ impl AddAccountDialog {
 
     fn pick_provider(self: &Rc<Self>, provider: &ProviderInfo) {
         if let [method] = provider.methods.as_slice() {
-            self.start_flow(provider, method);
+            self.start_flow(provider, method, &Target::Add);
             return;
         }
         let lang = self.ctx.lang;
@@ -190,7 +225,9 @@ impl AddAccountDialog {
                 let (weak, provider, method) =
                     (Rc::downgrade(self), provider.clone(), method.clone());
                 choice_row(&method_summary(lang, &method), "", None, move || {
-                    with(&weak, |dialog| dialog.start_flow(&provider, &method));
+                    with(&weak, |dialog| {
+                        dialog.start_flow(&provider, &method, &Target::Add);
+                    });
                 })
             })
             .collect();
@@ -204,12 +241,14 @@ impl AddAccountDialog {
         ));
     }
 
-    fn start_flow(&self, provider: &ProviderInfo, method: &AddMethod) {
+    fn start_flow(&self, provider: &ProviderInfo, method: &AddMethod, target: &Target) {
         let flow = match method {
             AddMethod::CliLogin { .. } => {
-                FlowPage::Login(LoginPage::new(&self.ctx, provider, method))
+                FlowPage::Login(LoginPage::new(&self.ctx, provider, method, target))
             }
-            AddMethod::ApiKey { .. } => FlowPage::Key(KeyPage::new(&self.ctx, provider, method)),
+            AddMethod::ApiKey { .. } => {
+                FlowPage::Key(KeyPage::new(&self.ctx, provider, method, target))
+            }
             AddMethod::AutoDetect { .. } => {
                 FlowPage::Detect(DetectPage::new(&self.ctx, provider, method))
             }

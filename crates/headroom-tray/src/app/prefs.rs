@@ -1,18 +1,24 @@
+use std::cell::RefCell;
 use std::rc::Rc;
+
+use gtk::{gio, glib};
 
 use super::App;
 use crate::events::{AccountCommand, Command};
 use crate::palette::Scheme;
 use crate::payload::Account;
+use crate::preferences::capability::Capabilities;
 use crate::preferences::change::Change;
 use crate::preferences::flow::{AddEvent, parse_add_event};
 use crate::preferences::sync::Written;
 use crate::process::ProgressProcess;
+use crate::ui::prefs::diagnostics::parse_diagnostics;
 use crate::ui::prefs::{PrefsAction, Service, SettingsWindow, Snapshot};
 use crate::ui::style::resolve_theme;
 use crate::view::View;
 
 const LOGO_TOKEN: &str = "text-secondary";
+const RESTART_COMMAND: [&str; 4] = ["systemctl", "--user", "restart", "headroom.service"];
 
 impl App {
     pub(super) fn open_settings(self: &Rc<Self>) {
@@ -32,7 +38,14 @@ impl App {
         });
         self.window.borrow().hide();
         self.sync_prefs();
+        if self.capabilities().has_0_6_methods() {
+            self.send(Command::GetDiagnostics);
+        }
         window.present();
+    }
+
+    pub(super) fn capabilities(&self) -> Capabilities {
+        Capabilities::of(self.model.borrow().view.state())
     }
 
     fn service(&self) -> Service {
@@ -47,7 +60,7 @@ impl App {
         }
     }
 
-    fn logo_color(&self) -> String {
+    pub(super) fn logo_color(&self) -> String {
         let display = self.display();
         let palette = match resolve_theme(display.theme) {
             Scheme::Light => &self.palettes.light,
@@ -77,10 +90,28 @@ impl App {
         window.update(&snapshot);
     }
 
-    pub(super) fn apply_change(&self, change: &Change) {
+    fn sync_prefs_later(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        glib::idle_add_local_once(move || {
+            if let Some(app) = weak.upgrade() {
+                app.sync_prefs();
+                app.sync_onboarding();
+            }
+        });
+    }
+
+    pub(super) fn apply_change(self: &Rc<Self>, change: &Change) {
+        if !change.is_valid() || !self.capabilities().permits(change) {
+            tracing::warn!(
+                ?change,
+                "ignoring a settings change the service cannot take"
+            );
+            self.sync_prefs_later();
+            return;
+        }
         let patch = self.model.borrow_mut().settings.apply(change);
         self.send(Command::UpdateSettings(patch));
-        self.sync_prefs();
+        self.sync_prefs_later();
     }
 
     pub(super) fn settings_written(self: &Rc<Self>, result: Result<(), String>) {
@@ -94,6 +125,23 @@ impl App {
         }
     }
 
+    pub(super) fn settings_reset(&self, result: Result<(), String>) {
+        match result {
+            Ok(()) => {
+                self.toast(self.lang().tr("Settings reset"));
+                self.send(Command::ReloadSettings);
+            }
+            Err(message) => self.toast(&message),
+        }
+    }
+
+    pub(super) fn diagnostics_received(&self, result: Result<String, String>) {
+        let parsed = result.and_then(|json| parse_diagnostics(&json).map_err(|e| e.to_string()));
+        if let Some(window) = self.prefs.borrow().as_ref() {
+            window.diagnostics(self.lang(), parsed);
+        }
+    }
+
     pub(super) fn toast(&self, message: &str) {
         if let Some(window) = self.prefs.borrow().as_ref() {
             window.toast(message);
@@ -104,9 +152,10 @@ impl App {
         if let Some(window) = self.prefs.borrow().as_ref() {
             window.restored(result);
         }
+        self.onboarding_restored(result);
     }
 
-    fn prefs_action(self: &Rc<Self>, action: PrefsAction) {
+    pub(super) fn prefs_action(self: &Rc<Self>, action: PrefsAction) {
         match action {
             PrefsAction::Change(change) => self.apply_change(&change),
             PrefsAction::SetLabel { account_id, label } => {
@@ -129,10 +178,40 @@ impl App {
             }
             PrefsAction::Remove(account) => self.remove_account(&account),
             PrefsAction::StartService => self.act(crate::ui::context::Action::StartService),
+            PrefsAction::RestartService => self.restart_service(),
             PrefsAction::InstallUpdate => self.act(crate::ui::context::Action::InstallUpdate),
             PrefsAction::OpenUrl(url) => self.open_uri(&url),
             PrefsAction::CheckForUpdates => self.check_for_updates(),
+            PrefsAction::CopyDiagnostics => self.copy_diagnostics(),
+            PrefsAction::ResetSettings => self.send(Command::ResetSettings),
         }
+    }
+
+    fn copy_diagnostics(&self) {
+        if let Some(window) = self.prefs.borrow().as_ref() {
+            window.request_diagnostics_copy();
+        }
+        self.send(Command::GetDiagnostics);
+    }
+
+    fn restart_service(self: &Rc<Self>) {
+        let argv: Vec<&std::ffi::OsStr> =
+            RESTART_COMMAND.iter().map(std::ffi::OsStr::new).collect();
+        let process = match gio::Subprocess::newv(&argv, gio::SubprocessFlags::STDERR_SILENCE) {
+            Ok(process) => process,
+            Err(error) => {
+                self.toast(&error.to_string());
+                return;
+            }
+        };
+        self.toast(self.lang().tr("Restarting the Headroom service…"));
+        let weak = Rc::downgrade(self);
+        process.wait_check_async(gio::Cancellable::NONE, move |result| {
+            if let (Err(error), Some(app)) = (result, weak.upgrade()) {
+                tracing::warn!(%error, "the service did not restart");
+                app.toast(app.lang().tr("The Headroom service could not be restarted"));
+            }
+        });
     }
 
     fn open_uri(&self, url: &str) {
@@ -149,7 +228,7 @@ impl App {
     }
 
     fn remove_account(self: &Rc<Self>, account: &Account) {
-        let failure = Rc::new(std::cell::RefCell::new(None::<String>));
+        let failure = Rc::new(RefCell::new(None::<String>));
         let (seen, weak) = (Rc::clone(&failure), Rc::downgrade(self));
         let started = ProgressProcess::start(
             &[
