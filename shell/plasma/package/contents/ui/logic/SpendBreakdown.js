@@ -8,19 +8,11 @@ const PROJECT_CHARS = 26;
 const PERMILLE = 1000;
 const DASH = "—";
 
-function modelScale(lang, unit) {
+function scaleOf(lang, unit) {
     return {
         lang,
         unit,
         byTokens: unit !== "cost"
-    };
-}
-
-function projectScale(lang, unit) {
-    return {
-        lang,
-        unit: unit === "tokens" ? "tokens" : "cost",
-        byTokens: unit === "tokens"
     };
 }
 
@@ -137,7 +129,7 @@ function projectCount(lang, count) {
 }
 
 function modelRows(lang, period, unit) {
-    const scale = modelScale(lang, unit);
+    const scale = scaleOf(lang, unit);
     const models = modelsOf(period, scale.byTokens);
     const rows = models.top.map(model => row(scale, `model:${model.provider}:${model.name}`, model.name, "", model, [model], period));
     const other = sum(models.folded);
@@ -172,20 +164,15 @@ function projectsByRank(period, byTokens) {
     return Array.from(period.projects).sort(ranking(byTokens, project => project.project ?? ""));
 }
 
-function projectCaption(lang, count, unit) {
-    const counted = projectCount(lang, count);
-    return unit === "cost_per_mtok" ? `${counted} · ${I18n.tr(lang, "by spend")}` : counted;
-}
-
 function projectRows(lang, period, unit) {
-    const scale = projectScale(lang, unit);
+    const scale = scaleOf(lang, unit);
     const rows = projectsByRank(period, scale.byTokens).map(project => projectRow(scale, project, period));
     const other = period.projectsOther;
     if (other !== null)
         rows.push(otherProjectRow(scale, other, period));
     return {
         rows,
-        caption: projectCaption(lang, period.projects.length + (other?.count ?? 0), unit)
+        caption: projectCount(lang, period.projects.length + (other?.count ?? 0))
     };
 }
 

@@ -617,8 +617,8 @@ PeriodSpend:
 
 ProviderSpend: `provider`, `provider_name`, `cost_usd_micros`, `total_tokens` (`tokens.total` summed), `partial` (any of its homes is partial), `models` (ModelUsage[]: the period's models of all that provider's homes merged by model name, summed, sorted as above and cut to the top 5, or all 6 when there are exactly 6), `models_other` (OtherModels \| null: the merged models after the top 5; `null` when there are 6 or fewer). Merging uses every model of every home, not the homes' own top 5, so a model that is small in each home but large in total is ranked correctly.
 
-Since 0.6.0 PeriodSpend, ProviderSpend and ModelUsage also carry `cost_per_mtok_usd_micros`, and
-PeriodSpend carries `projects` and `projects_other`; see [Spend additions](#spend-additions).
+Since 0.6.0 PeriodSpend, ProviderSpend, ModelUsage and the project rows also carry
+`cost_per_mtok_usd_micros`, and PeriodSpend carries `projects` and `projects_other`; see [Spend additions](#spend-additions).
 `spend.last_7_days` is summed over the usage homes like the other periods, but `usage[]` entries do
 not list a 7-day period.
 
@@ -829,6 +829,7 @@ not list a 7-day period.
       "projects": [
         {
           "project": null, "cost_usd_micros": 12400, "total_tokens": 6200, "partial": false, "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             { "provider": "claude", "provider_name": "Claude", "cost_usd_micros": 10000, "total_tokens": 5000 },
             { "provider": "codex", "provider_name": "Codex", "cost_usd_micros": 2400, "total_tokens": 1200 }
@@ -1030,7 +1031,7 @@ Summary:
 | `combined[]` | `collapsed` | [Account additions](#account-additions) |
 | `spend` | `last_7_days` | [Spend additions](#spend-additions) |
 | PeriodSpend | `projects`, `projects_other` | [Spend additions](#spend-additions) |
-| PeriodSpend, ProviderSpend, ModelUsage | `cost_per_mtok_usd_micros` | [Spend additions](#spend-additions) |
+| PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend, OtherProjects | `cost_per_mtok_usd_micros` | [Spend additions](#spend-additions) |
 | `ListProviders` | `providers[].links` | [Provider links](#provider-links) |
 | methods | `GetSpend` | [GetSpend](#getspend) |
 | methods | `GetDiagnostics` | [GetDiagnostics](#getdiagnostics) |
@@ -1178,7 +1179,8 @@ Turning the setting on polls at once; a newly added provider is picked up by the
   exactly one project, it is listed as a normal row instead, whatever its share, so `projects_other`
   always holds at least 2 projects. `projects` plus
   `projects_other` add up exactly to the period's totals. Missing: hide the projects breakdown.
-- `cost_per_mtok_usd_micros` (integer | null) on PeriodSpend, ProviderSpend and ModelUsage: the priced
+- `cost_per_mtok_usd_micros` (integer | null) on PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend
+  and OtherProjects: the priced
   cost per million priced tokens, `cost_usd_micros × 1 000 000 / priced total tokens`, rounded half up
   to a whole micro-USD. Unpriced tokens are never in the denominator. `null` when there are no priced
   tokens.
@@ -1192,21 +1194,23 @@ ProjectSpend:
 | `total_tokens` | integer | `tokens.total` of its events. |
 | `partial` | bool | Some of its events had no known price. |
 | `share_permille` | integer | Share of the period's `cost_usd_micros`, `cost × 1000 / period cost` rounded down; by `total_tokens` instead when the period's cost is `0`. |
+| `cost_per_mtok_usd_micros` | integer \| null | The project's cost per million priced tokens, computed like PeriodSpend's; `null` when none of its tokens are priced. Missing: show `—` in the Cost per MTok unit. |
 | `by_provider` | object[] | `{provider, provider_name, cost_usd_micros, total_tokens}` per provider that logged in this project, sorted like `by_provider`, for the provider-coloured bar. |
 
 OtherProjects: `count` (projects folded in, at least 2), `cost_usd_micros`, `total_tokens`,
-`partial`, `share_permille` (computed like ProjectSpend).
+`partial`, `share_permille` and `cost_per_mtok_usd_micros` (computed like ProjectSpend).
 
 ```json
 "projects": [
   { "project": "~/code/headroom", "cost_usd_micros": 9100000, "total_tokens": 48100000, "partial": false,
-    "share_permille": 733,
+    "share_permille": 733, "cost_per_mtok_usd_micros": 189189,
     "by_provider": [
       { "provider": "claude", "provider_name": "Claude", "cost_usd_micros": 8000000, "total_tokens": 40000000 },
       { "provider": "codex", "provider_name": "Codex", "cost_usd_micros": 1100000, "total_tokens": 8100000 }
     ] }
 ],
-"projects_other": { "count": 4, "cost_usd_micros": 3300000, "total_tokens": 9000000, "partial": false, "share_permille": 266 },
+"projects_other": { "count": 4, "cost_usd_micros": 3300000, "total_tokens": 9000000, "partial": false, "share_permille": 266,
+  "cost_per_mtok_usd_micros": 366667 },
 "cost_per_mtok_usd_micros": 217163
 ```
 

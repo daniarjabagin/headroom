@@ -21,7 +21,7 @@ enum StateSamples {
         {"cost_usd_micros":12400000,"total_tokens":57100000,"partial":true,"cost_per_mtok_usd_micros":217163,
          "by_provider":[],
          "projects":[{"project":"~/code/headroom","cost_usd_micros":9100000,"total_tokens":48100000,"partial":false,
-           "share_permille":733,"by_provider":[
+           "share_permille":733,"cost_per_mtok_usd_micros":189189,"by_provider":[
              {"provider":"claude","provider_name":"Claude","cost_usd_micros":8000000,"total_tokens":40000000},
              {"provider":"codex","provider_name":"Codex","cost_usd_micros":1100000,"total_tokens":8100000}]}],
          "projects_other":{"count":4,"cost_usd_micros":3300000,"total_tokens":9000000,"partial":true,

@@ -100,6 +100,7 @@ fn projects_are_merged_across_homes_before_the_cut() {
             total_tokens: 45,
             partial: false,
             share_permille: 50,
+            cost_per_mtok_usd_micros: Some(2_000_000),
         })
     );
     assert_eq!(
@@ -184,6 +185,7 @@ fn unpriced_projects_are_partial_and_empty_periods_have_no_projects() {
     let period = today(&model);
     assert!(period.projects[0].partial);
     assert_eq!(period.projects[0].share_permille, 1_000);
+    assert_eq!(period.projects[0].cost_per_mtok_usd_micros, Some(2_000_000));
     assert_eq!(period.projects_other, None);
     let homes = HomeDisplay::default();
     let ctx = AssembleContext {
@@ -199,4 +201,43 @@ fn unpriced_projects_are_partial_and_empty_periods_have_no_projects() {
         spend.last_7_days.projects[0].project.as_deref(),
         Some("/home/ada/app")
     );
+}
+
+#[test]
+fn project_cost_per_mtok_counts_priced_tokens_only_and_is_null_when_nothing_is_priced() {
+    let unpriced = |key: &str, dir: &str, tokens: u64| UsageEvent {
+        model: "unknown".into(),
+        ..placed(key, Some(dir), tokens)
+    };
+    let events = vec![
+        placed("a", Some("/home/ada/app"), 300),
+        unpriced("b", "/home/ada/app", 700),
+        unpriced("c", "/home/ada/lab", 500),
+    ];
+    let period = today(&model_with(vec![(CODEX, "/home/ada/.codex", events)]));
+    let rates: Vec<_> = period
+        .projects
+        .iter()
+        .map(|p| (p.project.as_deref(), p.cost_per_mtok_usd_micros))
+        .collect();
+    assert_eq!(
+        rates,
+        [(Some("~/app"), Some(2_000_000)), (Some("~/lab"), None)]
+    );
+}
+
+#[test]
+fn folded_projects_carry_their_blended_cost_per_mtok() {
+    let mut events: Vec<UsageEvent> = (0..5)
+        .map(|n| placed(&format!("e{n}"), Some(&format!("/home/ada/p{n}")), 100))
+        .collect();
+    events.push(placed("f1", Some("/home/ada/f1"), 10));
+    events.push(UsageEvent {
+        model: "unknown".into(),
+        ..placed("f2", Some("/home/ada/f2"), 10)
+    });
+    let period = today(&model_with(vec![(CODEX, "/home/ada/.codex", events)]));
+    let other = period.projects_other.unwrap();
+    assert_eq!((other.count, other.total_tokens), (2, 20));
+    assert_eq!(other.cost_per_mtok_usd_micros, Some(2_000_000));
 }

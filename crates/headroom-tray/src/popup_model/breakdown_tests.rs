@@ -91,6 +91,7 @@ fn period() -> PeriodSpend {
             total_tokens: 60_000_000,
             partial: false,
             share_permille: 378,
+            cost_per_mtok_usd_micros: Some(803_333),
             by_provider: vec![
                 part("claude", "Claude", 30_000_000, 40_000_000),
                 part("codex", "Codex", 18_200_000, 20_000_000),
@@ -102,6 +103,7 @@ fn period() -> PeriodSpend {
             total_tokens: 148_900_000,
             partial: false,
             share_permille: 622,
+            cost_per_mtok_usd_micros: None,
         }),
     }
 }
@@ -155,6 +157,23 @@ fn projects_use_the_daemon_share_and_split_bars() {
     let mut none = period();
     none.projects = None;
     assert!(project_list(Lang::En, SpendUnit::Cost, Basis::Cost, &none).is_none());
+}
+
+#[test]
+fn project_cost_per_mtok_comes_from_the_payload() {
+    let mut period = period();
+    let list = project_list(Lang::En, SpendUnit::CostPerMtok, Basis::Cost, &period).unwrap();
+    let values: Vec<&str> = list.rows.iter().map(|row| row.value.as_str()).collect();
+    assert_eq!(values, ["$0.80", "—"]);
+    if let Some(projects) = period.projects.as_mut() {
+        projects[0].cost_per_mtok_usd_micros = None;
+    }
+    if let Some(other) = period.projects_other.as_mut() {
+        other.cost_per_mtok_usd_micros = Some(533_580);
+    }
+    let list = project_list(Lang::En, SpendUnit::CostPerMtok, Basis::Cost, &period).unwrap();
+    let values: Vec<&str> = list.rows.iter().map(|row| row.value.as_str()).collect();
+    assert_eq!(values, ["—", "$0.53"]);
 }
 
 #[test]

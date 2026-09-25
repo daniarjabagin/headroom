@@ -199,6 +199,7 @@ TestCase {
                     totalTokens: 700,
                     partial: false,
                     sharePermille: 700,
+                    costPerMtokMicros: 10000000,
                     providers: [
                         {
                             provider: "claude",
@@ -218,7 +219,8 @@ TestCase {
                 costMicros: 3000000,
                 totalTokens: 300,
                 partial: false,
-                sharePermille: 300
+                sharePermille: 300,
+                costPerMtokMicros: null
             }
         };
     }
@@ -316,12 +318,16 @@ TestCase {
         compare(SpendBreakdown.breakdown("en", busy, "projects", "tokens").rows.map(row => row.name), ["~/code/site", "~/code/headroom", "Other"]);
     }
 
-    function test_project_breakdown_falls_back_to_spend_in_cost_per_mtok_unit() {
+    function test_project_breakdown_shows_cost_per_mtok_from_payload() {
         const result = SpendBreakdown.breakdown("en", period(), "projects", "cost_per_mtok");
-        compare(result.caption, "4 projects · by spend");
-        compare(result.rows.map(row => row.value), ["$7.00", "$3.00"]);
+        compare(result.caption, "4 projects");
+        compare(result.rows.map(row => row.value), ["$10.00", "—"]);
         compare(result.rows.map(row => row.share), ["70.0%", "30.0%"]);
-        compare(SpendBreakdown.breakdown("ru", period(), "projects", "cost_per_mtok").caption, "4 проекта · по расходам");
+        compare(SpendBreakdown.breakdown("ru", period(), "projects", "cost_per_mtok").caption, "4 проекта");
+        const swapped = period();
+        swapped.projects[0].costPerMtokMicros = null;
+        swapped.projectsOther.costPerMtokMicros = 1250000;
+        compare(SpendBreakdown.breakdown("en", swapped, "projects", "cost_per_mtok").rows.map(row => row.value), ["—", "$1.25"]);
     }
 
     function test_breakdown_by_tokens() {

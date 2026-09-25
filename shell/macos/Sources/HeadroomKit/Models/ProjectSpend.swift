@@ -4,6 +4,7 @@ public struct ProjectSpend: Decodable, Sendable, Hashable {
     public let totalTokens: UInt64
     public let partial: Bool
     public let sharePermille: Int64
+    public let costPerMTokUSDMicros: Int64?
     public let byProvider: [ProjectProviderSpend]
 
     enum CodingKeys: String, CodingKey {
@@ -11,6 +12,7 @@ public struct ProjectSpend: Decodable, Sendable, Hashable {
         case costUSDMicros = "cost_usd_micros"
         case totalTokens = "total_tokens"
         case sharePermille = "share_permille"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
         case byProvider = "by_provider"
     }
 }
@@ -35,11 +37,13 @@ public struct OtherProjects: Decodable, Sendable, Hashable {
     public let totalTokens: UInt64
     public let partial: Bool
     public let sharePermille: Int64
+    public let costPerMTokUSDMicros: Int64?
 
     enum CodingKeys: String, CodingKey {
         case count, partial
         case costUSDMicros = "cost_usd_micros"
         case totalTokens = "total_tokens"
         case sharePermille = "share_permille"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
     }
 }

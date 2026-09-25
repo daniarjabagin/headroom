@@ -226,6 +226,8 @@ TestCase {
         const project = spend.today.projects[0];
         compare(project.project, "~/code/headroom");
         compare(project.sharePermille, 460);
+        compare(project.costPerMtokMicros, rawSample().spend.today.projects[0].cost_per_mtok_usd_micros);
+        verify(Number.isInteger(project.costPerMtokMicros));
         compare(project.providers[0], {
             provider: "codex",
             providerName: "Codex",
@@ -233,6 +235,7 @@ TestCase {
             totalTokens: 2213520
         });
         compare(spend.today.projectsOther.count, 3);
+        compare(spend.today.projectsOther.costPerMtokMicros, rawSample().spend.today.projects_other.cost_per_mtok_usd_micros);
         verify(Spend.hasProjects(spend.today));
         compare(Spend.periodOptions("en", spend).map(option => option.value), ["today", "yesterday", "7d", "30d"]);
         compare(Spend.periodTotals(spend, "7d"), spend.last7Days);
@@ -264,6 +267,7 @@ TestCase {
         compare(spend.yesterday.projects[0].project, null);
         compare(spend.yesterday.projects[0].costMicros, 0);
         compare(spend.yesterday.projects[0].providers, []);
+        compare(spend.yesterday.projects[0].costPerMtokMicros, null);
         compare(spend.yesterday.projectsOther, null);
         compare(Spend.periodOptions("en", spend).map(option => option.value), ["today", "yesterday", "30d"]);
         compare(Spend.periodOptions("en").map(option => option.value), ["today", "yesterday", "30d"]);

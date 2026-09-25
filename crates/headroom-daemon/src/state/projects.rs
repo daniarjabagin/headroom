@@ -80,6 +80,7 @@ impl ProjectMerge {
             total_tokens: totals.tokens.total().0,
             partial: totals.is_partial(),
             share_permille: share_permille(totals, period),
+            cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
             by_provider: self
                 .by_project
                 .get(&usage.project)
@@ -128,5 +129,6 @@ fn other_view(totals: &UsageTotals, count: usize, period: &UsageTotals) -> Other
         total_tokens: totals.tokens.total().0,
         partial: totals.is_partial(),
         share_permille: share_permille(totals, period),
+        cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
     }
 }
