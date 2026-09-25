@@ -202,11 +202,11 @@ jobs:
         include:
           - distro: ubuntu-24.04
             image: ubuntu:24.04
-            packages: libgtk-4-dev libadwaita-1-dev
+            packages: libgtk-4-dev libadwaita-1-dev librsvg2-common
             layer_shell: false
           - distro: debian-trixie-layer-shell
             image: debian:trixie
-            packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev
+            packages: libgtk-4-dev libadwaita-1-dev libgtk4-layer-shell-dev librsvg2-common
             layer_shell: true
     env:
       CARGO_HOME: /usr/local/cargo

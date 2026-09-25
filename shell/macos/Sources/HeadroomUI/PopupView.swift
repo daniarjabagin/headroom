@@ -117,7 +117,9 @@
             .onChange(of: model.state.map(PopupScreen.refreshingIDs) ?? [], initial: true) { _, ids in
                 ui.retries.observe(refreshing: ids)
             }
-            .onChange(of: model.state.map(SpendSelection.init(display:)), initial: true) { _, _ in syncSelection() }
+            .onChange(of: model.state.map { SpendSelection(display: $0.display) }, initial: true) { _, _ in
+                syncSelection()
+            }
             .onChange(of: presentation) { _, _ in ui.toast = nil }
         }
 
