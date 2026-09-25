@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use gtk::prelude::*;
 use gtk::{gio, glib};
 
 use super::App;
@@ -38,11 +39,11 @@ impl App {
             window
         });
         self.window.borrow().hide();
+        window.present();
         self.sync_prefs();
         if self.capabilities().has_0_6_methods() {
             self.send(Command::GetDiagnostics);
         }
-        window.present();
     }
 
     pub(super) fn capabilities(&self) -> Capabilities {
@@ -76,6 +77,9 @@ impl App {
         let Some(window) = self.prefs.borrow().clone() else {
             return;
         };
+        if !window.window().is_visible() {
+            return;
+        }
         let (lang, logo_color, service) = (self.lang(), self.logo_color(), self.service());
         let model = self.model.borrow();
         let snapshot = Snapshot {

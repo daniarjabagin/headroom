@@ -1,6 +1,7 @@
 mod account_section;
 mod breakdown;
 mod collapsed;
+mod combined_row;
 mod combined_section;
 pub mod context;
 mod donut;
@@ -23,6 +24,7 @@ pub mod popup_tree;
 pub mod prefs;
 pub mod preview;
 mod quota_row;
+mod section_body;
 mod section_card;
 pub mod share;
 mod spend_card;
@@ -43,7 +45,7 @@ use popup::Frame;
 use popup_tree::PopupTree;
 
 pub use motion::reduced as reduced_motion;
-pub use widgets::svg_texture_at;
+pub use widgets::{Textures, svg_texture_at};
 
 #[must_use]
 pub fn render(

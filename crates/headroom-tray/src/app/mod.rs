@@ -24,8 +24,8 @@ use crate::ui::context::{Tick, UiState};
 use crate::ui::popup_tree::PopupTree;
 use crate::ui::prefs::SettingsWindow;
 use crate::ui::style::Styles;
-use crate::ui::svg_texture_at;
 use crate::ui::window::PopupWindow;
+use crate::ui::{Textures, svg_texture_at};
 use crate::view::View;
 
 type Running = (Rc<App>, gio::ApplicationHoldGuard);
@@ -54,6 +54,7 @@ pub struct App {
     window: RefCell<PopupWindow>,
     styles: RefCell<Styles>,
     palettes: Palettes,
+    textures: Rc<Textures>,
     commands: tokio::sync::mpsc::UnboundedSender<Command>,
     tray: tokio::sync::mpsc::UnboundedSender<TrayUpdate>,
     ticker: RefCell<Option<glib::SourceId>>,
@@ -98,6 +99,7 @@ impl App {
             window: RefCell::new(PopupWindow::new(application)),
             styles: RefCell::new(Styles::install(&display)),
             palettes,
+            textures: Rc::default(),
             commands: channels.commands,
             tray: channels.tray,
             ticker: RefCell::new(None),

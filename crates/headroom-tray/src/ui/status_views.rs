@@ -2,7 +2,7 @@ use gtk::prelude::*;
 
 use crate::assets::MARK;
 use crate::ui::context::{Action, Ctx};
-use crate::ui::widgets::{column, row, spacer, svg_image, text_button, wrapping_label};
+use crate::ui::widgets::{column, row, spacer, text_button, wrapping_label};
 
 const LOADING_SECTIONS: [usize; 2] = [2, 3];
 const MARK_SIZE: i32 = 32;
@@ -83,7 +83,7 @@ fn primary(ctx: &Ctx, text: &str, action: Action) -> gtk::Button {
 
 pub fn service_view(ctx: &Ctx) -> gtk::Box {
     let lang = ctx.locale.lang;
-    let mark = svg_image(
+    let mark = ctx.svg_image(
         MARK,
         &ctx.css("text-secondary"),
         MARK_SIZE,

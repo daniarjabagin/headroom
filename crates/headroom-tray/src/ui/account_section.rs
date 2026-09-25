@@ -1,22 +1,19 @@
 use gtk::prelude::*;
 use jiff::Timestamp;
 
-use crate::account::{HeaderStatus, NoticeView, account_title, header_status, shown_plan};
+use crate::account::{HeaderStatus, account_title, header_status, shown_plan};
 use crate::format::ago_text;
 use crate::i18n::fill;
-use crate::payload::{Account, ProviderStatus, Usage, Window};
-use crate::popup_model::status::status_view;
+use crate::payload::{Account, ProviderStatus, Usage};
+use crate::popup_model::status::{StatusView, status_view};
 use crate::preferences::registry::ProviderLinks;
-use crate::ui::context::{Action, Ctx, ShareTarget};
+use crate::ui::context::{Ctx, ShareTarget};
 use crate::ui::header::{HeaderInput, links_of, section_header};
 use crate::ui::header_menu::MenuInput;
-use crate::ui::keyed::{LookKey, SharedTick, capture};
-use crate::ui::notice::MountedNotice;
-use crate::ui::quota_row::quota_row;
-use crate::ui::section_card::{Card, button_state, card, clear_except, mount_notice};
-use crate::ui::status_notice::{status_mark, status_notice};
-use crate::ui::usage_rows::{extra_rows, trend_row};
-use crate::ui::widgets::{button, column, icon, label};
+use crate::ui::keyed::{Keyed, LookKey, SharedTick};
+use crate::ui::section_body::MountedBody;
+use crate::ui::status_notice::status_mark;
+use crate::ui::widgets::{column, icon, label};
 
 pub struct SectionInput<'a> {
     pub account: &'a Account,
@@ -27,10 +24,53 @@ pub struct SectionInput<'a> {
     pub animate: bool,
 }
 
-fn outdated_tag(ctx: &Ctx, account: &Account) -> gtk::Widget {
+#[derive(PartialEq)]
+struct HeaderKey {
+    provider: String,
+    title: String,
+    plan: Option<String>,
+    status: Option<HeaderStatus>,
+    updated_at: Option<Timestamp>,
+    error: Option<String>,
+    incident: Option<StatusView>,
+    menu: MenuInput,
+}
+
+impl HeaderKey {
+    fn of(ctx: &Ctx, input: &SectionInput) -> Self {
+        let account = input.account;
+        let status = header_status(account, ctx.offline);
+        Self {
+            provider: account.provider.clone(),
+            title: account_title(account, input.show_name),
+            plan: shown_plan(account).map(str::to_owned),
+            status,
+            updated_at: account
+                .updated_at
+                .filter(|_| status == Some(HeaderStatus::Outdated)),
+            error: account
+                .error
+                .as_ref()
+                .filter(|_| status == Some(HeaderStatus::Error))
+                .map(|error| error.message.clone()),
+            incident: input
+                .status
+                .and_then(|status| status_view(ctx.locale.lang, status)),
+            menu: MenuInput {
+                provider_name: account.provider_name.clone(),
+                account_ids: vec![account.id.clone()],
+                starred: ctx.display.is_starred(&account.id),
+                target: ShareTarget::Account(account.id.clone()),
+                links: links_of(ctx, &account.provider),
+            },
+        }
+    }
+}
+
+fn outdated_tag(ctx: &Ctx, updated_at: Option<Timestamp>) -> gtk::Widget {
     let lang = ctx.locale.lang;
     let tag = label(lang.tr("Outdated"), &["headroom-stale-tag"]);
-    if let Some(at) = account.updated_at {
+    if let Some(at) = updated_at {
         let shown = tag.clone();
         let tip = move |now: Timestamp| {
             let text = fill(
@@ -45,109 +85,37 @@ fn outdated_tag(ctx: &Ctx, account: &Account) -> gtk::Widget {
     tag.upcast()
 }
 
-fn status_widget(ctx: &Ctx, account: &Account) -> Option<gtk::Widget> {
+fn status_widget(ctx: &Ctx, key: &HeaderKey) -> Option<gtk::Widget> {
     let lang = ctx.locale.lang;
-    match header_status(account, ctx.offline)? {
+    match key.status? {
         HeaderStatus::Refreshing => {
             let spinner = gtk::Spinner::new();
             spinner.set_spinning(ctx.motion);
             spinner.set_size_request(12, 12);
             Some(spinner.upcast())
         }
-        HeaderStatus::Outdated => Some(outdated_tag(ctx, account)),
+        HeaderStatus::Outdated => Some(outdated_tag(ctx, key.updated_at)),
         HeaderStatus::Error => {
             let warning = icon("dialog-warning-symbolic", 12, &["headroom-header-warning"]);
-            let message = account
-                .error
-                .as_ref()
-                .map_or(lang.tr("Refresh failed"), |e| &e.message);
+            let message = key.error.as_deref().unwrap_or(lang.tr("Refresh failed"));
             warning.set_tooltip_text(Some(message));
             Some(warning.upcast())
         }
     }
 }
 
-fn header(ctx: &Ctx, input: &SectionInput) -> gtk::Box {
-    let account = input.account;
-    let incident = input
-        .status
-        .and_then(|status| status_view(ctx.locale.lang, status));
-    let status = status_widget(ctx, account)
+fn header(ctx: &Ctx, key: &HeaderKey) -> gtk::Box {
+    let status = status_widget(ctx, key)
         .into_iter()
-        .chain(incident.as_ref().map(|view| status_mark(view).upcast()))
+        .chain(key.incident.as_ref().map(|view| status_mark(view).upcast()))
         .collect();
-    let menu = MenuInput {
-        provider_name: account.provider_name.clone(),
-        account_ids: vec![account.id.clone()],
-        starred: ctx.display.is_starred(&account.id),
-        target: ShareTarget::Account(account.id.clone()),
-        links: links_of(ctx, &account.provider),
-    };
     let header = HeaderInput {
-        title: account_title(account, input.show_name),
-        plan: shown_plan(account).map(str::to_owned),
+        title: key.title.clone(),
+        plan: key.plan.clone(),
         status,
-        menu,
+        menu: key.menu.clone(),
     };
-    section_header(ctx, &account.provider, header)
-}
-
-fn caret_name(expanded: bool) -> &'static str {
-    if expanded {
-        "pan-up-symbolic"
-    } else {
-        "pan-down-symbolic"
-    }
-}
-
-fn expander(ctx: &Ctx, account: &Account, content: &gtk::Box) -> gtk::Box {
-    let expanded = ctx.ui.expanded.contains(&account.id);
-    let revealer = gtk::Revealer::new();
-    revealer.set_child(Some(content));
-    revealer.set_reveal_child(expanded);
-    revealer.set_transition_duration(if ctx.motion { 200 } else { 0 });
-    let caret = icon(caret_name(expanded), 10, &["headroom-caret-icon"]);
-    let (id, act) = (account.id.clone(), std::rc::Rc::clone(&ctx.act));
-    let (shown, arrow) = (revealer.clone(), caret.clone());
-    let toggle = button(&caret, &["headroom-caret"], move || {
-        let open = !shown.reveals_child();
-        shown.set_reveal_child(open);
-        arrow.set_icon_name(Some(caret_name(open)));
-        act(Action::SetExpanded(id.clone(), open));
-    });
-    let body = column(0, &[]);
-    body.append(&toggle);
-    body.append(&revealer);
-    body
-}
-
-fn limits(ctx: &Ctx, input: &SectionInput, card: &gtk::Box, windows: &[&Window]) {
-    for window in windows {
-        card.append(&quota_row(ctx, window, input.now, input.animate));
-    }
-    let trend = input.usage.filter(|_| ctx.display.show_trend);
-    if let Some(usage) = trend {
-        card.append(&trend_row(ctx, usage));
-    }
-    let Some(extras) = extra_rows(ctx, input.account, input.usage) else {
-        return;
-    };
-    if windows.is_empty() && trend.is_none() {
-        card.append(&extras);
-    } else {
-        card.append(&expander(ctx, input.account, &extras));
-    }
-}
-
-#[derive(PartialEq)]
-struct AlertKey {
-    notice: NoticeView,
-    motion: bool,
-}
-
-struct MountedAlert {
-    key: AlertKey,
-    notice: MountedNotice,
+    section_header(ctx, &key.provider, header)
 }
 
 #[derive(PartialEq)]
@@ -189,25 +157,21 @@ impl SectionKey {
 pub struct MountedSection {
     pub widget: gtk::Box,
     pub ticks: Vec<SharedTick>,
-    header: gtk::Box,
-    card: gtk::Box,
-    alert: Option<MountedAlert>,
+    header: Option<Keyed<HeaderKey>>,
+    body: MountedBody,
     key: Option<SectionKey>,
 }
 
 impl MountedSection {
     pub fn new(ctx: &Ctx, input: &SectionInput) -> Self {
-        let widget = column(if ctx.compact() { 2 } else { 4 }, &[]);
-        let header = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        let card = column(0, &["headroom-card"]);
-        widget.append(&header);
-        widget.append(&card);
+        let widget = column(0, &[]);
+        let body = MountedBody::new();
+        widget.append(&body.card);
         let mut section = Self {
             widget,
             ticks: Vec::new(),
-            header,
-            card,
-            alert: None,
+            header: None,
+            body,
             key: None,
         };
         section.update(ctx, input);
@@ -216,75 +180,50 @@ impl MountedSection {
 
     pub fn update(&mut self, ctx: &Ctx, input: &SectionInput) {
         let key = SectionKey::of(ctx, input);
-        if self.key.as_ref() == Some(&key) {
+        let Some(old) = self.key.take() else {
+            self.mount(ctx, input, false);
+            self.key = Some(key);
+            return;
+        };
+        if old == key {
+            self.key = Some(old);
             return;
         }
-        let appeared = self.key.is_some()
-            && self.key.as_ref().is_some_and(|old| old.status.is_none())
-            && key.status.is_some();
-        let ((), ticks) = capture(ctx, || {
-            let header = header(ctx, input);
-            self.widget.prepend(&header);
-            self.widget.remove(&self.header);
-            self.header = header;
-            self.widget.set_spacing(if ctx.compact() { 2 } else { 4 });
-            self.fill_card(ctx, input, appeared);
-        });
-        self.ticks = ticks;
+        if old.look != key.look {
+            self.reset();
+        }
+        let appeared = old.status.is_none() && key.status.is_some();
+        self.mount(ctx, input, appeared);
         self.key = Some(key);
     }
 
-    fn fill_card(&mut self, ctx: &Ctx, input: &SectionInput, appeared: bool) {
-        let account = input.account;
-        let Card {
-            alert,
-            rest,
-            windows,
-        } = card(ctx, account);
-        self.keep_alert(ctx, account, alert);
-        let kept = self.alert.as_ref().map(|alert| &alert.notice.widget);
-        clear_except(&self.card, kept);
-        if let Some(alert) = &self.alert {
-            alert
-                .notice
-                .apply(ctx.locale.lang, |_| button_state(ctx, account));
-            if alert.notice.widget.parent().is_none() {
-                self.card.prepend(&alert.notice.widget);
-            }
+    fn reset(&mut self) {
+        if let Some(header) = self.header.take() {
+            self.widget.remove(&header.widget);
         }
-        let incident = input
-            .status
-            .and_then(|status| status_view(ctx.locale.lang, status));
-        if let Some(view) = incident {
-            self.card
-                .append(&status_notice(ctx, &view, input.now, appeared));
-        }
-        for widget in &rest {
-            self.card.append(widget);
-        }
-        if let Some(windows) = windows {
-            limits(ctx, input, &self.card, &windows);
-        }
-        self.card.set_visible(self.card.first_child().is_some());
+        self.widget.remove(&self.body.card);
+        self.body = MountedBody::new();
+        self.widget.append(&self.body.card);
     }
 
-    fn keep_alert(&mut self, ctx: &Ctx, account: &Account, alert: Option<NoticeView>) {
-        let Some(notice) = alert else {
-            self.alert = None;
-            return;
-        };
-        let key = AlertKey {
-            notice,
-            motion: ctx.motion,
-        };
-        if self
-            .alert
-            .as_ref()
-            .is_some_and(|mounted| mounted.key == key)
-        {
-            return;
+    fn mount(&mut self, ctx: &Ctx, input: &SectionInput, appeared: bool) {
+        self.widget.set_spacing(if ctx.compact() { 2 } else { 4 });
+        let key = HeaderKey::of(ctx, input);
+        let previous = self.header.take();
+        let old_widget = previous.as_ref().map(|kept| kept.widget.clone());
+        let (kept, built) = Keyed::reuse(previous, key, ctx, |key| header(ctx, key).upcast());
+        if built {
+            if let Some(old) = old_widget {
+                self.widget.remove(&old);
+            }
+            self.widget.prepend(&kept.widget);
         }
-        let notice = mount_notice(ctx, account, &key.notice);
-        self.alert = Some(MountedAlert { key, notice });
+        self.header = Some(kept);
+        self.body.update(ctx, input, appeared);
+        let header_ticks = self
+            .header
+            .iter()
+            .flat_map(|kept| kept.ticks.iter().cloned());
+        self.ticks = header_ticks.chain(self.body.ticks()).collect();
     }
 }
