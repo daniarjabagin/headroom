@@ -41,6 +41,7 @@
   "panel_tone": null,
   "accounts": [],
   "combined": [],
+  "provider_status": [],
   "usage": [],
   "spend": {
     "today": {

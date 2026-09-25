@@ -225,6 +225,17 @@
     }
   ],
   "combined": [],
+  "provider_status": [
+    {
+      "provider": "claude",
+      "indicator": "minor",
+      "tone": "warning",
+      "title": "Elevated errors on Claude Code",
+      "stage": "identified",
+      "started_at": "2026-09-23T09:12:00Z",
+      "url": "https://stspg.io/abc123"
+    }
+  ],
   "usage": [
     {
       "provider": "codex",
