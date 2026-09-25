@@ -102,8 +102,72 @@ final class WelcomeFlowTests: XCTestCase {
     }
 
     @MainActor
-    private func makeFlow(_ spy: LoginItemSpy) -> (WelcomeFlow, () -> [WelcomeExit]) {
-        let flow = WelcomeFlow(flag: FirstRunFlag(defaults: defaults)) { spy.enable() }
+    func testStartCompletesOnboardingAndMovesToTheMenuBarStep() {
+        let spy = LoginItemSpy()
+        var completed = 0
+        let (flow, exits) = makeFlow(spy, steps: [.found, .menuBar]) { completed += 1 }
+        XCTAssertEqual(flow.step, .found)
+        flow.choose(.openHeadroom)
+        XCTAssertEqual(flow.step, .found)
+        flow.start()
+        XCTAssertEqual(completed, 1)
+        XCTAssertEqual(flow.step, .menuBar)
+        XCTAssertFalse(FirstRunFlag(defaults: defaults).isCompleted)
+        flow.start()
+        XCTAssertEqual(completed, 1)
+        flow.choose(.openHeadroom)
+        XCTAssertEqual(exits(), [.openHeadroom])
+        XCTAssertTrue(FirstRunFlag(defaults: defaults).isCompleted)
+    }
+
+    @MainActor
+    func testStartWithoutAMenuBarStepOpensHeadroom() {
+        var completed = 0
+        let (flow, exits) = makeFlow(LoginItemSpy(), steps: [.found]) { completed += 1 }
+        flow.start()
+        XCTAssertEqual(completed, 1)
+        XCTAssertEqual(exits(), [.openHeadroom])
+        XCTAssertFalse(FirstRunFlag(defaults: defaults).isCompleted)
+    }
+
+    @MainActor
+    func testChooseLaterAndClosingLeaveOnboardingAndFirstRunOpen() {
+        var completed = 0
+        let (later, laterExits) = makeFlow(LoginItemSpy(), steps: [.found, .menuBar]) { completed += 1 }
+        later.chooseLater()
+        let (closed, closedExits) = makeFlow(LoginItemSpy(), steps: [.found, .menuBar]) { completed += 1 }
+        closed.choose(.dismissed)
+        XCTAssertEqual(completed, 0)
+        XCTAssertEqual(laterExits(), [.dismissed])
+        XCTAssertEqual(closedExits(), [.dismissed])
+        XCTAssertFalse(FirstRunFlag(defaults: defaults).isCompleted)
+    }
+
+    func testPlanWaitsForSettingsAndOffersOnboardingOnlyToRelease06() throws {
+        let pending = try Fixture.decode(
+            Settings.self,
+            json: SettingsTests.release06.replacingOccurrences(of: #""completed": true"#, with: #""completed": false"#))
+        let done = try Fixture.decode(Settings.self, json: SettingsTests.release06)
+        let legacy = try Fixture.decode(Settings.self, json: SettingsTests.legacy)
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: false, settings: nil, timedOut: false), .wait)
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: false, settings: nil, timedOut: true), .show([.menuBar]))
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: true, settings: nil, timedOut: true), .wait)
+        XCTAssertEqual(
+            WelcomePlan.decide(firstRunCompleted: false, settings: pending, timedOut: false), .show([.found, .menuBar]))
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: true, settings: pending, timedOut: false), .show([.found]))
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: true, settings: done, timedOut: false), .skip)
+        XCTAssertEqual(WelcomePlan.decide(firstRunCompleted: true, settings: legacy, timedOut: false), .skip)
+        XCTAssertEqual(
+            WelcomePlan.decide(firstRunCompleted: false, settings: legacy, timedOut: false), .show([.menuBar]))
+    }
+
+    @MainActor
+    private func makeFlow(
+        _ spy: LoginItemSpy, steps: [WelcomeStep] = [.menuBar], completeOnboarding: @escaping @MainActor () -> Void = {}
+    ) -> (WelcomeFlow, () -> [WelcomeExit]) {
+        let flow = WelcomeFlow(
+            flag: FirstRunFlag(defaults: defaults), steps: steps, completeOnboarding: completeOnboarding
+        ) { spy.enable() }
         var exits: [WelcomeExit] = []
         flow.onFinish = { exits.append($0) }
         return (flow, { exits })

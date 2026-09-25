@@ -14,11 +14,13 @@
         @State private var codeSent = false
         @Environment(\.openURL) private var openURL
 
-        init(context: SettingsContext, provider: ProviderInfo, onClose: @escaping () -> Void) {
+        init(context: SettingsContext, provider: ProviderInfo, accountID: String?, onClose: @escaping () -> Void) {
             self.context = context
             self.provider = provider
             self.onClose = onClose
-            _session = State(initialValue: AddAccountSession(provider: provider, launcher: context.makeLauncher()))
+            _session = State(
+                initialValue: AddAccountSession(
+                    provider: provider, launcher: context.makeLauncher(), accountID: accountID))
         }
 
         var body: some View {
@@ -53,15 +55,19 @@
             case .running(let progress):
                 running(progress, strings)
             case .done, .failed:
-                FlowResult(strings: strings, phase: session.phase, onClose: onClose) { session.cancel() }
+                FlowResult(
+                    strings: strings, phase: session.phase, signingInAgain: session.accountID != nil, onClose: onClose
+                ) { session.cancel() }
             }
         }
 
         private func form(_ strings: UIStrings) -> some View {
             VStack(spacing: 12) {
-                TextField(strings.text(AddAccountText.labelOptional), text: $label)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { start() }
+                if session.accountID == nil {
+                    TextField(strings.text(AddAccountText.labelOptional), text: $label)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { start() }
+                }
                 Button(strings.text(SignInText.continueAction)) { start() }.keyboardShortcut(.defaultAction)
             }
         }

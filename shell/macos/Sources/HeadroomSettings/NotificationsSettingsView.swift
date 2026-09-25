@@ -15,6 +15,10 @@
             if let settings = context.store.settings {
                 Form {
                     milestones(settings.notifications)
+                    if context.release06 {
+                        AlertThresholdSection(context: context, notifications: settings.notifications)
+                        QuietHoursSection(context: context, quietHours: settings.notifications.quietHours)
+                    }
                     permission
                     StoreErrorSection(context: context)
                 }
@@ -32,7 +36,7 @@
                 ForEach(Milestone.allCases, id: \.self) { milestone in
                     let texts = Self.texts(milestone)
                     Toggle(isOn: binding(milestone, notifications.isEnabled(milestone))) {
-                        TitledLabel(title: strings.text(texts.title), detail: strings.text(texts.detail))
+                        TitledLabel(title: strings.text(texts.title), detail: detail(milestone, notifications))
                     }
                 }
             } header: {
@@ -40,6 +44,11 @@
             } footer: {
                 Text(strings.text(NotificationText.notificationsFooter)).foregroundStyle(.secondary)
             }
+        }
+
+        private func detail(_ milestone: Milestone, _ notifications: NotificationSettings) -> String {
+            guard milestone == .almostOut, context.release06 else { return strings.text(Self.texts(milestone).detail) }
+            return strings.fill(AlertSettingsText.almostOutDetail, ["percent": "\(notifications.thresholdPercent)"])
         }
 
         @ViewBuilder

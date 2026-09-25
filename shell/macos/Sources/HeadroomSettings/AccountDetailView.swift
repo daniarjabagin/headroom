@@ -26,6 +26,7 @@
                         Text(strings.text(AccountsText.limitsFooter)).foregroundStyle(.secondary)
                     }
                 }
+                if case .signIn(let accountID) = account.recovery { signInAgainRow(accountID) }
                 Section { removeRow }
             }
             .formStyle(.grouped)
@@ -89,6 +90,20 @@
             guard let display = context.store.settings?.display else { return }
             let windows = display.hiddenWindows(after: windowID, hidden: hidden, accountID: account.id)
             context.store.change(.hiddenWindows(accountID: account.id, windows: windows))
+        }
+
+        private func signInAgainRow(_ accountID: String) -> some View {
+            Section {
+                HStack {
+                    TitledLabel(
+                        title: account.displayName, detail: strings.text(SignInAgainText.signInAgainDetail))
+                    Spacer()
+                    Button(strings.text(SignInAgainText.signInAgain)) {
+                        context.navigation.addAccount = AddAccountRequest(
+                            provider: account.provider, accountID: accountID)
+                    }
+                }
+            }
         }
 
         private var removeRow: some View {

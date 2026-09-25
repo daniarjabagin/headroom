@@ -13,12 +13,17 @@
         @State private var label = ""
         @Environment(\.openURL) private var openURL
 
-        init(context: SettingsContext, provider: ProviderInfo, field: APIKeyField, onClose: @escaping () -> Void) {
+        init(
+            context: SettingsContext, provider: ProviderInfo, field: APIKeyField, accountID: String?,
+            onClose: @escaping () -> Void
+        ) {
             self.context = context
             self.provider = provider
             self.field = field
             self.onClose = onClose
-            _session = State(initialValue: AddAccountSession(provider: provider, launcher: context.makeLauncher()))
+            _session = State(
+                initialValue: AddAccountSession(
+                    provider: provider, launcher: context.makeLauncher(), accountID: accountID))
         }
 
         var body: some View {
@@ -50,7 +55,9 @@
                     Button(strings.text(SignInText.cancel)) { session.cancel() }
                 }
             case .done, .failed:
-                FlowResult(strings: strings, phase: session.phase, onClose: onClose) { session.cancel() }
+                FlowResult(
+                    strings: strings, phase: session.phase, signingInAgain: session.accountID != nil, onClose: onClose
+                ) { session.cancel() }
             }
         }
 
@@ -59,9 +66,11 @@
                 SecureField(field.label.isEmpty ? strings.text(AddAccountText.apiKey) : field.label, text: $key)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { add() }
-                TextField(strings.text(AddAccountText.labelOptional), text: $label)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { add() }
+                if session.accountID == nil {
+                    TextField(strings.text(AddAccountText.labelOptional), text: $label)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { add() }
+                }
                 if !field.hint.isEmpty {
                     Text(field.hint).font(.caption).foregroundStyle(.secondary)
                 }

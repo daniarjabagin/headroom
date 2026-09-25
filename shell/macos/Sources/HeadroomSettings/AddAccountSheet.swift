@@ -12,6 +12,7 @@
 
         let context: SettingsContext
         let initialProvider: String?
+        var accountID: String?
 
         @Environment(\.dismiss) private var dismiss
         @State private var path: [AddAccountStep] = []
@@ -39,7 +40,7 @@
             case .methods(let provider):
                 MethodPickerView(context: context, provider: provider) { path.append(.flow(provider, $0)) }
             case .flow(let provider, let method):
-                FlowView(context: context, provider: provider, method: method) { dismiss() }
+                FlowView(context: context, provider: provider, method: method, accountID: accountID) { dismiss() }
             }
         }
 

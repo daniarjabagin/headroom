@@ -117,13 +117,10 @@
         }
 
         private func showWelcomeIfNeeded(controller: AppController, loginItem: LoginItem) {
-            let reducedMotion = controller.store.settings?.reducedMotion ?? false
-            guard
-                let welcome = WelcomeWindowController.makeIfNeeded(
-                    model: controller.model, loginItem: loginItem, reducedMotion: reducedMotion)
-            else { return }
+            let welcome = WelcomeWindowController(
+                model: controller.model, store: controller.store, loginItem: loginItem)
             self.welcome = welcome
-            welcome.show { [weak self] exit in self?.leaveWelcome(exit) }
+            welcome.showWhenNeeded { [weak self] exit in self?.leaveWelcome(exit) }
         }
 
         private func leaveWelcome(_ exit: WelcomeExit) {
