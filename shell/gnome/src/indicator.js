@@ -5,38 +5,34 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import { supports06 } from './compat.js';
 import { DaemonClient } from './dbus.js';
-import { panelCount, panelPercent, shortWindowLabel } from './format.js';
 import { Glass } from './glass.js';
 import { _, currentLanguage, resolveLanguage, setLanguage } from './i18n.js';
 import { Motion } from './motion.js';
-import { PanelRing } from './panelRing.js';
+import { isLightPanel, panelLayout } from './panelContent.js';
+import { PanelDrag } from './panelDrag.js';
+import { PanelItemsView } from './panelItemsView.js';
+import { PanelPlacement } from './panelPlacement.js';
 import { PopupView } from './popup/popup.js';
+import { Privacy } from './privacy.js';
 import { startService } from './service.js';
-import { displayPatch, toggledResetFormat, toggledValueMode } from './settings.js';
+import { displayPatch, panelPositionPatch, toggledResetFormat, toggledValueMode } from './settings.js';
+import { GlobalShortcut } from './shortcut.js';
 import { parseState, StateError } from './state.js';
 import { Ticker } from './ticker.js';
 import { UpdateRunner } from './updateRunner.js';
-import { fileIcon, label, providerIcon, row } from './widgets.js';
 
-const STALE_OPACITY = 140;
 const WORK_AREA_GAP = 16;
-const WINDOW_LABEL_OPACITY = 170;
 const THEME_CLASSES = ['headroom-theme-light', 'headroom-theme-dark'];
 const REDUCED_MOTION_CLASS = 'headroom-reduced-motion';
 
-function headlineAccount(state) {
-    return state.accounts.find(candidate => candidate.id === state.headline.accountId) ?? null;
-}
+const ONBOARDING_MODULE = 'onboarding.js';
 
-function isStale(state) {
-    if (state.offline) return true;
-    return headlineAccount(state)?.status === 'stale';
-}
-
-function panelValue(headline, display) {
-    if (display.valueMode === 'used' && headline.usedPercent !== null) return headline.usedPercent;
-    return headline.remainingPercent;
+async function loadOnboarding(dir) {
+    if (!dir.get_child('src').get_child(ONBOARDING_MODULE).query_exists(null)) return null;
+    const module = await import(`./${ONBOARDING_MODULE}`);
+    return typeof module.maybeShowOnboarding === 'function' ? module.maybeShowOnboarding : null;
 }
 
 function themeClass(display) {
@@ -47,17 +43,23 @@ export const Indicator = GObject.registerClass(
     class HeadroomIndicator extends PanelMenu.Button {
         _init(extension) {
             super._init(0.5, 'Headroom', false);
+            this._clickGesture?.set_enabled(false);
             this._extension = extension;
-            this._panelProvider = null;
             this._view = { kind: 'loading', state: null };
             this._motion = new Motion();
             this._cancellable = new Gio.Cancellable();
+            this._onboarding = { requested: false, destroyed: false };
             setLanguage(resolveLanguage('system', GLib.get_language_names()));
             this._ticker = new Ticker({
                 onTick: () => this._popup.tick(),
                 wantsSeconds: () => this._popup.needsSecondTicks(),
             });
-            this._buildPanel();
+            this._panelView = new PanelItemsView({ dir: extension.dir, motion: this._motion });
+            this.add_child(this._panelView.actor);
+            this._styleChangedId = this.connect('style-changed', () => this._syncPanelTheme());
+            this._privacy = new Privacy();
+            this._privacy.connect('changed', () => this._render());
+            this._shortcut = new GlobalShortcut(() => this.menu.toggle());
             this._popup = this._createPopup();
             this._updater = new UpdateRunner(run => this._popup.setUpdateRun(run));
             this.menu.actor.add_style_class_name('headroom-menu');
@@ -68,41 +70,27 @@ export const Indicator = GObject.registerClass(
                 onAvailable: () => this._setView({ kind: 'loading', state: null }),
                 onUnavailable: () => this._setView({ kind: 'unavailable', state: null }),
                 onState: json => this._onState(json),
-                onSettings: settings => this._applyMotion(settings.reducedMotion),
+                onSettings: settings => this._onSettings(settings),
                 onError: message => this._onError(message),
                 onOpenRequested: () => this.menu.open(),
             });
             this._render();
         }
 
-        _buildPanel() {
-            this._panelBox = row({ style_class: 'headroom-panel-box' });
-            this._mark = fileIcon(
-                this._extension.dir,
-                'headroom-symbolic.svg',
-                'system-status-icon headroom-panel-mark'
-            );
-            this._ring = new PanelRing(this._motion);
-            this._ring.y_align = Clutter.ActorAlign.CENTER;
-            this._providerSlot = new St.Bin({
-                style_class: 'headroom-panel-provider',
-                y_align: Clutter.ActorAlign.CENTER,
+        addToPanel(panel, role) {
+            this._placement = new PanelPlacement(panel, role, this);
+            this._drag = new PanelDrag({
+                button: this,
+                placement: this._placement,
+                onDrop: position => this._client.updateSettings(panelPositionPatch(position)),
+                onClick: () => this.menu.toggle(),
             });
-            this._countLabel = label('', 'headroom-panel-window headroom-panel-count');
-            this._countLabel.opacity = WINDOW_LABEL_OPACITY;
-            this._windowLabel = label('', 'headroom-panel-window');
-            this._windowLabel.opacity = WINDOW_LABEL_OPACITY;
-            this._percent = label('', 'headroom-panel-label');
-            const actors = [
-                this._mark,
-                this._ring,
-                this._providerSlot,
-                this._countLabel,
-                this._windowLabel,
-                this._percent,
-            ];
-            for (const actor of actors) this._panelBox.add_child(actor);
-            this.add_child(this._panelBox);
+            this._placement.attach();
+            this._renderPlacement();
+        }
+
+        vfunc_event(event) {
+            return this._drag?.handleEvent(event) ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
         }
 
         _createPopup() {
@@ -121,6 +109,7 @@ export const Indicator = GObject.registerClass(
                     openUrl: url => this._openUrl(url),
                     installUpdate: () => this._updater.start(),
                     startService: () => this._startService(),
+                    showNumbersAnyway: () => this._privacy.showAnyway(),
                 },
             });
         }
@@ -144,10 +133,29 @@ export const Indicator = GObject.registerClass(
             this._render();
         }
 
+        _onSettings(settings) {
+            this._applyMotion(settings.reducedMotion);
+            this._shortcut.set(settings.shortcuts.open);
+            this._maybeOnboard(settings);
+        }
+
         _applyMotion(reduced) {
             this._motion.reduced = reduced;
             if (reduced) this.menu.actor.add_style_class_name(REDUCED_MOTION_CLASS);
             else this.menu.actor.remove_style_class_name(REDUCED_MOTION_CLASS);
+            this._panelView.syncMotion();
+        }
+
+        async _maybeOnboard(settings) {
+            if (this._onboarding.requested || this._view.kind !== 'ready') return;
+            this._onboarding.requested = true;
+            const state = this._view.state;
+            try {
+                const show = await loadOnboarding(this._extension.dir);
+                if (!this._onboarding.destroyed) show?.(this._extension, state, settings);
+            } catch (error) {
+                console.error(`Headroom: onboarding failed: ${error.message}`);
+            }
         }
 
         _patchDisplay(patchFor) {
@@ -162,10 +170,25 @@ export const Indicator = GObject.registerClass(
         _render() {
             this._applyLanguage();
             this._applyTheme();
-            this._glass.setEnabled(this._view.state?.display.translucent ?? false);
-            this._renderPanel();
-            this._popup.render(this._view);
+            const state = this._view.state;
+            if (state) this._privacy.setEnabled(state.display.hideOnScreenShare);
+            const masked = this._privacy.isMasked();
+            this._glass.setEnabled(state?.display.translucent ?? false);
+            this._panelView.render(panelLayout(state, { masked, legacy: !supports06(state) }));
+            this._renderPlacement();
+            this._popup.render({ ...this._view, masked });
             this._ticker.sync();
+        }
+
+        _renderPlacement() {
+            const state = this._view.state;
+            const current = state !== null && supports06(state);
+            if (this._drag) this._drag.enabled = current;
+            if (current) this._placement?.place(state.display.panelPosition);
+        }
+
+        _syncPanelTheme() {
+            this._panelView.setLightPanel(isLightPanel(this.get_theme_node().get_foreground_color()));
         }
 
         _applyLanguage() {
@@ -181,37 +204,6 @@ export const Indicator = GObject.registerClass(
             for (const name of THEME_CLASSES) this.menu.actor.remove_style_class_name(name);
             if (theme) this.menu.actor.add_style_class_name(theme);
             this._popup.setTheme(theme);
-        }
-
-        _renderPanel() {
-            const state = this._view.state;
-            const headline = state?.headline ?? null;
-            this._mark.visible = headline === null;
-            this._percent.visible = headline !== null;
-            const windowMode = headline !== null && state.display.panelLabel === 'window';
-            this._ring.visible = headline !== null && !windowMode;
-            this._providerSlot.visible = windowMode;
-            this._windowLabel.visible = windowMode;
-            this._countLabel.visible = windowMode && headline.combined && headline.accountCount !== null;
-            this._panelBox.opacity = headline && isStale(state) ? STALE_OPACITY : 255;
-            if (headline === null) return;
-            const value = panelValue(headline, state.display);
-            this._ring.update(value / 100, headline.tone);
-            this._percent.text = panelPercent(value);
-            if (windowMode) this._renderWindowLabel(state, headline);
-        }
-
-        _renderWindowLabel(state, headline) {
-            const provider = headline.provider ?? headlineAccount(state)?.provider ?? 'unknown';
-            if (provider !== this._panelProvider) {
-                this._providerSlot.child?.destroy();
-                this._providerSlot.set_child(
-                    providerIcon(this._extension.dir, provider, 'headroom-panel-provider-icon')
-                );
-                this._panelProvider = provider;
-            }
-            this._windowLabel.text = shortWindowLabel(headline.windowId, headline.windowLabel);
-            this._countLabel.text = headline.accountCount === null ? '' : panelCount(headline.accountCount);
         }
 
         _onMenuToggled(open) {
@@ -263,6 +255,12 @@ export const Indicator = GObject.registerClass(
         }
 
         _onDestroy() {
+            this._onboarding.destroyed = true;
+            this._drag?.destroy();
+            this.disconnect(this._styleChangedId);
+            this._shortcut.destroy();
+            this._privacy.destroy();
+            this._panelView.destroy();
             this.menu.disconnect(this._menuToggledId);
             this._ticker.stop();
             this._glass.destroy();
