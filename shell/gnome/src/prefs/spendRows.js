@@ -1,6 +1,6 @@
 import { _ } from '../i18n.js';
 import { displayPatch, supports06 } from '../settings.js';
-import { comboRow, group, segmentedRow, switchRow } from './rows.js';
+import { comboRow, group, switchRow } from './rows.js';
 
 const SECTIONS = [
     ['showAccountSpend', () => _('Per-account spend'), () => _('Today, yesterday and 30 days under each account')],
@@ -55,7 +55,7 @@ export class SpendRows {
                 ],
                 onChange: this._display('spendPeriod'),
             }),
-            spendUnit: segmentedRow({
+            spendUnit: comboRow({
                 title: _('Units'),
                 options: [
                     { value: 'cost', label: _('Cost') },
@@ -64,7 +64,7 @@ export class SpendRows {
                 ],
                 onChange: this._display('spendUnit'),
             }),
-            spendBreakdown: segmentedRow({
+            spendBreakdown: comboRow({
                 title: _('Breakdown on hover'),
                 subtitle: _('Split a slice of the ring when the pointer rests on it'),
                 options: [

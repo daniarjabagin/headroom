@@ -4,6 +4,7 @@ import { _, fill, n_ } from '../i18n.js';
 import { isRefreshing } from '../state.js';
 
 const SECOND = 1000;
+const MINUTE_SECS = 60;
 const HOUR = 60 * 60 * SECOND;
 
 function line(text, kind = 'plain') {
@@ -18,9 +19,23 @@ function providerNames(accounts) {
     return [...new Set(accounts.map(account => account.providerName))];
 }
 
-function liveInterval(accounts) {
+function liveSeconds(accounts) {
     const intervals = accounts.map(account => account.refresh.intervalSecs).filter(secs => secs !== null);
-    return duration((intervals.length > 0 ? Math.min(...intervals) : 60) * SECOND);
+    return intervals.length > 0 ? Math.min(...intervals) : MINUTE_SECS;
+}
+
+function liveText(seconds, count) {
+    if (seconds === MINUTE_SECS)
+        return n_(
+            'Live — every minute while {providers} is active',
+            'Live — every minute while {providers} are active',
+            count
+        );
+    return n_(
+        'Live — every {interval} while {providers} is active',
+        'Live — every {interval} while {providers} are active',
+        count
+    );
 }
 
 function offlineLines(state, now) {
@@ -36,15 +51,12 @@ function offlineLines(state, now) {
 
 function liveLines(state, accounts, now) {
     const names = providerNames(accounts);
-    const values = { providers: names.join(', '), interval: liveInterval(accounts) };
+    const seconds = liveSeconds(accounts);
+    const values = { providers: names.join(', '), interval: duration(seconds * SECOND) };
     const first = state.lastSuccessAt
         ? line(fill(_('Updated {ago}'), { ago: agoText(state.lastSuccessAt, now) }))
         : null;
-    const live = n_(
-        'Live — every {interval} while {providers} is active',
-        'Live — every {interval} while {providers} are active',
-        names.length
-    );
+    const live = liveText(seconds, names.length);
     const tip = n_(
         '{providers} is writing new usage logs, so it is checked every {interval}. Back to the normal interval after 10 minutes without activity.',
         '{providers} are writing new usage logs, so they are checked every {interval}. Back to the normal interval after 10 minutes without activity.',

@@ -61,8 +61,13 @@ def incident_state(now):
     return {**showcase_state(now), "provider_status": statuses}
 
 
+def spend_only_state(now):
+    return assemble(now, [], showcase_usage(now), None)
+
+
 SCENARIOS = {
     **BASE_SCENARIOS,
+    "spend-only": spend_only_state,
     "combined": combined_state,
     "providers": providers_state,
     "several": full_state,

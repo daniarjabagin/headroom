@@ -20,7 +20,7 @@ function column(children, marginTop) {
         width_request: CONTENT_WIDTH,
         halign: Gtk.Align.CENTER,
         margin_top: marginTop,
-        margin_bottom: 32,
+        margin_bottom: 16,
     });
     for (const child of children) box.append(child);
     return box;
@@ -48,6 +48,18 @@ function appTile(dir) {
     return tile;
 }
 
+function actionBar(children) {
+    const box = new Gtk.Box({
+        orientation: Gtk.Orientation.VERTICAL,
+        spacing: 4,
+        halign: Gtk.Align.CENTER,
+        margin_top: 12,
+        margin_bottom: 16,
+    });
+    for (const child of children) box.append(child);
+    return box;
+}
+
 function spaced(widget, marginTop) {
     widget.margin_top = marginTop;
     return widget;
@@ -64,11 +76,13 @@ export class OnboardingPage {
         this._shortcut = new ShortcutRow(client, _('Keyboard shortcut'));
         this._shortcut.row.add_prefix(prefixIcon('input-keyboard-symbolic'));
         this._stack = new Gtk.Stack({ transition_type: Gtk.StackTransitionType.SLIDE_LEFT, vhomogeneous: false });
-        this._stack.add_named(this._welcome(dir, onFinished), 'welcome');
-        this._stack.add_named(this._done(onFinished), 'done');
+        this._stack.add_named(this._welcome(dir), 'welcome');
+        this._stack.add_named(this._done(), 'done');
+        this._buttons = this._buttonStack(onFinished);
         this._scroller = new Gtk.ScrolledWindow({ hscrollbar_policy: Gtk.PolicyType.NEVER, child: this._stack });
         const toolbar = new Adw.ToolbarView({ content: this._scroller });
         toolbar.add_top_bar(new Adw.HeaderBar({ show_title: false }));
+        toolbar.add_bottom_bar(this._buttons);
         this.page = new Adw.NavigationPage({ title: _('Welcome to Headroom'), child: toolbar, can_pop: false });
         this.page.connect('shown', () => {
             this.page.get_root()?.set_focus(null);
@@ -87,25 +101,30 @@ export class OnboardingPage {
         this._cancellable.cancel();
     }
 
-    _welcome(dir, onFinished) {
+    _buttonStack(onFinished) {
         const start = pillButton(_('Start'), true, () => this._start());
         const later = new Gtk.Button({ halign: Gtk.Align.CENTER, css_classes: ['flat'] });
         later.child = new Gtk.Label({ label: _('Choose later'), css_classes: ['accent'] });
         later.connect('clicked', () => onFinished());
+        const stack = new Gtk.Stack({ transition_type: Gtk.StackTransitionType.CROSSFADE, vhomogeneous: false });
+        stack.add_named(actionBar([start, later]), 'welcome');
+        stack.add_named(actionBar([pillButton(_('Done'), true, () => onFinished())]), 'done');
+        return stack;
+    }
+
+    _welcome(dir) {
         return column(
             [
                 appTile(dir),
                 heading(_('Welcome to Headroom')),
                 centered(_('Your AI coding limits, right next to the clock.'), ['dim-label']),
                 spaced(this._rows.group, 24),
-                spaced(start, 24),
-                later,
             ],
             12
         );
     }
 
-    _done(onFinished) {
+    _done() {
         this._autostart = switchRow({
             title: _('Start with the session'),
             subtitle: _('Headroom runs in the background after you log in'),
@@ -128,10 +147,6 @@ export class OnboardingPage {
                     'dim-label',
                     'caption',
                 ]),
-                spaced(
-                    pillButton(_('Done'), true, () => onFinished()),
-                    16
-                ),
             ],
             24
         );
@@ -140,6 +155,7 @@ export class OnboardingPage {
     _start() {
         this._client.updateSettings(onboardingPatch(true));
         this._stack.visible_child_name = 'done';
+        this._buttons.visible_child_name = 'done';
         this._scroller.vadjustment.value = 0;
     }
 

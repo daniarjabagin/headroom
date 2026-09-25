@@ -3,6 +3,7 @@ import Pango from 'gi://Pango';
 import St from 'gi://St';
 import {
     barParts,
+    breakdownValue,
     modelsTable,
     otherModelsText,
     otherProjectsText,
@@ -10,8 +11,7 @@ import {
     projectsTable,
 } from '../breakdown.js';
 import { _, fill, n_ } from '../i18n.js';
-import { compactTokens, usd } from '../numbers.js';
-import { projectLabel } from '../spendUnits.js';
+import { hasProjects, projectLabel } from '../spendUnits.js';
 import { column, label, row, spacer, textButton } from '../widgets.js';
 import { popupIcon } from './icons.js';
 import { MASK } from './mask.js';
@@ -72,13 +72,13 @@ class BreakdownRow {
     update(entry, period, unit) {
         const masked = this._ctx.masked;
         this._share.text = masked ? MASK : preciseShareText(entry.sharePermille);
-        this._value.text = masked ? MASK : unit === 'tokens' ? compactTokens(entry.totalTokens) : usd(entry.costMicros);
-        this._bar.setParts(masked ? [] : barParts(entry, period));
+        this._value.text = masked ? MASK : breakdownValue(entry, unit);
+        this._bar.setParts(masked ? [] : barParts(entry, period, unit));
     }
 }
 
-function table(tab, period) {
-    return tab === 'projects' ? projectsTable(period) : modelsTable(period);
+function table(tab, period, unit) {
+    return tab === 'projects' ? projectsTable(period, unit) : modelsTable(period, unit);
 }
 
 export class SpendBreakdown {
@@ -106,8 +106,8 @@ export class SpendBreakdown {
     }
 
     update(period, tab, unit) {
-        const data = table(tab, period);
-        this.actor.visible = period.providers.length > 0 && projectsTable(period) !== null && data.rows.length > 0;
+        const data = table(tab, period, unit);
+        this.actor.visible = period.providers.length > 0 && hasProjects(period) && data.rows.length > 0;
         if (!this.actor.visible) return;
         for (const [key, segment] of this._tabs) {
             if (key === tab) segment.add_style_pseudo_class('checked');

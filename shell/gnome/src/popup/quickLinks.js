@@ -1,5 +1,4 @@
 import Clutter from 'gi://Clutter';
-import { animate, FAST_MS } from '../motion.js';
 import { button, row } from '../widgets.js';
 import { shownLinks } from './cardMenu.js';
 import { popupIcon } from './icons.js';
@@ -17,18 +16,15 @@ function linkButton(ctx, link) {
 
 export class QuickLinks {
     constructor(ctx, links) {
-        this._ctx = ctx;
         const shown = shownLinks(links).sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
         this.actor = row({ style_class: 'headroom-quick-links', y_align: Clutter.ActorAlign.CENTER });
         for (const link of shown) this.actor.add_child(linkButton(ctx, link));
-        for (const child of this.actor.get_children()) child.reactive = false;
         this.actor.visible = shown.length > 0;
-        this.actor.opacity = 0;
+        this.reveal(false);
     }
 
     reveal(shown) {
-        if (!this.actor.visible) return;
-        animate(this._ctx.motion, this.actor, { opacity: shown ? 255 : 0 }, { duration: FAST_MS });
         for (const child of this.actor.get_children()) child.reactive = shown;
+        return this.actor.visible;
     }
 }

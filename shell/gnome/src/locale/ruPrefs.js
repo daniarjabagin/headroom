@@ -101,7 +101,7 @@ export const RU_PREFS = {
     ],
     'A limit drops under {percent}% left': 'Остаток лимита опускается ниже {percent}%',
     'Alert when less than': 'Предупреждать, когда осталось меньше',
-    'Used by Almost out': 'Для уведомления «Почти закончился»',
+    'Used by Almost out': 'Для уведомления «Почти исчерпан»',
     'Per provider': 'По сервисам',
     'Alert Threshold': 'Порог уведомлений',
     'Quiet hours': 'Тихие часы',
@@ -109,7 +109,7 @@ export const RU_PREFS = {
     From: 'С',
     To: 'До',
     'Still show critical alerts': 'Всё равно показывать критичные',
-    'Will run out and Almost out come through': 'Уведомления «Закончится» и «Почти закончился» приходят сразу',
+    'Will run out and Almost out come through': '«Закончится раньше сброса» и «Почти исчерпан» приходят сразу',
     'Quiet Hours': 'Тихие часы',
     'Held notifications arrive together when quiet hours end.':
         'Отложенные уведомления придут вместе, когда тихие часы закончатся.',

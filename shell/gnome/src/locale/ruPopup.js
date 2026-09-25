@@ -45,8 +45,8 @@ export const RU_POPUP = {
     'Usage page': 'Страница использования',
     'Refresh {provider}': 'Обновить {provider}',
     'Hide from popup': 'Скрыть из окна',
-    Unstar: 'Открепить',
-    Star: 'Закрепить',
+    'Show on demand': 'Показывать по запросу',
+    'Always show': 'Показывать всегда',
     'Share as image…': 'Поделиться картинкой…',
     'Copy as text': 'Копировать текстом',
     Models: 'Модели',
@@ -61,9 +61,14 @@ export const RU_POPUP = {
     '· {count} model': ['· {count} модель', '· {count} модели', '· {count} моделей'],
     '· {count} project': ['· {count} проект', '· {count} проекта', '· {count} проектов'],
     'Live — every {interval} while {providers} is active': [
-        'Вживую — каждые {interval}, пока работает {providers}',
-        'Вживую — каждые {interval}, пока работают {providers}',
-        'Вживую — каждые {interval}, пока работают {providers}',
+        'Вживую — раз в {interval}, пока пишет журналы {providers}',
+        'Вживую — раз в {interval}, пока пишут журналы {providers}',
+        'Вживую — раз в {interval}, пока пишут журналы {providers}',
+    ],
+    'Live — every minute while {providers} is active': [
+        'Вживую — раз в минуту, пока пишет журналы {providers}',
+        'Вживую — раз в минуту, пока пишут журналы {providers}',
+        'Вживую — раз в минуту, пока пишут журналы {providers}',
     ],
     '{providers} is writing new usage logs, so it is checked every {interval}. Back to the normal interval after 10 minutes without activity.':
         [

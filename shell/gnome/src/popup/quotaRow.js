@@ -47,13 +47,22 @@ export class QuotaRow {
         this._reading = new NumberTween(ctx.motion, this._headline, percent => this._readingText(percent));
         this._trailing = label('', 'headroom-reading dim');
         this._forecast = wrappingLabel('', 'headroom-forecast', { x_align: Clutter.ActorAlign.START });
-        this._readingToggle = toggle(this._headline, 'reading', () => ctx.actions.toggleValueMode());
-        this._trailingToggle = toggle(this._trailing, 'trailing', () => ctx.actions.toggleResetFormat());
+        this._readingToggle = toggle(this._headline, 'reading', () =>
+            this._flip(this._readingToggle, ctx.actions.toggleValueMode)
+        );
+        this._trailingToggle = toggle(this._trailing, 'trailing', () =>
+            this._flip(this._trailingToggle, ctx.actions.toggleResetFormat)
+        );
         ctx.tooltips.attach(this._readingToggle, () => valueHint(ctx.display.valueMode));
         ctx.tooltips.attach(this._trailingToggle, () => resetHint(ctx.display.resetFormat));
         if (this._compact) this._buildCompact();
         else this._buildNormal();
         this.update(window, false);
+    }
+
+    _flip(actor, toggleMode) {
+        toggleMode();
+        this._ctx.tooltips.refresh(actor);
     }
 
     get window() {

@@ -1,7 +1,7 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 import { _ } from '../i18n.js';
-import { button, column, iconButton, label, row, themeIcon } from '../widgets.js';
+import { button, column, iconButton, label, row, themeIcon, wrappingLabel } from '../widgets.js';
 import { footerLines, footerNeedsSeconds } from './refreshTexts.js';
 
 function setNotice(actor, notice) {
@@ -44,7 +44,7 @@ export class Footer {
     _secondLine() {
         const content = row({ style_class: 'headroom-footer-status' });
         this._liveDot = new St.Widget({ style_class: 'headroom-live-dot', y_align: Clutter.ActorAlign.CENTER });
-        this._status = label('', 'headroom-footer-text');
+        this._status = wrappingLabel('', 'headroom-footer-text', { x_expand: false });
         content.add_child(this._liveDot);
         content.add_child(this._status);
         this._statusButton = button(content, 'headroom-footer-link', () => this._ctx.pressRefresh());

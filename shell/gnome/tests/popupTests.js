@@ -114,7 +114,7 @@ function testSpendUnitsView() {
 }
 
 function testBreakdownTables() {
-    const models = modelsTable(PERIOD);
+    const models = modelsTable(PERIOD, 'cost');
     check('models sorted across providers', models.rows.map(row => row.name).slice(0, 5), [
         'opus',
         'gpt-5',
@@ -134,7 +134,7 @@ function testBreakdownTables() {
         models.rows.map(row => row.sharePermille),
         [400, 300, 200, 50, 30, 20]
     );
-    const projects = projectsTable(PERIOD);
+    const projects = projectsTable(PERIOD, 'cost');
     check(
         'project rows',
         projects.rows.map(row => [row.name, row.other, row.sharePermille]),
@@ -144,12 +144,12 @@ function testBreakdownTables() {
         ]
     );
     check('project count', projects.count, 5);
-    check('project bar split by provider', barParts(projects.rows[0], PERIOD), [
+    check('project bar split by provider', barParts(projects.rows[0], PERIOD, 'cost'), [
         { series: 'claude', permille: 500 },
         { series: 'codex', permille: 200 },
     ]);
-    check('other project bar', barParts(projects.rows[1], PERIOD), [{ series: null, permille: 300 }]);
-    check('no projects', projectsTable({ ...PERIOD, projects: null }), null);
+    check('other project bar', barParts(projects.rows[1], PERIOD, 'cost'), [{ series: null, permille: 300 }]);
+    check('no projects', projectsTable({ ...PERIOD, projects: null }, 'cost'), null);
     check('share texts', [wholeShareText(623), preciseShareText(323), preciseShareText(40)], ['62%', '32.3%', '4.0%']);
 }
 
@@ -254,7 +254,7 @@ function testFooterLines() {
     check(
         'live',
         [live.first.text, live.second.text, live.second.kind],
-        ['Updated 1m ago', 'Live — every 1m while Claude is active', 'live']
+        ['Updated 1m ago', 'Live — every minute while Claude is active', 'live']
     );
     check('live tip', live.tip.startsWith('Claude is writing new usage logs'), true);
     const offline = footerLines(
@@ -390,7 +390,7 @@ function testCardMenuItems() {
         links: null,
         canShare: false,
     });
-    check('unstar', starred[1].label, 'Unstar');
+    check('unstar', starred[1].label, 'Show on demand');
 }
 
 export function testPopup() {
