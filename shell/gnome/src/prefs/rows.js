@@ -19,11 +19,21 @@ function guarded(apply) {
 function toggleGroupRow({ title, subtitle, options, onChange }) {
     const row = new Adw.ActionRow({ title, subtitle: subtitle ?? '' });
     const group = new Adw.ToggleGroup({ valign: Gtk.Align.CENTER });
-    for (const option of options) group.add(new Adw.Toggle({ name: option.value, label: option.label }));
+    const model = new OptionModel();
     row.add_suffix(group);
     const guard = guarded(onChange);
+    const setOptions = entries => {
+        if (!model.setOptions(entries)) return;
+        const current = group.active_name;
+        guard.sync(() => {
+            group.remove_all();
+            for (const option of entries) group.add(new Adw.Toggle({ name: option.value, label: option.label }));
+            group.active_name = current;
+        });
+    };
+    setOptions(options);
     group.connect('notify::active-name', () => guard.emit(group.active_name));
-    return { row, set: value => guard.sync(() => (group.active_name = value)) };
+    return { row, setOptions, set: value => guard.sync(() => (group.active_name = value)) };
 }
 
 export function comboRow({ title, subtitle, options, onChange }) {

@@ -1,21 +1,14 @@
 import Adw from 'gi://Adw';
-import { windowLabel } from '../format.js';
 import { _, fill, n_ } from '../i18n.js';
-import { accountTitle, showsName } from '../providers.js';
-import { displayPatch, headlinePatch, refreshIntervalPatch } from '../settings.js';
-import { comboRow, group, segmentedRow, switchRow } from './rows.js';
-import { UpdateRows } from './updateRows.js';
+import { adaptiveRefreshPatch, refreshIntervalPatch, supports06 } from '../settings.js';
+import { AppearanceRows } from './appearanceRows.js';
+import { CardsRows } from './cardsRows.js';
+import { PanelRows } from './panelRows.js';
+import { PrivacyRows } from './privacyRows.js';
+import { comboRow, group, switchRow } from './rows.js';
+import { SpendRows } from './spendRows.js';
 
-const AUTO = 'auto';
-const PIN_SEPARATOR = '\n';
 const REFRESH_PRESETS = [60, 120, 300, 600, 900, 1800, 3600];
-
-const SECTIONS = [
-    ['showSpend', () => _('Total spend'), () => _('Spend ring for all tools at the top')],
-    ['showAccountSpend', () => _('Per-account spend'), () => _('Today, yesterday and 30 days under each account')],
-    ['showTrend', () => _('Usage trend'), () => _('Daily token bars for the last 30 days')],
-    ['showForecast', () => _('Pace forecast'), () => _('Where each limit lands at the current pace')],
-];
 
 function refreshLabel(seconds) {
     const minutes = seconds / 60;
@@ -30,174 +23,49 @@ function refreshOptions(current) {
     return values.sort((a, b) => a - b).map(value => ({ value, label: refreshLabel(value) }));
 }
 
-function pinKey(accountId, windowId) {
-    return `${accountId}${PIN_SEPARATOR}${windowId}`;
-}
-
-function limitOptions(state, headline) {
-    const accounts = (state?.accounts ?? []).filter(account => !account.hidden);
-    const options = [{ value: AUTO, label: _('Auto — most critical') }];
-    for (const account of accounts) {
-        const title = accountTitle(account, showsName(account, accounts));
-        for (const window of account.windows)
-            options.push({
-                value: pinKey(account.id, window.id),
-                label: `${title} — ${windowLabel(window.id, window.label)}`,
-            });
-    }
-    const pinned = headline.mode === 'pinned' ? pinKey(headline.accountId, headline.window) : null;
-    if (pinned && !options.some(option => option.value === pinned))
-        options.push({ value: pinned, label: _('Pinned limit (not available now)') });
-    return options;
-}
-
-function headlineFor(value) {
-    if (value === AUTO) return { mode: 'auto' };
-    const [accountId, window] = value.split(PIN_SEPARATOR);
-    return { mode: 'pinned', accountId, window };
-}
-
 export class GeneralPage {
-    constructor(client, runner) {
-        this._client = client;
-        this._updates = new UpdateRows(client, runner);
+    constructor(client, runner, dir) {
         this.page = new Adw.PreferencesPage({ title: _('General'), icon_name: 'preferences-system-symbolic' });
-        this._rows = this._buildRows();
-        this.page.add(
-            group(_('Appearance'), [this._rows.theme.row, this._rows.language.row, this._rows.translucent.row])
-        );
-        this.page.add(
-            group(_('Popup'), [this._rows.valueMode.row, this._rows.resetFormat.row, this._rows.combineAccounts.row])
-        );
-        this.page.add(group(_('Top Panel'), [this._rows.limit.row, this._rows.panelLabel.row]));
-        this.page.add(
-            group(
-                _('Sections'),
-                this._rows.sections.map(entry => entry.row)
-            )
-        );
-        this.page.add(group(_('Data refresh'), [this._rows.refresh.row]));
-        this.page.add(group(_('Updates'), [this._updates.check.row, this._updates.status, this._updates.release]));
+        this._appearance = new AppearanceRows(client);
+        this._panel = new PanelRows(client, dir);
+        this._spend = new SpendRows(client);
+        this._cards = new CardsRows(client, dir);
+        this._privacy = new PrivacyRows(client, runner);
+        this._refresh = comboRow({
+            title: _('Refresh interval'),
+            subtitle: _('How often the service asks each provider'),
+            options: refreshOptions(300),
+            onChange: value => client.updateSettings(refreshIntervalPatch(value)),
+        });
+        this._adaptive = switchRow({
+            title: _('Faster while coding tools run'),
+            subtitle: _('Every minute while Claude Code, Codex or Cursor is open'),
+            onChange: value => client.updateSettings(adaptiveRefreshPatch(value)),
+        });
+        const groups = [
+            ...this._appearance.groups,
+            this._panel.group,
+            ...this._spend.groups,
+            group(_('Data refresh'), [this._refresh.row, this._adaptive.row]),
+            this._cards.group,
+            ...this._privacy.groups,
+        ];
+        for (const entry of groups) this.page.add(entry);
     }
 
     update(settings, state) {
-        const display = settings.display;
-        this._rows.theme.set(display.theme);
-        this._rows.language.set(display.language);
-        this._rows.translucent.set(display.translucent);
-        this._rows.valueMode.set(display.valueMode);
-        this._rows.resetFormat.set(display.resetFormat);
-        this._rows.combineAccounts.set(display.combineAccounts);
-        this._rows.panelLabel.set(display.panelLabel);
-        SECTIONS.forEach(([key], index) => this._rows.sections[index].set(display[key]));
-        this._rows.refresh.setOptions(refreshOptions(settings.refreshIntervalSecs));
-        this._rows.refresh.set(settings.refreshIntervalSecs);
-        this._updateLimit(settings.headline, state);
-        this._updates.update(settings, state);
+        this._appearance.update(settings, state);
+        this._panel.update(settings, state);
+        this._spend.update(settings, state);
+        this._refresh.setOptions(refreshOptions(settings.refreshIntervalSecs));
+        this._refresh.set(settings.refreshIntervalSecs);
+        this._adaptive.set(settings.adaptiveRefresh);
+        this._adaptive.row.visible = supports06(state);
+        this._cards.update(settings, state);
+        this._privacy.update(settings, state);
     }
 
     syncUpdateRun() {
-        this._updates.sync();
-    }
-
-    _updateLimit(headline, state) {
-        this._rows.limit.setOptions(limitOptions(state, headline));
-        this._rows.limit.set(headline.mode === 'pinned' ? pinKey(headline.accountId, headline.window) : AUTO);
-    }
-
-    _display(key) {
-        return value => this._client.updateSettings(displayPatch({ [key]: value }));
-    }
-
-    _buildRows() {
-        return {
-            ...this._appearanceRows(),
-            ...this._popupRows(),
-            ...this._panelRows(),
-            sections: SECTIONS.map(([key, title, subtitle]) =>
-                switchRow({ title: title(), subtitle: subtitle(), onChange: this._display(key) })
-            ),
-            refresh: comboRow({
-                title: _('Refresh interval'),
-                subtitle: _('How often the service asks each provider'),
-                options: refreshOptions(300),
-                onChange: value => this._client.updateSettings(refreshIntervalPatch(value)),
-            }),
-        };
-    }
-
-    _appearanceRows() {
-        return {
-            theme: segmentedRow({
-                title: _('Theme'),
-                options: [
-                    { value: 'system', label: _('System') },
-                    { value: 'light', label: _('Light') },
-                    { value: 'dark', label: _('Dark') },
-                ],
-                onChange: this._display('theme'),
-            }),
-            language: segmentedRow({
-                title: _('Language'),
-                options: [
-                    { value: 'system', label: _('System') },
-                    { value: 'en', label: 'English' },
-                    { value: 'ru', label: 'Русский' },
-                ],
-                onChange: this._display('language'),
-            }),
-            translucent: switchRow({
-                title: _('Translucent background'),
-                subtitle: _('Blur what is behind the popup'),
-                onChange: this._display('translucent'),
-            }),
-        };
-    }
-
-    _popupRows() {
-        return {
-            valueMode: segmentedRow({
-                title: _('Show values as'),
-                subtitle: _('Click a reading in the popup to switch'),
-                options: [
-                    { value: 'left', label: _('Left') },
-                    { value: 'used', label: _('Used') },
-                ],
-                onChange: this._display('valueMode'),
-            }),
-            resetFormat: segmentedRow({
-                title: _('Reset time'),
-                subtitle: _('Click a reset time in the popup to switch'),
-                options: [
-                    { value: 'countdown', label: _('Countdown') },
-                    { value: 'exact', label: _('Exact time') },
-                ],
-                onChange: this._display('resetFormat'),
-            }),
-            combineAccounts: switchRow({
-                title: _('Combine accounts of the same provider'),
-                subtitle: _('Show one card per provider and add up the limits of its accounts'),
-                onChange: this._display('combineAccounts'),
-            }),
-        };
-    }
-
-    _panelRows() {
-        return {
-            limit: comboRow({
-                title: _('Panel limit'),
-                subtitle: _('The limit shown next to the clock'),
-                options: [{ value: AUTO, label: _('Auto — most critical') }],
-                onChange: value => this._client.updateSettings(headlinePatch(headlineFor(value))),
-            }),
-            panelLabel: segmentedRow({
-                title: _('Panel label'),
-                options: [
-                    { value: 'percent', label: _('Percent') },
-                    { value: 'window', label: _('Provider + limit') },
-                ],
-                onChange: this._display('panelLabel'),
-            }),
-        };
+        this._privacy.updates.sync();
     }
 }

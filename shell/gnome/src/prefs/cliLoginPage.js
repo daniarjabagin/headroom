@@ -5,14 +5,15 @@ import { _, fill } from '../i18n.js';
 import { ProgressProcess } from '../cli.js';
 import { flowBody, navigationPage, pageStack, resultPage, stack } from './flowPage.js';
 import { LogView } from './logView.js';
-import { addAccountArgs, LABEL_MAX_CHARS } from './registry.js';
+import { addAccountArgs, LABEL_MAX_CHARS, loginArgs } from './registry.js';
 import { pillButton, spinner } from './widgets.js';
 
 export class CliLoginPage {
-    constructor({ dir, provider, method, onClose }) {
+    constructor({ dir, provider, method, onClose, loginId = null }) {
         this._provider = provider;
         this._method = method;
         this._onClose = onClose;
+        this._loginId = loginId;
         this._process = null;
         const { box, description } = flowBody(
             dir,
@@ -28,14 +29,26 @@ export class CliLoginPage {
             'done'
         );
         this._stack.add_named(
-            resultPage('error', _('Try Again'), () => this._showForm()),
+            resultPage('error', _('Try Again'), () => this._retry()),
             'error'
         );
         this._log = new LogView();
         box.append(this._stack);
         box.append(this._log.widget);
-        this.page = navigationPage(fill(_('Add {provider} Account'), { provider: provider.displayName }), box);
-        this._showForm();
+        this.page = navigationPage(this._pageTitle(), box);
+        if (loginId) this._start();
+        else this._showForm();
+    }
+
+    _pageTitle() {
+        const provider = this._provider.displayName;
+        if (this._loginId) return fill(_('Sign In to {provider} Again'), { provider });
+        return fill(_('Add {provider} Account'), { provider });
+    }
+
+    _retry() {
+        if (this._loginId) this._start();
+        else this._showForm();
     }
 
     cancel() {
@@ -77,7 +90,10 @@ export class CliLoginPage {
     }
 
     _start() {
-        const args = addAccountArgs(this._provider.id, this._method, this._labelEntry.text);
+        const args = this._loginId
+            ? loginArgs(this._loginId, this._method)
+            : addAccountArgs(this._provider.id, this._method, this._labelEntry.text);
+        this._log.clear();
         this._url = null;
         this._openButton.visible = false;
         this._codeGroup.visible = false;
@@ -119,7 +135,9 @@ export class CliLoginPage {
 
     _succeed() {
         this._stack.visible_child_name = 'done';
-        this._description.label = _('Account added. It shows up in the panel in a moment.');
+        this._description.label = this._loginId
+            ? _('Signed in again. The account updates in a moment.')
+            : _('Account added. It shows up in the panel in a moment.');
     }
 
     _fail(message) {
