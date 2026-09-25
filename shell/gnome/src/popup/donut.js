@@ -110,9 +110,16 @@ export class Donut {
             y_align: Clutter.ActorAlign.CENTER,
         });
         this.value = label('', 'headroom-donut-value', { x_align: Clutter.ActorAlign.CENTER });
+        this._caption = label('', 'headroom-donut-caption', { x_align: Clutter.ActorAlign.CENTER, visible: false });
         center.add_child(this.value);
+        center.add_child(this._caption);
         this.actor.add_child(this._area);
         this.actor.add_child(center);
+    }
+
+    setCaption(text) {
+        this._caption.text = text ?? '';
+        this._caption.visible = Boolean(text);
     }
 
     update(slices, { sweep = false, morph = false } = {}) {

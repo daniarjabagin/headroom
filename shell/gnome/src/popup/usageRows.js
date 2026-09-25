@@ -4,7 +4,9 @@ import { dayTitle } from '../dates.js';
 import { _ } from '../i18n.js';
 import { labelText } from '../labels.js';
 import { compactTokensText, exactSpendLine, exactTokens, money, spendLine, usd } from '../numbers.js';
+import { seriesKey } from '../providers.js';
 import { column, label, row } from '../widgets.js';
+import { MASK } from './mask.js';
 import { modelTooltip } from './modelTooltip.js';
 
 const TREND_DAYS = 30;
@@ -53,7 +55,7 @@ export class TrendRow {
                 y_align: Clutter.ActorAlign.END,
             });
             slot.add_child(bar);
-            ctx.tooltips.attach(slot, () => dayTooltip(this._days[index]));
+            ctx.tooltips.attach(slot, () => (ctx.masked ? null : dayTooltip(this._days[index])));
             strip.add_child(slot);
             return bar;
         });
@@ -70,9 +72,9 @@ export class TrendRow {
     }
 }
 
-function totalsTooltip(title, totals) {
-    if (totals.totalTokens === 0) return null;
-    return modelTooltip(title, totals) ?? exactSpendLine(totals);
+function totalsTooltip(ctx, title, provider, totals) {
+    if (totals.totalTokens === 0 || ctx.masked) return null;
+    return modelTooltip(title, totals, { series: seriesKey(provider) }) ?? exactSpendLine(totals);
 }
 
 function balanceTitle(balance) {
@@ -103,13 +105,16 @@ export class ExtraRows {
 
     update(account) {
         this._account = account;
-        const texts = [...this._spendEntries(), ...this._balanceEntries()].map(entry => entry.value());
+        const texts = [...this._spendEntries(), ...this._balanceEntries()].map(entry =>
+            this._ctx.masked ? MASK : entry.value()
+        );
         texts.forEach((text, index) => (this._values[index].text = text));
     }
 
     _spendEntries() {
         if (!showsSpend(this._ctx, this._account)) return [];
         const provider = this._account.providerName;
+        const series = this._account.provider;
         return [
             ['today', _('Today')],
             ['yesterday', _('Yesterday')],
@@ -117,7 +122,7 @@ export class ExtraRows {
         ].map(([key, title]) => ({
             title,
             value: () => spendLine(this._account.usage[key]),
-            tooltip: () => totalsTooltip(`${title} · ${provider}`, this._account.usage[key]),
+            tooltip: () => totalsTooltip(this._ctx, `${provider} · ${title}`, series, this._account.usage[key]),
         }));
     }
 

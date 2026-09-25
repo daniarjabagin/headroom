@@ -7,6 +7,8 @@ const SHOW_DELAY_MS = 400;
 const WARM_MS = 300;
 const FADE_MS = 120;
 const GAP = 6;
+const SIDE_GAP = 10;
+const SIDE_LIFT = 10;
 
 function contentActor(content) {
     if (typeof content !== 'string') return content;
@@ -22,16 +24,23 @@ export class Tooltips {
         this._timeoutId = 0;
         this._target = null;
         this._hiddenAt = 0;
+        this._sideAnchor = null;
+    }
+
+    setSideAnchor(actor) {
+        this._sideAnchor = actor;
     }
 
     setTheme(themeClass) {
         this._bin.style_class = `headroom-tooltip ${themeClass}`.trim();
     }
 
-    attach(actor, contentFor) {
+    attach(actor, contentFor, { side = false } = {}) {
         actor.track_hover = true;
         actor.reactive = true;
-        actor.connect('notify::hover', () => (actor.hover ? this._schedule(actor, contentFor) : this._hide(actor)));
+        actor.connect('notify::hover', () =>
+            actor.hover ? this._schedule(actor, contentFor, side) : this._hide(actor)
+        );
         actor.connect('destroy', () => this._hide(actor));
     }
 
@@ -45,27 +54,28 @@ export class Tooltips {
         this._bin = null;
     }
 
-    _schedule(actor, contentFor) {
+    _schedule(actor, contentFor, side) {
         this._clearTimeout();
         this._target = actor;
         if (Date.now() - this._hiddenAt < WARM_MS) {
-            this._show(actor, contentFor(), false);
+            this._show(actor, contentFor(), side, false);
             return;
         }
         this._timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SHOW_DELAY_MS, () => {
             this._timeoutId = 0;
-            this._show(actor, contentFor());
+            this._show(actor, contentFor(), side);
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _show(actor, content, fade = true) {
+    _show(actor, content, side, fade = true) {
         if (!content || !actor.mapped) return;
         this._bin.child?.destroy();
         this._bin.set_child(contentActor(content));
         this._bin.show();
         Main.layoutManager.uiGroup.set_child_above_sibling(this._bin, null);
-        this._place(actor);
+        if (side && this._sideAnchor?.mapped) this._placeBeside(actor);
+        else this._place(actor);
         this._bin.remove_all_transitions();
         if (fade) this._bin.ease({ opacity: 255, duration: FADE_MS, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
         else this._bin.opacity = 255;
@@ -82,6 +92,19 @@ export class Tooltips {
         const below = Math.round(y + height + GAP);
         const fitsBelow = below + tipHeight <= monitor.y + monitor.height;
         this._bin.set_position(tipX, fitsBelow ? below : Math.round(y - GAP - tipHeight));
+    }
+
+    _placeBeside(actor) {
+        const [anchorX] = this._sideAnchor.get_transformed_position();
+        const [anchorWidth] = this._sideAnchor.get_transformed_size();
+        const [, y] = actor.get_transformed_position();
+        const [, tipWidth] = this._bin.get_preferred_width(-1);
+        const [, tipHeight] = this._bin.get_preferred_height(tipWidth);
+        const monitor = Main.layoutManager.findMonitorForActor(actor);
+        const left = Math.round(anchorX - SIDE_GAP - tipWidth);
+        const tipX = left >= monitor.x ? left : Math.round(anchorX + anchorWidth + SIDE_GAP);
+        const top = Math.min(Math.max(monitor.y, Math.round(y - SIDE_LIFT)), monitor.y + monitor.height - tipHeight);
+        this._bin.set_position(tipX, top);
     }
 
     _hide(actor) {

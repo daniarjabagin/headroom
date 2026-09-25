@@ -1,0 +1,303 @@
+.headroom-floating-menu {
+    min-width: 196px;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    color: var(--text);
+    font-size: 9pt;
+    box-shadow: 0 8px 28px var(--float-shadow);
+}
+
+.headroom-menu-item {
+    padding: 5px 8px;
+    border-radius: 6px;
+    transition-duration: 120ms;
+}
+
+.headroom-menu-item:hover,
+.headroom-menu-item:focus {
+    background-color: var(--hover);
+}
+
+.headroom-menu-item:active {
+    background-color: var(--pressed);
+}
+
+.headroom-menu-item-box {
+    spacing: 9px;
+}
+
+.headroom-menu-icon {
+    icon-size: 14px;
+    color: var(--text-secondary);
+}
+
+.headroom-menu-check {
+    icon-size: 12px;
+    color: var(--accent);
+    color: -st-accent-color;
+}
+
+.headroom-menu-texts {
+    spacing: 1px;
+}
+
+.headroom-menu-label {
+    color: var(--text);
+    font-feature-settings: normal;
+}
+
+.headroom-menu-hint {
+    font-size: 7.5pt;
+    color: var(--text-secondary);
+}
+
+.headroom-menu-accel {
+    padding-left: 12px;
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-menu-separator {
+    height: 1px;
+    margin: 4px 6px;
+    background-color: var(--separator);
+}
+
+.headroom-quick-links {
+    spacing: 2px;
+}
+
+.headroom-quick-link {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    color: var(--text-secondary);
+    transition-duration: 120ms;
+}
+
+.headroom-quick-link:hover,
+.headroom-quick-link:focus {
+    color: var(--text);
+    background-color: var(--hover);
+}
+
+.headroom-quick-link-icon {
+    icon-size: 14px;
+}
+
+.headroom-header-status {
+    icon-size: 12px;
+    color: var(--notice);
+}
+
+.headroom-header-status.critical {
+    color: var(--crit);
+}
+
+.headroom-notice-meta {
+    padding-top: 3px;
+    spacing: 5px;
+}
+
+.headroom-status-link {
+    border-radius: 4px;
+}
+
+.headroom-status-link-box {
+    spacing: 3px;
+}
+
+.headroom-status-link-text {
+    font-size: 7.5pt;
+    font-weight: 600;
+    color: var(--accent);
+    color: -st-accent-color;
+}
+
+.headroom-status-link-icon {
+    icon-size: 10px;
+    color: var(--accent);
+    color: -st-accent-color;
+}
+
+.headroom-status-link:hover .headroom-status-link-text {
+    text-decoration: underline;
+}
+
+.headroom-status-line {
+    margin: 6px 14px 2px;
+    spacing: 7px;
+}
+
+.headroom-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 3.5px;
+    background-color: var(--notice);
+}
+
+.headroom-status-dot.critical {
+    background-color: var(--crit);
+}
+
+.headroom-status-kind {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-status-age {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-status-line .headroom-status-link-text {
+    font-size: 8.25pt;
+}
+
+.headroom-more-row {
+    padding: 10px 12px 10px 14px;
+    border-radius: 12px;
+    background-color: var(--card);
+    transition-duration: 180ms;
+}
+
+.headroom-more-row:hover,
+.headroom-more-row:focus {
+    background-color: var(--chip);
+}
+
+.headroom-more-box {
+    spacing: 8px;
+}
+
+.headroom-more-icons {
+    spacing: 4px;
+}
+
+.headroom-more-icon {
+    icon-size: 14px;
+}
+
+.headroom-more-icon.tinted {
+    color: var(--text-secondary);
+}
+
+.headroom-more-title {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-more-names {
+    font-size: 9pt;
+    color: var(--text-secondary);
+}
+
+.headroom-more-caret {
+    icon-size: 12px;
+    color: var(--text-secondary);
+}
+
+.headroom-more-head {
+    padding: 2px 10px;
+    spacing: 6px;
+}
+
+.headroom-more-head-title {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.headroom-more-rule {
+    height: 1px;
+    background-color: var(--separator);
+}
+
+.headroom-more-less-button {
+    padding: 1px 4px;
+    border-radius: 5px;
+}
+
+.headroom-more-less-button:hover {
+    background-color: var(--hover);
+}
+
+.headroom-more-less-box {
+    spacing: 3px;
+}
+
+.headroom-more-less {
+    font-size: 8.25pt;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.headroom-more-less-icon {
+    icon-size: 10px;
+    color: var(--text-secondary);
+}
+
+.headroom-toast {
+    padding: 6px 12px 6px 9px;
+    spacing: 6px;
+    border-radius: 999px;
+    border: 1px solid var(--separator);
+    background-color: var(--tooltip);
+    box-shadow: 0 6px 20px var(--tooltip-shadow);
+}
+
+.headroom-toast-icon {
+    icon-size: 14px;
+    color: var(--positive);
+}
+
+.headroom-toast-icon.dialog-warning {
+    color: var(--notice);
+}
+
+.headroom-toast-title {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.headroom-toast-detail {
+    font-size: 8.25pt;
+    color: var(--text-secondary);
+}
+
+.headroom-live-dot {
+    width: 6px;
+    height: 6px;
+    margin: 0 2px 0 1px;
+    border-radius: 3px;
+    background-color: var(--positive);
+    box-shadow: 0 0 0 3px var(--positive-halo);
+}
+
+.headroom-footer-warning {
+    icon-size: 10px;
+    color: var(--notice);
+}
+
+.headroom-mask-banner {
+    margin: 12px 14px 0;
+    padding: 8px 9px;
+    spacing: 8px;
+    border-radius: 9px;
+    background-color: var(--card);
+}
+
+.headroom-mask-icon {
+    icon-size: 14px;
+    color: var(--text-secondary);
+}
+
+.headroom-mask-text {
+    font-size: 8.25pt;
+    color: var(--text);
+}
