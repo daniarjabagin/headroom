@@ -1490,6 +1490,7 @@ stdout (human hints go to stderr). The exit code is `0` only when the last event
 
 ```
 headroom accounts add <PROVIDER-ID> [--label NAME] [--api-key-stdin] --progress json
+headroom accounts login <ID> [--api-key-stdin] --progress json
 headroom accounts remove <ID> --yes --progress json
 headroom accounts restore [<PROVIDER-ID>]
 headroom providers [--json]
@@ -1509,6 +1510,23 @@ and writes the account into a new Headroom-owned home. A rejected key fails with
 `started`; nothing is stored. Adding a key for an account that is already added replaces its key.
 The key never appears in events, messages or logs. `remove` also deletes the stored key.
 
+`login` signs a Headroom-owned account in again: it is what "Sign in again…" runs for
+[`recovery`](#account) `sign_in`, with the recovery's `account_id`. It runs the same sign-in as
+`add`, but into the account's existing home under `$XDG_DATA_HOME/headroom/accounts/`, so the account
+keeps its id, label, order and hidden setting. A home that holds an API key asks for a new key
+(`--api-key-stdin`, or a hidden prompt in a terminal); the key is checked and replaces the stored one.
+Any other home runs the provider's login CLI with its config dir set to that home; the login must
+leave a changed credentials file (or, for credentials kept outside the home, an account the provider
+can read), otherwise it fails. `--api-key-stdin` on such a home fails. When the daemon shows the
+account from a CLI home (`"owner": "cli"`), `login` fails before any `started` with a message that
+names the CLI's own login, e.g. "This account belongs to the Codex CLI — run `codex login`
+instead"; an id that is not signed in anywhere fails with "no signed-in account … found". A failed or
+cancelled `login` never deletes the home; the previous credentials stay unless the login CLI itself
+replaced them. After success `login` asks a running daemon to `Rescan` and then `Refresh` the
+account. If the sign-in used a different account than before, the home now holds that account:
+`done` carries the new `account_id`, which then differs from the requested one, a notice goes to
+stderr, and Headroom shows it as a new account (settings kept under the old id do not move).
+
 `remove` depends on who owns the account. A Headroom-owned account (`"owner": "headroom"`) is signed
 out: its home under `$XDG_DATA_HOME/headroom/accounts/` is deleted. Headroom never deletes or changes
 a CLI home, so for a CLI-owned account (`"owner": "cli"`) `remove` calls `DismissAccount` instead:
@@ -1522,11 +1540,11 @@ accounts again.
 
 | event | fields | meaning |
 | --- | --- | --- |
-| `started` | `provider`, `home` | The login CLI starts with its config dir set to the new Headroom-owned `home`; for an API key, the key was accepted and stored for the account in `home`. `add` only. |
-| `url` | `url` | The first `http(s)` URL of an output line, reported once per distinct URL. Loopback URLs (`localhost`, `127.0.0.1`, `[::1]`: the CLI's own callback server) are skipped. Also taken from OSC 8 terminal hyperlinks. `add` only. |
-| `output` | `line` | Every stdout and stderr line of the login CLI, ANSI escapes removed. A prompt without a trailing newline is reported after 100 ms of silence. `add` only. |
-| `done` | `account_id`, `label` | Success. For `add`, `label` is the label that was applied, or `null` when none was requested or the daemon was not running or did not list the account yet. For `remove`, `label` is always `null`. |
-| `error` | `message` | Failure; the process exits with a non-zero code. A failed `add` deletes the new home. A cancelled `add` reports `"cancelled"`. |
+| `started` | `provider`, `home` | The login CLI starts with its config dir set to the Headroom-owned `home` (new for `add`, the account's own for `login`); for an API key, the key was accepted and stored for the account in `home`. `add` and `login` only. |
+| `url` | `url` | The first `http(s)` URL of an output line, reported once per distinct URL. Loopback URLs (`localhost`, `127.0.0.1`, `[::1]`: the CLI's own callback server) are skipped. Also taken from OSC 8 terminal hyperlinks. `add` and `login` only. |
+| `output` | `line` | Every stdout and stderr line of the login CLI, ANSI escapes removed. A prompt without a trailing newline is reported after 100 ms of silence. `add` and `login` only. |
+| `done` | `account_id`, `label` | Success. For `add`, `label` is the label that was applied, or `null` when none was requested or the daemon was not running or did not list the account yet. For `login` and `remove`, `label` is always `null`. |
+| `error` | `message` | Failure; the process exits with a non-zero code. A failed `add` deletes the new home. A cancelled `add` or `login` reports `"cancelled"`. |
 
 ```
 {"event":"started","provider":"codex","home":"/home/ada/.local/share/headroom/accounts/codex/2f0c…"}
@@ -1539,7 +1557,7 @@ accounts again.
 
 Lines written to the command's stdin are forwarded to the login CLI line by line, so a shell can paste
 a code when the CLI asks for one. `remove` without `--yes` fails with an `error` event instead of
-prompting. Without `--progress` both commands keep their interactive terminal behaviour.
+prompting. Without `--progress` the commands keep their interactive terminal behaviour.
 
 Cancelling `add`: a shell stops a running `add` by sending `SIGTERM` (or `SIGINT`) to `headroom`, or,
 with `--progress json`, by closing the read end of its stdout pipe. `headroom` then kills the login
@@ -1548,5 +1566,6 @@ so helpers it spawned go too), waits for it, deletes the new home, prints
 `{"event":"error","message":"cancelled"}` if stdout is still open and exits non-zero. A signal that
 arrives after the login finished but before `done` also deletes the new home. Without `--progress`
 the CLI shares the terminal's process group so it can read the keyboard; there `SIGTERM` stops only
-the CLI process itself (Ctrl+C reaches the whole foreground group anyway). After a
-successful `add` or `remove` the command asks a running daemon to `Rescan`, so `StateChanged` follows.
+the CLI process itself (Ctrl+C reaches the whole foreground group anyway). `login` is cancelled the
+same way but keeps the home. After a successful `add` or `remove` the command asks a running daemon
+to `Rescan`, so `StateChanged` follows.

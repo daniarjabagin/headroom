@@ -108,6 +108,18 @@ async fn accounts_action(globals: &Globals, action: Option<AccountsAction>) -> R
             };
             accounts::add(globals, &request).await
         }
+        AccountsAction::Login {
+            id,
+            progress,
+            api_key_stdin,
+        } => {
+            let request = accounts::LoginRequest {
+                account_id: &id,
+                progress,
+                api_key_stdin,
+            };
+            accounts::login_again(globals, &request).await
+        }
         AccountsAction::Remove { id, yes, progress } => {
             accounts::remove(globals, &id, yes, progress).await
         }

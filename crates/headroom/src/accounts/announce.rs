@@ -41,6 +41,19 @@ pub async fn announce(
     Ok(Some(label.to_owned()))
 }
 
+pub async fn refresh_signed_in(globals: &Globals, id: &str) -> Result<()> {
+    let Ok(daemon) = client::require_daemon(globals).await else {
+        return Ok(());
+    };
+    daemon.rescan().await?;
+    if daemon_knows(&daemon, id).await? {
+        daemon.refresh(id).await
+    } else {
+        writeln!(io::stderr(), "{NOT_DISCOVERED}")?;
+        Ok(())
+    }
+}
+
 async fn daemon_knows(daemon: &Daemon, id: &str) -> Result<bool> {
     let (_, state) = client::fetch_state(daemon).await?;
     Ok(state.accounts.iter().any(|account| account.id == id))

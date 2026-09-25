@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, CliLogin, ProviderDescriptor};
+use headroom_core::descriptor::{AddAccountMethod, ApiKeyPrompt, ProviderDescriptor};
 
 use super::login::LoginSpec;
 
@@ -30,7 +30,7 @@ pub fn choose_add_plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) 
     {
         return Ok(AddPlan::KeyFromPrompt(prompt));
     }
-    if let Some(login) = cli_login(descriptor) {
+    if let Some(login) = descriptor.cli_login() {
         return Ok(AddPlan::Login(LoginSpec::new(descriptor, login)));
     }
     match descriptor.default_method() {
@@ -45,20 +45,51 @@ pub fn choose_add_plan(descriptor: &'static ProviderDescriptor, keys: KeyInput) 
     }
 }
 
-fn cli_login(descriptor: &'static ProviderDescriptor) -> Option<&'static CliLogin> {
+pub fn choose_login_plan(
+    descriptor: &'static ProviderDescriptor,
+    holds_key: bool,
+    keys: KeyInput,
+) -> Result<AddPlan> {
+    let name = descriptor.display_name;
+    if !holds_key {
+        let Some(login) = descriptor.cli_login() else {
+            bail!("{name} accounts cannot be signed in again from Headroom");
+        };
+        if keys == KeyInput::Stdin {
+            bail!(
+                "this {name} account signs in with `{}`, not an API key",
+                login.command_line()
+            );
+        }
+        return Ok(AddPlan::Login(LoginSpec::new(descriptor, login)));
+    }
+    let Some(prompt) = api_key_prompt(descriptor) else {
+        bail!("{name} accounts cannot be signed in with an API key");
+    };
+    match keys {
+        KeyInput::Stdin => Ok(AddPlan::KeyFromStdin),
+        KeyInput::Terminal => Ok(AddPlan::KeyFromPrompt(prompt)),
+        KeyInput::Unavailable => bail!(
+            "{name} accounts need a key ({}): pass --api-key-stdin and write it to stdin",
+            prompt.label
+        ),
+    }
+}
+
+fn api_key_prompt(descriptor: &'static ProviderDescriptor) -> Option<&'static ApiKeyPrompt> {
     descriptor
         .add_account
         .iter()
         .find_map(|method| match method {
-            AddAccountMethod::CliLogin(login) => Some(login),
-            AddAccountMethod::ApiKey(_) | AddAccountMethod::AutoDetect { .. } => None,
+            AddAccountMethod::ApiKey(prompt) => Some(prompt),
+            AddAccountMethod::CliLogin(_) | AddAccountMethod::AutoDetect { .. } => None,
         })
 }
 
 #[cfg(test)]
 mod tests {
     use headroom_core::account::ProviderId;
-    use headroom_core::descriptor::{ApiKeyPrompt, HomeVar};
+    use headroom_core::descriptor::{ApiKeyPrompt, CliLogin, HomeVar};
 
     use super::*;
 
@@ -206,6 +237,56 @@ mod tests {
         assert_eq!(
             message(choose_add_plan(minimax, KeyInput::Unavailable)),
             "MiniMax accounts need a key (MiniMax Token Plan key): pass --api-key-stdin and write it to stdin"
+        );
+    }
+
+    #[test]
+    fn signing_in_again_follows_what_the_home_holds() {
+        let codex = headroom_providers::registry::descriptor("codex").unwrap();
+        for keys in [KeyInput::Terminal, KeyInput::Unavailable] {
+            match choose_login_plan(codex, false, keys).unwrap() {
+                AddPlan::Login(spec) => assert_eq!(spec.login.program, "codex"),
+                other => panic!("a CLI home signs in with its CLI: {other:?}"),
+            }
+            assert!(matches!(
+                choose_login_plan(&KEY_THEN_LOGIN, false, keys),
+                Ok(AddPlan::Login(_))
+            ));
+        }
+        assert_eq!(
+            message(choose_login_plan(codex, false, KeyInput::Stdin)),
+            "this Codex account signs in with `codex login`, not an API key"
+        );
+        assert_eq!(
+            message(choose_login_plan(&KEYED, false, KeyInput::Terminal)),
+            "Keyed accounts cannot be signed in again from Headroom"
+        );
+        assert_eq!(
+            message(choose_login_plan(&DETECTED, false, KeyInput::Terminal)),
+            "Found accounts cannot be signed in again from Headroom"
+        );
+    }
+
+    #[test]
+    fn a_home_with_a_key_asks_for_a_new_key() {
+        assert!(matches!(
+            choose_login_plan(&LOGIN_THEN_KEY, true, KeyInput::Stdin),
+            Ok(AddPlan::KeyFromStdin)
+        ));
+        match choose_login_plan(&LOGIN_THEN_KEY, true, KeyInput::Terminal).unwrap() {
+            AddPlan::KeyFromPrompt(prompt) => {
+                assert_eq!(prompt.console_url, "https://keyed.example/keys");
+            }
+            other => panic!("expected a prompt: {other:?}"),
+        }
+        assert_eq!(
+            message(choose_login_plan(&KEYED, true, KeyInput::Unavailable)),
+            "Keyed accounts need a key (API key): pass --api-key-stdin and write it to stdin"
+        );
+        let codex = headroom_providers::registry::descriptor("codex").unwrap();
+        assert_eq!(
+            message(choose_login_plan(codex, true, KeyInput::Stdin)),
+            "Codex accounts cannot be signed in with an API key"
         );
     }
 }

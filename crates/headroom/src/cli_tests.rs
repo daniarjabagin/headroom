@@ -155,3 +155,37 @@ fn window_scopes_match_window_ids() {
     assert!(!WindowScope::Weekly.includes("model:opus"));
     assert!(WindowScope::Any.includes("model:opus"));
 }
+
+fn accounts_action(args: &[&str]) -> Result<AccountsAction, clap::Error> {
+    let parsed = Cli::try_parse_from([&["headroom", "accounts"], args].concat())?;
+    match parsed.command {
+        Command::Accounts(AccountsArgs {
+            action: Some(action),
+        }) => Ok(action),
+        other => panic!("parsed {other:?}"),
+    }
+}
+
+#[test]
+fn accounts_login_takes_an_id_and_the_add_flags() {
+    let args = [
+        "login",
+        "codex:0123456789ab",
+        "--progress",
+        "json",
+        "--api-key-stdin",
+    ];
+    match accounts_action(&args).unwrap() {
+        AccountsAction::Login {
+            id,
+            progress,
+            api_key_stdin,
+        } => {
+            assert_eq!(id, "codex:0123456789ab");
+            assert_eq!(progress, Some(ProgressFormat::Json));
+            assert!(api_key_stdin);
+        }
+        other => panic!("parsed {other:?}"),
+    }
+    assert!(accounts_action(&["login"]).is_err());
+}

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::io::Read;
+use std::fs;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus};
 use std::thread;
@@ -10,6 +11,7 @@ use anyhow::{Context, Result, bail};
 use headroom_core::account::ProviderId;
 use headroom_core::descriptor::{CliLogin, ProviderDescriptor};
 use headroom_core::provider::Provider;
+use sha2::{Digest, Sha256};
 
 use super::ansi::CleanLine;
 use super::cancel::{CANCELLED, Cancel};
@@ -94,7 +96,7 @@ pub fn sign_in(
     cancel: &Cancel,
 ) -> Result<PathBuf> {
     let home = create_home(root, spec.provider)?;
-    match run_login(&spec, &home, launcher, console, cancel) {
+    match sign_in_at(&home, spec, launcher, console, cancel) {
         Ok(()) => Ok(home),
         Err(error) => {
             discard_home(&home);
@@ -103,14 +105,14 @@ pub fn sign_in(
     }
 }
 
-fn run_login(
-    spec: &LoginSpec,
+pub fn sign_in_at(
     home: &Path,
+    spec: LoginSpec,
     launcher: &Launcher,
     console: Console<'_>,
     cancel: &Cancel,
 ) -> Result<()> {
-    let command = launcher.command(spec, home);
+    let command = launcher.command(&spec, home);
     let status = match console {
         Console::Terminal => spawn_attached(command, cancel)?,
         Console::Streamed { input, events } => {
@@ -123,7 +125,7 @@ fn run_login(
             spawn_streamed(runner, command, input, events, cancel)?
         }
     };
-    check_outcome(spec, status)
+    check_outcome(&spec, status)
 }
 
 fn spawn_attached(mut command: Command, cancel: &Cancel) -> Result<ExitStatus> {
@@ -204,6 +206,41 @@ pub async fn confirm_sign_in(provider: &dyn Provider, spec: &LoginSpec, home: &P
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CredentialsStamp(Option<[u8; 32]>);
+
+impl CredentialsStamp {
+    pub fn read(spec: &LoginSpec, home: &Path) -> Result<CredentialsStamp> {
+        let path = spec.login.credentials_path(home);
+        match fs::read(&path) {
+            Ok(bytes) => Ok(CredentialsStamp(Some(Sha256::digest(&bytes).into()))),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(CredentialsStamp(None)),
+            Err(error) => Err(error).with_context(|| format!("could not read {}", path.display())),
+        }
+    }
+}
+
+pub async fn confirm_renewal(
+    provider: &dyn Provider,
+    spec: &LoginSpec,
+    home: &Path,
+    before: &CredentialsStamp,
+) -> Result<()> {
+    let after = CredentialsStamp::read(spec, home)?;
+    let renewed = match after.0 {
+        Some(_) => after != *before,
+        None => matches!(provider.account_at(home).await, Ok(Some(_))),
+    };
+    if !renewed {
+        bail!(
+            "`{}` finished but did not renew {}",
+            spec.command_line(),
+            spec.login.credentials_file
+        );
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "login_test_support.rs"]
 mod test_support;
@@ -215,3 +252,7 @@ mod tests;
 #[cfg(test)]
 #[path = "login_spec_tests.rs"]
 mod spec_tests;
+
+#[cfg(test)]
+#[path = "login_renewal_tests.rs"]
+mod renewal_tests;
