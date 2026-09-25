@@ -12,8 +12,8 @@ use super::*;
 fn args(since: &str, until: Option<&str>, by: SpendBy, provider: Option<&str>) -> SpendArgs {
     SpendArgs {
         by,
-        since: since.into(),
-        until: until.map(str::to_owned),
+        since: parse_since(since).unwrap(),
+        until: until.map(|day| day.parse().unwrap()),
         provider: provider.map(str::to_owned),
         json: false,
     }
@@ -38,9 +38,14 @@ fn periods_and_dates_become_the_get_spend_query() {
             args("yesterday", None, SpendBy::Provider, None),
             r#"{"by":"provider","period":"yesterday"}"#,
         ),
+        (
+            args("60d", None, SpendBy::Model, None),
+            r#"{"by":"model","since":"2026-07-28"}"#,
+        ),
     ];
     for (args, expected) in table {
-        let query: Value = serde_json::from_str(&query(&args)).unwrap();
+        let today = jiff::civil::date(2026, 9, 25);
+        let query: Value = serde_json::from_str(&query(&args, today)).unwrap();
         let expected: Value = serde_json::from_str(expected).unwrap();
         assert_eq!(query, expected);
     }
@@ -88,6 +93,31 @@ fn without_a_daemon_the_database_is_read_directly() {
         invalid
             .to_string()
             .contains("needs either a period or a since date")
+    );
+}
+
+#[test]
+fn days_beyond_retention_get_the_daemon_retention_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("headroom.db");
+    Storage::open(&db).unwrap();
+    let today = TimeZone::system().to_datetime(Timestamp::now()).date();
+    for since in ["60d", "99999999999999999999d"] {
+        let request = query(&args(since, None, SpendBy::Model, None), today);
+        let error = read_database(&db, dir.path(), &request).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("keeps usage for recent days only"),
+            "{since}: {error:#}"
+        );
+    }
+    let request = query(&args("14d", None, SpendBy::Model, None), today);
+    assert!(
+        read_database(&db, dir.path(), &request)
+            .unwrap()
+            .rows
+            .is_empty()
     );
 }
 

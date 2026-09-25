@@ -7,6 +7,8 @@ use headroom_daemon::home::HomeDisplay;
 use headroom_daemon::usage::report::rows::SpendReport;
 use headroom_daemon::usage::report::{OnceSpendContext, spend_report_once};
 use headroom_pricing::PriceCatalog;
+use jiff::Timestamp;
+use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use serde_json::{Map, Value};
 
@@ -17,11 +19,15 @@ use crate::providers;
 use crate::render::spend_breakdown::render_breakdown;
 use crate::render::style::Palette;
 
+mod since;
+
+pub use since::{Since, parse_since};
+
 const DATABASE_NOTICE: &str = "daemon not running, reading its database directly";
-const PERIODS: [&str; 4] = ["today", "yesterday", "7d", "30d"];
 
 pub async fn run(globals: &Globals, args: &SpendArgs) -> Result<()> {
-    let query = query(args);
+    let today = TimeZone::system().to_datetime(Timestamp::now()).date();
+    let query = query(args, today);
     let (json, report) = if let Ok(Some(daemon)) = client::running_daemon(globals).await {
         let json = daemon.get_spend(&query).await?;
         let report = parse(&json)?;
@@ -43,16 +49,11 @@ pub async fn run(globals: &Globals, args: &SpendArgs) -> Result<()> {
     Ok(())
 }
 
-pub fn query(args: &SpendArgs) -> String {
+pub fn query(args: &SpendArgs, today: Date) -> String {
     let mut query = Map::new();
-    let since = args.since.trim();
-    if PERIODS.contains(&since) {
-        query.insert("period".into(), since.into());
-    } else {
-        query.insert("since".into(), since.into());
-    }
-    if let Some(until) = &args.until {
-        query.insert("until".into(), until.trim().into());
+    args.since.insert_into(&mut query, today);
+    if let Some(until) = args.until {
+        query.insert("until".into(), until.to_string().into());
     }
     query.insert("by".into(), group_name(args.by).into());
     if let Some(provider) = &args.provider {

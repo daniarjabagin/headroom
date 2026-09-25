@@ -800,14 +800,16 @@
             "cost_usd_micros": 81000,
             "partial": false,
             "cost_per_mtok_usd_micros": 1121790
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 60172,
+            "cost_usd_micros": 40500,
+            "partial": false,
+            "cost_per_mtok_usd_micros": 673071
           }
         ],
-        "models_other": {
-          "count": 1,
-          "total_tokens": 60172,
-          "cost_usd_micros": 40500,
-          "partial": false
-        }
+        "models_other": null
       },
       "yesterday": {
         "tokens": {
@@ -857,14 +859,16 @@
             "cost_usd_micros": 166000,
             "partial": false,
             "cost_per_mtok_usd_micros": 1152778
+          },
+          {
+            "model": "claude-3-5-haiku",
+            "total_tokens": 120000,
+            "cost_usd_micros": 83000,
+            "partial": false,
+            "cost_per_mtok_usd_micros": 691667
           }
         ],
-        "models_other": {
-          "count": 1,
-          "total_tokens": 120000,
-          "cost_usd_micros": 83000,
-          "partial": false
-        }
+        "models_other": null
       },
       "last_30_days": {
         "tokens": {
@@ -1462,14 +1466,16 @@
               "cost_usd_micros": 81000,
               "partial": false,
               "cost_per_mtok_usd_micros": 1121790
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 60172,
+              "cost_usd_micros": 40500,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 673071
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 60172,
-            "cost_usd_micros": 40500,
-            "partial": false
-          }
+          "models_other": null
         },
         {
           "provider": "opencode",
@@ -1702,14 +1708,16 @@
               "cost_usd_micros": 166000,
               "partial": false,
               "cost_per_mtok_usd_micros": 1152778
+            },
+            {
+              "model": "claude-3-5-haiku",
+              "total_tokens": 120000,
+              "cost_usd_micros": 83000,
+              "partial": false,
+              "cost_per_mtok_usd_micros": 691667
             }
           ],
-          "models_other": {
-            "count": 1,
-            "total_tokens": 120000,
-            "cost_usd_micros": 83000,
-            "partial": false
-          }
+          "models_other": null
         }
       ],
       "projects": [

@@ -55,17 +55,10 @@ fn models_beyond_the_top_five_are_summed_into_other() {
 }
 
 #[test]
-fn other_bucket_is_exact_for_a_single_extra_model() {
+fn a_single_extra_model_is_listed_instead_of_folded() {
     let mut rows = ranked(5);
     rows.push(row("tail", 42, 0, false));
-    let (_, other) = top_models(rows);
-    assert_eq!(
-        other,
-        Some(OtherModelsView {
-            count: 1,
-            total_tokens: 42,
-            cost_usd_micros: 0,
-            partial: false,
-        })
-    );
+    let (models, other) = top_models(rows.clone());
+    assert_eq!(models, rows);
+    assert_eq!(other, None);
 }

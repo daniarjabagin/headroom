@@ -50,11 +50,7 @@ impl ProjectMerge {
             .collect();
         let count = all.len();
         let sorted = top_projects(all, count).top;
-        let listed = sorted
-            .iter()
-            .take(TOP_PROJECTS)
-            .take_while(|usage| share_permille(&usage.totals, period) >= MIN_LISTED_PERMILLE)
-            .count();
+        let listed = listed_count(&sorted, period);
         let cut = top_projects(sorted, listed);
         ProjectsView {
             listed: cut
@@ -90,6 +86,19 @@ impl ProjectMerge {
                 .map(|slot| providers_view(slot, ctx))
                 .unwrap_or_default(),
         }
+    }
+}
+
+fn listed_count(sorted: &[ProjectUsage], period: &UsageTotals) -> usize {
+    let listed = sorted
+        .iter()
+        .take(TOP_PROJECTS)
+        .take_while(|usage| share_permille(&usage.totals, period) >= MIN_LISTED_PERMILLE)
+        .count();
+    if sorted.len() - listed == 1 {
+        sorted.len()
+    } else {
+        listed
     }
 }
 

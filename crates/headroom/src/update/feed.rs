@@ -41,7 +41,7 @@ impl GithubFeed {
     }
 
     pub async fn release(&self) -> Result<GithubRelease> {
-        let response = self.api(None).send().await.map_err(plain)?;
+        let response = self.api(None).send().await.map_err(unreachable)?;
         let status = response.status();
         if !status.is_success() {
             bail!("GitHub answered {status} for the latest release");
@@ -150,7 +150,25 @@ fn failed(error: reqwest::Error) -> FeedError {
 }
 
 fn plain(error: reqwest::Error) -> anyhow::Error {
-    anyhow::Error::msg(error.without_url().to_string())
+    anyhow::Error::msg(error_chain(&error.without_url()))
+}
+
+fn unreachable(error: reqwest::Error) -> anyhow::Error {
+    anyhow::anyhow!(
+        "couldn't reach GitHub to check for updates: {}; check your connection",
+        error_chain(&error.without_url())
+    )
+}
+
+fn error_chain(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 #[cfg(test)]
