@@ -155,7 +155,7 @@ function projectFigures(entry, shareOf) {
     return {
         costMicros: entry.costMicros,
         totalTokens: entry.totalTokens,
-        costPerMtokMicros: perMtokMicros(entry.costMicros, entry.totalTokens, entry.partial),
+        costPerMtokMicros: entry.costPerMtokMicros ?? null,
         sharePermille: shareOf(entry),
     };
 }

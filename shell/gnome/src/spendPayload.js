@@ -98,6 +98,7 @@ function projectShare(raw) {
         totalTokens: count(raw.total_tokens),
         partial: raw.partial === true,
         sharePermille: integer(raw.share_permille) ?? 0,
+        costPerMtokMicros: costPerMtok(raw),
     };
 }
 
