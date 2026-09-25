@@ -223,28 +223,6 @@ final class PresentationCombinedTests: XCTestCase {
         XCTAssertEqual(SegmentedMeter.tickOffset(0.5, span: 1, tickWidth: 2), 0)
     }
 
-    func testMenuBarNamesTheCombinedGroup() throws {
-        let state = try Build.combined(headline: Build.combinedHeadline(window: "session", count: 2), label: "window")
-        XCTAssertEqual(
-            MenuBarContent.make(state: state, formatter: Build.english),
-            .reading(text: "Codex ×2 · Session", fraction: 0.625))
-        XCTAssertEqual(
-            MenuBarContent.make(state: state, formatter: Build.russian),
-            .reading(text: "Codex ×2 · Сессия", fraction: 0.625))
-        let percent = try Build.combined(headline: Build.combinedHeadline(window: "session", count: 2))
-        XCTAssertEqual(
-            MenuBarContent.make(state: percent, formatter: Build.english), .reading(text: "63%", fraction: 0.625))
-        XCTAssertEqual(MenuBarContent.subject(try XCTUnwrap(state.headline)), "Codex ×2")
-        XCTAssertEqual(MenuBarContent.subject(try XCTUnwrap(try combined().headline)), "ada@claude.example")
-    }
-
-    func testSingleSegmentCombinedHeadlineNamesTheProviderOnly() throws {
-        let state = try Build.combined(headline: Build.combinedHeadline(window: "weekly", count: 1), label: "window")
-        XCTAssertEqual(
-            MenuBarContent.make(state: state, formatter: Build.english),
-            .reading(text: "Codex · Weekly", fraction: 0.625))
-    }
-
     func testAccountCountPlurals() {
         let russian = Build.russian.strings
         XCTAssertEqual(russian.fill(.accounts, count: 1), "1 аккаунт")

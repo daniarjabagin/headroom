@@ -14,6 +14,7 @@
         private var welcome: WelcomeWindowController?
         private let menus = AppMenus()
         private let logos = ProviderLogos()
+        private let hotKey = HotKey()
         private var menuLanguage: UILanguage?
 
         func applicationDidFinishLaunching(_ notification: Notification) {
@@ -26,14 +27,19 @@
             menus.onSettings = { model.openSettings() }
             menus.updates = controller.updates
             let panel = PanelController(model: model, actions: popupActions(for: controller))
-            let statusItem = StatusItemController(model: model, menus: menus)
+            let store = controller.store
+            let statusItem = StatusItemController(model: model, menus: menus) { Self.reducedMotion(store) }
             statusItem.onToggle = { [weak self] button in self?.togglePanel(relativeTo: button) }
+            statusItem.onRebuild = { [weak self] in self?.panel?.dismiss() }
+            hotKey.onPress = { [weak self] in self?.togglePanelFromKeyboard() }
             controller.onOpenRequested = { [weak self] in self?.openPanel() }
             self.controller = controller
             self.panel = panel
             self.statusItem = statusItem
             self.settingsWindow = settingsWindow
             followLanguageInMainMenu()
+            followScreenSharePrivacy()
+            followShortcut()
             showWelcomeIfNeeded(controller: controller, loginItem: context.loginItem)
             Task { await controller.start() }
         }
@@ -73,6 +79,31 @@
                 reducedMotion: { store.settings?.reducedMotion ?? false })
         }
 
+        private static func reducedMotion(_ store: SettingsStore) -> Bool {
+            (store.settings?.reducedMotion ?? false) || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+
+        private func followScreenSharePrivacy() {
+            guard let model = controller?.model else { return }
+            let hidden = withObservationTracking {
+                model.state?.display.hideOnScreenShare ?? true
+            } onChange: { [weak self] in
+                Task { @MainActor in self?.followScreenSharePrivacy() }
+            }
+            statusItem?.setHiddenFromCapture(hidden)
+            panel?.setHiddenFromCapture(hidden)
+        }
+
+        private func followShortcut() {
+            guard let store = controller?.store else { return }
+            let accelerator = withObservationTracking {
+                store.settings?.shortcuts.open ?? ""
+            } onChange: { [weak self] in
+                Task { @MainActor in self?.followShortcut() }
+            }
+            hotKey.register(HotKeyChord.parse(accelerator))
+        }
+
         private func followLanguageInMainMenu() {
             guard let model = controller?.model else { return }
             let strings = withObservationTracking {
@@ -107,6 +138,11 @@
         private func togglePanel(relativeTo button: NSStatusBarButton) {
             guard let panel else { return }
             if panel.toggle(relativeTo: button) { controller?.refreshIfDue() }
+        }
+
+        private func togglePanelFromKeyboard() {
+            guard let button = statusItem?.button else { return }
+            togglePanel(relativeTo: button)
         }
 
         private func openPanel() {

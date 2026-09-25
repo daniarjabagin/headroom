@@ -13,11 +13,15 @@
     }
 
     public struct MenuBarMark: View {
-        public init() {}
+        let color: Color
+
+        public init(color: Color) {
+            self.color = color
+        }
 
         public var body: some View {
             BrandMarkView(size: MenuBarLabel.height)
-                .foregroundStyle(Color.black)
+                .foregroundStyle(color)
         }
     }
 #endif

@@ -69,6 +69,15 @@
 
         var isVisible: Bool { panel.isVisible }
 
+        func setHiddenFromCapture(_ hidden: Bool) {
+            panel.sharingType = hidden ? .none : .readOnly
+        }
+
+        func dismiss() {
+            guard panel.isVisible else { return }
+            close()
+        }
+
         func toggle(relativeTo button: NSStatusBarButton) -> Bool {
             if panel.isVisible {
                 close()
