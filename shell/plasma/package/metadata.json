@@ -13,7 +13,7 @@
         "Id": "io.github.daniarjabagin.headroom",
         "License": "MIT",
         "Name": "Headroom",
-        "Version": "0.5.1",
+        "Version": "0.6.0",
         "Website": "https://github.com/daniarjabagin/headroom"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
