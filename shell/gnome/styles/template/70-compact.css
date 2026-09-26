@@ -21,6 +21,16 @@
     min-height: var(--compact-top-header-height);
 }
 
+.headroom-compact .headroom-header-trail {
+    min-height: var(--compact-header-height);
+}
+
+.headroom-compact .headroom-quick-link {
+    width: var(--compact-header-height);
+    height: var(--compact-header-height);
+    border-radius: 10px;
+}
+
 .headroom-compact .headroom-provider-icon {
     icon-size: var(--compact-provider-icon);
 }
@@ -55,7 +65,8 @@
 }
 
 .headroom-compact .headroom-meter-track,
-.headroom-compact .headroom-meter-fill {
+.headroom-compact .headroom-meter-fill,
+.headroom-compact .headroom-meter-sheen-band {
     height: var(--compact-meter-height);
     border-radius: var(--compact-meter-radius);
 }

@@ -4,7 +4,7 @@ import St from 'gi://St';
 import { lacksSubscription } from '../accountStatus.js';
 import { agoText } from '../format.js';
 import { _, fill } from '../i18n.js';
-import { animate, FAST_MS } from '../motion.js';
+import { animate, HOVER_MS } from '../motion.js';
 import { providerIncident } from '../providerStatus.js';
 import { accountTitle } from '../providers.js';
 import { label, providerIcon, row, themeIcon } from '../widgets.js';
@@ -76,7 +76,6 @@ export class AccountHeader {
             x_expand: true,
             x_align: Clutter.ActorAlign.END,
             y_align: Clutter.ActorAlign.CENTER,
-            visible: false,
             opacity: 0,
         });
         this._links = new QuickLinks(this._ctx, this._ctx.links(account.provider));
@@ -126,14 +125,8 @@ export class AccountHeader {
     _syncHover() {
         const hovered = this.actor.hover;
         const links = this._links.reveal(hovered);
-        this._grip.visible = this._ctx.canReorder();
-        const shown = hovered && (links || this._grip.visible);
-        if (shown) this._trailBox.show();
-        animate(
-            this._ctx.motion,
-            this._trailBox,
-            { opacity: shown ? 255 : 0 },
-            { duration: FAST_MS, onComplete: () => (this._trailBox.visible = this.actor.hover) }
-        );
+        this._grip.opacity = this._ctx.canReorder() ? 255 : 0;
+        const shown = hovered && (links || this._ctx.canReorder());
+        animate(this._ctx.motion, this._trailBox, { opacity: shown ? 255 : 0 }, { duration: HOVER_MS });
     }
 }

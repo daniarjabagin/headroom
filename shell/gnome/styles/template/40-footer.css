@@ -67,8 +67,13 @@
     color: var(--crit);
 }
 
-.headroom-top-bar {
-    padding: 0 0 0 10px;
+.headroom-brand {
+    spacing: 6px;
+}
+
+.headroom-brand-mark {
+    icon-size: 16px;
+    color: var(--text);
 }
 
 .headroom-tooltip {

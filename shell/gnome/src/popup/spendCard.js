@@ -137,6 +137,6 @@ export class SpendSection {
             this._bodySlot.add_child(this._body.actor);
         }
         this._body.update(data, { sweep: false, morph });
-        this._breakdown.update(data, breakdown, unit);
+        this._breakdown.update(data, breakdown, unit, this._ctx.display.showBreakdown);
     }
 }

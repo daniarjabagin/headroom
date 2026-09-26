@@ -4,6 +4,8 @@ import St from 'gi://St';
 import { segmentLayout } from '../combined.js';
 import { EASE, STANDARD_MS } from '../motion.js';
 import { sameValues } from '../sameValues.js';
+import { SheenBand } from './sheen.js';
+import { showsSheen } from './sheenPlan.js';
 
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -16,12 +18,17 @@ function childBox(x, y, width, height) {
     return box;
 }
 
-function segmentActors() {
+function segmentActors(clock) {
     return {
         track: new St.Widget({ style_class: 'headroom-meter-track' }),
         fill: new St.Widget({ style_class: 'headroom-meter-fill' }),
+        sheen: new SheenBand(clock),
         tick: new St.Widget({ style_class: 'headroom-meter-tick', visible: false }),
     };
+}
+
+function partActors(part) {
+    return [part.track, part.fill, part.sheen.actor, part.tick];
 }
 
 export const SegmentedMeter = GObject.registerClass(
@@ -39,8 +46,10 @@ export const SegmentedMeter = GObject.registerClass(
         },
     },
     class HeadroomSegmentedMeter extends St.Widget {
-        _init() {
+        _init(clock) {
             super._init({ style_class: 'headroom-meter headroom-segmented-meter', x_expand: true });
+            this._clock = clock;
+            this._tones = [];
             this._blend = 1;
             this._from = [];
             this._targets = [];
@@ -62,11 +71,13 @@ export const SegmentedMeter = GObject.registerClass(
             const targets = segments.map(segment => clamp(segment.fraction ?? 0, 0, 1));
             const ticks = segments.map(segment => segment.tick);
             const unchanged = sameValues(targets, this._targets) && sameValues(ticks, this._ticks);
+            this._tones = segments.map(segment => segment.tone);
             const shown = this._shownFractions();
             this._ensureParts(segments.length);
             segments.forEach((segment, index) => {
                 const part = this._parts[index];
                 part.fill.style_class = `headroom-meter-fill ${segment.tone}`;
+                part.sheen.setVisible(segment.tone !== 'none');
                 part.tick.visible = segment.tick !== null;
             });
             if (unchanged) return;
@@ -115,11 +126,11 @@ export const SegmentedMeter = GObject.registerClass(
         _ensureParts(count) {
             while (this._parts.length > count) {
                 const part = this._parts.pop();
-                for (const actor of Object.values(part)) actor.destroy();
+                for (const actor of partActors(part)) actor.destroy();
             }
             while (this._parts.length < count) {
-                const part = segmentActors();
-                for (const actor of Object.values(part)) this.add_child(actor);
+                const part = segmentActors(this._clock);
+                for (const actor of partActors(part)) this.add_child(actor);
                 this._parts.push(part);
             }
         }
@@ -140,7 +151,9 @@ export const SegmentedMeter = GObject.registerClass(
             const x = content.x1 + slot.x;
             part.track.allocate(childBox(x, trackY, slot.width, trackHeight));
             const fillWidth = fraction <= 0 ? 0 : Math.max(trackHeight, Math.round(slot.width * fraction));
-            part.fill.allocate(childBox(x, trackY, Math.min(fillWidth, slot.width), trackHeight));
+            const shownWidth = Math.min(fillWidth, slot.width);
+            part.fill.allocate(childBox(x, trackY, shownWidth, trackHeight));
+            part.sheen.allocate(x, trackY, shownWidth, trackHeight, showsSheen(fraction, this._tones[index]));
             const tick = this._ticks[index];
             if (tick === null || tick === undefined) return;
             const [, tickWidth] = part.tick.get_preferred_width(-1);

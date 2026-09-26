@@ -23,6 +23,7 @@ DEFAULT_DISPLAY = {
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": True,
     "starred_accounts": [],
     "collapse_unstarred": False,
     "hide_on_screen_share": True,

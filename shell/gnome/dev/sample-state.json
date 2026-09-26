@@ -43,6 +43,7 @@
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
     "hide_on_screen_share": true
@@ -76,7 +77,9 @@
             "even_pace_percent": 46.0,
             "projected_percent": 82.0,
             "spare_percent": 18.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -93,7 +96,9 @@
             "even_pace_percent": 38.0,
             "projected_percent": 50.0,
             "spare_percent": 50.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "paused",
+            "active_left_seconds": 11400
           },
           "hidden": false
         }
@@ -144,7 +149,9 @@
             "even_pace_percent": 76.0,
             "projected_percent": 96.0,
             "spare_percent": 4.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -161,7 +168,9 @@
             "even_pace_percent": 55.0,
             "projected_percent": 151.0,
             "spare_percent": null,
-            "runs_out_at": "2026-09-24T19:00:00Z"
+            "runs_out_at": "2026-09-24T19:00:00Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -178,7 +187,9 @@
             "even_pace_percent": 84.0,
             "projected_percent": null,
             "spare_percent": null,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": null,
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -232,7 +243,9 @@
             "even_pace_percent": null,
             "projected_percent": null,
             "spare_percent": null,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": null,
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -249,7 +262,9 @@
             "even_pace_percent": 70.0,
             "projected_percent": 88.0,
             "spare_percent": 12.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -266,7 +281,9 @@
             "even_pace_percent": 70.0,
             "projected_percent": 17.0,
             "spare_percent": 83.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -305,7 +322,9 @@
         "message": "sign-in expired, open the CLI to sign in again"
       },
       "recovery": {
-        "action": "retry"
+        "action": "cli_login",
+        "command": "claude auth login",
+        "account_id": "claude:5e4d3c2b1a0f"
       },
       "updated_at": "2026-09-23T09:58:00Z",
       "source": "cache",
@@ -382,7 +401,9 @@
             "even_pace_percent": 55.0,
             "projected_percent": 76.0,
             "spare_percent": 24.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -926,7 +947,8 @@
           "count": 2,
           "total_tokens": 2182045,
           "cost_usd_micros": 964000,
-          "partial": true
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
         }
       },
       "daily": [
@@ -1917,7 +1939,8 @@
             "count": 2,
             "total_tokens": 509143,
             "cost_usd_micros": 224933,
-            "partial": true
+            "partial": true,
+            "cost_per_mtok_usd_micros": null
           }
         },
         {
@@ -2162,7 +2185,8 @@
             "count": 2,
             "total_tokens": 2182045,
             "cost_usd_micros": 964000,
-            "partial": true
+            "partial": true,
+            "cost_per_mtok_usd_micros": null
           }
         },
         {

@@ -2,6 +2,8 @@ import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import { EASE, STANDARD_MS } from '../motion.js';
+import { SheenBand } from './sheen.js';
+import { showsSheen } from './sheenPlan.js';
 
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -29,17 +31,17 @@ export const Meter = GObject.registerClass(
         },
     },
     class HeadroomMeter extends St.Widget {
-        _init() {
+        _init(clock) {
             super._init({ style_class: 'headroom-meter', x_expand: true });
             this._shownFraction = 0;
             this._target = 0;
             this._tick = null;
+            this._tone = 'none';
             this._track = new St.Widget({ style_class: 'headroom-meter-track' });
             this._fill = new St.Widget({ style_class: 'headroom-meter-fill' });
+            this._sheen = new SheenBand(clock);
             this._tickMark = new St.Widget({ style_class: 'headroom-meter-tick', visible: false });
-            this.add_child(this._track);
-            this.add_child(this._fill);
-            this.add_child(this._tickMark);
+            for (const actor of [this._track, this._fill, this._sheen.actor, this._tickMark]) this.add_child(actor);
         }
 
         get shown_fraction() {
@@ -54,6 +56,8 @@ export const Meter = GObject.registerClass(
 
         update({ fraction, tone, tick }, animate) {
             this._fill.style_class = `headroom-meter-fill ${tone}`;
+            this._tone = tone;
+            this._sheen.setVisible(tone !== 'none');
             this._tickMark.visible = tick !== null;
             if (tick !== this._tick) {
                 this._tick = tick;
@@ -90,7 +94,15 @@ export const Meter = GObject.registerClass(
             const [, tickWidth] = this._tickMark.get_preferred_width(-1);
             const trackY = content.y1 + Math.round((content.get_height() - trackHeight) / 2);
             this._track.allocate(childBox(content.x1, trackY, width, trackHeight));
-            this._fill.allocate(childBox(content.x1, trackY, this._fillWidth(width, trackHeight), trackHeight));
+            const fillWidth = this._fillWidth(width, trackHeight);
+            this._fill.allocate(childBox(content.x1, trackY, fillWidth, trackHeight));
+            this._sheen.allocate(
+                content.x1,
+                trackY,
+                fillWidth,
+                trackHeight,
+                showsSheen(this._shownFraction, this._tone)
+            );
             if (this._tick === null) return;
             const tickX = clamp(Math.round(width * this._tick - tickWidth / 2), 0, width - tickWidth);
             this._tickMark.allocate(childBox(content.x1 + tickX, content.y1, tickWidth, content.get_height()));

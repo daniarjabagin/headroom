@@ -14,13 +14,21 @@ ACCOUNT_KEYS = ("id", "provider", "provider_name", "label", "email", "plan", "ow
                 "collapsed")
 
 
-def pace(severity, even=None, projected=None, runs_out_at=None):
+def pace_basis(severity, basis):
+    if basis is not None:
+        return basis
+    return "window" if severity in (*TRACKED, "running_out") else None
+
+
+def pace(severity, even=None, projected=None, runs_out_at=None, basis=None, active_left=None):
     return {
         "severity": severity,
         "even_pace_percent": even,
         "projected_percent": projected,
         "spare_percent": 100.0 - projected if severity in TRACKED and projected is not None else None,
         "runs_out_at": iso(runs_out_at),
+        "basis": pace_basis(severity, basis),
+        "active_left_seconds": active_left,
     }
 
 
@@ -56,7 +64,9 @@ def recovery(entry):
     if entry["owner"] == "headroom":
         return {"action": "sign_in", "account_id": entry["id"]}
     command = CLI_LOGINS.get(entry["provider"])
-    return {"action": "cli_login", "command": command} if command else {"action": "retry"}
+    if not command:
+        return {"action": "retry"}
+    return {"action": "cli_login", "command": command, "account_id": entry["id"]}
 
 
 def default_home(account_id, provider):
@@ -97,7 +107,8 @@ def codex_work(now):
         [
             window("session", "Session", 38.0, 2 * HOUR + 41 * MINUTE, 5 * HOUR, "good",
                    pace("healthy", 46.0, 82.0), now),
-            window("weekly", "Weekly", 19.0, 4 * DAY + 6 * HOUR, 7 * DAY, "good", pace("healthy", 38.0, 50.0), now),
+            window("weekly", "Weekly", 19.0, 4 * DAY + 6 * HOUR, 7 * DAY, "good",
+                   pace("healthy", 38.0, 50.0, basis="paused", active_left=3 * 3600 + 10 * 60), now),
         ],
         now,
         balances=[{"id": "credits", "label": "Credits", "kind": "usd", "usd_micros": 12500000}],
@@ -142,7 +153,7 @@ def claude_team(now):
         "claude:5e4d3c2b1a0f", "claude", "team", "dev@example.com", "Team", "signed_out", [], now,
         error={"kind": "sign_in_expired", "message": "sign-in expired, open the CLI to sign in again"},
         source="cache",
-        recovery={"action": "retry"},
+        recovery={"action": "cli_login", "command": "claude auth login", "account_id": "claude:5e4d3c2b1a0f"},
         refresh=refresh(now, 480, "live", "backoff"),
     )
 

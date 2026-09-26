@@ -4,7 +4,6 @@ import { seriesKey } from './providers.js';
 
 const PERMILLE = 1000;
 const TOP_MODELS = 5;
-const MICROS_PER_MTOK = 1_000_000n;
 const DASH = '—';
 
 function costText(model) {
@@ -70,12 +69,6 @@ export function shareMeasure(period, unit) {
     return unit === 'cost' && period.costMicros > 0 ? 'costMicros' : 'totalTokens';
 }
 
-export function perMtokMicros(costMicros, totalTokens, partial) {
-    if (partial || totalTokens <= 0 || costMicros < 0) return null;
-    const tokens = BigInt(totalTokens);
-    return Number((BigInt(costMicros) * MICROS_PER_MTOK * 2n + tokens) / (tokens * 2n));
-}
-
 function byMeasure(measure) {
     return (a, b) =>
         b[measure] - a[measure] || b.totalTokens - a.totalTokens || (a.name ?? '').localeCompare(b.name ?? '');
@@ -116,8 +109,16 @@ function addPart(parts, part) {
     );
 }
 
+function restPiece(model) {
+    return { ...model.parts[0], count: 1, partial: model.partial, costPerMtokMicros: model.costPerMtokMicros };
+}
+
+function foldedRate(pieces) {
+    return pieces.length === 1 ? (pieces[0].costPerMtokMicros ?? null) : null;
+}
+
 function foldedModels(rest, others) {
-    const pieces = [...rest.map(model => ({ ...model.parts[0], count: 1, partial: model.partial })), ...others];
+    const pieces = [...rest.map(restPiece), ...others];
     if (pieces.length === 0) return null;
     const costMicros = pieces.reduce((sum, piece) => sum + piece.costMicros, 0);
     const totalTokens = pieces.reduce((sum, piece) => sum + piece.totalTokens, 0);
@@ -127,7 +128,7 @@ function foldedModels(rest, others) {
         costMicros,
         totalTokens,
         partial,
-        costPerMtokMicros: perMtokMicros(costMicros, totalTokens, partial),
+        costPerMtokMicros: foldedRate(pieces),
         parts: pieces.reduce(addPart, []),
     };
 }

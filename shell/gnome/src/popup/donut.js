@@ -6,6 +6,7 @@ import { donutGeometry, donutSegments, sectorPath, visibleFractions } from '../d
 import { EASE, STANDARD_MS } from '../motion.js';
 import { sameValues } from '../sameValues.js';
 import { column, label } from '../widgets.js';
+import { CenterFit } from './donutCenter.js';
 
 const SWEEP_MS = 250;
 
@@ -117,11 +118,13 @@ export class Donut {
         center.add_child(this._caption);
         this.actor.add_child(this._area);
         this.actor.add_child(center);
+        this._fit = new CenterFit(this.actor, this.value, this._caption);
     }
 
     setCaption(text) {
         this._caption.text = text ?? '';
         this._caption.visible = Boolean(text);
+        this._fit.fit();
     }
 
     update(slices, { sweep = false, morph = false } = {}) {

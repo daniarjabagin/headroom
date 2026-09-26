@@ -85,6 +85,7 @@ function parseSections(display) {
         spendPeriod: choice(SPEND_PERIODS, display.spend_period, '30d'),
         spendUnit: choice(SPEND_UNITS, display.spend_unit, 'cost'),
         spendBreakdown: choice(SPEND_BREAKDOWNS, display.spend_breakdown, 'models'),
+        showBreakdown: flag(display.show_breakdown, true),
     };
 }
 

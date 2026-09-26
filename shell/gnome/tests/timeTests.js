@@ -61,6 +61,35 @@ export function testForecast() {
     check('forecast untracked', format.forecastText(paceWindow({ severity: 'untracked' }, resets), now, LEFT), null);
     check('forecast spent', format.forecastText(paceWindow({ severity: 'spent' }, resets), now, LEFT), null);
     check('forecast no data', format.forecastText({ ...healthy, remainingPercent: null }, now, LEFT), null);
+    testPausedForecast(now, resets);
+}
+
+function testPausedForecast(now, resets) {
+    const paused = paceWindow(
+        { severity: 'healthy', sparePercent: 40, basis: 'paused', activeLeftSeconds: 11_400 },
+        resets
+    );
+    check('forecast paused', format.forecastText(paused, now, LEFT), 'Paused · lasts ≈3h of work');
+    const unknown = paceWindow({ severity: 'healthy', basis: 'paused', activeLeftSeconds: null }, resets);
+    check('forecast paused without pace', format.forecastText(unknown, now, LEFT), 'Paused');
+    const recent = paceWindow(
+        { severity: 'running_out', basis: 'recent', runsOutAt: new Date('2026-09-23T10:45:00Z') },
+        null
+    );
+    check('forecast recent', format.forecastText(recent, now, LEFT), 'At this pace: runs out in 45m');
+    const minute = 60;
+    check(
+        'rough durations',
+        [
+            30,
+            44 * minute + 40,
+            59 * minute + 40,
+            150 * minute,
+            23 * 60 * minute + 40 * minute,
+            28 * 60 * minute + 10 * minute,
+        ].map(secs => format.roughDuration(secs * 1000)),
+        ['1m', '45m', '1h', '3h', '1d 0h', '1d 4h']
+    );
 }
 
 function testTwelveHour() {

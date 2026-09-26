@@ -10,6 +10,7 @@ const SCHEMA_VERSION = 1;
 
 const STATUSES = new Set(['fresh', 'stale', 'refreshing', 'error', 'signed_out', 'no_subscription']);
 const SEVERITIES = new Set(['untracked', 'healthy', 'close', 'running_out', 'spent']);
+const PACE_BASES = new Set(['recent', 'window', 'paused']);
 const BALANCE_KINDS = new Set(['usd', 'money', 'count']);
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 const OWNERS = new Set(['cli', 'headroom']);
@@ -29,9 +30,20 @@ function parseRecovery(raw) {
     if (!isObject(raw)) return null;
     if (raw.action === 'retry') return { action: 'retry' };
     if (raw.action === 'sign_in') return { action: 'sign_in', accountId: text(raw.account_id) };
-    const command = text(raw.command);
-    if (raw.action === 'cli_login' && command) return { action: 'cli_login', command };
+    if (raw.action === 'cli_login') return parseCliLogin(raw);
     return null;
+}
+
+function parseCliLogin(raw) {
+    const command = text(raw.command);
+    const accountId = text(raw.account_id);
+    if (!command && !accountId) return null;
+    return { action: 'cli_login', command, accountId };
+}
+
+function secondsLeft(value) {
+    const secs = integer(value);
+    return secs !== null && secs >= 0 ? secs : null;
 }
 
 function refreshInterval(value) {
@@ -58,6 +70,8 @@ function parsePace(raw) {
         projectedPercent: number(pace.projected_percent),
         sparePercent: number(pace.spare_percent),
         runsOutAt: timestamp(pace.runs_out_at),
+        basis: oneOf(PACE_BASES, pace.basis, null),
+        activeLeftSeconds: secondsLeft(pace.active_left_seconds),
     };
 }
 

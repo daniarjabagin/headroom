@@ -83,6 +83,14 @@
     transition-duration: 180ms;
 }
 
+.headroom-small-button.icon {
+    padding: 3px 5px;
+}
+
+.headroom-small-button-icon {
+    icon-size: 12px;
+}
+
 .headroom-small-button:hover {
     background-color: var(--control-hover);
 }

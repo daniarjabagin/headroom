@@ -3,6 +3,7 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 import { usesHour12 } from '../dates.js';
 import { DesktopClock } from '../desktopClock.js';
+import { _ } from '../i18n.js';
 import { parseDisplay, supports06 } from '../settings.js';
 import { isRefreshing } from '../state.js';
 import { column } from '../widgets.js';
@@ -10,12 +11,14 @@ import { CardActions } from './cardActions.js';
 import { Dashboard } from './dashboard.js';
 import { FloatingMenu } from './floatingMenu.js';
 import { Footer } from './footer.js';
+import { LoginLauncher } from './loginLauncher.js';
 import { MaskBanner } from './maskBanner.js';
 import { Overlay } from './overlay.js';
 import { RefreshButton } from './refreshButton.js';
 import { RefreshControl } from './refreshControl.js';
 import { Reorderer } from './reorder.js';
 import { Sharer } from './share/sharer.js';
+import { SheenClock } from './sheen.js';
 import { loadingSections } from './skeleton.js';
 import { SpendChoices } from './spendChoices.js';
 import { emptyView, errorView, serviceView } from './statusViews.js';
@@ -41,6 +44,7 @@ function layoutKey(ctx, state) {
         display.showAccountSpend,
         display.showTrend,
         display.combineAccounts,
+        display.density,
         ctx.masked,
         ctx.linksVersion,
         supports06(state),
@@ -59,6 +63,9 @@ export class PopupView {
         this._tooltips = new Tooltips(motion);
         this._clock = new DesktopClock(() => this._rerender());
         this._refreshControl = new RefreshControl(() => actions.refreshNow());
+        this._login = new LoginLauncher(message =>
+            this._toast.show(_("Couldn't start sign-in"), message, 'dialog-warning')
+        );
         this._ctx = this._createContext(dir, motion, actions);
         this._refreshButton = new RefreshButton(this._ctx);
         this._refreshControl.attach(this._refreshButton);
@@ -69,6 +76,7 @@ export class PopupView {
             y_expand: true,
         });
         this._tooltips.setSideAnchor(this.actor);
+        this._sheen.attach(this.actor);
         this._buildLayout(versionText);
     }
 
@@ -86,7 +94,9 @@ export class PopupView {
             moreExpanded: false,
             linksVersion: 0,
             canReorder: () => this._reorderer.enabled,
+            sheen: new SheenClock(motion),
             pressRefresh: () => this._refreshControl.press(),
+            signIn: accountId => this._login.launch(accountId),
             hour12: () => usesHour12(ctx.display.timeFormat, this._clock.format),
             links: provider => this._links.get(provider) ?? null,
             providerStatus: () => this._view.state?.providerStatus ?? [],
@@ -96,6 +106,7 @@ export class PopupView {
             toast: (title, detail, icon) => this._toast.show(title, detail, icon),
             rerender: () => this._rerender(),
         };
+        this._sheen = ctx.sheen;
         this._spendChoices = new SpendChoices(ctx, () => this._view.state);
         ctx.spendSettings = () => this._spendChoices.current();
         ctx.selectSpend = changes => this._spendChoices.select(changes);
@@ -260,9 +271,11 @@ export class PopupView {
         this.tick();
         this._entranceUntil = Date.now() + ENTRANCE_WINDOW_MS;
         this._dashboard.playEntrance();
+        this._sheen.start();
     }
 
     onClose() {
+        this._sheen.stop();
         this._entranceUntil = 0;
         this._dashboard.settleEntrance();
         this._reorderer.cancel();
@@ -273,6 +286,8 @@ export class PopupView {
     }
 
     destroy() {
+        this._sheen.stop();
+        this._login.destroy();
         this._reorderer.destroy();
         this._hideScrollbar();
         this._toast.hide();

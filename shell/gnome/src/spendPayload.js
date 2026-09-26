@@ -38,6 +38,7 @@ function parseModelsOther(raw) {
         totalTokens: count(raw.total_tokens),
         costMicros: count(raw.cost_usd_micros),
         partial: raw.partial === true,
+        costPerMtokMicros: costPerMtok(raw),
     };
 }
 

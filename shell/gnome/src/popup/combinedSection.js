@@ -11,7 +11,7 @@ import { StatusNotice } from './statusNotice.js';
 
 function combinedLook(membersOf) {
     return {
-        meter: () => new SegmentedMeter(),
+        meter: ctx => new SegmentedMeter(ctx.sheen),
         meterState: (window, display) => combinedMeterState(window, membersOf(), display),
         percent: (window, valueMode) => combinedPercent(window, valueMode),
         reading: (percent, window, valueMode) =>

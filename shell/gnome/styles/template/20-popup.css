@@ -43,6 +43,7 @@
 }
 
 .headroom-header-trail {
+    min-height: 22px;
     spacing: 6px;
     padding-left: 6px;
     background-color: var(--tray);
@@ -196,6 +197,23 @@
 .headroom-meter-fill {
     height: 5px;
     border-radius: 2.5px;
+}
+
+.headroom-meter-sheen-band {
+    width: 44px;
+    height: 5px;
+}
+
+.headroom-meter-sheen-lead {
+    background-gradient-direction: horizontal;
+    background-gradient-start: var(--sheen-clear);
+    background-gradient-end: var(--sheen);
+}
+
+.headroom-meter-sheen-trail {
+    background-gradient-direction: horizontal;
+    background-gradient-start: var(--sheen);
+    background-gradient-end: var(--sheen-clear);
 }
 
 .headroom-meter-track {
