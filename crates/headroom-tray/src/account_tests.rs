@@ -1,7 +1,13 @@
 use serde_json::json;
 
+use jiff::tz::TimeZone;
+
 use super::*;
 use crate::payload::{Recovery, RecoveryField};
+
+fn locale(lang: Lang) -> Locale {
+    Locale::new(lang, TimeZone::UTC)
+}
 
 fn account(status: &str, error: Option<(&str, &str)>) -> Account {
     serde_json::from_value(json!({
@@ -35,7 +41,7 @@ fn account(status: &str, error: Option<(&str, &str)>) -> Account {
 #[test]
 fn signed_out_blocks_the_card() {
     let signed_out = account("signed_out", Some(("sign_in_expired", "sign-in expired")));
-    let CardBody::Blocked(notice) = card_body(Lang::En, &signed_out, false, true) else {
+    let CardBody::Blocked(notice) = card_body(&locale(Lang::En), &signed_out, false, true) else {
         panic!("expected a blocking notice");
     };
     assert_eq!(notice.kind, NoticeKind::SignIn);
@@ -53,7 +59,7 @@ fn no_subscription_hides_the_plan_and_redundant_notes() {
         Some(("no_subscription", "No active subscription.")),
     );
     assert_eq!(shown_plan(&lapsed), None);
-    let CardBody::Blocked(notice) = card_body(Lang::En, &lapsed, false, false) else {
+    let CardBody::Blocked(notice) = card_body(&locale(Lang::En), &lapsed, false, false) else {
         panic!("expected a blocking notice");
     };
     assert_eq!(notice.kind, NoticeKind::Warning);
@@ -75,7 +81,7 @@ fn errors_add_a_notice_unless_offline() {
         alert,
         notices,
         windows,
-    } = card_body(Lang::En, &failed, false, false)
+    } = card_body(&locale(Lang::En), &failed, false, false)
     else {
         panic!("expected limits");
     };
@@ -88,7 +94,9 @@ fn errors_add_a_notice_unless_offline() {
     assert_eq!(windows.len(), 1);
     assert_eq!(header_status(&failed, false), Some(HeaderStatus::Error));
     assert_eq!(header_status(&failed, true), Some(HeaderStatus::Outdated));
-    let CardBody::Limits { alert, notices, .. } = card_body(Lang::En, &failed, true, false) else {
+    let CardBody::Limits { alert, notices, .. } =
+        card_body(&locale(Lang::En), &failed, true, false)
+    else {
         panic!("expected limits");
     };
     assert_eq!(alert, None);
@@ -119,7 +127,7 @@ fn first_refresh_shows_a_skeleton() {
     let mut waiting = account("refreshing", None);
     waiting.updated_at = None;
     assert_eq!(
-        card_body(Lang::En, &waiting, false, false),
+        card_body(&locale(Lang::En), &waiting, false, false),
         CardBody::Skeleton(2)
     );
     assert_eq!(
@@ -160,8 +168,8 @@ fn the_error_notice_stays_while_retrying() {
         let failed = account(status, Some((kind, message)));
         let mut retrying = failed.clone();
         retrying.status = Status::Refreshing;
-        let before = alert_of(card_body(Lang::En, &failed, false, false));
-        let during = alert_of(card_body(Lang::En, &retrying, false, false));
+        let before = alert_of(card_body(&locale(Lang::En), &failed, false, false));
+        let during = alert_of(card_body(&locale(Lang::En), &retrying, false, false));
         assert!(before.is_some(), "{kind}");
         assert_eq!(before, during, "{kind}");
         assert!(is_retrying(&retrying));
@@ -173,7 +181,7 @@ fn a_first_refresh_that_failed_keeps_its_notice() {
     let mut retrying = account("refreshing", Some(("timeout", "timed out")));
     retrying.updated_at = None;
     assert!(shows_error_notice(&retrying, false));
-    assert!(alert_of(card_body(Lang::En, &retrying, false, false)).is_some());
+    assert!(alert_of(card_body(&locale(Lang::En), &retrying, false, false)).is_some());
     let healthy = account("refreshing", None);
     assert!(!shows_error_notice(&healthy, false));
     let offline = account("refreshing", Some(("network", "offline")));
@@ -183,22 +191,22 @@ fn a_first_refresh_that_failed_keeps_its_notice() {
 #[test]
 fn account_changes_have_their_own_title() {
     let changed = account("error", Some(("account_changed", "x")));
-    let alert = alert_of(card_body(Lang::En, &changed, false, false)).unwrap();
+    let alert = alert_of(card_body(&locale(Lang::En), &changed, false, false)).unwrap();
     assert_eq!(alert.title, "Another account is signed in to Codex");
-    let alert = alert_of(card_body(Lang::Ru, &changed, false, false)).unwrap();
+    let alert = alert_of(card_body(&locale(Lang::Ru), &changed, false, false)).unwrap();
     assert_eq!(alert.title, "В Codex выполнен вход в другой аккаунт");
 }
 
 #[test]
 fn signed_out_notices_follow_the_recovery() {
     let mut signed_out = account("signed_out", Some(("sign_in_expired", "expired")));
-    let legacy = alert_of(card_body(Lang::En, &signed_out, false, true)).unwrap();
+    let legacy = alert_of(card_body(&locale(Lang::En), &signed_out, false, true)).unwrap();
     assert_eq!(legacy.buttons, [NoticeButton::SignIn, NoticeButton::Retry]);
     signed_out.recovery = RecoveryField::Offered(Recovery::CliLogin {
         command: "codex login".into(),
         account_id: None,
     });
-    let cli = alert_of(card_body(Lang::En, &signed_out, false, true)).unwrap();
+    let cli = alert_of(card_body(&locale(Lang::En), &signed_out, false, true)).unwrap();
     assert_eq!(
         cli.buttons,
         [NoticeButton::CopyCommand {
@@ -211,9 +219,9 @@ fn signed_out_notices_follow_the_recovery() {
         Some("Run `codex login` in a terminal — Headroom picks it up automatically.")
     );
     signed_out.recovery = RecoveryField::Wait;
-    let waiting = alert_of(card_body(Lang::En, &signed_out, false, true)).unwrap();
+    let waiting = alert_of(card_body(&locale(Lang::En), &signed_out, false, true)).unwrap();
     assert!(waiting.buttons.is_empty());
     let lapsed = account("no_subscription", Some(("no_subscription", "x")));
-    let legacy_lapsed = alert_of(card_body(Lang::En, &lapsed, false, false)).unwrap();
+    let legacy_lapsed = alert_of(card_body(&locale(Lang::En), &lapsed, false, false)).unwrap();
     assert_eq!(legacy_lapsed.buttons, [NoticeButton::Retry]);
 }

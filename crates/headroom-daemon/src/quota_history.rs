@@ -6,7 +6,7 @@ use headroom_core::calibration::SpendPoint;
 use headroom_core::forecast::{Liveness, Signal, follows_spend};
 use headroom_core::history::{SampleStep, UsageSample, is_retained, observed_at, sample_step};
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
-use jiff::Timestamp;
+use jiff::{SignedDuration, Timestamp};
 
 use crate::home::UsageHome;
 use crate::model::{Model, window_key};
@@ -86,7 +86,12 @@ impl QuotaHistory {
 
 impl Model {
     #[must_use]
-    pub fn activity_signal(&self, account: &AccountRef, now: Timestamp) -> Signal {
+    pub fn activity_signal(
+        &self,
+        account: &AccountRef,
+        min_poll: Option<SignedDuration>,
+        now: Timestamp,
+    ) -> Signal {
         let live = self.account_is_live(account, now);
         let liveness = match (self.has_activity_source(account), live) {
             (false, _) => Liveness::Unknown,
@@ -95,7 +100,7 @@ impl Model {
         };
         Signal {
             liveness,
-            poll_interval: policy::effective_interval(&self.settings, live),
+            poll_interval: policy::provider_interval(&self.settings, live, min_poll),
         }
     }
 

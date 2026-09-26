@@ -80,6 +80,14 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
     ("Updated {ago}", "Обновлено {ago}"),
     ("Outdated · updated {ago}", "Устарело · обновлено {ago}"),
     (
+        "Provider is limiting requests",
+        "Провайдер ограничил запросы",
+    ),
+    (
+        "Provider is limiting requests · next try {time}",
+        "Провайдер ограничил запросы · повтор в {time}",
+    ),
+    (
         "Offline — retrying in {duration}",
         "Нет сети — повтор через {duration}",
     ),

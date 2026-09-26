@@ -1,6 +1,8 @@
+use crate::dates::Locale;
 use crate::i18n::{Lang, fill};
 use crate::notices::{NoticeKind, notice_text};
 use crate::payload::{Account, AccountError, Status, Window};
+use crate::rate_limit::{is_quietly_limited, rate_limit_note};
 use crate::recovery::{NoticeButton, cli_login_hint, notice_buttons};
 
 const NO_SUBSCRIPTION: &str = "no_subscription";
@@ -178,10 +180,7 @@ fn error_notice(lang: Lang, account: &Account) -> NoticeView {
 fn daemon_notices(lang: Lang, account: &Account) -> impl Iterator<Item = NoticeView> + '_ {
     account.notices.iter().map(move |notice| NoticeView {
         kind: NoticeKind::from_tone(notice.tone),
-        title: notice_text(lang, &notice.text),
-        detail: None,
-        note: None,
-        buttons: Vec::new(),
+        ..line_notice(notice_text(lang, &notice.text))
     })
 }
 
@@ -205,16 +204,35 @@ pub fn shows_error_notice(account: &Account, offline: bool) -> bool {
         Status::Refreshing => account.error.is_some(),
         _ => false,
     };
-    reported && !failed_offline(account, offline)
+    reported && !failed_offline(account, offline) && !is_quietly_limited(account)
+}
+
+fn line_notice(title: String) -> NoticeView {
+    NoticeView {
+        kind: NoticeKind::Info,
+        title,
+        detail: None,
+        note: None,
+        buttons: Vec::new(),
+    }
+}
+
+fn limits_notices(locale: &Locale, account: &Account) -> Vec<NoticeView> {
+    rate_limit_note(account, locale)
+        .map(line_notice)
+        .into_iter()
+        .chain(daemon_notices(locale.lang, account))
+        .collect()
 }
 
 #[must_use]
-pub fn card_body(
-    lang: Lang,
-    account: &Account,
+pub fn card_body<'a>(
+    locale: &Locale,
+    account: &'a Account,
     offline: bool,
     terminal_sign_in: bool,
-) -> CardBody<'_> {
+) -> CardBody<'a> {
+    let lang = locale.lang;
     if is_signed_out(account) {
         return CardBody::Blocked(signed_out_notice(lang, account, terminal_sign_in));
     }
@@ -227,7 +245,7 @@ pub fn card_body(
     }
     CardBody::Limits {
         alert: failed.then(|| error_notice(lang, account)),
-        notices: daemon_notices(lang, account).collect(),
+        notices: limits_notices(locale, account),
         windows: shown_windows(account),
     }
 }
