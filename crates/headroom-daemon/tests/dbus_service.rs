@@ -1,10 +1,8 @@
 #![cfg(target_os = "linux")]
 
 use std::future::poll_fn;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -28,8 +26,12 @@ use jiff::{SignedDuration, Timestamp};
 use tokio::sync::oneshot;
 use zbus::export::futures_core::Stream;
 
+#[path = "dbus_service/private_bus.rs"]
+mod private_bus;
 #[path = "dbus_service/socket.rs"]
 mod socket;
+
+use private_bus::PrivateBus;
 
 const CODEX: ProviderId = ProviderId::from_static("codex");
 
@@ -49,35 +51,6 @@ static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     local_usage: true,
     links: ProviderLinks::NONE,
 };
-
-struct PrivateBus {
-    child: Child,
-    address: String,
-}
-
-impl PrivateBus {
-    fn start() -> Option<PrivateBus> {
-        let mut child = Command::new("dbus-daemon")
-            .args(["--session", "--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()?;
-        let mut line = String::new();
-        BufReader::new(child.stdout.take()?)
-            .read_line(&mut line)
-            .ok()?;
-        let address = line.trim().to_owned();
-        (!address.is_empty()).then_some(PrivateBus { child, address })
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        self.child.kill().ok();
-        self.child.wait().ok();
-    }
-}
 
 #[derive(Default)]
 struct StaticProvider {
@@ -393,6 +366,11 @@ async fn serves_state_settings_and_signals_on_a_private_bus() {
         eprintln!("dbus-daemon unavailable, skipping");
         return;
     };
+    assert!(
+        private_bus::activation_is_impossible(&bus.address)
+            .await
+            .unwrap()
+    );
     let dir = tempfile::tempdir().unwrap();
     let (stop, stopped) = oneshot::channel();
     let provider = StaticProvider::with_work();

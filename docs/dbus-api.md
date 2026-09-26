@@ -1079,6 +1079,7 @@ Summary:
 | `combined[]` | `collapsed` | [Account additions](#account-additions) |
 | `spend` | `last_7_days` | [Spend additions](#spend-additions) |
 | PeriodSpend | `projects`, `projects_other` | [Spend additions](#spend-additions) |
+| PeriodSpend | `models`, `models_other` (since 0.6.1) | [Spend additions](#spend-additions) |
 | PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend, OtherProjects | `cost_per_mtok_usd_micros` | [Spend additions](#spend-additions) |
 | OtherModels | `cost_per_mtok_usd_micros` (since 0.6.1) | [Usage](#usage) |
 | `ListProviders` | `providers[].links` | [Provider links](#provider-links) |
@@ -1234,6 +1235,29 @@ Turning the setting on polls at once; a newly added provider is picked up by the
   cost per million priced tokens, `cost_usd_micros × 1 000 000 / priced total tokens`, rounded half up
   to a whole micro-USD. Unpriced tokens are never in the denominator. `null` when there are no priced
   tokens.
+- Since 0.6.1, `models` (ProviderModelUsage[]) and `models_other` (OtherModels | null) on every
+  PeriodSpend: one models breakdown across all providers, so shells that show a single merged list
+  never rank, fold or divide themselves. Every model of every provider is a candidate (not the
+  providers' own top 5). Models are merged by name within a provider only: the same model name logged
+  by two providers stays two rows, one per provider. Sorted like ModelUsage (cost descending, then
+  tokens descending, then `model` ascending), then by `provider` ascending; cut to the top 5, or all 6
+  when there are exactly 6, exactly like ProviderSpend's `models`. `models_other` adds the rest
+  together with the same rules as OtherModels (`null` when nothing was folded; its
+  `cost_per_mtok_usd_micros` leaves unpriced tokens out). `models` plus `models_other` add up exactly
+  to the period's `cost_usd_micros` and `total_tokens`. Missing: fall back to merging
+  `by_provider[].models` in the shell.
+
+ProviderModelUsage: the ModelUsage fields (`model`, `total_tokens`, `cost_usd_micros`, `partial`,
+`cost_per_mtok_usd_micros`) plus `provider` and `provider_name` of the provider that logged it.
+
+```json
+"models": [
+  { "provider": "claude", "provider_name": "Claude", "model": "claude-opus-4-8", "total_tokens": 40000000,
+    "cost_usd_micros": 8000000, "partial": false, "cost_per_mtok_usd_micros": 200000 }
+],
+"models_other": { "count": 3, "total_tokens": 900000, "cost_usd_micros": 300000, "partial": true,
+  "cost_per_mtok_usd_micros": 500000 }
+```
 
 ProjectSpend:
 

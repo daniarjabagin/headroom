@@ -105,3 +105,72 @@ fn merged_models_rank_by_cost_then_tokens_then_name() {
     let names: Vec<_> = merge.ranked().into_iter().map(|m| m.model).collect();
     assert_eq!(names, ["c", "d", "a", "b"]);
 }
+
+const CODEX: ProviderId = ProviderId::from_static("codex");
+const CLAUDE: ProviderId = ProviderId::from_static("claude");
+
+fn entry(provider: &ProviderId, usage: ModelUsage) -> ProviderModel {
+    ProviderModel {
+        provider: provider.clone(),
+        provider_name: provider.as_str().to_uppercase(),
+        usage,
+    }
+}
+
+#[test]
+fn merged_models_keep_same_names_of_different_providers_apart() {
+    let (models, other) = merged_top_models(vec![
+        entry(&CODEX, usage("shared", 10, 5, 0)),
+        entry(&CLAUDE, usage("shared", 10, 5, 0)),
+        entry(&CODEX, usage("solo", 1, 9, 0)),
+    ]);
+    let rows: Vec<_> = models
+        .iter()
+        .map(|m| {
+            (
+                m.provider.as_str(),
+                m.provider_name.as_str(),
+                m.model.model.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("codex", "CODEX", "solo"),
+            ("claude", "CLAUDE", "shared"),
+            ("codex", "CODEX", "shared"),
+        ]
+    );
+    assert_eq!(models[1].model, model_view(&usage("shared", 10, 5, 0)));
+    assert_eq!(other, None);
+}
+
+#[test]
+fn merged_models_fold_the_tail_with_the_same_limit_and_rate() {
+    let mut entries: Vec<_> = ranked(5).into_iter().map(|u| entry(&CODEX, u)).collect();
+    entries.push(entry(&CLAUDE, usage("x", 500_000, 1_000_000, 0)));
+    entries.push(entry(&CODEX, usage("y", 1_000_000, 0, 500_000)));
+    let (models, other) = merged_top_models(entries);
+    let names: Vec<_> = models.iter().map(|m| m.model.model.as_str()).collect();
+    assert_eq!(names, ["x", "m0", "m1", "m2", "m3"]);
+    assert_eq!(
+        other,
+        Some(OtherModelsView {
+            count: 2,
+            total_tokens: 1_000_010,
+            cost_usd_micros: 1,
+            partial: true,
+            cost_per_mtok_usd_micros: Some(2),
+        })
+    );
+}
+
+#[test]
+fn merged_models_list_a_single_extra_model_instead_of_folding_it() {
+    let mut entries: Vec<_> = ranked(5).into_iter().map(|u| entry(&CODEX, u)).collect();
+    entries.push(entry(&CLAUDE, usage("tail", 1, 0, 0)));
+    let (models, other) = merged_top_models(entries);
+    assert_eq!(models.len(), TOP_MODELS + 1);
+    assert_eq!(other, None);
+}

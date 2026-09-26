@@ -12,7 +12,8 @@ mod spend;
 
 pub use self::spend::{
     DailyView, ModelView, OtherModelsView, OtherProjectsView, PeriodSpendView, ProjectProviderView,
-    ProjectSpendView, ProviderSpendView, SpendView, TokensView, TotalsView, UsageView,
+    ProjectSpendView, ProviderModelView, ProviderSpendView, SpendView, TokensView, TotalsView,
+    UsageView,
 };
 
 pub const STATE_VERSION: u32 = 1;

@@ -820,6 +820,27 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1200,
+          "cost_usd_micros": 2400,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -878,6 +899,27 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 600,
+          "cost_usd_micros": 1200,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -948,6 +990,36 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1800,
+          "cost_usd_micros": 3600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -1024,6 +1096,36 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1800,
+          "cost_usd_micros": 3600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,

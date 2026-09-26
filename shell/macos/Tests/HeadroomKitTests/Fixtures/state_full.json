@@ -149,7 +149,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": "2026-09-23T10:03:00Z",
-        "reason": "schedule"
+        "reason": "schedule",
+        "last_attempt_at": "2026-09-23T09:58:00Z"
       },
       "collapsed": false
     },
@@ -200,7 +201,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": null,
-        "reason": "backoff"
+        "reason": "backoff",
+        "last_attempt_at": null
       },
       "collapsed": false
     },
@@ -226,7 +228,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": null,
-        "reason": "schedule"
+        "reason": "schedule",
+        "last_attempt_at": null
       },
       "collapsed": false
     }
@@ -817,6 +820,27 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1200,
+          "cost_usd_micros": 2400,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -875,6 +899,27 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 600,
+          "cost_usd_micros": 1200,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -945,6 +990,36 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1800,
+          "cost_usd_micros": 3600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,
@@ -1021,6 +1096,36 @@
           "models_other": null
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus",
+          "total_tokens": 5000,
+          "cost_usd_micros": 10000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1800,
+          "cost_usd_micros": 3600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 2000000
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "unknown",
+          "total_tokens": 15,
+          "cost_usd_micros": 0,
+          "partial": true,
+          "cost_per_mtok_usd_micros": null
+        }
+      ],
+      "models_other": null,
       "projects": [
         {
           "project": null,

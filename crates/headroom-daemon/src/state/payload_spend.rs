@@ -66,6 +66,14 @@ pub struct ModelView {
     pub cost_per_mtok_usd_micros: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderModelView {
+    pub provider: ProviderId,
+    pub provider_name: String,
+    #[serde(flatten)]
+    pub model: ModelView,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OtherModelsView {
     pub count: usize,
@@ -91,6 +99,10 @@ pub struct PeriodSpendView {
     pub partial: bool,
     pub cost_per_mtok_usd_micros: Option<i64>,
     pub by_provider: Vec<ProviderSpendView>,
+    #[serde(default)]
+    pub models: Vec<ProviderModelView>,
+    #[serde(default)]
+    pub models_other: Option<OtherModelsView>,
     #[serde(default)]
     pub projects: Vec<ProjectSpendView>,
     pub projects_other: Option<OtherProjectsView>,
