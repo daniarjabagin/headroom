@@ -74,8 +74,14 @@ TestCase {
             command: " codex login "
         }), {
             action: "cli_login",
-            command: "codex login"
+            command: "codex login",
+            accountId: null
         });
+        compare(Recovery.parseRecovery({
+            action: "cli_login",
+            command: "claude auth login",
+            account_id: "claude:5e4d"
+        }).accountId, "claude:5e4d");
         compare(Recovery.parseRecovery({
             action: "cli_login"
         }), null);
@@ -126,6 +132,21 @@ TestCase {
         compare(russian.detail, "Выполните `claude auth login --claudeai` в терминале — Headroom подхватит вход сам.");
         compare(russian.actions.map(action => action.label), ["Скопировать команду", "Повторить"]);
         compare(russian.actions[0].doneLabel, "Скопировано");
+    }
+
+    function test_cli_login_with_account_signs_in_through_headroom() {
+        const signedOut = account("signed_out", signedOutError(), {
+            action: "cli_login",
+            command: "claude auth login --claudeai",
+            accountId: "claude:5e4d3c2b1a0f"
+        });
+        const notice = Account.notices("en", signedOut, false, providers())[0];
+        compare(kinds(notice), [["signin", false], ["retry", false], ["copy", false]]);
+        compare(notice.actions[0].label, "Sign in");
+        compare(notice.actions[0].value, "claude:5e4d3c2b1a0f");
+        verify(notice.actions[0].primary);
+        compare(notice.actions[2].value, "claude auth login --claudeai");
+        compare(Account.notices("ru", signedOut, false, providers())[0].actions.map(action => action.label), ["Войти", "Повторить", "Скопировать команду"]);
     }
 
     function test_cli_login_on_error_keeps_message_and_hint() {

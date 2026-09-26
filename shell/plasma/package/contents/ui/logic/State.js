@@ -20,6 +20,7 @@ const TONES = ["good", "warning", "critical", "neutral"];
 const STATUSES = ["fresh", "stale", "refreshing", "error", "signed_out", "no_subscription"];
 const WITHOUT_QUOTAS = ["signed_out", "no_subscription"];
 const SEVERITIES = ["untracked", "healthy", "close", "running_out", "spent"];
+const PACE_BASES = ["recent", "window", "paused"];
 const BALANCE_KINDS = ["usd", "money", "count"];
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 const OWNERS = ["cli", "headroom"];
@@ -44,7 +45,9 @@ function parsePace(raw) {
         evenPacePercent: Parse.number(pace.even_pace_percent),
         projectedPercent: Parse.number(pace.projected_percent),
         sparePercent: Parse.number(pace.spare_percent),
-        runsOutAt: Parse.timestamp(pace.runs_out_at)
+        runsOutAt: Parse.timestamp(pace.runs_out_at),
+        basis: Parse.oneOf(PACE_BASES, pace.basis, null),
+        activeLeftSeconds: Parse.seconds(pace.active_left_seconds)
     };
 }
 

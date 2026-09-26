@@ -26,6 +26,17 @@ SettingsGroup {
     }
 
     SettingsRow {
+        title: group.page.tr("Show models and projects")
+        subtitle: group.page.tr("Top models and projects under the spend ring")
+
+        QQC2.Switch {
+            objectName: "showBreakdown"
+            checked: group.display.showBreakdown
+            onToggled: group.page.setDisplay("showBreakdown", checked)
+        }
+    }
+
+    SettingsRow {
         title: group.page.tr("Default period")
         subtitle: group.page.tr("The tab the spend ring opens on")
 

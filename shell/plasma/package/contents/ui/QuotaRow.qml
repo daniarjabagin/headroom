@@ -20,6 +20,7 @@ ColumnLayout {
     required property real appear
     property var members: []
     property bool animated: true
+    property real sheen: 0
     readonly property bool compact: Density.isCompact(display)
     readonly property real step: Density.fontStep(compact)
     readonly property bool combined: window.segments !== undefined
@@ -110,6 +111,7 @@ ColumnLayout {
         animated: row.animated
         tone: Quota.meterTone(row.window)
         tick: Quota.tickPosition(row.window, row.display)
+        sheen: row.sheen
     }
 
     SegmentedMeter {
@@ -120,6 +122,7 @@ ColumnLayout {
         segments: row.combined ? Combined.segments(row.window, row.members, row.display) : []
         progress: row.appear
         animated: row.animated
+        sheen: row.sheen
     }
 
     RowLayout {

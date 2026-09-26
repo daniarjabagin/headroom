@@ -136,10 +136,20 @@ function atResetForecast(lang, window, valueMode) {
     });
 }
 
+function pausedForecast(lang, pace) {
+    if (pace.activeLeftSeconds === null)
+        return I18n.tr(lang, "Paused");
+    return I18n.tr(lang, "Paused · lasts ≈{duration} of work", {
+        duration: FormatTime.roughDuration(lang, pace.activeLeftSeconds * 1000)
+    });
+}
+
 function forecastText(lang, window, now, display) {
     const pace = window.pace;
     if (window.remainingPercent === null)
         return null;
+    if (pace.basis === "paused")
+        return pausedForecast(lang, pace);
     if (pace.severity === "running_out")
         return runOutForecast(lang, window, now, display.resetFormat, display.timeFormat);
     if ((pace.severity === "healthy" || pace.severity === "close") && pace.sparePercent !== null)

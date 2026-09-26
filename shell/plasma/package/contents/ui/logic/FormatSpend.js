@@ -6,7 +6,7 @@
 
 const DASH = "—";
 const ELLIPSIS = "…";
-const UNITS = [[1e9, "B"], [1e6, "M"], [1e3, "K"]];
+const UNITS = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
 
 function tokenDigits(scaled) {
     return scaled >= 100 ? 0 : 1;

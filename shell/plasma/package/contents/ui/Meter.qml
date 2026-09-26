@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Metrics.js" as Metrics
+import "logic/Motion.js" as Motion
 import "logic/Tokens.js" as Tokens
 
 Rectangle {
@@ -13,7 +14,10 @@ Rectangle {
     property var tick: null
     property bool animated: true
     property real barHeight: Metrics.meterHeight(Kirigami.Units)
+    property real sheen: 0
     readonly property real shown: fraction * progress
+    readonly property color fillColor: Tokens.toneColor(Kirigami.Theme, tone)
+    readonly property color glowColor: Qt.lighter(fillColor, Motion.sheenLighten())
 
     Layout.fillWidth: true
     implicitHeight: barHeight
@@ -21,10 +25,48 @@ Rectangle {
     color: Tokens.track(Kirigami.Theme)
 
     Rectangle {
+        id: fill
+
         height: parent.height
         radius: height / 2
         width: track.shown > 0 ? Math.max(height, track.width * track.shown) : 0
-        color: Tokens.toneColor(Kirigami.Theme, track.tone)
+        color: track.fillColor
+
+        Item {
+            id: sheenClip
+
+            objectName: "meterSheen"
+            visible: track.animated && track.progress >= 1 && Motion.sheenActive(track.sheen, track.shown)
+            x: fill.radius
+            width: Math.max(0, fill.width - fill.radius * 2)
+            height: fill.height
+            clip: true
+
+            Rectangle {
+                width: Kirigami.Units.gridUnit * 3
+                height: sheenClip.height
+                x: Motion.sheenOffset(track.sheen, sheenClip.width, width)
+
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+
+                    GradientStop {
+                        position: 0
+                        color: Tokens.alpha(track.glowColor, 0)
+                    }
+
+                    GradientStop {
+                        position: 0.5
+                        color: Tokens.alpha(track.glowColor, Motion.sheenPeak())
+                    }
+
+                    GradientStop {
+                        position: 1
+                        color: Tokens.alpha(track.glowColor, 0)
+                    }
+                }
+            }
+        }
 
         Behavior on width {
             enabled: track.animated && track.progress >= 1

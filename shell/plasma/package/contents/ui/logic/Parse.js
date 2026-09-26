@@ -22,6 +22,11 @@ function integer(value) {
     return Number.isInteger(value) ? value : null;
 }
 
+function seconds(value) {
+    const whole = integer(value);
+    return whole !== null && whole >= 0 ? whole : null;
+}
+
 function count(value) {
     return number(value) ?? 0;
 }

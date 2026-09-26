@@ -54,6 +54,7 @@ function modelsOf(period, byTokens) {
                 provider: spend.provider,
                 costMicros: spend.modelsOther.costMicros,
                 totalTokens: spend.modelsOther.totalTokens,
+                costPerMtokMicros: spend.modelsOther.costPerMtokMicros,
                 count: spend.modelsOther.count
             });
     }
@@ -102,16 +103,20 @@ function row(scale, key, name, detail, entry, parts, period, share) {
     };
 }
 
+function soleRate(entries) {
+    return entries.length === 1 ? entries[0].costPerMtokMicros ?? null : null;
+}
+
 function sum(entries) {
     return entries.reduce((total, entry) => ({
                 costMicros: total.costMicros + entry.costMicros,
                 totalTokens: total.totalTokens + entry.totalTokens,
-                costPerMtokMicros: null,
+                costPerMtokMicros: total.costPerMtokMicros,
                 count: total.count + entry.count
             }), {
         costMicros: 0,
         totalTokens: 0,
-        costPerMtokMicros: null,
+        costPerMtokMicros: soleRate(entries),
         count: 0
     });
 }

@@ -18,6 +18,7 @@ ColumnLayout {
     property string unit: "cost"
     property string breakdown: "models"
     property bool capable: false
+    property bool showBreakdown: true
     property bool compact: false
     property bool animated: true
     readonly property var current: Spend.periodTotals(spend, period)
@@ -114,7 +115,7 @@ ColumnLayout {
         }
 
         SpendBreakdownList {
-            visible: spendCard.body === "ring" && SpendBreakdown.hasProjects(spendCard.current)
+            visible: spendCard.showBreakdown && spendCard.body === "ring" && SpendBreakdown.hasProjects(spendCard.current)
             period: spendCard.current
             mode: spendCard.breakdown
             unit: spendCard.unit

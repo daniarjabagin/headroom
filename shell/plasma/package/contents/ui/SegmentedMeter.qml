@@ -12,6 +12,7 @@ Item {
     property real progress: 1
     property bool animated: true
     property real barHeight: Metrics.meterHeight(Kirigami.Units)
+    property real sheen: 0
     readonly property real gap: Metrics.hairline(Kirigami.Units) * 2
 
     Layout.fillWidth: true
@@ -36,6 +37,7 @@ Item {
                 animated: meter.animated
                 tone: segment.tone
                 tick: segment.tick
+                sheen: meter.sheen
             }
         }
     }
