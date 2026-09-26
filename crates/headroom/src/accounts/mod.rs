@@ -2,6 +2,7 @@ mod announce;
 mod ansi;
 mod api_key;
 pub mod cancel;
+mod cli_relogin;
 mod discovery;
 mod dismiss;
 mod home;

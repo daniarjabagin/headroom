@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::account::ProviderId;
+use crate::account::{CredentialOwner, ProviderId};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ProviderDescriptor {
@@ -34,6 +34,8 @@ pub struct CliLogin {
     pub home_var: HomeVar,
     /// Written by a successful login, relative to the directory `home_var` names.
     pub credentials_file: &'static str,
+    /// The tool's own directory while `home_var` is unset, relative to the user's home.
+    pub default_dir: &'static str,
     pub needs_pty: bool,
     /// Inherited variables removed before the login runs, because they would redirect it.
     pub scrub_env: &'static [&'static str],
@@ -153,12 +155,24 @@ impl CliLogin {
         self.home_var.config_dir(home).join(self.credentials_file)
     }
 
+    /// A CLI-owned home is the tool's own directory; a Headroom-owned one is what `home_var` names.
+    #[must_use]
+    pub fn account_credentials_path(&self, home: &Path, owner: CredentialOwner) -> PathBuf {
+        match owner {
+            CredentialOwner::Headroom => self.credentials_path(home),
+            CredentialOwner::Cli => home.join(self.credentials_file),
+        }
+    }
+
     fn validate(&self) -> Result<(), &'static str> {
         if self.program.is_empty() || self.program.contains('/') {
             return Err("login program must be a bare command name");
         }
         if !is_relative_inside(self.credentials_file) {
             return Err("credentials file must be a relative path inside the home");
+        }
+        if !is_relative_inside(self.default_dir) {
+            return Err("default directory must be a relative path inside the user's home");
         }
         let scrubs_home = self.scrub_env.contains(&self.home_var.var());
         if scrubs_home || !self.scrub_env.iter().all(|name| is_env_name(name)) {
@@ -184,6 +198,22 @@ impl HomeVar {
         match self {
             HomeVar::Direct(_) => home.to_path_buf(),
             HomeVar::XdgBase { subdir, .. } => home.join(subdir),
+        }
+    }
+
+    /// The value `var` needs for the tool to use `config_dir` as its own directory.
+    #[must_use]
+    pub fn value_for(self, config_dir: &Path) -> Option<PathBuf> {
+        match self {
+            HomeVar::Direct(_) => Some(config_dir.to_path_buf()),
+            HomeVar::XdgBase { subdir, .. } => {
+                let depth = Path::new(subdir).components().count();
+                config_dir
+                    .ends_with(subdir)
+                    .then(|| config_dir.ancestors().nth(depth))
+                    .flatten()
+                    .map(Path::to_path_buf)
+            }
         }
     }
 

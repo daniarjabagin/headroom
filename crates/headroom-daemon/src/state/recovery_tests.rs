@@ -78,7 +78,7 @@ fn each_failing_account_carries_the_recovery_the_daemon_chose() {
             "id": "codex:cli",
             "status": "refreshing",
             "error": "sign_in_expired",
-            "recovery": { "action": "cli_login", "command": "codex login" }
+            "recovery": { "action": "cli_login", "command": "codex login", "account_id": "codex:cli" }
         },
         {
             "id": "codex:owned",

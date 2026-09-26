@@ -14,6 +14,7 @@ mod render;
 mod spend;
 mod state;
 mod status_pages;
+mod terminal;
 mod update;
 mod waybar;
 

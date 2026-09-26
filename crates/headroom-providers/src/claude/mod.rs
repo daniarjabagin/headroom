@@ -48,6 +48,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
         args: &["auth", "login", "--claudeai"],
         home_var: HomeVar::Direct("CLAUDE_CONFIG_DIR"),
         credentials_file: ".credentials.json",
+        default_dir: ".claude",
         needs_pty: false,
         scrub_env: &[],
     })],

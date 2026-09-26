@@ -131,6 +131,8 @@ pub struct RefreshView {
     pub interval_secs: i64,
     pub next_at: Option<Timestamp>,
     pub reason: RefreshReason,
+    #[serde(default)]
+    pub last_attempt_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -189,7 +191,7 @@ pub struct AccountError {
 pub enum Recovery {
     Retry,
     SignIn { account_id: String },
-    CliLogin { command: String },
+    CliLogin { command: String, account_id: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

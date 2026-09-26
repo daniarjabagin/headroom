@@ -49,6 +49,7 @@ fn sign_in(account: &AccountRef, catalog: &ProviderCatalog) -> Recovery {
         .and_then(ProviderDescriptor::cli_login)
         .map_or(Recovery::Retry, |login| Recovery::CliLogin {
             command: login.command_line(),
+            account_id: account.id.0.clone(),
         })
 }
 
@@ -82,6 +83,7 @@ mod tests {
         let cli = owned(CODEX, CredentialOwner::Cli);
         let login = Some(Recovery::CliLogin {
             command: "codex login".into(),
+            account_id: "codex:work".into(),
         });
         assert_eq!(of(ProviderError::SignInExpired, &cli), login);
         assert_eq!(of(ProviderError::NotSignedIn, &cli), login);
@@ -152,8 +154,13 @@ mod tests {
             (
                 Recovery::CliLogin {
                     command: "claude auth login --claudeai".into(),
+                    account_id: "claude:a".into(),
                 },
-                serde_json::json!({ "action": "cli_login", "command": "claude auth login --claudeai" }),
+                serde_json::json!({
+                    "action": "cli_login",
+                    "command": "claude auth login --claudeai",
+                    "account_id": "claude:a"
+                }),
             ),
         ];
         for (recovery, json) in cases {

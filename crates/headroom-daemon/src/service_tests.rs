@@ -1,11 +1,16 @@
+use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
+use async_trait::async_trait;
 use headroom_core::provider::{Provider, ProviderError};
+use jiff::SignedDuration;
 
 use super::*;
+use crate::clock::Clock;
+use crate::events::{EventError, EventSink, publish_changes};
 use crate::model::RefreshFailure;
 use crate::rescan;
-use crate::state::payload::AccountStatus;
+use crate::state::payload::{AccountStatus, Recovery, StatePayload};
 use crate::testing::{CODEX, FakeProvider, Harness, account, eventually, harness};
 use crate::testing::{session, snapshot};
 
@@ -118,4 +123,44 @@ async fn unknown_accounts_are_rejected_before_any_rescan() {
         Err(CommandError::UnknownAccount(_))
     ));
     run.service.refresh("").unwrap();
+}
+
+#[derive(Default)]
+struct LastState(Mutex<Option<StatePayload>>);
+
+#[async_trait]
+impl EventSink for LastState {
+    async fn state_changed(&self, state: &str) -> Result<(), EventError> {
+        *self.0.lock().unwrap() = Some(serde_json::from_str(state).unwrap());
+        Ok(())
+    }
+
+    async fn open_requested(&self) -> Result<(), EventError> {
+        Ok(())
+    }
+}
+
+fn emitted_attempt(sink: &LastState) -> Option<(AccountStatus, Option<jiff::Timestamp>)> {
+    let state = sink.0.lock().unwrap().clone()?;
+    let account = state.accounts.into_iter().find(|a| a.id == "codex:a")?;
+    Some((account.status, account.refresh?.last_attempt_at))
+}
+
+#[tokio::test]
+async fn a_retry_that_cannot_sign_in_still_reports_its_attempt() {
+    let run = failing_with(ProviderError::SignInExpired).await;
+    let sink = Arc::new(LastState::default());
+    let publisher = tokio::spawn(publish_changes(run.harness.core.clone(), sink.clone()));
+    run.harness.clock.advance(SignedDuration::from_mins(3));
+    let retried_at = run.harness.clock.now();
+    run.service.refresh("codex:a").unwrap();
+    let signed_out = Some((AccountStatus::SignedOut, Some(retried_at)));
+    eventually(|| emitted_attempt(&sink) == signed_out).await;
+    publisher.abort();
+    let recovery = run.harness.core.state().accounts[0].recovery.clone();
+    let login = Recovery::CliLogin {
+        command: "codex login".into(),
+        account_id: "codex:a".into(),
+    };
+    assert_eq!(recovery, Some(login));
 }

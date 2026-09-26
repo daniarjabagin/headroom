@@ -39,6 +39,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             args: &["auth", "cline"],
             home_var: HomeVar::Direct("CLINE_DIR"),
             credentials_file: "data/settings/providers.json",
+            default_dir: ".cline",
             needs_pty: true,
             scrub_env: &["CLINE_DATA_DIR", "CLINE_PROVIDER_SETTINGS_PATH"],
         }),

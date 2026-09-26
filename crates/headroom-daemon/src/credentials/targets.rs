@@ -17,7 +17,8 @@ pub fn credential_files(model: &Model, catalog: &ProviderCatalog) -> BTreeMap<Ac
             let login = catalog
                 .descriptor(&record.reference.provider)?
                 .cli_login()?;
-            let path = login.credentials_path(&record.reference.home);
+            let reference = &record.reference;
+            let path = login.account_credentials_path(&reference.home, reference.owner);
             Some((record.id().clone(), path))
         })
         .collect()
@@ -40,13 +41,17 @@ fn waits_for_sign_in(model: &Model, record: &AccountRecord) -> bool {
 mod tests {
     use std::path::Path;
 
+    use headroom_core::account::{CredentialOwner, ProviderId};
+    use headroom_core::descriptor::{
+        AddAccountMethod, CliLogin, HomeVar, ProviderDescriptor, ProviderLinks,
+    };
     use jiff::Timestamp;
 
     use super::*;
     use crate::model::AccountRuntime;
     use crate::testing::{CLAUDE, CODEX, account, catalog};
 
-    fn record(provider: headroom_core::account::ProviderId, name: &str) -> AccountRecord {
+    fn record(provider: ProviderId, name: &str) -> AccountRecord {
         AccountRecord {
             reference: account(provider, name),
             label: None,
@@ -111,5 +116,66 @@ mod tests {
     #[test]
     fn healthy_accounts_are_not_watched() {
         assert!(credential_files(&model(), &catalog()).is_empty());
+    }
+
+    const DATA: ProviderId = ProviderId::from_static("data");
+
+    static XDG_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
+        id: DATA,
+        display_name: "Data",
+        add_account: &[AddAccountMethod::CliLogin(CliLogin {
+            program: "data",
+            args: &["login"],
+            home_var: HomeVar::XdgBase {
+                var: "XDG_DATA_HOME",
+                subdir: "data",
+            },
+            credentials_file: "auth.json",
+            default_dir: ".local/share/data",
+            needs_pty: false,
+            scrub_env: &[],
+        })],
+        multi_account: true,
+        local_usage: false,
+        links: ProviderLinks::NONE,
+    };
+
+    fn xdg_record(name: &str, home: &str, owner: CredentialOwner) -> AccountRecord {
+        let mut record = record(DATA, name);
+        record.reference.home = PathBuf::from(home);
+        record.reference.owner = owner;
+        record
+    }
+
+    #[test]
+    fn each_owner_is_watched_where_its_login_writes() {
+        let mut model = Model {
+            accounts: vec![
+                xdg_record("cli", "/home/ada/.local/share/data", CredentialOwner::Cli),
+                xdg_record("custom", "/work/alt/data", CredentialOwner::Cli),
+                xdg_record("own", "/data/accounts/data/1", CredentialOwner::Headroom),
+            ],
+            ..Model::default()
+        };
+        for id in ["data:cli", "data:custom", "data:own"] {
+            failing(&mut model, id, ProviderError::SignInExpired);
+        }
+        let catalog = ProviderCatalog::new([&XDG_DESCRIPTOR]);
+        let watched = credential_files(&model, &catalog);
+        let expected = BTreeMap::from([
+            (
+                AccountId("data:cli".into()),
+                PathBuf::from("/home/ada/.local/share/data/auth.json"),
+            ),
+            (
+                AccountId("data:custom".into()),
+                PathBuf::from("/work/alt/data/auth.json"),
+            ),
+            (
+                AccountId("data:own".into()),
+                PathBuf::from("/data/accounts/data/1/data/auth.json"),
+            ),
+        ]);
+        assert_eq!(watched, expected);
     }
 }

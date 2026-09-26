@@ -388,7 +388,7 @@ headroom status --json               # the full state payload, see docs/dbus-api
 headroom refresh --now               # refresh every account right away
 headroom accounts                    # list accounts with their ids
 headroom accounts label ID "Work"    # rename; also: hide, show, order ID1 ID2 …
-headroom accounts login ID           # sign an account Headroom added in again, in the same home
+headroom accounts login ID           # sign an account in again: same home, or the CLI's login in a terminal
 headroom accounts remove ID          # delete an account Headroom added (never ~/.codex or ~/.claude)
 headroom update                      # install the latest release (script installs)
 headroom spend                       # spend of the last 7 days by model, from local logs

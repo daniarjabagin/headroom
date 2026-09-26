@@ -55,6 +55,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
         args: &["login"],
         home_var: HomeVar::Direct("CODEX_HOME"),
         credentials_file: "auth.json",
+        default_dir: ".codex",
         needs_pty: false,
         scrub_env: &[],
     })],
