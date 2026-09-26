@@ -140,6 +140,8 @@ TestCase {
     function test_advanced_diagnostics_and_reset() {
         load("Advanced");
         tryVerify(() => named("logFileRow").subtitle === "~/.local/state/headroom/headroom.log", settleMs);
+        compare(named("openGitHub").text, "Open GitHub");
+        compare(named("openGitHub").icon.name, "link");
         DBus.SessionBus.messages = [];
         mouseClick(named("copyDiagnostics"));
         tryVerify(() => named("copyDiagnostics").text === "Copied", settleMs);

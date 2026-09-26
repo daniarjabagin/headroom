@@ -5,6 +5,7 @@ import { _, fill } from '../i18n.js';
 import { supports06 } from '../settings.js';
 import { LoggingRows } from './loggingRows.js';
 import { group } from './rows.js';
+import { supportGroup } from './supportRows.js';
 import { restartService, serviceActive } from './systemdUnit.js';
 import { spinner } from './widgets.js';
 
@@ -34,8 +35,8 @@ export class AdvancedPage {
         this._logging = new LoggingRows(client, toast);
         this._troubleshooting = this._troubleshootingGroup();
         this._reset = group('', [resetRow(() => this._confirmReset())]);
-        for (const entry of [this._serviceGroup(), this._logging.group, this._troubleshooting, this._reset])
-            this.page.add(entry);
+        const groups = [this._serviceGroup(), this._logging.group, this._troubleshooting, this._reset, supportGroup()];
+        for (const entry of groups) this.page.add(entry);
         this._checkSystemd();
     }
 

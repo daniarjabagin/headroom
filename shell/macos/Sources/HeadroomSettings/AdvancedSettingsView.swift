@@ -8,6 +8,7 @@
 
         let context: SettingsContext
 
+        @Environment(\.openURL) private var openURL
         @State private var confirmingReset = false
         @State private var toast: String?
         @State private var toastTask: Task<Void, Never>?
@@ -24,6 +25,9 @@
                         Button(strings.text(AdvancedText.resetAll), role: .destructive) { confirmingReset = true }
                             .frame(maxWidth: .infinity)
                     }
+                }
+                if let repository = SupportLink.repository {
+                    support(repository)
                 }
                 StoreErrorSection(context: context)
             }
@@ -89,6 +93,23 @@
                 Text(strings.text(AdvancedText.troubleshooting))
             } footer: {
                 Text(strings.text(AdvancedText.troubleshootingDetail)).foregroundStyle(.secondary)
+            }
+        }
+
+        private func support(_ repository: URL) -> some View {
+            Section(strings.text(SupportText.supportHeadroom)) {
+                LabeledContent {
+                    Button {
+                        openURL(repository)
+                    } label: {
+                        Label(strings.text(SupportText.openGitHub), systemImage: "arrow.up.right.square")
+                    }
+                    .help(repository.absoluteString)
+                } label: {
+                    TitledLabel(
+                        title: strings.text(SupportText.starOnGitHub),
+                        detail: strings.text(SupportText.starOnGitHubDetail))
+                }
             }
         }
 

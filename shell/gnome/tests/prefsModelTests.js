@@ -15,6 +15,7 @@ import { onboardingEntries } from '../src/prefs/onboardingModel.js';
 import { canChoose, limitChoices, limitsAfter, limitsSubtitle, panelRowsShown } from '../src/prefs/panelModel.js';
 import { loginArgs, loginMethod, signInTarget } from '../src/prefs/registry.js';
 import { captureOutcome } from '../src/prefs/shortcutModel.js';
+import { REPOSITORY_URL, supportCopy } from '../src/prefs/supportModel.js';
 import { check } from './check.js';
 
 function window(id, remainingPercent, hidden = false) {
@@ -220,6 +221,24 @@ function testOnboardingLaunch() {
     check('opened once', opened, ['prefs']);
 }
 
+function testSupportCopy() {
+    check('support url', REPOSITORY_URL, 'https://github.com/daniarjabagin/headroom');
+    check('support copy en', supportCopy(), {
+        group: 'Support Headroom',
+        title: 'Star Headroom on GitHub',
+        subtitle: "Stars help other people find it. It's free and takes a second.",
+        action: 'Open GitHub',
+    });
+    setLanguage('ru');
+    check('support copy ru', supportCopy(), {
+        group: 'Поддержать Headroom',
+        title: 'Поставьте звезду на GitHub',
+        subtitle: 'Звёзды помогают другим найти Headroom. Это бесплатно и занимает секунду.',
+        action: 'Открыть GitHub',
+    });
+    setLanguage('en');
+}
+
 export function testPrefsModels() {
     setLanguage('en');
     testPanelRows();
@@ -232,4 +251,5 @@ export function testPrefsModels() {
     testShortcutCapture();
     testLoginArgs();
     testOnboardingLaunch();
+    testSupportCopy();
 }

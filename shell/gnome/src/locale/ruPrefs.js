@@ -153,4 +153,9 @@ export const RU_PREFS = {
     'The sign-in for this account has expired': 'Срок входа в этот аккаунт истёк',
     Links: 'Ссылки',
     'Remove…': 'Удалить…',
+    'Support Headroom': 'Поддержать Headroom',
+    'Star Headroom on GitHub': 'Поставьте звезду на GitHub',
+    "Stars help other people find it. It's free and takes a second.":
+        'Звёзды помогают другим найти Headroom. Это бесплатно и занимает секунду.',
+    'Open GitHub': 'Открыть GitHub',
 };

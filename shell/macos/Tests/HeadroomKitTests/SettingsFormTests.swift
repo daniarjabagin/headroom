@@ -16,6 +16,13 @@ final class SettingsFormTests: XCTestCase {
         check(AdvancedText.self)
         check(OnboardingText.self)
         check(SignInAgainText.self)
+        check(SupportText.self)
+    }
+
+    func testSupportLinkPointsAtTheRepository() {
+        XCTAssertEqual(SupportLink.repository?.absoluteString, "https://github.com/daniarjabagin/headroom")
+        XCTAssertNil(SupportLink.repository?.query)
+        XCTAssertEqual(UIStrings(language: .ru).text(SupportText.openGitHub), "Открыть GitHub")
     }
 
     func testAlmostOutDetailNamesTheThreshold() {

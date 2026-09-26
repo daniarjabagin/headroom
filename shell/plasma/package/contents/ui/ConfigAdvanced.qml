@@ -128,6 +128,23 @@ ConfigScaffold {
         }
     }
 
+    SettingsGroup {
+        title: page.tr("Support Headroom")
+
+        SettingsRow {
+            separated: false
+            title: page.tr("Star Headroom on GitHub")
+            subtitle: page.tr("Stars help other people find it. It's free and takes a second.")
+
+            QQC2.Button {
+                objectName: "openGitHub"
+                text: page.tr("Open GitHub")
+                icon.name: "link"
+                onClicked: Qt.openUrlExternally(AdvancedPrefs.REPOSITORY_URL)
+            }
+        }
+    }
+
     ResetDialog {
         id: resetDialog
 

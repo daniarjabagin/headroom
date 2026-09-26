@@ -65,3 +65,20 @@ public enum AdvancedText: LocalizedText {
         }
     }
 }
+
+public enum SupportText: LocalizedText {
+    case supportHeadroom, starOnGitHub, starOnGitHubDetail, openGitHub
+
+    public var translations: (english: String, russian: String) {
+        switch self {
+        case .supportHeadroom: ("Support Headroom", "Поддержать Headroom")
+        case .starOnGitHub: ("Star Headroom on GitHub", "Поставьте звезду на GitHub")
+        case .starOnGitHubDetail:
+            (
+                "Stars help other people find it. It's free and takes a second.",
+                "Звёзды помогают другим найти Headroom. Это бесплатно и занимает секунду."
+            )
+        case .openGitHub: ("Open GitHub", "Открыть GitHub")
+        }
+    }
+}
