@@ -2,34 +2,29 @@ use headroom_core::calibration::SpendPoint;
 use headroom_core::event::UsageEvent;
 use headroom_core::usage::{PriceBook, event_cost};
 use jiff::{SignedDuration, Timestamp};
-use rusqlite::Connection;
-
-use crate::error::StorageError;
-use crate::home::UsageHome;
-use crate::storage::events;
 
 pub const SPEND_LOOKBACK: SignedDuration = SignedDuration::from_hours(26);
 
+#[must_use]
 pub fn recent_spend(
-    conn: &Connection,
-    home: &UsageHome,
+    events: &[UsageEvent],
     prices: &dyn PriceBook,
     now: Timestamp,
-) -> Result<Vec<SpendPoint>, StorageError> {
+) -> Vec<SpendPoint> {
     let since = now.checked_sub(SPEND_LOOKBACK).unwrap_or(Timestamp::MIN);
-    Ok(spend_points(
-        &events::load_since(conn, home, since)?,
-        prices,
-    ))
+    spend_points(events.iter().filter(|event| event.at >= since), prices)
 }
 
 #[must_use]
-pub fn spend_points(events: &[UsageEvent], prices: &dyn PriceBook) -> Vec<SpendPoint> {
+pub fn spend_points<'a>(
+    events: impl IntoIterator<Item = &'a UsageEvent>,
+    prices: &dyn PriceBook,
+) -> Vec<SpendPoint> {
     let mut points: Vec<SpendPoint> = events
-        .iter()
-        .filter_map(|event| {
-            let cost = event_cost(event, prices)?;
-            Some(SpendPoint { at: event.at, cost })
+        .into_iter()
+        .map(|event| SpendPoint {
+            at: event.at,
+            cost: event_cost(event, prices),
         })
         .collect();
     points.sort_unstable();

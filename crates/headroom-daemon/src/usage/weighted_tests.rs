@@ -7,6 +7,7 @@ use headroom_core::tokens::TokenCounts;
 use headroom_core::units::{MicroUsd, Percent, Tokens};
 
 use super::*;
+use crate::home::UsageHome;
 use crate::testing::{CODEX, FakeProvider, account, event, harness, session, snapshot, ts};
 use crate::usage::ingest;
 
@@ -68,9 +69,12 @@ fn spend_weights_tokens_by_their_price() {
         (reported, Some(42)),
     ];
     for (event, expected) in cases {
-        let points = spend_points(std::slice::from_ref(&event), &ModelPrices);
-        let costs: Vec<i64> = points.iter().map(|point| point.cost.0).collect();
-        assert_eq!(costs, expected.into_iter().collect::<Vec<_>>(), "{event:?}");
+        let points = spend_points([&event], &ModelPrices);
+        let costs: Vec<Option<i64>> = points
+            .iter()
+            .map(|point| point.cost.map(|cost| cost.0))
+            .collect();
+        assert_eq!(costs, [expected], "{event:?}");
     }
 }
 
@@ -104,7 +108,7 @@ fn estimate_after(burst: UsageEvent) -> f64 {
     let mut events = opus_work();
     events.push(burst);
     let spend = spend_points(&events, &ModelPrices);
-    let calibration = calibrate(&polls(), &spend).unwrap();
+    let calibration = calibrate(&polls(), &spend, ts("2026-09-23T09:30:00Z")).unwrap();
     let observed = Observed {
         used: Percent::new(43.0),
         changed_at: ts("2026-09-23T09:30:00Z"),
@@ -137,7 +141,7 @@ fn the_estimate_follows_the_price_of_what_was_used() {
 fn merged_spend_is_in_time_order() {
     let point = |at: &str, cost: i64| SpendPoint {
         at: ts(at),
-        cost: MicroUsd(cost),
+        cost: Some(MicroUsd(cost)),
     };
     let own = [
         point("2026-09-23T09:00:00Z", 1),
@@ -145,8 +149,11 @@ fn merged_spend_is_in_time_order() {
     ];
     let linked = [point("2026-09-23T09:10:00Z", 2)];
     let merged = merge_spend([own.as_slice(), linked.as_slice()]);
-    let costs: Vec<i64> = merged.iter().map(|point| point.cost.0).collect();
-    assert_eq!(costs, [1, 2, 3]);
+    let costs: Vec<Option<i64>> = merged
+        .iter()
+        .map(|point| point.cost.map(|cost| cost.0))
+        .collect();
+    assert_eq!(costs, [Some(1), Some(2), Some(3)]);
 }
 
 #[tokio::test]
@@ -167,14 +174,28 @@ async fn an_ingest_pass_keeps_the_last_day_of_spend_for_the_account() {
     let dynamic: Arc<dyn Provider> = provider.clone();
     let harness = harness(vec![dynamic]).await;
     let home = harness.core.model().usage_homes.first().unwrap().clone();
+    let gone = UsageHome {
+        provider: CODEX,
+        home: dir.path().join("gone"),
+    };
+    let stale = SpendPoint {
+        at: ts("2026-09-23T09:10:00Z"),
+        cost: Some(MicroUsd(1)),
+    };
+    harness.core.model().history.set_spend(&gone, vec![stale]);
     ingest::pass(&harness.core, &home, &mut None).await;
-    let spend = harness.core.model().account_spend(&work);
-    let points: Vec<(Timestamp, i64)> = spend.iter().map(|p| (p.at, p.cost.0)).collect();
+    let model = harness.core.model();
+    let spend = model.account_spend(&work);
+    let points: Vec<(Timestamp, Option<i64>)> = spend
+        .iter()
+        .map(|p| (p.at, p.cost.map(|cost| cost.0)))
+        .collect();
     assert_eq!(
         points,
         [
-            (ts("2026-09-23T09:00:00Z"), 220),
-            (ts("2026-09-23T09:30:00Z"), 110),
+            (ts("2026-09-23T09:00:00Z"), Some(220)),
+            (ts("2026-09-23T09:30:00Z"), Some(110)),
         ]
     );
+    assert!(model.history.spend_of(&[gone]).is_empty());
 }

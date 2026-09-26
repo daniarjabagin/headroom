@@ -268,18 +268,31 @@ Example: 5 h session, 77 % used after 2.5 h → runs out in ~44 min, within the 
   three rises, gaps longer than `idle_after` end the stretch, lookback `clamp(period / 6, 30 min,
   4 h)` of active time, an overdue step slows it) projects `used + rate × time to reset`.
 - **Live spend** (`forecast_with_spend`, `headroom-core::calibration`). Only for a `Live` account
-  and windows of 24 h or less, before the percent-step rate. The daemon keeps the cost of every
-  priced local usage event of the last 26 h per usage home (`usage::weighted`, refreshed with the
-  usage summary after each ingest, which also re-emits the state) and merges the account's own and
-  linked homes. Calibration walks the window's sample pairs from the newest back until 20 percent of
-  rise and sums the rise and the micro-USD spent between each pair (money stays an integer; the
-  ratio only scales a percent); it needs at least 3 percent of rise and $0.10 of spend, and a window
-  reset clears it because only the current window's samples count. The estimate is
-  `used + ratio × spend since the last change`, capped at `used + 1 + ratio × spend since the last
-  observation` (the provider showed no step since) and clamped to `[used, 100]`; the rate is
-  `ratio × spend over the cadence lookback / lookback`. They drive `projected`, `runs_out_at` and
-  severity with `basis = recent`; `used_percent`, the meters, tone-by-level and the 5 % rule keep
-  the provider's number. Unpriced events weigh nothing. Pace alerts keep the percent-only forecast.
+  and windows of 24 h or less, before the percent-step rate. The daemon keeps one `SpendPoint` per
+  local usage event of the last 26 h per usage home (`usage::weighted`, built from the events the
+  usage summary already loaded after each ingest, which also re-emits the state; homes no longer
+  discovered are dropped) with its cost, or no cost when the event is unpriced, and merges the
+  account's own and linked homes (a single home's list is shared as is; nothing is gathered for an
+  account that is not `Live` or has no window of 24 h or less). A linked home counts whole: spend a
+  CLI home logged before it switched to this account is merged too, and when the polls do not show
+  it the contradiction rule below turns the forecast back to percent steps. Calibration starts with
+  the open interval from the last change to the last observation as a pair with zero rise (spend the
+  provider has not shown dilutes the ratio), then walks the window's sample pairs from the newest
+  back until 20 percent of rise, summing the rise and the micro-USD spent in each (money stays an
+  integer; the ratio only scales a percent); it needs at least 3 percent of rise and $0.10 of spend,
+  and a window reset clears it because only the current window's samples count. The spend forecast
+  is skipped, falling back to the percent-step rate, when an interval it uses, the lookback or the
+  time since the last change holds an unpriced event, or when `ratio × spend between the last change
+  and the last observation` exceeds one reported step (the provider saw that spend and showed no
+  step, so the ratio is contradicted — API-key sessions writing to the same CLI home, a home shared
+  by two accounts). Otherwise the estimate is `used + ratio × spend since the last change`, capped at
+  `used + 1 + ratio × spend since the last observation` and clamped to `[used, 100]`; the rate is
+  `ratio × spend over the cadence lookback (never before the window start) / lookback`. They drive
+  `projected`, `runs_out_at` and severity with `basis = recent`; `used_percent`, the meters,
+  tone-by-level and the 5 % rule keep the provider's number. Pace alerts are decided on the
+  percent-only forecast, so spend alone never raises one; a new "will run out" or "cutting it close"
+  is held back (left armed) while the spend-aware forecast of the same window is below Close, so an
+  alert never contradicts a calm popup. A red popup without an alert is expected.
 - **Window average** otherwise, including every window longer than 24 h unless it is paused.
 
 Young, untracked and spent windows keep the window-average result. Pace alerts fired on a `recent`

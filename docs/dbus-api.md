@@ -540,7 +540,12 @@ Basis:
   ratio times the spend since the last change (at most one step above what the last refresh showed,
   never above 100), and the rate is the ratio times the spend of the lookback. The forecast then
   follows a burst within seconds of the log write; `used_percent` and `remaining_percent` stay
-  exactly the provider's numbers.
+  exactly the provider's numbers. Spend logged since the last change that the provider has not shown
+  lowers the ratio; when a refresh after the spend shows no step although the ratio says it should
+  (more than one step), or when unpriced usage falls into the measured spans, the percent steps
+  decide instead. "Will run out" and "cutting it close" notifications follow the percent steps and
+  wait while the spend-refined forecast is below `close`, so a notification never contradicts a calm
+  popup.
 - `window` — the 0.6.0 window average, `projected_percent = used / elapsed share`, `runs_out_at =
   start + elapsed × 100 / used`. Used when there is not enough recent history, and always (unless
   `paused`) for windows longer than 24 hours: a weekly window is forecast from its average.

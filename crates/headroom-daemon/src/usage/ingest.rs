@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use headroom_core::provider::{Provider, ProviderError};
+use headroom_core::usage::aggregate;
 use jiff::Timestamp;
 use jiff::civil::Date;
 
-use super::summary::summarize;
+use super::summary::retention_start;
 use super::weighted::recent_spend;
 use crate::activity;
 use crate::core::Core;
@@ -64,13 +65,14 @@ pub async fn refresh_summary(core: &Core, home: &UsageHome) -> Result<(), Storag
     let (summary, spend) = core
         .storage
         .run(move |conn| {
-            let summary = summarize(conn, &key, prices.as_ref(), &tz, now)?;
-            Ok((summary, recent_spend(conn, &key, prices.as_ref(), now)?))
+            let events = events::load_since(conn, &key, retention_start(now))?;
+            let summary = aggregate(&events, prices.as_ref(), &tz, now);
+            Ok((summary, recent_spend(&events, prices.as_ref(), now)))
         })
         .await?;
     let mut model = core.model();
     model.usage.insert(home.clone(), summary);
-    model.history.set_spend(home, spend);
+    model.store_spend(home, spend);
     drop(model);
     core.mark_changed();
     Ok(())

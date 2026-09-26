@@ -1,7 +1,12 @@
-use headroom_core::units::Percent;
+use std::path::PathBuf;
+
+use headroom_core::account::CredentialOwner;
+use headroom_core::units::{MicroUsd, Percent};
+use jiff::SignedDuration;
 
 use super::*;
-use crate::testing::{CODEX, account, session, snapshot, ts, weekly};
+use crate::storage::accounts::AccountRecord;
+use crate::testing::{CODEX, account, session, snapshot, ts, usage_home_of, weekly};
 
 const RESET: &str = "2026-09-23T12:00:00Z";
 const NEXT_RESET: &str = "2026-09-23T17:00:00Z";
@@ -83,4 +88,98 @@ fn rows_group_by_account_and_window() {
     assert_eq!(used_values(&history), vec![1.0, 2.0]);
     assert_eq!(window_samples(history.account(&id()), "weekly").len(), 1);
     assert!(window_samples(None, "session").is_empty());
+}
+
+fn spent(at: &str, micros: i64) -> SpendPoint {
+    SpendPoint {
+        at: ts(at),
+        cost: Some(MicroUsd(micros)),
+    }
+}
+
+fn headroom_owned() -> AccountRef {
+    AccountRef {
+        home: PathBuf::from("/home/ada/.local/share/headroom/codex-work"),
+        owner: CredentialOwner::Headroom,
+        ..account(CODEX, "work")
+    }
+}
+
+fn model_with(reference: &AccountRef) -> Model {
+    let record = AccountRecord {
+        reference: reference.clone(),
+        label: None,
+        hidden: false,
+        sort_order: 0,
+        email: None,
+        plan: None,
+        last_seen: ts("2026-09-23T10:00:00Z"),
+        gone: false,
+    };
+    Model {
+        accounts: vec![record],
+        ..Model::default()
+    }
+}
+
+#[test]
+fn a_linked_home_counts_whole_including_spend_from_before_the_switch() {
+    let own = headroom_owned();
+    let cli = account(CODEX, "work");
+    let mut model = model_with(&own);
+    model.cli_sign_ins.set(&CODEX, std::slice::from_ref(&cli));
+    let before_switch = spent("2026-09-23T08:00:00Z", 5_000_000);
+    let after_switch = spent("2026-09-23T09:30:00Z", 200);
+    model
+        .history
+        .set_spend(&usage_home_of(&cli), vec![before_switch, after_switch]);
+    let mine = spent("2026-09-23T09:00:00Z", 100);
+    model.history.set_spend(&usage_home_of(&own), vec![mine]);
+    let merged = model.account_spend(&own);
+    assert_eq!(merged.as_ref(), [before_switch, mine, after_switch]);
+}
+
+#[test]
+fn live_spend_is_only_gathered_for_a_live_account_with_a_short_window() {
+    let work = account(CODEX, "work");
+    let mut model = model_with(&work);
+    let home = usage_home_of(&work);
+    model
+        .history
+        .set_spend(&home, vec![spent("2026-09-23T09:00:00Z", 100)]);
+    let live = Signal {
+        liveness: Liveness::Live,
+        poll_interval: SignedDuration::from_mins(5),
+    };
+    let idle = Signal {
+        liveness: Liveness::Idle,
+        ..live
+    };
+    let short = snapshot(vec![session(10.0, RESET)], "2026-09-23T09:30:00Z");
+    let long = snapshot(
+        vec![weekly(10.0, "2026-09-30T00:00:00Z")],
+        "2026-09-23T09:30:00Z",
+    );
+    let shared = model.history.spend_of(std::slice::from_ref(&home));
+    assert!(Arc::ptr_eq(&model.live_spend(&work, &short, live), &shared));
+    assert!(model.live_spend(&work, &short, idle).is_empty());
+    assert!(model.live_spend(&work, &long, live).is_empty());
+}
+
+#[test]
+fn spend_of_homes_no_longer_in_use_is_dropped() {
+    let work = account(CODEX, "work");
+    let mut model = model_with(&work);
+    let home = usage_home_of(&work);
+    let gone = UsageHome {
+        provider: CODEX,
+        home: PathBuf::from("/home/ada/.codex-old"),
+    };
+    model.usage_homes.insert(home.clone());
+    model
+        .history
+        .set_spend(&gone, vec![spent("2026-09-23T09:00:00Z", 1)]);
+    model.store_spend(&home, vec![spent("2026-09-23T09:10:00Z", 2)]);
+    assert!(model.history.spend_of(&[gone]).is_empty());
+    assert_eq!(model.history.spend_of(&[home]).len(), 1);
 }
