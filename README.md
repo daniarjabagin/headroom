@@ -68,7 +68,9 @@ default.</sub>
   reset countdowns for 19 providers, with several accounts each. Turn on **combined accounts** to
   see one card per provider with a segmented bar: *145% left of 200%*.
 - **Pace forecast.** Every meter carries an even-pace tick. Headroom projects your burn rate and
-  tells you *"At this pace: runs out in 2d 1h"* long before you hit the wall. Color follows pace,
+  tells you *"At this pace: runs out in 2d 1h"* long before you hit the wall. Session windows follow
+  your pace over recent active work; when your agents stop, the card says *"Paused · lasts ≈3 h of
+  work"* instead of counting down, and weekly windows keep the window average. Color follows pace,
   not just level.
 - **Exact token counts.** Local logs of Codex, Claude Code and Grok are read incrementally and
   deduplicated by stable response ids, never by summing streaming chunks. Cache reads, 5-minute and
@@ -84,11 +86,11 @@ default.</sub>
   anywhere on the top bar. A global shortcut opens the popup, and numbers hide while you share your
   screen.
 - **Notifications that matter.** *Under 10 % left* (or your own threshold per provider), *projected
-  to run out in …*, *limit reset*. Sent once per window, remembered across restarts, held during
-  quiet hours and delivered as one summary afterwards.
+  to run out in …*, *limit reset*. Sent once per window (not again after every burst of work),
+  remembered across restarts, held during quiet hours and delivered as one summary afterwards.
 - **Retry that fixes things.** Sign in again through the CLI and the card comes back by itself;
   Headroom's own sign-ins refresh their tokens; the error card offers exactly what helps: retry,
-  sign in again or the CLI's login command.
+  sign in again, or **Sign in**, which opens a terminal with the CLI's own login.
 - **Native everywhere.** A GNOME Shell extension, a KDE Plasma 6 widget, a GTK 4 tray app for every
   other Linux desktop and a SwiftUI menu-bar app with the same popup: spend donut, limits with pace,
   30-day trend and model breakdown. Plus a CLI, a Waybar module and `headroom guard` for scripts.
@@ -366,6 +368,10 @@ headroom accounts add openrouter            # asks for the API key without echoi
 headroom accounts add zai --api-key-stdin < key.txt
 ```
 
+A Codex or Claude account added this way gets its usage history, spend and live refresh from the
+CLI's own logs (`~/.codex`, `~/.claude`) when that CLI is signed in to the same account and is not
+listed as an account of its own.
+
 ### CLI
 
 ```text
@@ -398,7 +404,8 @@ headroom diagnostics                 # versions, platform and account health for
 ```
 
 Without a running daemon, `status` shows the last cached data and `spend` reads the daemon's
-database directly.
+database directly. Every command that prints exits quietly when its output is closed, so
+`headroom waybar | head -1` prints no "Broken pipe".
 
 ### Waybar
 
@@ -503,8 +510,8 @@ option is stored by the daemon, so the popup, the panel, Waybar and the CLI alwa
 
 | Tab | What you set |
 | --- | --- |
-| **General** | Theme, language, density (normal or compact), 12/24-hour time, translucency, reduced motion; what the panel shows and where (below); spend period, unit and breakdown (models, projects or hidden); popup sections and combined accounts; starred cards and "on demand" folding; refresh interval and faster refresh while coding tools run; privacy (hide numbers while sharing the screen, update checks, provider status pages); the global shortcut |
-| **Accounts** | Add, sign in again, rename, reorder, hide single limits, hide or remove accounts |
+| **General** | Theme, language, density (normal or compact), 12/24-hour time, translucency, reduced motion; what the panel shows and where (below); spend period, unit and breakdown (models or projects) and **Show models and projects**; popup sections and combined accounts; starred cards and folding every unstarred account into one "N more" row; refresh interval and faster refresh while coding tools run; privacy (hide numbers while sharing the screen, update checks, provider status pages); the global shortcut |
+| **Accounts** | A list of accounts with a details pane, as on macOS: add, sign in again, rename, star, reorder, hide single limits, hide or remove accounts |
 | **Notifications** | Almost out, cutting it close, will run out, limit reset; the "almost out" threshold (5, 10, 20 or 30 % left) and per-provider overrides; quiet hours with an exception for critical alerts |
 | **Advanced** | Service status, log level, log file (Copy path, Open folder), Copy diagnostics, Reset all settings… (accounts are kept) |
 
