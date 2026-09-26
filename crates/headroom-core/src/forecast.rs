@@ -1,5 +1,6 @@
 use jiff::{SignedDuration, Timestamp};
 
+use crate::calibration::{Observed, SpendPoint, calibrate};
 use crate::history::{UsageSample, current_samples};
 use crate::pace::{Basis, Pace, Severity, Timing, classify, is_spent, is_tracked, pace};
 use crate::pace_rate::{Cadence, last_active_rate, recent_rate};
@@ -28,8 +29,26 @@ pub struct Activity<'a> {
     pub observed_at: Timestamp,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Evidence<'a> {
+    samples: &'a [UsageSample],
+    spend: &'a [SpendPoint],
+    cadence: Cadence,
+    observed_at: Timestamp,
+}
+
 #[must_use]
 pub fn forecast(window: &QuotaWindow, activity: Activity<'_>, now: Timestamp) -> Pace {
+    forecast_with_spend(window, activity, &[], now)
+}
+
+#[must_use]
+pub fn forecast_with_spend(
+    window: &QuotaWindow,
+    activity: Activity<'_>,
+    spend: &[SpendPoint],
+    now: Timestamp,
+) -> Pace {
     let average = pace(window, now);
     let Some(timing) = Timing::of(window, now).filter(|t| !t.young) else {
         return average;
@@ -45,10 +64,47 @@ pub fn forecast(window: &QuotaWindow, activity: Activity<'_>, now: Timestamp) ->
     if timing.period > RECENT_MAX_PERIOD {
         return average;
     }
-    match recent_rate(samples, cadence, now) {
-        Some(rate) => recent(window, &average, timing, rate, now),
-        None => average,
-    }
+    let evidence = Evidence {
+        samples,
+        spend,
+        cadence,
+        observed_at: activity.observed_at,
+    };
+    let live = activity.signal.liveness == Liveness::Live;
+    live.then(|| spend_forecast(window, &average, timing, evidence, now))
+        .flatten()
+        .or_else(|| {
+            recent_rate(samples, cadence, now)
+                .map(|rate| recent(window, window.used, &average, timing, rate, now))
+        })
+        .unwrap_or(average)
+}
+
+fn spend_forecast(
+    window: &QuotaWindow,
+    average: &Pace,
+    timing: Timing,
+    evidence: Evidence<'_>,
+    now: Timestamp,
+) -> Option<Pace> {
+    let calibration = calibrate(evidence.samples, evidence.spend)?;
+    let from = now
+        .checked_sub(evidence.cadence.lookback())
+        .ok()?
+        .max(timing.start);
+    let rate = calibration.rate(evidence.spend, from, now)?;
+    let changed_at = evidence
+        .samples
+        .last()
+        .filter(|last| last.used == window.used)
+        .map_or(evidence.observed_at, |last| last.at);
+    let observed = Observed {
+        used: window.used,
+        changed_at,
+        observed_at: evidence.observed_at,
+    };
+    let used = calibration.estimate_used(observed, evidence.spend, now);
+    Some(recent(window, used, average, timing, rate, now))
 }
 
 fn is_paused(
@@ -76,11 +132,17 @@ fn paused(window: &QuotaWindow, average: Pace, samples: &[UsageSample], cadence:
     }
 }
 
-fn recent(window: &QuotaWindow, average: &Pace, timing: Timing, rate: f64, now: Timestamp) -> Pace {
-    let used = window.used.value();
+fn recent(
+    window: &QuotaWindow,
+    estimated: Percent,
+    average: &Pace,
+    timing: Timing,
+    rate: f64,
+    now: Timestamp,
+) -> Pace {
     let left = timing.reset.duration_since(now).as_secs_f64();
-    let projected = used + rate * left;
-    let Some(severity) = classify(used, projected) else {
+    let projected = estimated.value() + rate * left;
+    let Some(severity) = classify(window.used.value(), projected) else {
         return Pace {
             severity: Severity::Untracked,
             projected: None,
@@ -89,7 +151,7 @@ fn recent(window: &QuotaWindow, average: &Pace, timing: Timing, rate: f64, now: 
             ..*average
         };
     };
-    let runs_out_at = duration_at(window.used.remaining().value(), rate)
+    let runs_out_at = duration_at(estimated.remaining().value(), rate)
         .and_then(|span| now.checked_add(span).ok())
         .filter(|at| *at < timing.reset);
     Pace {
@@ -109,3 +171,7 @@ fn duration_at(remaining: f64, rate: f64) -> Option<SignedDuration> {
 #[cfg(test)]
 #[path = "forecast_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "forecast_spend_tests.rs"]
+mod spend_tests;

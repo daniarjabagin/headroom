@@ -534,6 +534,13 @@ Basis:
   observations further apart than the idle threshold are skipped, the lookback is `period / 6` of
   active time (30 min to 4 h, 50 min for a 5-hour window), and a step that is overdue slows the rate
   down. `projected_percent = used + rate × time to reset`, `runs_out_at = now + remaining / rate`.
+  Between refreshes a live Codex or Claude account with local logs refines this from its token
+  spend: once the window's recent percent steps and the cost of the logged usage between them give
+  a ratio (at least 3 percent and $0.10), `used` in these formulas is the provider's percent plus the
+  ratio times the spend since the last change (at most one step above what the last refresh showed,
+  never above 100), and the rate is the ratio times the spend of the lookback. The forecast then
+  follows a burst within seconds of the log write; `used_percent` and `remaining_percent` stay
+  exactly the provider's numbers.
 - `window` — the 0.6.0 window average, `projected_percent = used / elapsed share`, `runs_out_at =
   start + elapsed × 100 / used`. Used when there is not enough recent history, and always (unless
   `paused`) for windows longer than 24 hours: a weekly window is forecast from its average.

@@ -5,6 +5,7 @@ pub mod report;
 pub mod share;
 pub mod summary;
 mod watcher;
+pub mod weighted;
 
 pub(crate) use watcher::is_relevant;
 

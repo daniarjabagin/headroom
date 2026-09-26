@@ -5,6 +5,7 @@ use jiff::Timestamp;
 use jiff::civil::Date;
 
 use super::summary::summarize;
+use super::weighted::recent_spend;
 use crate::activity;
 use crate::core::Core;
 use crate::error::StorageError;
@@ -60,11 +61,17 @@ pub async fn refresh_summary(core: &Core, home: &UsageHome) -> Result<(), Storag
     let prices = Arc::clone(&core.price_book);
     let tz = core.tz.clone();
     let key = home.clone();
-    let summary = core
+    let (summary, spend) = core
         .storage
-        .run(move |conn| summarize(conn, &key, prices.as_ref(), &tz, now))
+        .run(move |conn| {
+            let summary = summarize(conn, &key, prices.as_ref(), &tz, now)?;
+            Ok((summary, recent_spend(conn, &key, prices.as_ref(), now)?))
+        })
         .await?;
-    core.model().usage.insert(home.clone(), summary);
+    let mut model = core.model();
+    model.usage.insert(home.clone(), summary);
+    model.history.set_spend(home, spend);
+    drop(model);
     core.mark_changed();
     Ok(())
 }

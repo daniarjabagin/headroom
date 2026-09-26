@@ -2,20 +2,24 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use headroom_core::account::{AccountId, AccountRef};
+use headroom_core::calibration::SpendPoint;
 use headroom_core::forecast::{Liveness, Signal};
 use headroom_core::history::{SampleStep, UsageSample, is_retained, observed_at, sample_step};
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
 use jiff::Timestamp;
 
+use crate::home::UsageHome;
 use crate::model::{Model, window_key};
 use crate::scheduler::policy;
 use crate::storage::samples::SampleRow;
+use crate::usage::weighted::merge_spend;
 
 pub type WindowSamples = BTreeMap<String, Vec<UsageSample>>;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct QuotaHistory {
     accounts: HashMap<AccountId, Arc<WindowSamples>>,
+    spend: HashMap<UsageHome, Arc<[SpendPoint]>>,
 }
 
 impl QuotaHistory {
@@ -49,6 +53,19 @@ impl QuotaHistory {
         self.accounts.get(id).cloned()
     }
 
+    pub fn set_spend(&mut self, home: &UsageHome, points: Vec<SpendPoint>) {
+        self.spend.insert(home.clone(), points.into());
+    }
+
+    #[must_use]
+    pub fn spend_of(&self, homes: &[UsageHome]) -> Vec<SpendPoint> {
+        merge_spend(
+            homes
+                .iter()
+                .filter_map(|home| self.spend.get(home).map(AsRef::as_ref)),
+        )
+    }
+
     fn prune(&mut self, now: Timestamp) {
         for windows in self.accounts.values_mut() {
             if has_expired(windows, now) {
@@ -72,6 +89,18 @@ impl Model {
             liveness,
             poll_interval: policy::effective_interval(&self.settings, live),
         }
+    }
+
+    #[must_use]
+    pub fn account_spend(&self, account: &AccountRef) -> Vec<SpendPoint> {
+        let homes: Vec<UsageHome> = std::iter::once(account.home.clone())
+            .chain(self.linked_log_homes(account))
+            .map(|home| UsageHome {
+                provider: account.provider.clone(),
+                home,
+            })
+            .collect();
+        self.history.spend_of(&homes)
     }
 }
 
