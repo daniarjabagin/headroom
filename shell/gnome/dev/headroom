@@ -86,6 +86,12 @@ def remove(args):
     return 0
 
 
+def login(args):
+    record({"argv": sys.argv[1:]})
+    print(f"Opening a terminal to sign in to {args.id} again")
+    return 0
+
+
 UPDATE_STEPS = ["Checking for a new release…", "Downloading Headroom 0.5.0…", "Verifying the checksum…", "Unpacking…",
                 "Installing /home/ada/.local/bin/headroom"]
 
@@ -104,7 +110,8 @@ def update(_args):
 def run(args):
     if args.command == "update":
         return update(args)
-    return add(args) if args.action == "add" else remove(args)
+    actions = {"add": add, "remove": remove, "login": login}
+    return actions[args.action](args)
 
 
 def main():
@@ -120,6 +127,8 @@ def main():
     remove_parser.add_argument("id")
     remove_parser.add_argument("--yes", action="store_true")
     remove_parser.add_argument("--progress", choices=["json"])
+    login_parser = accounts.add_parser("login")
+    login_parser.add_argument("id")
     update_parser = commands.add_parser("update")
     update_parser.add_argument("--yes", action="store_true")
     update_parser.add_argument("--progress", choices=["json"])

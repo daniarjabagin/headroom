@@ -3,7 +3,6 @@ import { compactTokens, compactTokensText, exactTokens, usd } from './numbers.js
 import { seriesKey } from './providers.js';
 
 const PERMILLE = 1000;
-const TOP_MODELS = 5;
 const DASH = '—';
 
 function costText(model) {
@@ -74,71 +73,56 @@ function byMeasure(measure) {
         b[measure] - a[measure] || b.totalTokens - a.totalTokens || (a.name ?? '').localeCompare(b.name ?? '');
 }
 
-function flatModels(period) {
-    return period.providers.flatMap(spend =>
-        spend.models.map(model => ({
-            name: model.model,
-            costMicros: model.costMicros,
-            totalTokens: model.totalTokens,
-            partial: model.partial,
-            costPerMtokMicros: model.costPerMtokMicros ?? null,
-            parts: [
-                { series: seriesKey(spend.provider), costMicros: model.costMicros, totalTokens: model.totalTokens },
-            ],
-        }))
-    );
+function modelEntry(model, series) {
+    return {
+        name: model.model,
+        costMicros: model.costMicros,
+        totalTokens: model.totalTokens,
+        partial: model.partial,
+        costPerMtokMicros: model.costPerMtokMicros,
+        parts: [{ series, costMicros: model.costMicros, totalTokens: model.totalTokens }],
+    };
+}
+
+function daemonModels(period) {
+    return {
+        listed: period.models.map(model => modelEntry(model, seriesKey(model.provider))),
+        other: period.modelsOther ? { ...period.modelsOther, parts: [] } : null,
+    };
+}
+
+function otherPart(spend) {
+    const other = spend.modelsOther;
+    return { series: seriesKey(spend.provider), costMicros: other.costMicros, totalTokens: other.totalTokens };
 }
 
 function providerOthers(period) {
-    return period.providers
-        .filter(spend => spend.modelsOther !== null)
-        .map(spend => ({ series: seriesKey(spend.provider), ...spend.modelsOther }));
-}
-
-function addPart(parts, part) {
-    const found = parts.find(entry => entry.series === part.series);
-    if (!found) return [...parts, { series: part.series, costMicros: part.costMicros, totalTokens: part.totalTokens }];
-    return parts.map(entry =>
-        entry === found
-            ? {
-                  ...entry,
-                  costMicros: entry.costMicros + part.costMicros,
-                  totalTokens: entry.totalTokens + part.totalTokens,
-              }
-            : entry
-    );
-}
-
-function restPiece(model) {
-    return { ...model.parts[0], count: 1, partial: model.partial, costPerMtokMicros: model.costPerMtokMicros };
-}
-
-function foldedRate(pieces) {
-    return pieces.length === 1 ? (pieces[0].costPerMtokMicros ?? null) : null;
-}
-
-function foldedModels(rest, others) {
-    const pieces = [...rest.map(restPiece), ...others];
-    if (pieces.length === 0) return null;
-    const costMicros = pieces.reduce((sum, piece) => sum + piece.costMicros, 0);
-    const totalTokens = pieces.reduce((sum, piece) => sum + piece.totalTokens, 0);
-    const partial = pieces.some(piece => piece.partial);
+    const withOther = period.providers.filter(spend => spend.modelsOther !== null);
+    if (withOther.length === 0) return null;
+    const others = withOther.map(spend => spend.modelsOther);
     return {
-        count: pieces.reduce((sum, piece) => sum + piece.count, 0),
-        costMicros,
-        totalTokens,
-        partial,
-        costPerMtokMicros: foldedRate(pieces),
-        parts: pieces.reduce(addPart, []),
+        count: others.reduce((sum, other) => sum + other.count, 0),
+        costMicros: others.reduce((sum, other) => sum + other.costMicros, 0),
+        totalTokens: others.reduce((sum, other) => sum + other.totalTokens, 0),
+        partial: others.some(other => other.partial),
+        costPerMtokMicros: null,
+        parts: withOther.map(otherPart),
     };
+}
+
+function providerModels(period) {
+    const listed = period.providers.flatMap(spend =>
+        spend.models.map(model => modelEntry(model, seriesKey(spend.provider)))
+    );
+    return { listed, other: providerOthers(period) };
 }
 
 export function modelsTable(period, unit) {
     const measure = shareMeasure(period, unit);
     const shareOfPeriod = entry => sharePermille(entry[measure], period[measure]);
-    const sorted = flatModels(period).sort(byMeasure(measure));
-    const other = foldedModels(sorted.slice(TOP_MODELS), providerOthers(period));
-    const listed = sorted.slice(0, TOP_MODELS);
+    const fromDaemon = Array.isArray(period.models);
+    const { listed, other } = fromDaemon ? daemonModels(period) : providerModels(period);
+    if (!fromDaemon || measure === 'totalTokens') listed.sort(byMeasure(measure));
     const rows = listed.map(model => ({ ...model, sharePermille: shareOfPeriod(model), other: null }));
     if (other) rows.push({ ...other, name: _('Other'), sharePermille: shareOfPeriod(other), other: other.count });
     return { rows, count: listed.length + (other?.count ?? 0) };

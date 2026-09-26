@@ -1,6 +1,6 @@
 import { _ } from '../i18n.js';
 import { displayPatch, supports06 } from '../settings.js';
-import { breakdownPatch, breakdownSetting } from './breakdownSetting.js';
+import { hasBreakdownSetting } from './breakdownSetting.js';
 import { comboRow, group, switchRow } from './rows.js';
 
 const SECTIONS = [
@@ -13,11 +13,6 @@ export class SpendRows {
     constructor(client) {
         this._client = client;
         this._rows = this._spendRows();
-        this._breakdown = switchRow({
-            title: _('Show models and projects'),
-            subtitle: _('Top models and projects under the spend ring'),
-            onChange: value => client.updateSettings(breakdownPatch(value)),
-        });
         this._sections = SECTIONS.map(([key, title, subtitle]) =>
             switchRow({ title: title(), subtitle: subtitle(), onChange: this._display(key) })
         );
@@ -25,7 +20,7 @@ export class SpendRows {
         this.groups = [
             group(_('Spend'), [
                 rows.showSpend.row,
-                this._breakdown.row,
+                rows.showBreakdown.row,
                 rows.spendPeriod.row,
                 rows.spendUnit.row,
                 rows.spendBreakdown.row,
@@ -43,9 +38,7 @@ export class SpendRows {
         SECTIONS.forEach(([key], index) => this._sections[index].set(display[key]));
         const supported = supports06(state);
         for (const key of ['spendPeriod', 'spendUnit', 'spendBreakdown']) this._rows[key].row.visible = supported;
-        const breakdown = breakdownSetting(this._client.rawSettings);
-        this._breakdown.set(breakdown.shown);
-        this._breakdown.row.visible = breakdown.supported;
+        this._rows.showBreakdown.row.visible = hasBreakdownSetting(this._client.rawSettings);
     }
 
     _display(key) {
@@ -59,6 +52,17 @@ export class SpendRows {
                 subtitle: _('Spend ring for all tools at the top of the popup'),
                 onChange: this._display('showSpend'),
             }),
+            showBreakdown: switchRow({
+                title: _('Show models and projects'),
+                subtitle: _('Top models and projects under the spend ring'),
+                onChange: this._display('showBreakdown'),
+            }),
+            ...this._choiceRows(),
+        };
+    }
+
+    _choiceRows() {
+        return {
             spendPeriod: comboRow({
                 title: _('Default period'),
                 subtitle: _('The tab the spend ring opens on'),

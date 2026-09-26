@@ -89,9 +89,7 @@ def merge_models(groups):
 
 
 def rest_rate(rest):
-    if any(model["partial"] for model in rest):
-        return None
-    return cost_per_mtok(sum(model["cost_usd_micros"] for model in rest), sum(model["total_tokens"] for model in rest))
+    return cost_per_mtok(sum(model["cost_usd_micros"] for model in rest), priced_tokens(rest))
 
 
 def models_other(rest):
@@ -111,6 +109,13 @@ def with_top_models(entry):
     if len(models) <= TOP_MODELS + 1:
         return {**entry, "models_other": None}
     return {**entry, "models": models[:TOP_MODELS], "models_other": models_other(models[TOP_MODELS:])}
+
+
+def provider_models(rows):
+    models = [{"provider": row["provider"], "provider_name": row["provider_name"]} | model
+              for row in rows for model in row["models"]]
+    return sorted(models, key=lambda model: (-model["cost_usd_micros"], -model["total_tokens"], model["model"],
+                                             model["provider"]))
 
 
 def daily(now, seed, scale):
@@ -227,6 +232,7 @@ def period_spend(usage, period):
         "partial": any(row["partial"] for row in rows),
         "cost_per_mtok_usd_micros": cost_per_mtok(cost, sum(priced_tokens(row["models"]) for row in rows)),
         "by_provider": [with_top_models(row) for row in rows],
+        **with_top_models({"models": provider_models(rows)}),
         "projects": with_shares(projects[:listed], cost, total),
         "projects_other": folded_projects(projects[listed:], cost, total),
     }

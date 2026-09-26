@@ -163,7 +163,7 @@ function testSampleUsage() {
         totalTokens: 2_182_045,
         costMicros: 964_000,
         partial: true,
-        costPerMtokMicros: null,
+        costPerMtokMicros: 544_619,
     });
     check('totals models', claudeMonth.models.length, 5);
     const summed = claudeMonth.models.reduce((sum, entry) => sum + entry.totalTokens, 0);

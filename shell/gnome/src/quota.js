@@ -27,8 +27,8 @@ export function tickPosition(window, display) {
     return display.valueMode === 'used' ? even / 100 : 1 - even / 100;
 }
 
-function combinedEstimate(window) {
-    return isPooled(window) && window.pace.runsOutAt === null;
+function noCountdown(window) {
+    return window.pace.basis === 'paused' || (isPooled(window) && window.pace.runsOutAt === null);
 }
 
 export function paceNote(window, now, showForecast) {
@@ -37,7 +37,7 @@ export function paceNote(window, now, showForecast) {
     if (severity === 'running_out')
         return {
             flame: true,
-            text: showForecast || combinedEstimate(window) ? _('Over pace') : limitText(runsOutAt, now),
+            text: showForecast || noCountdown(window) ? _('Over pace') : limitText(runsOutAt, now),
         };
     if (severity === 'close' && sparePercent !== null && !showForecast)
         return { flame: false, text: spareText(sparePercent) };

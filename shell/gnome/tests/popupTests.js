@@ -115,24 +115,25 @@ function testSpendUnitsView() {
 
 function testBreakdownTables() {
     const models = modelsTable(PERIOD, 'cost');
-    check('models sorted across providers', models.rows.map(row => row.name).slice(0, 5), [
+    check('old daemon lists every provider model', models.rows.map(row => row.name).slice(0, 6), [
         'opus',
         'gpt-5',
         'sonnet',
         'mini',
         'nano',
+        'o4',
     ]);
-    const other = models.rows[5];
+    const other = models.rows[6];
     check(
-        'other folds the rest and provider others',
-        [other.other, other.costMicros, other.totalTokens],
-        [3, 2_000_000, 2_000_000]
+        'old daemon other sums provider others without a rate',
+        [other.other, other.costMicros, other.totalTokens, other.costPerMtokMicros],
+        [2, 1_000_000, 1_000_000, null]
     );
     check('model count', models.count, 8);
     check(
         'model shares',
         models.rows.map(row => row.sharePermille),
-        [400, 300, 200, 50, 30, 20]
+        [400, 300, 200, 50, 30, 10, 10]
     );
     const projects = projectsTable(PERIOD, 'cost');
     check(

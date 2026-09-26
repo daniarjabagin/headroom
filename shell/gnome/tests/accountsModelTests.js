@@ -1,5 +1,5 @@
 import { setLanguage } from '../src/i18n.js';
-import { parseDisplay } from '../src/settings.js';
+import { displayPatch, parseDisplay } from '../src/settings.js';
 import {
     accountMark,
     canMove,
@@ -10,7 +10,7 @@ import {
     sidebarEntries,
     sidebarTitle,
 } from '../src/prefs/accountsModel.js';
-import { breakdownPatch, breakdownSetting } from '../src/prefs/breakdownSetting.js';
+import { hasBreakdownSetting } from '../src/prefs/breakdownSetting.js';
 import { check } from './check.js';
 
 function window(id, tone) {
@@ -95,10 +95,10 @@ function testOrdering() {
 }
 
 function testBreakdownSetting() {
-    check('old daemon lacks the key', breakdownSetting({ display: {} }), { supported: false, shown: true });
-    check('no settings', breakdownSetting(null), { supported: false, shown: true });
-    check('stored off', breakdownSetting({ display: { show_breakdown: false } }), { supported: true, shown: false });
-    check('patch', breakdownPatch(true), { display: { show_breakdown: true } });
+    check('old daemon lacks the key', hasBreakdownSetting({ display: {} }), false);
+    check('no settings', hasBreakdownSetting(null), false);
+    check('stored off', hasBreakdownSetting({ display: { show_breakdown: false } }), true);
+    check('patch', displayPatch({ showBreakdown: false }), { display: { show_breakdown: false } });
 }
 
 export function testAccountsModel() {

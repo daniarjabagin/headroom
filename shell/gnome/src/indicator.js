@@ -14,6 +14,7 @@ import { isLightPanel, panelLayout } from './panelContent.js';
 import { PanelDrag } from './panelDrag.js';
 import { PanelItemsView } from './panelItemsView.js';
 import { PanelPlacement } from './panelPlacement.js';
+import { LoginLauncher } from './popup/loginLauncher.js';
 import { PopupView } from './popup/popup.js';
 import { Privacy } from './privacy.js';
 import { startService } from './service.js';
@@ -61,6 +62,7 @@ export const Indicator = GObject.registerClass(
             this._privacy = new Privacy();
             this._privacy.connect('changed', () => this._render());
             this._shortcut = new GlobalShortcut(() => this.menu.toggle());
+            this._login = new LoginLauncher(message => Main.notifyError(_("Couldn't start sign-in"), message));
             this._popup = this._createPopup();
             this._updater = new UpdateRunner(run => this._popup.setUpdateRun(run));
             this.menu.actor.add_style_class_name('headroom-menu');
@@ -111,6 +113,7 @@ export const Indicator = GObject.registerClass(
                     copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text),
                     openPreferences: () => this._openPreferences(),
                     openUrl: url => this._openUrl(url),
+                    signIn: accountId => this._signIn(accountId),
                     installUpdate: () => this._updater.start(),
                     startService: () => this._startService(),
                     showNumbersAnyway: () => this._privacy.showAnyway(),
@@ -253,6 +256,11 @@ export const Indicator = GObject.registerClass(
             }
         }
 
+        _signIn(accountId) {
+            this.menu.close();
+            this._login.launch(accountId);
+        }
+
         async _startService() {
             this._setView({ kind: 'unavailable', state: null, starting: true });
             try {
@@ -271,6 +279,7 @@ export const Indicator = GObject.registerClass(
             this._drag?.destroy();
             this.disconnect(this._styleChangedId);
             this._shortcut.destroy();
+            this._login.destroy();
             this._privacy.destroy();
             this._panelView.destroy();
             this.menu.disconnect(this._menuToggledId);
