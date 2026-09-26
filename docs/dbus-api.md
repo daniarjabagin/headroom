@@ -74,7 +74,9 @@ Refresh semantics:
   The watched set is re-evaluated every 5 s; healthy accounts are not watched. A CLI-owned account is
   watched in its own directory, also when that is not the CLI's default (a custom `CLAUDE_CONFIG_DIR`,
   `CODEX_HOME` or `$XDG_DATA_HOME/<tool>`). Sign-ins stored only in
-  the macOS Keychain produce no file events and are not watched.
+  the macOS Keychain produce no file events and are not watched. Accounts kept by a desktop app
+  rather than a CLI (the Devin app's account in `~/.config/Devin/User/globalStorage`) are not
+  watched either; they recover on the next backoff refresh (1, 2, 4 … 30 minutes) or on Retry.
 
 ### Rescan semantics
 
@@ -1653,8 +1655,13 @@ login (`claude auth login --claudeai`, `codex login`, …) and returns. The term
 Terminal (`open -a Terminal` with a one-shot `.command` script). The login runs through `env`: for the
 CLI's default directory (`~/.claude`, `~/.codex`, …) with the home variable removed, for any other
 directory with it set (`CLAUDE_CONFIG_DIR=<home>`, `CODEX_HOME=<home>`, `XDG_DATA_HOME=<base>`), so
-the CLI signs in exactly where Headroom reads the account. The window waits for Enter after the login
-ends. `login` prints which terminal it opened (to stderr with `--progress json`, followed by `done`
+the CLI signs in exactly where Headroom reads the account. `GH_CONFIG_DIR` is set even for
+`~/.config/gh`, since without it `gh` would follow a session's `XDG_CONFIG_HOME` elsewhere. The login
+runs in the user's `$SHELL` (else `/bin/sh`) as a login and interactive shell (`-l -i -c`), so the
+`PATH` from `.zshrc`/`.bashrc` (nvm, npm-global, bun, `~/.local/bin`) finds the CLI; for other shells
+(fish, …) the window takes that shell's `PATH` and runs the login under `/bin/sh`. A CLI still not on
+`PATH` is reported in the window ("claude not found in PATH — install it or run `…` yourself"). The
+window waits for Enter after the login ends. `login` prints which terminal it opened (to stderr with `--progress json`, followed by `done`
 with the account id); the account turns fresh when the credential watcher sees the CLI's new file.
 Without a usable terminal it fails, naming the command to run by hand, e.g. "No terminal found to
 sign claude:… in again; run `claude auth login --claudeai` in a terminal yourself".

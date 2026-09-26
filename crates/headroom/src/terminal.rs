@@ -10,8 +10,26 @@ use anyhow::{Context, Result, bail};
 
 const LAUNCH_GRACE: Duration = Duration::from_millis(1500);
 const LAUNCH_POLL: Duration = Duration::from_millis(50);
-const HOLD_SCRIPT: &str = "\"$@\"; status=$?; printf '\\n%s' 'Press Enter to close this window. '; \
-                           read -r _; exit \"$status\"";
+const HOLD_SCRIPT: &str = r#"program=$1; display=$2; shift 2
+if command -v "$program" >/dev/null 2>&1; then
+  "$@"; code=$?
+else
+  printf '%s not found in PATH — install it or run `%s` yourself\n' "$program" "$display"
+  code=127
+fi
+printf '\n%s' 'Press Enter to close this window. '
+read -r answer
+exit "$code""#;
+const LAUNCH_SCRIPT: &str = r#"hold=$1; shift
+shell=${SHELL:-/bin/sh}
+[ -x "$shell" ] || shell=/bin/sh
+case ${shell##*/} in
+  sh|bash|zsh|dash|ksh|mksh|yash) exec "$shell" -l -i -c "$hold" sh "$@" ;;
+esac
+found=$("$shell" -l -i -c 'printf "\nheadroom-path=%s\n" "$PATH"' </dev/null 2>/dev/null |
+  sed -n 's/^headroom-path=//p' | tail -n 1)
+if [ -n "$found" ]; then PATH=$found; export PATH; fi
+exec /bin/sh -c "$hold" sh "$@""#;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Style {
@@ -35,6 +53,25 @@ const KNOWN: [(&str, Style); 10] = [
     ("xterm", Style::DashE),
 ];
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalCommand {
+    pub program: OsString,
+    pub argv: Vec<OsString>,
+    pub display: String,
+}
+
+impl TerminalCommand {
+    fn launch_args(&self) -> impl Iterator<Item = OsString> + '_ {
+        [
+            OsString::from(HOLD_SCRIPT),
+            self.program.clone(),
+            OsString::from(&self.display),
+        ]
+        .into_iter()
+        .chain(self.argv.iter().cloned())
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Terminals {
     pub search_path: Option<OsString>,
@@ -54,14 +91,14 @@ impl Terminals {
         }
     }
 
-    pub fn open(&self, command: &[OsString]) -> Result<Option<Opened>> {
+    pub fn open(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
         if cfg!(target_os = "macos") {
             return open_macos_terminal(command).map(Some);
         }
         self.open_linux_terminal(command)
     }
 
-    fn open_linux_terminal(&self, command: &[OsString]) -> Result<Option<Opened>> {
+    fn open_linux_terminal(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
         let mut failures = Vec::new();
         for (terminal, style) in self.candidates() {
             match launch(&terminal, style, command) {
@@ -121,11 +158,11 @@ fn is_executable(path: &Path) -> bool {
         .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
 }
 
-fn terminal_args(style: Style, command: &[OsString]) -> Vec<OsString> {
-    let held = ["sh", "-c", HOLD_SCRIPT, "sh"]
+fn terminal_args(style: Style, command: &TerminalCommand) -> Vec<OsString> {
+    let held = ["sh", "-c", LAUNCH_SCRIPT, "sh"]
         .into_iter()
         .map(OsString::from)
-        .chain(command.iter().cloned());
+        .chain(command.launch_args());
     let lead: &[&str] = match style {
         Style::Trailing => &[],
         Style::DashE => &["-e"],
@@ -136,7 +173,7 @@ fn terminal_args(style: Style, command: &[OsString]) -> Vec<OsString> {
     lead.iter().map(OsString::from).chain(held).collect()
 }
 
-fn launch(terminal: &Path, style: Style, command: &[OsString]) -> Result<()> {
+fn launch(terminal: &Path, style: Style, command: &TerminalCommand) -> Result<()> {
     let mut child = Command::new(terminal)
         .args(terminal_args(style, command))
         .stdin(Stdio::null())
@@ -156,7 +193,7 @@ fn launch(terminal: &Path, style: Style, command: &[OsString]) -> Result<()> {
     Ok(())
 }
 
-fn open_macos_terminal(command: &[OsString]) -> Result<Opened> {
+fn open_macos_terminal(command: &TerminalCommand) -> Result<Opened> {
     let script = command_script(command)?;
     let file = tempfile::Builder::new()
         .prefix("headroom-sign-in-")
@@ -165,11 +202,19 @@ fn open_macos_terminal(command: &[OsString]) -> Result<Opened> {
         .context("could not create the sign-in script")?;
     std::fs::write(file.path(), script).context("could not write the sign-in script")?;
     let (_, path) = file.keep().context("could not keep the sign-in script")?;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))
+    let opened = run_in_macos_terminal(&path);
+    if opened.is_err() {
+        let _ = std::fs::remove_file(&path);
+    }
+    opened
+}
+
+fn run_in_macos_terminal(script: &Path) -> Result<Opened> {
+    std::fs::set_permissions(script, std::fs::Permissions::from_mode(0o700))
         .context("could not make the sign-in script runnable")?;
     let terminal = PathBuf::from("/usr/bin/open");
     let status = Command::new(&terminal)
-        .args([OsStr::new("-a"), OsStr::new("Terminal"), path.as_os_str()])
+        .args([OsStr::new("-a"), OsStr::new("Terminal"), script.as_os_str()])
         .status()
         .context("could not run open")?;
     if !status.success() {
@@ -178,13 +223,16 @@ fn open_macos_terminal(command: &[OsString]) -> Result<Opened> {
     Ok(Opened { terminal })
 }
 
-fn command_script(command: &[OsString]) -> Result<String> {
+fn command_script(command: &TerminalCommand) -> Result<String> {
     let words = command
-        .iter()
+        .launch_args()
         .map(|word| word.to_str().map(shell_quote))
         .collect::<Option<Vec<_>>>()
         .context("the sign-in command is not valid UTF-8")?;
-    Ok(format!("#!/bin/sh\nrm -f \"$0\"\n{}\n", words.join(" ")))
+    Ok(format!(
+        "#!/bin/sh\nrm -f \"$0\"\nset -- {}\n{LAUNCH_SCRIPT}\n",
+        words.join(" ")
+    ))
 }
 
 pub fn shell_quote(word: &str) -> String {

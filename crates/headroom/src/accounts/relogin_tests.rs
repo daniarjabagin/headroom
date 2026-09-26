@@ -68,3 +68,33 @@ fn another_identity_in_the_home_is_announced() {
          codex:0123456789ab; Headroom shows it as a new account."
     );
 }
+
+struct BrokenPipe;
+
+impl Write for BrokenPipe {
+    fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+        Err(io::ErrorKind::BrokenPipe.into())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Err(io::ErrorKind::BrokenPipe.into())
+    }
+}
+
+#[test]
+fn done_follows_a_terminal_sign_in_even_when_stderr_is_gone() {
+    let opened = TerminalOpened {
+        account_id: "claude:0123456789ab".into(),
+        terminal: PathBuf::from("/usr/bin/kgx"),
+        command: "claude auth login --claudeai".into(),
+    };
+    let mut out = JsonLines::new(Vec::new());
+    let relogged = finish_streamed(Ok(Relogged::InTerminal(opened)), BrokenPipe, &mut out).unwrap();
+    assert_eq!(relogged.account_id(), "claude:0123456789ab");
+    let lines = String::from_utf8(out.into_inner()).unwrap();
+    assert!(lines.starts_with("{\"event\":\"done\""), "{lines}");
+    assert!(
+        lines.contains("\"account_id\":\"claude:0123456789ab\""),
+        "{lines}"
+    );
+}
