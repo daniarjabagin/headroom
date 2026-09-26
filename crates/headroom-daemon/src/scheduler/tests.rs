@@ -172,9 +172,9 @@ async fn refresh_now_bypasses_the_minute_rule_and_shows_refreshing_at_once() {
 
 #[tokio::test]
 async fn refresh_now_keeps_rate_limit_holds_and_rechecks_lapses() {
-    let limited = Err(ProviderError::RateLimited {
-        retry_after: Some(SignedDuration::from_secs(120)),
-    });
+    let limited = Err(ProviderError::rate_limited(Some(
+        SignedDuration::from_secs(120),
+    )));
     let provider = Arc::new(ScriptedProvider::new(vec![limited, lapsed()]));
     let (harness, _scheduler) = start(&provider).await;
     eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Error).await;
@@ -218,9 +218,9 @@ async fn refreshing_a_signed_out_account_retries_it() {
 
 #[tokio::test]
 async fn refreshing_one_account_keeps_rate_limit_holds() {
-    let limited = Err(ProviderError::RateLimited {
-        retry_after: Some(SignedDuration::from_secs(120)),
-    });
+    let limited = Err(ProviderError::rate_limited(Some(
+        SignedDuration::from_secs(120),
+    )));
     let provider = Arc::new(ScriptedProvider::new(vec![limited]));
     let (harness, _scheduler) = start(&provider).await;
     eventually(|| provider.calls() == 1 && status(&harness) == AccountStatus::Error).await;
@@ -253,17 +253,18 @@ async fn failures_back_off_exponentially() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn rate_limits_honour_retry_after_then_resume_the_interval() {
-    let limited = Err(ProviderError::RateLimited {
-        retry_after: Some(SignedDuration::from_secs(120)),
-    });
-    let unspecified = Err(ProviderError::RateLimited { retry_after: None });
+async fn rate_limits_honour_retry_after_then_back_off_and_resume_the_interval() {
+    let limited = Err(ProviderError::rate_limited(Some(
+        SignedDuration::from_secs(120),
+    )));
+    let unspecified = Err(ProviderError::rate_limited(None));
     let provider = Arc::new(ScriptedProvider::new(vec![limited, unspecified]));
     let (harness, _scheduler) = start(&provider).await;
     eventually_virtual(|| provider.calls() == 4).await;
-    assert_eq!(provider.gaps(), [120, 300, 300]);
+    assert_eq!(provider.gaps(), [120, 600, 300]);
     let runtime = harness.core.model().runtime[&work_id()].clone();
     assert_eq!(runtime.failures, 0);
+    assert_eq!(runtime.rate_limits, 0);
     assert_eq!(runtime.hold_until, None);
 }
 

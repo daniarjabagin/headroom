@@ -68,7 +68,8 @@ fn first_delay(core: &Core, account: &AccountRef, first: FirstRefresh) -> Signed
                 .get(&account.id)
                 .map(|e| e.snapshot.fetched_at);
             let live = model.account_is_live(account, now);
-            let interval = policy::effective_interval(&model.settings, live);
+            let min_poll = core.catalog.min_poll_interval(&account.provider);
+            let interval = policy::provider_interval(&model.settings, live, min_poll);
             policy::initial_delay(fetched, now, interval)
         }
     };
@@ -85,7 +86,8 @@ fn live_deadline(core: &Core, account: &AccountRef, deadline: Instant) -> Instan
     if !policy::adaptive_live(&model.settings, live) {
         return deadline;
     }
-    let interval = policy::effective_interval(&model.settings, live);
+    let min_poll = core.catalog.min_poll_interval(&account.provider);
+    let interval = policy::provider_interval(&model.settings, live, min_poll);
     let Some(delay) = policy::live_delay(model.runtime.get(&account.id), interval, now) else {
         return deadline;
     };

@@ -76,6 +76,8 @@ const MESSAGES = {
     "Signed out of {provider}": "Выполнен выход из {provider}",
     "Sign in again through Headroom (Settings → Accounts → Add Account) or remove the account.": "Войдите снова через Headroom (Настройки → Аккаунты → Добавить аккаунт) или удалите аккаунт.",
     "Couldn't refresh {provider}": "Не удалось обновить {provider}",
+    "Provider is limiting requests": "Провайдер ограничил запросы",
+    "Provider is limiting requests · next try {time}": "Провайдер ограничил запросы · повтор в {time}",
     "Offline": "Нет сети",
     "Offline — last update {time}": "Нет сети — последнее обновление в {time}",
     "Service not running": "Служба не запущена",

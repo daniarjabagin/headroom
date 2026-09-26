@@ -60,9 +60,9 @@ async fn rate_limits_carry_retry_after() {
     let (_server, client) = serving("/api/v1/key", limited).await;
     assert_eq!(
         client.key("sk-or-v1-test", now()).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(120)
+        )))
     );
 }
 

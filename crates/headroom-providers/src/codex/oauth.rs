@@ -86,13 +86,37 @@ fn refresh_error(status: StatusCode, headers: &HeaderMap, now: Timestamp) -> Pro
         StatusCode::BAD_REQUEST | StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
             ProviderError::SignInExpired
         }
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: http::retry_after(headers, now),
-        },
+        StatusCode::TOO_MANY_REQUESTS => {
+            ProviderError::token_refresh_rate_limited(http::retry_after(headers, now))
+        }
         _ => ProviderError::Network(format!("token refresh returned HTTP {status}")),
     }
 }
 
 fn transport_error(error: reqwest::Error) -> ProviderError {
     ProviderError::Network(error.without_url().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use jiff::SignedDuration;
+    use reqwest::header::{HeaderValue, RETRY_AFTER};
+
+    use super::*;
+
+    #[test]
+    fn a_limited_token_refresh_says_so() {
+        let now: Timestamp = "2026-09-23T10:00:00Z".parse().unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(RETRY_AFTER, HeaderValue::from_static("90"));
+        let error = refresh_error(StatusCode::TOO_MANY_REQUESTS, &headers, now);
+        assert_eq!(
+            error,
+            ProviderError::token_refresh_rate_limited(Some(SignedDuration::from_secs(90)))
+        );
+        assert_eq!(
+            error.to_string(),
+            "token refresh rate limited by the provider"
+        );
+    }
 }

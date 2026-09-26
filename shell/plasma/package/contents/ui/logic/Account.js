@@ -1,6 +1,7 @@
 .pragma library
 
 .import "DaemonText.js" as DaemonText
+.import "FormatTime.js" as FormatTime
 .import "I18n.js" as I18n
 .import "Recovery.js" as Recovery
 .import "State.js" as State
@@ -22,8 +23,23 @@ function statusSlot(account, offline) {
     return "";
 }
 
+function isQuietlyLimited(account) {
+    return account.error?.kind === "rate_limited" && (account.updatedAt ?? null) !== null;
+}
+
+function rateLimitNote(lang, account, timeFormat) {
+    if (!isQuietlyLimited(account))
+        return "";
+    const next = account.refresh?.nextAt ?? null;
+    if (next === null)
+        return I18n.tr(lang, "Provider is limiting requests");
+    return I18n.tr(lang, "Provider is limiting requests · next try {time}", {
+        time: FormatTime.clockTime(next, timeFormat)
+    });
+}
+
 function settledStatus(account) {
-    if (account.status !== "refreshing" || account.error === null)
+    if (account.status !== "refreshing" || account.error === null || isQuietlyLimited(account))
         return account.status;
     if (SIGNED_OUT_ERRORS.includes(account.error.kind))
         return "signed_out";

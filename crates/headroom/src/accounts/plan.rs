@@ -105,6 +105,7 @@ mod tests {
         add_account: &[KEY],
         multi_account: true,
         local_usage: false,
+        min_poll_interval: None,
         links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
@@ -128,6 +129,7 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        min_poll_interval: None,
         links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
@@ -148,6 +150,7 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        min_poll_interval: None,
         links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 
@@ -159,6 +162,7 @@ mod tests {
         }],
         multi_account: false,
         local_usage: false,
+        min_poll_interval: None,
         links: headroom_core::descriptor::ProviderLinks::NONE,
     };
 

@@ -19,9 +19,19 @@ pub fn status(
     match runtime.and_then(|r| r.failure.as_ref()) {
         Some(failure) if failure.is_no_subscription() => AccountStatus::NoSubscription,
         Some(failure) if failure.is_signed_out() => AccountStatus::SignedOut,
+        Some(failure) if failure.is_rate_limited() && snapshot.is_some() => {
+            freshness(snapshot, now)
+        }
         Some(_) => AccountStatus::Error,
-        None if snapshot.is_some_and(|s| !is_stale(s, now)) => AccountStatus::Fresh,
-        None => AccountStatus::Stale,
+        None => freshness(snapshot, now),
+    }
+}
+
+fn freshness(snapshot: Option<&SnapshotEntry>, now: Timestamp) -> AccountStatus {
+    if snapshot.is_some_and(|s| !is_stale(s, now)) {
+        AccountStatus::Fresh
+    } else {
+        AccountStatus::Stale
     }
 }
 
@@ -130,6 +140,23 @@ mod tests {
     }
 
     #[test]
+    fn a_rate_limit_keeps_existing_data_fresh_or_stale() {
+        let now = ts(NOW);
+        let limited = failing(RefreshFailure::Provider(ProviderError::rate_limited(None)));
+        let fresh = entry("2026-09-23T09:50:00Z", SnapshotOrigin::Refreshed);
+        let stale = entry("2026-09-23T09:49:59Z", SnapshotOrigin::Cache);
+        assert_eq!(
+            status(Some(&limited), Some(&fresh), now),
+            AccountStatus::Fresh
+        );
+        assert_eq!(
+            status(Some(&limited), Some(&stale), now),
+            AccountStatus::Stale
+        );
+        assert_eq!(status(Some(&limited), None, now), AccountStatus::Error);
+    }
+
+    #[test]
     fn no_subscription_ranks_below_refreshing_only() {
         let now = ts(NOW);
         let fresh = entry(NOW, SnapshotOrigin::Refreshed);
@@ -168,11 +195,9 @@ mod tests {
 
     #[test]
     fn errors_carry_kind_and_safe_message() {
-        let view = error_view(&RefreshFailure::Provider(ProviderError::RateLimited {
-            retry_after: None,
-        }));
+        let view = error_view(&RefreshFailure::Provider(ProviderError::rate_limited(None)));
         assert_eq!(view.kind, "rate_limited");
-        assert_eq!(view.message, "rate limited by the provider");
+        assert_eq!(view.message, "usage endpoint rate limited by the provider");
         assert_eq!(error_view(&RefreshFailure::Timeout).kind, "timeout");
     }
 }

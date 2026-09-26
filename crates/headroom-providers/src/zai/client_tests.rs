@@ -122,9 +122,9 @@ async fn rate_limits_carry_retry_after_and_are_not_retried() {
     answer(&server, QUOTA_PATH, "zk-test", json(200, QUOTA), 0).await;
     assert_eq!(
         client(&server).quota("zk-test", now()).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(45))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(45)
+        )))
     );
 }
 

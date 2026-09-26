@@ -131,9 +131,9 @@ async fn rate_limit_is_returned_even_when_logs_exist() {
         .await;
     assert_eq!(
         result,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(3600))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(3600)
+        )))
     );
 }
 

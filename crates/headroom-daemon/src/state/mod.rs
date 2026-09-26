@@ -97,6 +97,9 @@ mod panel_state_tests;
 mod recovery_tests;
 
 #[cfg(test)]
+mod rate_limit_tests;
+
+#[cfg(test)]
 mod spend_state_tests;
 
 #[cfg(test)]

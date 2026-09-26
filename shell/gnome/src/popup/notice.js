@@ -162,11 +162,21 @@ export function noticeRow(options) {
     return new Notice(options).actor;
 }
 
+export class NoticeLine {
+    constructor(text) {
+        this.actor = row({ style_class: 'headroom-notice-line', x_expand: true });
+        const icon = themeIcon('dialog-information-symbolic', 'headroom-notice-line-icon');
+        icon.y_align = Clutter.ActorAlign.START;
+        this._label = wrappingLabel(text, 'headroom-notice-line-text');
+        this.actor.add_child(icon);
+        this.actor.add_child(this._label);
+    }
+
+    update(text) {
+        this._label.text = text;
+    }
+}
+
 export function noticeLine(text) {
-    const actor = row({ style_class: 'headroom-notice-line', x_expand: true });
-    const icon = themeIcon('dialog-information-symbolic', 'headroom-notice-line-icon');
-    icon.y_align = Clutter.ActorAlign.START;
-    actor.add_child(icon);
-    actor.add_child(wrappingLabel(text, 'headroom-notice-line-text'));
-    return actor;
+    return new NoticeLine(text).actor;
 }

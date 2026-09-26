@@ -168,9 +168,9 @@ fn status_error(status: StatusCode, headers: &HeaderMap) -> ProviderError {
         StatusCode::PAYMENT_REQUIRED => ProviderError::NoSubscription {
             detail: "No active Cline plan.".to_owned(),
         },
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: http::retry_after_seconds(headers),
-        },
+        StatusCode::TOO_MANY_REQUESTS => {
+            ProviderError::rate_limited(http::retry_after_seconds(headers))
+        }
         status if status.is_server_error() => {
             ProviderError::Network(format!("Cline API returned HTTP {}", status.as_u16()))
         }

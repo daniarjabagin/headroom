@@ -106,7 +106,7 @@ fn is_rate_limited(headers: &HeaderMap) -> bool {
 
 fn rate_limited(headers: &HeaderMap, now: Timestamp) -> ProviderError {
     let retry_after = http::retry_after(headers, now).or_else(|| rate_reset_wait(headers, now));
-    ProviderError::RateLimited { retry_after }
+    ProviderError::rate_limited(retry_after)
 }
 
 fn rate_reset_wait(headers: &HeaderMap, now: Timestamp) -> Option<SignedDuration> {

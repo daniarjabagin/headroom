@@ -72,9 +72,9 @@ fn status_error(
     let code = status.as_u16();
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: http::retry_after(headers, now),
-        },
+        StatusCode::TOO_MANY_REQUESTS => {
+            ProviderError::rate_limited(http::retry_after(headers, now))
+        }
         status if status.is_server_error() => {
             ProviderError::Network(format!("the MiniMax quota endpoint returned HTTP {code}"))
         }

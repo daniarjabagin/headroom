@@ -61,8 +61,12 @@ pub enum ProviderError {
     ApiKeyOnly,
     #[error("{detail}")]
     NoSubscription { detail: String },
-    #[error("rate limited by the provider")]
-    RateLimited { retry_after: Option<SignedDuration> },
+    #[error("{call} rate limited by the provider")]
+    RateLimited {
+        retry_after: Option<SignedDuration>,
+        #[serde(default)]
+        call: LimitedCall,
+    },
     #[error("network error: {0}")]
     Network(String),
     #[error("invalid response: {0}")]
@@ -73,7 +77,40 @@ pub enum ProviderError {
     Unsupported(String),
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LimitedCall {
+    #[default]
+    Usage,
+    TokenRefresh,
+}
+
+impl std::fmt::Display for LimitedCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            LimitedCall::Usage => "usage endpoint",
+            LimitedCall::TokenRefresh => "token refresh",
+        })
+    }
+}
+
 impl ProviderError {
+    #[must_use]
+    pub fn rate_limited(retry_after: Option<SignedDuration>) -> ProviderError {
+        ProviderError::RateLimited {
+            retry_after,
+            call: LimitedCall::Usage,
+        }
+    }
+
+    #[must_use]
+    pub fn token_refresh_rate_limited(retry_after: Option<SignedDuration>) -> ProviderError {
+        ProviderError::RateLimited {
+            retry_after,
+            call: LimitedCall::TokenRefresh,
+        }
+    }
+
     /// True when discovery found no tool or sign-in, which is not a failure.
     #[must_use]
     pub fn is_nothing_to_discover(&self) -> bool {
@@ -102,6 +139,7 @@ mod tests {
         add_account: &[AddAccountMethod::AutoDetect { reason: "found" }],
         multi_account: false,
         local_usage: false,
+        min_poll_interval: None,
         links: ProviderLinks::NONE,
     };
 
@@ -179,13 +217,17 @@ mod tests {
 
     #[test]
     fn errors_serialize_with_kind_tag() {
-        let limited = ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(300)),
-        };
+        let limited =
+            ProviderError::token_refresh_rate_limited(Some(SignedDuration::from_secs(300)));
         let json = serde_json::to_string(&limited).unwrap();
         assert_eq!(
             serde_json::from_str::<ProviderError>(&json).unwrap(),
             limited
+        );
+        let legacy = "{\"kind\":\"rate_limited\",\"detail\":{\"retry_after\":null}}";
+        assert_eq!(
+            serde_json::from_str::<ProviderError>(legacy).unwrap(),
+            ProviderError::rate_limited(None)
         );
         assert_eq!(
             serde_json::to_string(&ProviderError::LocalData("x".into())).unwrap(),
@@ -210,6 +252,18 @@ mod tests {
             "{\"kind\":\"account_changed\",\"detail\":\"the account at /a has changed\"}"
         );
         assert!(!changed.needs_sign_in());
+    }
+
+    #[test]
+    fn rate_limits_name_the_limited_call() {
+        assert_eq!(
+            ProviderError::rate_limited(None).to_string(),
+            "usage endpoint rate limited by the provider"
+        );
+        assert_eq!(
+            ProviderError::token_refresh_rate_limited(None).to_string(),
+            "token refresh rate limited by the provider"
+        );
     }
 
     #[test]

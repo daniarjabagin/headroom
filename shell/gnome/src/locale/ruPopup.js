@@ -28,6 +28,8 @@ export const RU_POPUP = {
     'Started {ago}': 'Началось {ago}',
     'Outdated · updated {ago}': 'Устарело · обновлено {ago}',
     'Offline — retrying in {duration}': 'Нет сети — повтор через {duration}',
+    'Provider is limiting requests': 'Провайдер ограничил запросы',
+    'Provider is limiting requests · next try {time}': 'Провайдер ограничил запросы · повтор в {time}',
     'Updated {ago}': 'Обновлено {ago}',
     'Updated {time} · next at {next}': 'Обновлено в {time} · следующее в {next}',
     "Know what's left.": 'Знай, сколько осталось.',

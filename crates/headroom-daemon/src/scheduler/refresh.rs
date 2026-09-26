@@ -35,6 +35,10 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
     delay
 }
 
+fn min_poll(core: &Core, account: &AccountRef) -> Option<SignedDuration> {
+    core.catalog.min_poll_interval(&account.provider)
+}
+
 fn is_current(core: &Core, account: &AccountRef) -> bool {
     core.model()
         .active_accounts()
@@ -110,8 +114,9 @@ fn record_success(
     }
     model.record_success(&account.id, snapshot, now);
     let live = model.account_is_live(account, now);
-    let interval = policy::effective_interval(&model.settings, live);
+    let interval = policy::provider_interval(&model.settings, live, min_poll(core, account));
     policy::next_delay(Ok(()), 0, interval, core.random.unit())
+        .max(policy::provider_floor(min_poll(core, account)))
 }
 
 fn record_failure(
@@ -123,8 +128,9 @@ fn record_failure(
     tracing::info!(account = %account.id, error = %failure, "refresh failed");
     let mut model = core.model();
     let interval = model.settings.refresh_interval();
-    let failures = model.runtime_mut(&account.id).failures.saturating_add(1);
-    let delay = policy::next_delay(Err(&failure), failures, interval, core.random.unit());
+    let streak = policy::failure_streak(model.runtime.get(&account.id), &failure);
+    let delay = policy::next_delay(Err(&failure), streak, interval, core.random.unit())
+        .max(policy::provider_floor(min_poll(core, account)));
     let hold_until = policy::holds_soft_refresh(&failure)
         .then(|| now.checked_add(delay).ok())
         .flatten();

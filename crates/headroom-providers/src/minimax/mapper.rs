@@ -48,7 +48,7 @@ pub(super) fn check_status(base: &RawBaseResp) -> Result<(), ProviderError> {
     match base.status_code {
         0 => Ok(()),
         code if AUTH_FAILED_CODES.contains(&code) => Err(ProviderError::SignInExpired),
-        RATE_LIMITED_CODE => Err(ProviderError::RateLimited { retry_after: None }),
+        RATE_LIMITED_CODE => Err(ProviderError::rate_limited(None)),
         _ if message_mentions_plan(message) => Err(ProviderError::NoSubscription {
             detail: NO_PLAN.to_owned(),
         }),

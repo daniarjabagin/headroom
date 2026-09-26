@@ -134,7 +134,7 @@ fn status_codes_map_to_typed_errors() {
     );
     assert_eq!(
         error(r#"{"base_resp":{"status_code":1002,"status_msg":"rate limit exceeded"}}"#),
-        ProviderError::RateLimited { retry_after: None }
+        ProviderError::rate_limited(None)
     );
     assert_eq!(
         error(r#"{"base_resp":{"status_code":1013,"status_msg":"internal error"}}"#),

@@ -48,7 +48,7 @@ fn status_error(
     let code = status.as_u16();
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited { retry_after },
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::rate_limited(retry_after),
         status if status.is_server_error() => {
             ProviderError::Network(format!("{service} returned HTTP {code}"))
         }
@@ -110,9 +110,9 @@ mod tests {
         let limited = reply(429, "").insert_header("retry-after", "30");
         assert_eq!(
             fetch(limited).await,
-            Err(ProviderError::RateLimited {
-                retry_after: Some(SignedDuration::from_secs(30))
-            })
+            Err(ProviderError::rate_limited(Some(
+                SignedDuration::from_secs(30)
+            )))
         );
         assert_eq!(
             fetch(reply(503, "")).await,

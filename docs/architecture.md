@@ -651,15 +651,19 @@ that take API keys, the stored key.
 
 - **Scheduler**: per account, refresh every 5 min with ±10 % jitter; on the popup opening (D-Bus
   `Refresh`) refresh accounts older than 60 s. Single-flight per account; a forced request during a
-  refresh queues one follow-up. `Refresh(account_id)` forces that account now (rate-limit holds
-  excepted) and publishes it as `refreshing` at once; every refresh reads credentials from disk again,
-  so a retry after a new CLI sign-in picks it up. Failures back off exponentially 60 s → 30 min with jitter; 429 honours
-  `retry_after` (default 5 min). Per-call timeout 30 s. `Refresh(account_id)` of an account whose
+  refresh queues one follow-up. `Refresh(account_id)` forces that account now (inside a rate-limit
+  hold at most once per 60 s) and publishes it as `refreshing` at once; every refresh reads
+  credentials from disk again, so a retry after a new CLI sign-in picks it up. Failures back off
+  exponentially 60 s → 30 min with jitter; 429 honours `Retry-After` (at most 1 h), otherwise
+  consecutive rate limits back off 5 → 10 → 20 → 40 → 60 min with jitter. A descriptor's
+  `min_poll_interval` (Claude: 180 s, its usage endpoint is shared with Claude Code's own polling)
+  is a floor for every scheduled delay of that provider's accounts. A rate limit with data keeps the
+  account `fresh`/`stale` with `error.kind` `rate_limited`. Per-call timeout 30 s. `Refresh(account_id)` of an account whose
   error is `account_changed`, `not_signed_in` or `sign_in_expired` runs a (coalesced) rescan first.
 - **Adaptive refresh** (`activity`): the usage watcher records when a usage home gets new log
   records; while a home has records from the last 10 minutes and `adaptive_refresh` is on, its
-  accounts are scheduled every 60 s (never shortening backoff, rate-limit holds or `no_subscription`
-  rechecks). The state reports `accounts[].refresh {mode, interval_secs, next_at, reason}`.
+  accounts are scheduled every 60 s, or the provider's `min_poll_interval` when longer (never
+  shortening backoff, rate-limit holds or `no_subscription` rechecks). The state reports `accounts[].refresh {mode, interval_secs, next_at, reason}`.
 - **Credential watcher** (`credentials`): accounts whose last error is a sign-in error or
   `account_changed` and whose provider signs in through a CLI get a `notify` watch on their
   credential file, re-evaluated every 5 s; a change settles for 2 s and then acts like

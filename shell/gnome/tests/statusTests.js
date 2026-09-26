@@ -1,4 +1,5 @@
 import {
+    isQuietlyLimited,
     isRetrying,
     isSignedOut,
     lacksSubscription,
@@ -8,6 +9,8 @@ import {
     retryBusy,
     subscriptionNote,
 } from '../src/accountStatus.js';
+import { setLanguage } from '../src/i18n.js';
+import { rateLimitNote } from '../src/popup/rateLimitTexts.js';
 import { isRefreshing, parseState } from '../src/state.js';
 import { check } from './check.js';
 
@@ -184,7 +187,56 @@ function testRecoveryParsing() {
     check('account changed kind', changed.error.kind, 'account_changed');
 }
 
+function limited(status, updatedAt) {
+    return {
+        ...failing(status, 'rate_limited', null),
+        error: { kind: 'rate_limited', message: 'usage endpoint rate limited by the provider' },
+        updated_at: updatedAt,
+        refresh: { mode: 'idle', interval_secs: 300, next_at: '2026-09-23T10:05:00Z', reason: 'hold' },
+    };
+}
+
+function testRateLimitWithData() {
+    const withData = ['fresh', 'stale', 'refreshing'].map(status => limited(status, '2026-09-23T09:40:00Z'));
+    const accounts = stateWith([...withData, limited('error', null), limited('refreshing', null)]).accounts;
+    check(
+        'rate limit with data is quiet',
+        accounts.map(account => isQuietlyLimited(account)),
+        [true, true, true, false, false]
+    );
+    check(
+        'rate limit shows the error notice only without data',
+        accounts.map(account => noticeShape(account, false)?.notice ?? null),
+        [null, null, null, 'error', 'error']
+    );
+}
+
+function testRateLimitNote() {
+    const account = {
+        error: { kind: 'rate_limited', message: 'x' },
+        updatedAt: new Date(2026, 8, 23, 17, 40),
+        refresh: { nextAt: new Date(2026, 8, 23, 18, 5) },
+    };
+    check('note with next try', rateLimitNote(account, false), 'Provider is limiting requests · next try 18:05');
+    check('note in 12h', rateLimitNote(account, true), 'Provider is limiting requests · next try 6:05 PM');
+    check(
+        'note without schedule',
+        rateLimitNote({ ...account, refresh: { nextAt: null } }, false),
+        'Provider is limiting requests'
+    );
+    check('no note without data', rateLimitNote({ ...account, updatedAt: null }, false), null);
+    check('no note for other errors', rateLimitNote({ ...account, error: { kind: 'network' } }, false), null);
+    setLanguage('ru');
+    try {
+        check('ru note', rateLimitNote(account, false), 'Провайдер ограничил запросы · повтор в 18:05');
+    } finally {
+        setLanguage('en');
+    }
+}
+
 export function testStatus() {
+    testRateLimitWithData();
+    testRateLimitNote();
     testRecoveryParsing();
     testNoticeStaysWhileRefreshing();
     testRecoveryActions();

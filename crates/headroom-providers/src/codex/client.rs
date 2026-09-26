@@ -122,9 +122,9 @@ fn status_error(
         StatusCode::PAYMENT_REQUIRED => no_subscription(None),
         StatusCode::FORBIDDEN if mentions_plan(body) => no_subscription(None),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: http::retry_after(headers, now),
-        },
+        StatusCode::TOO_MANY_REQUESTS => {
+            ProviderError::rate_limited(http::retry_after(headers, now))
+        }
         _ => ProviderError::Network(format!("usage request returned HTTP {status}")),
     }
 }

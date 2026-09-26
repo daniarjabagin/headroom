@@ -209,6 +209,50 @@ TestCase {
         compare(kinds(Account.notices("en", signedOutRetry, false, providers())[0]), [["signin", false], ["retry", false]]);
     }
 
+    function limitedWithData(status) {
+        return Object.assign(account(status, {
+            kind: "rate_limited",
+            message: "usage endpoint rate limited by the provider"
+        }, null), {
+            updatedAt: new Date(2026, 8, 23, 17, 40),
+            refresh: {
+                mode: "idle",
+                intervalSecs: 300,
+                nextAt: new Date(2026, 8, 23, 18, 5),
+                reason: "hold"
+            }
+        });
+    }
+
+    function test_rate_limit_with_data_is_a_quiet_note() {
+        for (const status of ["fresh", "stale", "refreshing"]) {
+            const limited = limitedWithData(status);
+            compare(Account.notices("en", limited, false, providers()), [], status);
+            compare(Account.settledStatus(limited), status);
+        }
+        compare(Account.statusSlot(limitedWithData("stale"), false), "outdated");
+        compare(Account.statusSlot(limitedWithData("fresh"), false), "");
+        const limited = limitedWithData("stale");
+        compare(Account.rateLimitNote("en", limited, "24h"), "Provider is limiting requests · next try 18:05");
+        compare(Account.rateLimitNote("en", limited, "12h"), "Provider is limiting requests · next try 6:05 PM");
+        compare(Account.rateLimitNote("ru", limited, "24h"), "Провайдер ограничил запросы · повтор в 18:05");
+        const unscheduled = Object.assign({}, limited, {
+            refresh: null
+        });
+        compare(Account.rateLimitNote("en", unscheduled, "24h"), "Provider is limiting requests");
+    }
+
+    function test_rate_limit_without_data_keeps_the_error_notice() {
+        const limited = Object.assign(limitedWithData("error"), {
+            updatedAt: null
+        });
+        const notices = Account.notices("en", limited, false, providers());
+        compare(notices.length, 1);
+        compare(notices[0].title, "Couldn't refresh Claude");
+        compare(Account.rateLimitNote("en", limited, "24h"), "");
+        compare(Account.rateLimitNote("en", account("fresh", null, null), "24h"), "");
+    }
+
     function test_error_notice_stays_while_refreshing() {
         const failed = account("error", {
             kind: "invalid_response",

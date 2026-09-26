@@ -172,7 +172,7 @@ pub(super) fn error_for(
 ) -> ProviderError {
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited { retry_after },
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::rate_limited(retry_after),
         status if status.is_server_error() => ProviderError::Network(format!(
             "Cloud Code {path} returned HTTP {}",
             status.as_u16()

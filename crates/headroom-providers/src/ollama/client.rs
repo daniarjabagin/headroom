@@ -98,7 +98,7 @@ pub(super) fn status_error(
 ) -> ProviderError {
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited { retry_after },
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::rate_limited(retry_after),
         status if status.is_server_error() => {
             ProviderError::Network(format!("Ollama {path} returned HTTP {}", status.as_u16()))
         }
@@ -145,7 +145,7 @@ mod tests {
         );
         assert_eq!(
             status_error(StatusCode::TOO_MANY_REQUESTS, wait, "/api/usage"),
-            ProviderError::RateLimited { retry_after: wait }
+            ProviderError::rate_limited(wait)
         );
         assert!(matches!(
             status_error(StatusCode::BAD_GATEWAY, None, "/api/usage"),

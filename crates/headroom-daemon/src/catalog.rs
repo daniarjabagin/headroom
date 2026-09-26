@@ -3,6 +3,7 @@ use std::sync::Arc;
 use headroom_core::account::ProviderId;
 use headroom_core::descriptor::{AddAccountMethod, ProviderDescriptor, ProviderLinks};
 use headroom_core::provider::Provider;
+use jiff::SignedDuration;
 use serde::Serialize;
 
 pub const PROVIDERS_VERSION: u32 = 1;
@@ -82,6 +83,12 @@ impl ProviderCatalog {
             .iter()
             .copied()
             .find(|descriptor| &descriptor.id == id)
+    }
+
+    #[must_use]
+    pub fn min_poll_interval(&self, id: &ProviderId) -> Option<SignedDuration> {
+        self.descriptor(id)
+            .and_then(|descriptor| descriptor.min_poll_interval)
     }
 
     /// Position in the registry, which orders per-provider lists; unknown providers come last.
@@ -165,6 +172,7 @@ mod tests {
         ],
         multi_account: true,
         local_usage: false,
+        min_poll_interval: None,
         links: ProviderLinks {
             status: Some("https://status.keyed.example"),
             dashboard: None,

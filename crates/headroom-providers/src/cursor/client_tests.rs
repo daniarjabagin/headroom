@@ -24,7 +24,7 @@ fn statuses_map_to_provider_errors() {
     );
     assert_eq!(
         status_error(StatusCode::TOO_MANY_REQUESTS, &none, now),
-        ProviderError::RateLimited { retry_after: None }
+        ProviderError::rate_limited(None)
     );
     assert!(matches!(
         status_error(StatusCode::BAD_GATEWAY, &none, now),
@@ -45,9 +45,7 @@ fn rate_limits_carry_retry_after_seconds_and_dates() {
             &headers_with_retry("120"),
             now
         ),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(120)))
     );
     assert_eq!(
         status_error(
@@ -55,9 +53,7 @@ fn rate_limits_carry_retry_after_seconds_and_dates() {
             &headers_with_retry("Wed, 23 Sep 2026 10:01:00 GMT"),
             now
         ),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(60))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(60)))
     );
 }
 

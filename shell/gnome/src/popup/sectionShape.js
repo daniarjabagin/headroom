@@ -1,4 +1,4 @@
-import { noticeShape } from '../accountStatus.js';
+import { isQuietlyLimited, noticeShape } from '../accountStatus.js';
 import { headerAccount } from '../combined.js';
 import { providerIncident } from '../providerStatus.js';
 
@@ -32,6 +32,7 @@ export function accountShapeKey(ctx, account, showName) {
         windows: shownWindows(account).map(window => window.id),
         skeleton: awaitingFirstData(account),
         notice: noticeShape(account, ctx.offline),
+        limited: isQuietlyLimited(account),
         status: statusShape(ctx, account.provider),
         notices: account.notices,
         plan: account.plan,

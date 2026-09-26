@@ -32,11 +32,44 @@ fn backoff_jitter_never_exceeds_the_cap() {
 }
 
 #[test]
-fn retry_after_is_honoured_with_a_default() {
-    assert_eq!(rate_limit_delay(Some(secs(120))), secs(120));
-    assert_eq!(rate_limit_delay(None), secs(300));
-    assert_eq!(rate_limit_delay(Some(secs(0))), secs(300));
-    assert_eq!(rate_limit_delay(Some(secs(-5))), secs(300));
+fn retry_after_is_honoured_over_the_streak() {
+    assert_eq!(rate_limit_delay(Some(secs(120)), 1, MID), secs(120));
+    assert_eq!(rate_limit_delay(Some(secs(120)), 4, 0.0), secs(120));
+    assert_eq!(rate_limit_delay(None, 1, MID), secs(300));
+    assert_eq!(rate_limit_delay(Some(secs(0)), 1, MID), secs(300));
+    assert_eq!(rate_limit_delay(Some(secs(-5)), 1, MID), secs(300));
+}
+
+#[test]
+fn repeated_rate_limits_without_retry_after_double_up_to_an_hour() {
+    let delays: Vec<i64> = (1..=7)
+        .map(|streak| rate_limit_delay(None, streak, MID).as_mins())
+        .collect();
+    assert_eq!(delays, [5, 10, 20, 40, 60, 60, 60]);
+    assert_eq!(rate_limit_delay(None, 0, MID), secs(300));
+    assert_eq!(rate_limit_delay(None, u32::MAX, MID), RATE_LIMIT_CAP);
+}
+
+#[test]
+fn rate_limit_backoff_is_jittered_below_the_cap() {
+    assert_eq!(rate_limit_delay(None, 1, 0.0), secs(270));
+    assert_eq!(rate_limit_delay(None, 2, 1.0), secs(660));
+    assert_eq!(rate_limit_delay(None, 5, 1.0), RATE_LIMIT_CAP);
+    assert_eq!(rate_limit_delay(None, 5, 0.0), secs(3_240));
+}
+
+#[test]
+fn the_rate_limit_streak_counts_only_consecutive_rate_limits() {
+    let limited = RefreshFailure::Provider(ProviderError::rate_limited(None));
+    let network = RefreshFailure::Provider(ProviderError::Network("down".into()));
+    let runtime = AccountRuntime {
+        failures: 5,
+        rate_limits: 2,
+        ..AccountRuntime::default()
+    };
+    assert_eq!(failure_streak(None, &limited), 1);
+    assert_eq!(failure_streak(Some(&runtime), &limited), 3);
+    assert_eq!(failure_streak(Some(&runtime), &network), 6);
 }
 
 #[test]
@@ -52,7 +85,7 @@ fn retry_after_is_capped_at_one_hour() {
     ];
     for (retry_after, expected) in cases {
         assert_eq!(
-            rate_limit_delay(Some(retry_after)),
+            rate_limit_delay(Some(retry_after), 1, MID),
             expected,
             "{retry_after}"
         );
@@ -63,9 +96,7 @@ fn retry_after_is_capped_at_one_hour() {
 #[test]
 fn next_delay_depends_on_the_outcome() {
     let interval = secs(300);
-    let limited = RefreshFailure::Provider(ProviderError::RateLimited {
-        retry_after: Some(secs(90)),
-    });
+    let limited = RefreshFailure::Provider(ProviderError::rate_limited(Some(secs(90))));
     let network = RefreshFailure::Provider(ProviderError::Network("down".into()));
     assert_eq!(next_delay(Ok(()), 0, interval, MID), interval);
     assert_eq!(next_delay(Err(&limited), 3, interval, MID), secs(90));
@@ -135,7 +166,7 @@ fn forced_refresh_ignores_recency_and_lapses_but_keeps_rate_limit_holds() {
         hold_until: Some(ts(hold_until)),
         ..AccountRuntime::default()
     };
-    let limited = || ProviderError::RateLimited { retry_after: None };
+    let limited = || ProviderError::rate_limited(None);
     let lapsed = ProviderError::NoSubscription {
         detail: "free plan".into(),
     };
@@ -158,4 +189,41 @@ fn forced_refresh_ignores_recency_and_lapses_but_keeps_rate_limit_holds() {
         Some(&failing(limited(), "2026-09-23T10:00:00Z")),
         now
     ));
+}
+
+#[test]
+fn a_manual_retry_during_a_rate_limit_is_allowed_once_a_minute() {
+    let now = ts("2026-09-23T10:00:00Z");
+    let limited = |last_attempt: &str, refreshing: bool| AccountRuntime {
+        last_attempt: Some(ts(last_attempt)),
+        failure: Some(RefreshFailure::Provider(ProviderError::rate_limited(None))),
+        hold_until: Some(ts("2026-09-23T10:20:00Z")),
+        refreshing,
+        ..AccountRuntime::default()
+    };
+    assert!(forced_refresh_allowed(
+        Some(&limited("2026-09-23T09:59:00Z", false)),
+        now
+    ));
+    assert!(!forced_refresh_allowed(
+        Some(&limited("2026-09-23T09:59:01Z", false)),
+        now
+    ));
+    assert!(!forced_refresh_allowed(
+        Some(&limited("2026-09-23T09:50:00Z", true)),
+        now
+    ));
+}
+
+#[test]
+fn a_provider_minimum_raises_every_interval() {
+    let settings = Settings::default();
+    let floor = Some(secs(180));
+    assert_eq!(provider_interval(&settings, true, None), LIVE_INTERVAL);
+    assert_eq!(provider_interval(&settings, true, floor), secs(180));
+    assert_eq!(
+        provider_interval(&settings, false, floor),
+        settings.refresh_interval().max(secs(180))
+    );
+    assert_eq!(provider_floor(None), SignedDuration::ZERO);
 }

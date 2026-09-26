@@ -77,9 +77,7 @@ async fn rate_limits_honour_retry_after() {
         .set_body_string(RATE_LIMITED);
     assert_eq!(
         answer(response).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(120)))
     );
 }
 
@@ -99,10 +97,7 @@ fn statuses_map_to_typed_errors() {
         map(403, "<html>forbidden</html>"),
         ProviderError::SignInExpired
     );
-    assert_eq!(
-        map(429, RATE_LIMITED),
-        ProviderError::RateLimited { retry_after: None }
-    );
+    assert_eq!(map(429, RATE_LIMITED), ProviderError::rate_limited(None));
     assert_eq!(
         map(502, ""),
         ProviderError::Network("OpenCode usage endpoint returned HTTP 502".into())

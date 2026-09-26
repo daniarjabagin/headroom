@@ -199,7 +199,7 @@ async fn a_failed_plan_lookup_keeps_the_meters() {
 async fn unauthorized_and_rate_limited_answers_map_to_errors() {
     for (status, expected) in [
         (401, ProviderError::SignInExpired),
-        (429, ProviderError::RateLimited { retry_after: None }),
+        (429, ProviderError::rate_limited(None)),
     ] {
         let setup = Setup::new().await;
         Setup::write_key(&setup.keys().user, TEST_KEY);

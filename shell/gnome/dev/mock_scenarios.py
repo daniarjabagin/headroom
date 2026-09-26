@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from mock_accounts import account, pace, refresh, showcase_accounts, window
 from mock_combined import combined_groups, combined_state
-from mock_common import DAY, HOUR, MINUTE
+from mock_common import DAY, HOUR, MINUTE, iso
 from mock_panel import finish
 from mock_providers import providers_state
 from mock_settings import scenario_settings
@@ -71,6 +71,16 @@ def accounts_state(now):
     return state
 
 
+def rate_limited_state(now):
+    state = showcase_state(now)
+    claude = state["accounts"][0]
+    claude["status"] = "stale"
+    claude["updated_at"] = iso(now - 40 * MINUTE)
+    claude["error"] = {"kind": "rate_limited", "message": "usage endpoint rate limited by the provider"}
+    claude["refresh"] = refresh(now, 5 * 60, reason="hold")
+    return state
+
+
 def spend_only_state(now):
     return assemble(now, [], showcase_usage(now), None)
 
@@ -88,6 +98,7 @@ SCENARIOS = {
     "incident": incident_state,
     "onboarding": showcase_state,
     "accounts": accounts_state,
+    "rate-limited": rate_limited_state,
 }
 
 

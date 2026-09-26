@@ -77,9 +77,7 @@ async fn rate_limits_carry_retry_after() {
     let error = client_for(&server).usages("k", now()).await.unwrap_err();
     assert_eq!(
         error,
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(120)))
     );
 }
 

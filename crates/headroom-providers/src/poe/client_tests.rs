@@ -57,9 +57,9 @@ async fn rate_limits_carry_retry_after() {
     let (_server, client) = serving(json(429, "").insert_header("retry-after", "30")).await;
     assert_eq!(
         client.balance(KEY, now()).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(30))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(30)
+        )))
     );
 }
 

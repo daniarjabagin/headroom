@@ -42,6 +42,7 @@ pub static CODEX_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: true,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: Some("https://status.openai.com"),
         ..ProviderLinks::NONE
@@ -54,6 +55,7 @@ pub static CLAUDE_DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     add_account: &[AddAccountMethod::AutoDetect { reason: "test" }],
     multi_account: true,
     local_usage: true,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: Some("https://status.claude.com"),
         ..ProviderLinks::NONE

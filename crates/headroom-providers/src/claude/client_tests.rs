@@ -84,9 +84,7 @@ async fn rate_limit_reads_retry_after_seconds() {
         server_responding(ResponseTemplate::new(429).insert_header("retry-after", "120")).await;
     assert_eq!(
         fetch_from(&server).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(120)))
     );
 }
 
@@ -97,9 +95,7 @@ async fn rate_limit_reads_retry_after_http_date() {
     let server = server_responding(response).await;
     assert_eq!(
         fetch_from(&server).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(300))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(300)))
     );
 }
 
@@ -108,7 +104,7 @@ async fn rate_limit_without_header_has_no_delay() {
     let server = server_responding(ResponseTemplate::new(429)).await;
     assert_eq!(
         fetch_from(&server).await.unwrap_err(),
-        ProviderError::RateLimited { retry_after: None }
+        ProviderError::rate_limited(None)
     );
 }
 

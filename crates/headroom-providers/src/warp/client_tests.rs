@@ -112,9 +112,9 @@ async fn http_failures_map_to_provider_errors() {
         serving(json(429, "Rate exceeded.").insert_header("retry-after", "60")).await;
     assert_eq!(
         client.request_limits(KEY, now()).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(60))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(60)
+        )))
     );
     let (_server, client) = serving(json(503, "")).await;
     assert!(matches!(
