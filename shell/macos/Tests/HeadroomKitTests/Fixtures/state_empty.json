@@ -32,6 +32,7 @@
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
     "hide_on_screen_share": true

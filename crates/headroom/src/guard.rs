@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use crate::cli::{GuardArgs, WindowScope};
 use crate::client;
+use crate::output;
 use crate::paths::Globals;
 use crate::render::format::{account_title, shown_windows};
 use crate::render::guard::{json_report, no_data_text, verdict_text};
@@ -95,7 +96,7 @@ pub async fn run(globals: &Globals, args: &GuardArgs) -> Result<ExitCode> {
     };
     match printed(&outcome, args, Timestamp::now(), detect_palettes())? {
         Printed::Nothing => {}
-        Printed::Stdout(text) => write!(io::stdout().lock(), "{text}")?,
+        Printed::Stdout(text) => output::print(&text)?,
         Printed::Stderr(text) => write!(io::stderr().lock(), "{text}")?,
     }
     Ok(ExitCode::from(outcome.exit_status()))

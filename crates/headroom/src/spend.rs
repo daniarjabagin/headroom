@@ -14,6 +14,7 @@ use serde_json::{Map, Value};
 
 use crate::cli::{SpendArgs, SpendBy};
 use crate::client;
+use crate::output;
 use crate::paths::{Globals, pricing_cache_dir};
 use crate::providers;
 use crate::render::spend_breakdown::render_breakdown;
@@ -37,16 +38,13 @@ pub async fn run(globals: &Globals, args: &SpendArgs) -> Result<()> {
         let report = from_database(globals.db_path()?, pricing_cache_dir()?, query).await?;
         (serde_json::to_string(&report)?, report)
     };
-    let mut stdout = io::stdout().lock();
     if args.json {
-        writeln!(stdout, "{json}")?;
-    } else {
-        let no_color = std::env::var_os("NO_COLOR");
-        let palette = Palette::detect(no_color.as_deref(), stdout.is_terminal());
-        let catalog = providers::catalog();
-        write!(stdout, "{}", render_breakdown(&report, &catalog, palette))?;
+        return output::print_line(&json);
     }
-    Ok(())
+    let no_color = std::env::var_os("NO_COLOR");
+    let palette = Palette::detect(no_color.as_deref(), io::stdout().is_terminal());
+    let catalog = providers::catalog();
+    output::print(&render_breakdown(&report, &catalog, palette))
 }
 
 pub fn query(args: &SpendArgs, today: Date) -> String {

@@ -594,8 +594,10 @@ price; its cost is excluded). Sorted by `cost_usd_micros` descending, then `tota
 then `model` ascending. `models` plus `models_other` add up exactly to the period's totals.
 
 OtherModels: `count` (number of models folded in, at least 2), `total_tokens`, `cost_usd_micros`
-(integer sums of those models), `partial` (any of them is `partial`). Shells show it as one
-"N other models" row and never compute it themselves.
+(integer sums of those models), `partial` (any of them is `partial`) and, since 0.6.1,
+`cost_per_mtok_usd_micros` (integer \| null: the folded models' cost per million priced tokens,
+computed like ModelUsage's; `null` when none of their tokens are priced; missing: show `—` in the
+Cost per MTok unit). Shells show it as one "N other models" row and never compute it themselves.
 
 ### Spend
 
@@ -656,6 +658,7 @@ not list a 7-day period.
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
     "hide_on_screen_share": true
@@ -882,8 +885,9 @@ unknown enum values are rejected with `InvalidArgs`. A successful `SetSettings` 
 | `display.spend_period` | string | `"30d"` | Since 0.6.0. The spend card's selected period: `today`, `yesterday`, `7d` (`spend.last_7_days`) or `30d` (`spend.last_30_days`). |
 | `display.spend_unit` | string | `"cost"` | Since 0.6.0. The spend card's unit: `cost`, `tokens` or `cost_per_mtok` (`cost_per_mtok_usd_micros`). |
 | `display.spend_breakdown` | string | `"models"` | Since 0.6.0. What the spend legend breaks down: `models` or `projects`. |
+| `display.show_breakdown` | bool | `true` | Since 0.6.1. Show the Models/Projects breakdown block in the spend card; `false` hides that block and leaves the rest of the card as is. |
 | `display.starred_accounts` | string[] | `[]` | Since 0.6.0. Account ids that are always expanded in the popup. Non-empty ids; duplicates dropped (first kept); ids not listed right now are kept. |
-| `display.collapse_unstarred` | bool | `false` | Since 0.6.0. Fold accounts that are not starred, need no attention and have no window at `warning` or worse into one "N more" row. The daemon decides per account and per combined group (`collapsed`, see [Account additions](#account-additions)); shells never apply the rule themselves. |
+| `display.collapse_unstarred` | bool | `false` | Since 0.6.0. Fold every account that is not starred into one "N more" row; with no starred accounts at all, every account folds. Starred accounts never fold. Since 0.6.1 health and tone no longer keep an unstarred account open; collapsed rows still carry their `error` and window tones so shells can mark them. The daemon decides per account and per combined group (`collapsed`, see [Account additions](#account-additions)); shells never apply the rule themselves. |
 | `display.hide_on_screen_share` | bool | `true` | Since 0.6.0. Hide figures while the screen is shared. GNOME detects screen sharing and shows only the Headroom mark in the panel and `••` (project paths masked) in the popup until the share ends; macOS keeps the popup and menu-bar items out of screen captures. Shells that cannot detect sharing (Plasma, the tray) hide the option. |
 | `display.show_spend` | bool | `true` | Show the spend section. |
 | `display.show_account_spend` | bool | `true` | Show local spend under each account card. |
@@ -940,6 +944,7 @@ names a CLI-owned account becomes that account's dismissed CLI home; other ids a
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
     "hide_on_screen_share": true
@@ -1032,6 +1037,7 @@ Summary:
 | `spend` | `last_7_days` | [Spend additions](#spend-additions) |
 | PeriodSpend | `projects`, `projects_other` | [Spend additions](#spend-additions) |
 | PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend, OtherProjects | `cost_per_mtok_usd_micros` | [Spend additions](#spend-additions) |
+| OtherModels | `cost_per_mtok_usd_micros` (since 0.6.1) | [Usage](#usage) |
 | `ListProviders` | `providers[].links` | [Provider links](#provider-links) |
 | methods | `GetSpend` | [GetSpend](#getspend) |
 | methods | `GetDiagnostics` | [GetDiagnostics](#getdiagnostics) |
@@ -1087,8 +1093,8 @@ Older daemons: no `panel_items`; build one item from `headline`.
 
 | field | type | description |
 | --- | --- | --- |
-| `collapsed` | bool | `true` when `display.collapse_unstarred` is on, the account is not in `display.starred_accounts`, it does not need attention, and none of its visible windows has tone `warning` or `critical`. An account needs attention when its `error` is not `null` (signed out, sign-in expired, account changed, rate limited, any failed refresh — so also whenever `recovery` is set) or its status is `signed_out`, `error` or `no_subscription`; such an account is never collapsed, even while it is `refreshing`. Always `false` when the setting is off. Shells fold collapsed accounts into one "N more · Copilot, Grok ›" row in account order. Missing: `false`. |
-| `combined[].collapsed` | bool | The same rule for a [combined](#combined-accounts) card, which a shell folds instead of its members: `true` when `display.collapse_unstarred` is on, none of the group's `account_ids` is starred, no member needs attention (as for accounts), and none of its combined windows has tone `warning` or `critical`. Missing: `false`. |
+| `collapsed` | bool | `true` when `display.collapse_unstarred` is on and the account is not in `display.starred_accounts`, whatever its status, `error` or window tones (since 0.6.1; 0.6.0 kept accounts that needed attention or had a `warning`/`critical` window expanded). A collapsed account keeps its `status`, `error`, `recovery` and window tones, so a shell can put a warning mark on the "N more" row. Always `false` when the setting is off. Shells fold collapsed accounts into one "N more · Copilot, Grok ›" row in account order. Missing: `false`. |
+| `combined[].collapsed` | bool | The same rule for a [combined](#combined-accounts) card, which a shell folds instead of its members: `true` when `display.collapse_unstarred` is on and none of the group's `account_ids` is starred, whatever the members' health or the combined window tones. Missing: `false`. |
 | `refresh` | Refresh | How the daemon is polling this account now. Missing: show `next_refresh_at` only. |
 | `recovery` | object \| null | What a card's primary button does after an error (`retry`, `sign_in`, `cli_login`); see [Account](#account). |
 
@@ -1179,8 +1185,8 @@ Turning the setting on polls at once; a newly added provider is picked up by the
   exactly one project, it is listed as a normal row instead, whatever its share, so `projects_other`
   always holds at least 2 projects. `projects` plus
   `projects_other` add up exactly to the period's totals. Missing: hide the projects breakdown.
-- `cost_per_mtok_usd_micros` (integer | null) on PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend
-  and OtherProjects: the priced
+- `cost_per_mtok_usd_micros` (integer | null) on PeriodSpend, ProviderSpend, ModelUsage, ProjectSpend,
+  OtherProjects and (since 0.6.1) OtherModels: the priced
   cost per million priced tokens, `cost_usd_micros × 1 000 000 / priced total tokens`, rounded half up
   to a whole micro-USD. Unpriced tokens are never in the denominator. `null` when there are no priced
   tokens.

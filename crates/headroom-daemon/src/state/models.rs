@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use headroom_core::usage::{ModelUsage, UsageTotals};
+use headroom_core::usage::{ModelUsage, UsageTotals, most_expensive_first};
 
 use super::payload::{ModelView, OtherModelsView};
 
@@ -33,42 +33,43 @@ impl ModelMerge {
     }
 
     #[must_use]
-    pub fn ranked(self) -> Vec<ModelView> {
-        let mut models: Vec<ModelView> = self
+    pub fn ranked(self) -> Vec<ModelUsage> {
+        let mut models: Vec<ModelUsage> = self
             .by_name
             .into_iter()
-            .map(|(model, totals)| model_view(&ModelUsage { model, totals }))
+            .map(|(model, totals)| ModelUsage { model, totals })
             .collect();
         models.sort_by(|a, b| {
-            b.cost_usd_micros
-                .cmp(&a.cost_usd_micros)
-                .then_with(|| b.total_tokens.cmp(&a.total_tokens))
-                .then_with(|| a.model.cmp(&b.model))
+            most_expensive_first(&a.totals, &b.totals).then_with(|| a.model.cmp(&b.model))
         });
         models
     }
 }
 
 #[must_use]
-pub fn top_models(mut ranked: Vec<ModelView>) -> (Vec<ModelView>, Option<OtherModelsView>) {
+pub fn top_models(ranked: &[ModelUsage]) -> (Vec<ModelView>, Option<OtherModelsView>) {
     if ranked.len() <= TOP_MODELS + 1 {
-        return (ranked, None);
+        return (ranked.iter().map(model_view).collect(), None);
     }
-    let rest = ranked.split_off(TOP_MODELS);
-    (ranked, Some(other_models(&rest)))
+    let (listed, rest) = ranked.split_at(TOP_MODELS);
+    (
+        listed.iter().map(model_view).collect(),
+        Some(other_models(rest)),
+    )
 }
 
-fn other_models(rest: &[ModelView]) -> OtherModelsView {
-    let start = OtherModelsView {
+fn other_models(rest: &[ModelUsage]) -> OtherModelsView {
+    let totals = rest.iter().fold(UsageTotals::default(), |mut sum, usage| {
+        sum.absorb(&usage.totals);
+        sum
+    });
+    OtherModelsView {
         count: rest.len(),
-        ..OtherModelsView::default()
-    };
-    rest.iter().fold(start, |mut other, row| {
-        other.total_tokens = other.total_tokens.saturating_add(row.total_tokens);
-        other.cost_usd_micros = other.cost_usd_micros.saturating_add(row.cost_usd_micros);
-        other.partial |= row.partial;
-        other
-    })
+        total_tokens: totals.tokens.total().0,
+        cost_usd_micros: totals.cost.0,
+        partial: totals.is_partial(),
+        cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
+    }
 }
 
 #[cfg(test)]

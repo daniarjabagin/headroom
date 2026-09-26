@@ -72,6 +72,7 @@ pub struct OtherModelsView {
     pub total_tokens: u64,
     pub cost_usd_micros: i64,
     pub partial: bool,
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
