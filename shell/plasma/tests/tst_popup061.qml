@@ -96,6 +96,19 @@ TestCase {
         tryVerify(() => allNamed("meterSheen").every(item => !item.visible), settleMs);
     }
 
+    function test_sheen_ticks_once_per_cycle_and_rests() {
+        open();
+        const full = findAll(plasmoid, item => item.sheenRunning !== undefined, [])[0];
+        tryVerify(() => allNamed("meterSheen").some(item => item.visible), settleMs + 6000);
+        const cycle = full.sheen;
+        tryVerify(() => allNamed("meterSheen").every(item => !item.visible), 2000);
+        wait(1000);
+        compare(full.sheen, cycle);
+        verify(allNamed("meterSheen").every(item => !item.visible));
+        host().expanded = false;
+        tryCompare(full, "sheen", 0);
+    }
+
     function test_cli_login_sign_in_runs_accounts_login() {
         const raw = rawSample();
         const target = raw.accounts.find(account => account.id === signedOutId);

@@ -25,7 +25,7 @@ ColumnLayout {
     required property string lang
     required property real reveal
     required property bool reducedMotion
-    property real sheen: 0
+    property int sheen: 0
     readonly property bool capable: snapshot.supports06
     readonly property var accounts: State.visibleAccounts(snapshot)
     readonly property var parts: Collapse.partition(Combined.cards(snapshot, accounts))

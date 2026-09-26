@@ -3,7 +3,6 @@
 .import "FormatSpend.js" as FormatSpend
 .import "I18n.js" as I18n
 
-const TOP_MODELS = 5;
 const PROJECT_CHARS = 26;
 const PERMILLE = 1000;
 const DASH = "—";
@@ -36,52 +35,6 @@ function ranking(byTokens, nameOf) {
     return (first, second) => weight(second, byTokens) - weight(first, byTokens) || second.totalTokens - first.totalTokens || nameOf(first).localeCompare(nameOf(second));
 }
 
-function modelsOf(period, byTokens) {
-    const listed = [];
-    const folded = [];
-    for (const spend of period.providers) {
-        for (const model of spend.models)
-            listed.push({
-                name: model.model,
-                provider: spend.provider,
-                costMicros: model.costMicros,
-                totalTokens: model.totalTokens,
-                costPerMtokMicros: model.costPerMtokMicros ?? null,
-                count: 1
-            });
-        if (spend.modelsOther !== null)
-            folded.push({
-                provider: spend.provider,
-                costMicros: spend.modelsOther.costMicros,
-                totalTokens: spend.modelsOther.totalTokens,
-                costPerMtokMicros: spend.modelsOther.costPerMtokMicros,
-                count: spend.modelsOther.count
-            });
-    }
-    listed.sort(ranking(byTokens, model => model.name));
-    return {
-        top: listed.slice(0, TOP_MODELS),
-        folded: folded.concat(listed.slice(TOP_MODELS))
-    };
-}
-
-function mergedByProvider(entries) {
-    const merged = [];
-    for (const entry of entries) {
-        const found = merged.find(candidate => candidate.provider === entry.provider);
-        if (found) {
-            found.costMicros += entry.costMicros;
-            found.totalTokens += entry.totalTokens;
-        } else
-            merged.push({
-                provider: entry.provider,
-                costMicros: entry.costMicros,
-                totalTokens: entry.totalTokens
-            });
-    }
-    return merged;
-}
-
 function segments(parts, total, byTokens) {
     return parts.map(part => ({
                 provider: part.provider,
@@ -103,24 +56,6 @@ function row(scale, key, name, detail, entry, parts, period, share) {
     };
 }
 
-function soleRate(entries) {
-    return entries.length === 1 ? entries[0].costPerMtokMicros ?? null : null;
-}
-
-function sum(entries) {
-    return entries.reduce((total, entry) => ({
-                costMicros: total.costMicros + entry.costMicros,
-                totalTokens: total.totalTokens + entry.totalTokens,
-                costPerMtokMicros: total.costPerMtokMicros,
-                count: total.count + entry.count
-            }), {
-        costMicros: 0,
-        totalTokens: 0,
-        costPerMtokMicros: soleRate(entries),
-        count: 0
-    });
-}
-
 function modelCount(lang, count) {
     return I18n.trn(lang, "{count} model", "{count} models", count, {
         count
@@ -133,16 +68,51 @@ function projectCount(lang, count) {
     });
 }
 
+function modelRow(scale, model, period) {
+    return row(scale, `model:${model.provider}:${model.model}`, model.model, "", model, [model], period);
+}
+
+function otherModelRow(scale, key, other, provider, period) {
+    const part = Object.assign({}, other, {
+        provider
+    });
+    return row(scale, key, I18n.tr(scale.lang, "Other"), modelCount(scale.lang, other.count), other, [part], period);
+}
+
+function mergedModelRows(scale, period) {
+    const rows = period.models.map(model => modelRow(scale, model, period));
+    if (period.modelsOther !== null)
+        rows.push(otherModelRow(scale, "model:other", period.modelsOther, "", period));
+    return rows;
+}
+
+function providerModelRows(scale, period, spend) {
+    const rows = spend.models.map(model => modelRow(scale, Object.assign({}, model, {
+                provider: spend.provider
+            }), period));
+    if (spend.modelsOther !== null)
+        rows.push(otherModelRow(scale, `model:other:${spend.provider}`, spend.modelsOther, spend.provider, period));
+    return rows;
+}
+
+function foldedCount(other) {
+    return other?.count ?? 0;
+}
+
+function mergedModelCount(period) {
+    return period.models.length + foldedCount(period.modelsOther);
+}
+
+function providerModelCount(period) {
+    return period.providers.reduce((total, spend) => total + spend.models.length + foldedCount(spend.modelsOther), 0);
+}
+
 function modelRows(lang, period, unit) {
     const scale = scaleOf(lang, unit);
-    const models = modelsOf(period, scale.byTokens);
-    const rows = models.top.map(model => row(scale, `model:${model.provider}:${model.name}`, model.name, "", model, [model], period));
-    const other = sum(models.folded);
-    if (other.count > 0)
-        rows.push(row(scale, "model:other", I18n.tr(lang, "Other"), modelCount(lang, other.count), other, mergedByProvider(models.folded), period));
+    const merged = Array.isArray(period.models);
     return {
-        rows,
-        caption: modelCount(lang, models.top.length + other.count)
+        rows: merged ? mergedModelRows(scale, period) : period.providers.reduce((rows, spend) => rows.concat(providerModelRows(scale, period, spend)), []),
+        caption: modelCount(lang, merged ? mergedModelCount(period) : providerModelCount(period))
     };
 }
 

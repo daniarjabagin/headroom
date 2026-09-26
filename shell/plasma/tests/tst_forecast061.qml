@@ -143,15 +143,13 @@ TestCase {
     }
 
     function test_sheen_timing_and_threshold() {
-        compare(Motion.sheenSweepMs(), 1600);
-        compare(Motion.sheenRestMs(), 3500);
-        verify(!Motion.sheenActive(0, 0.5));
-        verify(!Motion.sheenActive(1, 0.5));
-        verify(Motion.sheenActive(0.4, 0.5));
-        verify(!Motion.sheenActive(0.4, 0.02));
-        compare(Motion.sheenOffset(0, 100, 30), -30);
-        compare(Motion.sheenOffset(1, 100, 30), 100);
-        compare(Motion.sheenOffset(0.5, 100, 30), 35);
+        compare(Motion.sheenSweepMs(), 1400);
+        compare(Motion.sheenCycleMs(), 6400);
+        compare(Motion.sheenStartDelayMs(), 600);
+        verify(!Motion.sheenShown(0, 0.5));
+        verify(Motion.sheenShown(1, 0.5));
+        verify(Motion.sheenShown(7, 0.03));
+        verify(!Motion.sheenShown(3, 0.02));
     }
 
     function test_show_breakdown_defaults_on() {
@@ -206,31 +204,42 @@ TestCase {
         };
     }
 
-    function otherRow(result) {
-        return result.rows.find(row => row.key === "model:other");
+    function otherRow(result, key) {
+        return result.rows.find(row => row.key === key);
     }
 
     function test_other_rate_comes_from_the_daemon() {
         const five = [model("a", 900), model("b", 800), model("c", 700), model("d", 600), model("e", 500)];
-        const single = period([provider("codex", five, {
+        const merged = period([provider("codex", five, null)]);
+        merged.models = SpendState.parsePeriod({
+            models: five.map(entry => Object.assign({
+                    provider: "codex"
+                }, entry))
+        }).models;
+        merged.modelsOther = SpendState.parsePeriod({
+            models_other: {
                 count: 3,
                 total_tokens: 300,
                 cost_usd_micros: 300,
                 cost_per_mtok_usd_micros: 1000000
-            })]);
-        compare(otherRow(SpendBreakdown.breakdown("en", single, "models", "cost_per_mtok")).value, "$1.00");
-        const mixed = period([provider("codex", five, {
-                count: 3,
-                total_tokens: 300,
-                cost_usd_micros: 300,
-                cost_per_mtok_usd_micros: 1000000
-            }), provider("claude", [model("f", 100)], null)]);
-        compare(otherRow(SpendBreakdown.breakdown("en", mixed, "models", "cost_per_mtok")).value, "—");
+            }
+        }).modelsOther;
+        compare(otherRow(SpendBreakdown.breakdown("en", merged, "models", "cost_per_mtok"), "model:other").value, "$1.00");
+        merged.modelsOther.costPerMtokMicros = null;
+        compare(otherRow(SpendBreakdown.breakdown("en", merged, "models", "cost_per_mtok"), "model:other").value, "—");
+    }
+
+    function test_older_daemon_shows_provider_lists_without_other_rate() {
+        const five = [model("a", 900), model("b", 800), model("c", 700), model("d", 600), model("e", 500)];
         const legacy = period([provider("codex", five, {
                 count: 3,
                 total_tokens: 300,
                 cost_usd_micros: 300
-            })]);
-        compare(otherRow(SpendBreakdown.breakdown("en", legacy, "models", "cost_per_mtok")).value, "—");
+            }), provider("claude", [model("f", 100)], null)]);
+        compare(legacy.models, null);
+        const result = SpendBreakdown.breakdown("en", legacy, "models", "cost_per_mtok");
+        compare(result.rows.map(row => row.key), ["model:codex:a", "model:codex:b", "model:codex:c", "model:codex:d", "model:codex:e", "model:other:codex", "model:claude:f"]);
+        compare(otherRow(result, "model:other:codex").value, "—");
+        compare(result.caption, "9 models");
     }
 }

@@ -48,6 +48,12 @@ Window {
         return patch;
     }
 
+    function freezeSheen(clip, phase) {
+        const band = clip.children[0];
+        clip.visible = true;
+        band.x = -band.width + phase * (clip.width + band.width);
+    }
+
     function applyInteractions() {
         if (flag("--expand"))
             findObjects(stage, item => typeof item.expandToggled === "function" && item.account !== undefined, []).forEach(section => section.gap === undefined ? section.expandToggled() : section.expandToggled(section.account.id));
@@ -64,7 +70,7 @@ Window {
         if (flag("--menu"))
             findObjects(stage, item => typeof item.openMenu === "function", []).slice(1, 2).forEach(header => header.openMenu());
         if (option("--sheen", "") !== "")
-            findObjects(stage, item => item.glowColor !== undefined && item.sheen !== undefined, []).forEach(meter => meter.sheen = Number(option("--sheen", "")));
+            findObjects(stage, item => item.objectName === "meterSheen", []).forEach(clip => freezeSheen(clip, Number(option("--sheen", ""))));
         if (flag("--unfold"))
             findObjects(stage, item => typeof item.setFolded === "function", []).forEach(dashboard => dashboard.setFolded(true));
         if (option("--share", "") !== "") {

@@ -20,7 +20,7 @@ ColumnLayout {
     required property real appear
     property var members: []
     property bool animated: true
-    property real sheen: 0
+    property int sheen: 0
     readonly property bool compact: Density.isCompact(display)
     readonly property real step: Density.fontStep(compact)
     readonly property bool combined: window.segments !== undefined

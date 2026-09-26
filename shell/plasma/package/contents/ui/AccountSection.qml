@@ -34,7 +34,7 @@ Item {
     property var incident: null
     property bool starred: false
     property bool canStar: false
-    property real sheen: 0
+    property int sheen: 0
     readonly property bool compact: Density.isCompact(display)
     readonly property bool animated: Motion.enabled(Kirigami.Units, reducedMotion)
     readonly property var notices: Account.notices(lang, account, offline, providers)
