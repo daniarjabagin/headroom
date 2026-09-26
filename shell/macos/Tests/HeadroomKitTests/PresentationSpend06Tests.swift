@@ -61,20 +61,24 @@ final class PresentationSpend06Tests: XCTestCase {
         XCTAssertEqual(popover.rows[0].fill, 41_200_000.0 / 66_450_000, accuracy: 1e-9)
         XCTAssertEqual(
             popover.footnotes,
-            ["Models under 5% are folded into Other.", "Estimated from local logs and public pricing."])
+            ["Models after the top 5 are folded into Other.", "Estimated from local logs and public pricing."])
     }
 
-    func testModelsBreakdownMergesProvidersAndFoldsSmallShares() throws {
+    func testOlderDaemonListsEachProvidersModelsWithoutRerankingOrFolding() throws {
         let breakdown = try XCTUnwrap(try card().breakdown)
         XCTAssertEqual(breakdown.modes, [.models, .projects])
         XCTAssertTrue(breakdown.showsSwitch)
         XCTAssertEqual(breakdown.caption, "7 models")
-        XCTAssertEqual(breakdown.rows.map(\.name), ["Opus 4.6", "GPT-5-Codex", "Sonnet 4.6", "GPT-5", "Other"])
-        XCTAssertEqual(breakdown.rows.map(\.share), ["35.7%", "33.4%", "17.1%", "8.9%", "4.7%"])
-        XCTAssertEqual(breakdown.rows.last?.detail, "· 3 models")
-        XCTAssertEqual(breakdown.rows.last?.value, "$5.45")
-        XCTAssertEqual(breakdown.rows.last?.segments.map(\.id), ["claude"])
-        XCTAssertEqual(breakdown.rows[1].icon, .dot(ProviderStyle.seriesColor(for: "codex")))
+        XCTAssertEqual(
+            breakdown.rows.map(\.name), ["Opus 4.6", "Sonnet 4.6", "Haiku 4.5", "Other", "GPT-5-Codex", "GPT-5"])
+        XCTAssertEqual(breakdown.rows.map(\.share), ["35.7%", "17.1%", "3.4%", "1.2%", "33.4%", "8.9%"])
+        XCTAssertEqual(breakdown.rows[3].detail, "· 2 models")
+        XCTAssertEqual(breakdown.rows[3].value, "$1.49")
+        XCTAssertEqual(breakdown.rows[3].id, "model:other:claude")
+        XCTAssertEqual(breakdown.rows[3].segments.map(\.id), ["claude"])
+        XCTAssertEqual(breakdown.rows[4].icon, .dot(ProviderStyle.seriesColor(for: "codex")))
+        let rate = try XCTUnwrap(try card(.costPerMTok).breakdown)
+        XCTAssertEqual(rate.rows.map(\.value), ["$1.07", "—", "—", "—", "—", "—"])
     }
 
     func testProjectsBreakdownSplitsBarsByProvider() throws {

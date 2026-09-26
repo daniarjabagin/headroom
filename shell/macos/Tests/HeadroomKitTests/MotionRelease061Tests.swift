@@ -45,23 +45,30 @@ final class MotionRelease061Tests: XCTestCase {
         XCTAssertFalse(MeterSheen.runs(fill: .nan, reducedMotion: false))
     }
 
+    func testSheenTimingMatchesLinux() {
+        XCTAssertEqual(MeterSheen.sweepSeconds, 1.4)
+        XCTAssertEqual(MeterSheen.restSeconds, 5.0)
+        XCTAssertLessThanOrEqual(1 / MeterSheen.frameSeconds, 30 + 1e-9)
+        XCTAssertEqual(MeterSheen.cycleSeconds, 6.4, accuracy: 1e-9)
+    }
+
     func testSheenSweepsThenRests() throws {
         XCTAssertEqual(MeterSheen.progress(elapsed: 0), 0)
-        XCTAssertEqual(try XCTUnwrap(MeterSheen.progress(elapsed: 0.8)), 0.5, accuracy: 1e-9)
-        XCTAssertNil(MeterSheen.progress(elapsed: 1.6))
+        XCTAssertEqual(try XCTUnwrap(MeterSheen.progress(elapsed: 0.7)), 0.5, accuracy: 1e-9)
+        XCTAssertNil(MeterSheen.progress(elapsed: 1.4))
         XCTAssertNil(MeterSheen.progress(elapsed: 4.0))
-        XCTAssertEqual(try XCTUnwrap(MeterSheen.progress(elapsed: 5.1 + 0.8)), 0.5, accuracy: 1e-9)
+        XCTAssertNotNil(MeterSheen.progress(elapsed: 6.41))
+        XCTAssertEqual(try XCTUnwrap(MeterSheen.progress(elapsed: 6.4 + 0.7)), 0.5, accuracy: 1e-9)
         XCTAssertNil(MeterSheen.progress(elapsed: -1))
-        XCTAssertEqual(MeterSheen.cycleSeconds, 5.1, accuracy: 1e-9)
     }
 
     func testSheenFramesStopDuringTheRest() {
         XCTAssertEqual(MeterSheen.nextFrame(after: -0.4), 0)
         XCTAssertEqual(MeterSheen.nextFrame(after: 0, frameSeconds: 0.1), 0.1, accuracy: 1e-9)
-        XCTAssertEqual(MeterSheen.nextFrame(after: 1.55, frameSeconds: 0.1), 1.6, accuracy: 1e-9)
-        XCTAssertEqual(MeterSheen.nextFrame(after: 1.6, frameSeconds: 0.1), 5.1, accuracy: 1e-9)
-        XCTAssertEqual(MeterSheen.nextFrame(after: 3, frameSeconds: 0.1), 5.1, accuracy: 1e-9)
-        XCTAssertEqual(MeterSheen.nextFrame(after: 0.5, frameSeconds: 0), 5.1, accuracy: 1e-9)
+        XCTAssertEqual(MeterSheen.nextFrame(after: 1.35, frameSeconds: 0.1), 1.4, accuracy: 1e-9)
+        XCTAssertEqual(MeterSheen.nextFrame(after: 1.4, frameSeconds: 0.1), 6.4, accuracy: 1e-9)
+        XCTAssertEqual(MeterSheen.nextFrame(after: 3, frameSeconds: 0.1), 6.4, accuracy: 1e-9)
+        XCTAssertEqual(MeterSheen.nextFrame(after: 0.5, frameSeconds: 0), 6.4, accuracy: 1e-9)
     }
 
     func testSheenFramesAlwaysAdvance() {
@@ -72,6 +79,14 @@ final class MotionRelease061Tests: XCTestCase {
             elapsed = next
         }
         XCTAssertGreaterThan(elapsed, MeterSheen.cycleSeconds * 3)
+    }
+
+    func testSheenRestartsExactlyOnCycleBoundaries() throws {
+        for cycle in 1...20 {
+            let boundary = Double(cycle) * MeterSheen.cycleSeconds
+            XCTAssertGreaterThan(MeterSheen.nextFrame(after: boundary), boundary)
+            XCTAssertEqual(try XCTUnwrap(MeterSheen.progress(elapsed: boundary)), 0, accuracy: 1e-6)
+        }
     }
 
     func testSheenBandCrossesTheWholeFill() {

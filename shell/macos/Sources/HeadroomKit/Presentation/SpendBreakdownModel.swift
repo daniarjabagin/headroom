@@ -41,17 +41,17 @@ public struct SpendBreakdownModel: Sendable, Hashable {
     ) -> SpendBreakdownModel? {
         guard let projects = period.projects else { return nil }
         let hasProjects = !projects.isEmpty || period.projectsOther != nil
-        let hasModels = period.byProvider.contains { !$0.models.isEmpty || $0.modelsOther != nil }
+        let models = MergedModels.make(period)
+        let hasModels = !models.isEmpty
         guard hasModels || hasProjects else { return nil }
         let modes: [SpendBreakdown] = [hasModels ? .models : nil, hasProjects ? .projects : nil].compactMap { $0 }
         let shown = modes.contains(mode) ? mode : modes.first ?? .models
         let context = BreakdownContext(period: period, unit: unit, formatter: formatter)
         switch shown {
         case .models:
-            let list = ModelRanking.rank(period, metric: context.metric)
             return SpendBreakdownModel(
-                modes: modes, mode: .models, caption: formatter.strings.fill(.models, count: list.count),
-                rows: context.modelRows(list))
+                modes: modes, mode: .models, caption: formatter.strings.fill(.models, count: models.count),
+                rows: models.rows.map(context.modelRow))
         case .projects:
             let count = UInt64(projects.count) + (period.projectsOther?.count ?? 0)
             return SpendBreakdownModel(
@@ -64,18 +64,22 @@ public struct SpendBreakdownModel: Sendable, Hashable {
 struct BreakdownContext {
     let metric: SpendMetric
     let total: UInt64
-    let listMetric: SpendMetric
+    let unit: SpendUnit
     let formatter: DisplayFormatter
 
     init(period: PeriodSpend, unit: SpendUnit, formatter: DisplayFormatter) {
-        listMetric = SpendMetric.forList(unit)
-        metric = listMetric.basis(costMicros: period.costUSDMicros, tokens: period.totalTokens)
+        self.unit = unit
+        metric = SpendMetric.forList(unit).basis(costMicros: period.costUSDMicros, tokens: period.totalTokens)
         total = metric.value(costMicros: period.costUSDMicros, tokens: period.totalTokens)
         self.formatter = formatter
     }
 
-    func value(cost: Int64, tokens: UInt64) -> String {
-        listMetric == .tokens ? formatter.compactTokens(tokens) : formatter.usd(micros: cost)
+    func value(cost: Int64, tokens: UInt64, rate: Int64?) -> String {
+        switch unit {
+        case .cost: formatter.usd(micros: cost)
+        case .tokens: formatter.compactTokens(tokens)
+        case .costPerMTok: formatter.costPerMTok(micros: rate)
+        }
     }
 
     func share(cost: Int64, tokens: UInt64) -> String {
@@ -89,36 +93,30 @@ struct BreakdownContext {
             fraction: SpendShare.fraction(metric.value(costMicros: cost, tokens: tokens), of: total))
     }
 
-    func modelRows(_ list: ModelRanking) -> [BreakdownRow] {
-        let rows = list.shown.map { entry in
-            BreakdownRow(
-                id: "model:\(entry.provider):\(entry.model.model)",
-                icon: .dot(ProviderStyle.seriesColor(for: entry.provider)), name: entry.model.model, detail: nil,
-                share: share(cost: entry.model.costUSDMicros, tokens: entry.model.totalTokens),
-                value: value(cost: entry.model.costUSDMicros, tokens: entry.model.totalTokens),
-                segments: [
-                    segment(
-                        entry.provider, color: ProviderStyle.seriesColor(for: entry.provider),
-                        cost: entry.model.costUSDMicros, tokens: entry.model.totalTokens)
-                ])
-        }
-        guard let other = list.other else { return rows }
-        return rows + [otherModelsRow(other)]
+    func modelRow(_ entry: MergedModelRow) -> BreakdownRow {
+        let color = entry.provider.map(ProviderStyle.seriesColor(for:)) ?? SpendBreakdownModel.neutral
+        return BreakdownRow(
+            id: entry.id, icon: .dot(color), name: modelName(entry.label), detail: modelDetail(entry.label),
+            share: share(cost: entry.costUSDMicros, tokens: entry.totalTokens),
+            value: value(cost: entry.costUSDMicros, tokens: entry.totalTokens, rate: entry.costPerMTokUSDMicros),
+            segments: [
+                segment(
+                    entry.provider ?? "other", color: color, cost: entry.costUSDMicros, tokens: entry.totalTokens)
+            ])
     }
 
-    private func otherModelsRow(_ other: FoldedModels) -> BreakdownRow {
-        let segments = other.parts.map { part in
-            segment(
-                part.provider, color: ProviderStyle.seriesColor(for: part.provider), cost: part.cost,
-                tokens: part.tokens)
+    private func modelName(_ label: MergedModelLabel) -> String {
+        switch label {
+        case .model(let name): name
+        case .other: formatter.strings.text(PopupExtraText.other)
         }
-        let leading = other.parts.max { $0.cost < $1.cost }.map { ProviderStyle.seriesColor(for: $0.provider) }
-        return BreakdownRow(
-            id: "model:other", icon: .dot(leading ?? SpendBreakdownModel.neutral),
-            name: formatter.strings.text(PopupExtraText.other),
-            detail: formatter.strings.fill(.otherModels, count: other.count),
-            share: share(cost: other.cost, tokens: other.tokens), value: value(cost: other.cost, tokens: other.tokens),
-            segments: segments)
+    }
+
+    private func modelDetail(_ label: MergedModelLabel) -> String? {
+        switch label {
+        case .model: nil
+        case .other(let count): formatter.strings.fill(.otherModels, count: count)
+        }
     }
 
     func projectRows(_ projects: [ProjectSpend], other: OtherProjects?) -> [BreakdownRow] {
@@ -127,7 +125,8 @@ struct BreakdownContext {
                 id: "project:\(index):\(project.project ?? "")", icon: .folder,
                 name: formatter.projectName(project.project, maxCharacters: SpendBreakdownModel.projectNameLength),
                 detail: nil, share: share(cost: project.costUSDMicros, tokens: project.totalTokens),
-                value: value(cost: project.costUSDMicros, tokens: project.totalTokens),
+                value: value(
+                    cost: project.costUSDMicros, tokens: project.totalTokens, rate: project.costPerMTokUSDMicros),
                 segments: project.byProvider.map { part in
                     segment(
                         part.provider, color: ProviderStyle.seriesColor(for: part.provider), cost: part.costUSDMicros,
@@ -140,7 +139,8 @@ struct BreakdownContext {
                 id: "project:other", icon: .folder, name: formatter.strings.text(PopupExtraText.other),
                 detail: formatter.strings.fill(.otherProjects, count: other.count),
                 share: share(cost: other.costUSDMicros, tokens: other.totalTokens),
-                value: value(cost: other.costUSDMicros, tokens: other.totalTokens),
+                value: value(
+                    cost: other.costUSDMicros, tokens: other.totalTokens, rate: other.costPerMTokUSDMicros),
                 segments: [
                     segment(
                         "other", color: SpendBreakdownModel.neutral, cost: other.costUSDMicros,
