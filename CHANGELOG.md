@@ -18,6 +18,11 @@ one-click CLI sign-in, and redesigned account settings.
   that will not happen; idleness is judged between refreshes, so stale data never looks paused.
   Only accounts whose CLI writes local logs can pause. Weekly and longer windows keep the window
   average. `headroom status` shows the same forecast.
+- **Live forecast between refreshes.** While a Claude or Codex account is working, the forecast
+  follows the token spend in its local logs within seconds, calibrated against the provider's own
+  percent steps. The shown percentages are always the provider's; the estimate only moves the
+  forecast, and a later refresh that shows no rise, or usage of models without a price, falls back
+  to the percent steps.
 - **Usage history for accounts added through Headroom.** A Claude or Codex account added with
   `headroom accounts add` now gets usage history, spend and live refresh from the CLI's own logs
   (`~/.claude`, `~/.codex`) when that CLI is signed in to the same account and is not shown as an
@@ -42,8 +47,14 @@ one-click CLI sign-in, and redesigned account settings.
 - **Account settings are a list and a details pane**, as on macOS, in GNOME, Plasma and the tray:
   providers and accounts on the left, and the selected account's visibility, star, label, single
   limits, links, order, Sign in again… and Remove… on the right.
-- **Collapse unstarred folds every account without a star**, including ones that need attention;
-  with no starred accounts at all, every account folds. Starred accounts never fold.
+- **Collapse unstarred folds every account without a star**; with no starred accounts at all,
+  every account folds. Starred accounts never fold. The "N more" row shows a warning mark or a
+  tone dot when a folded account needs attention.
+- **Rate limits are calm.** When a provider limits requests but Headroom has data, the card keeps
+  the last numbers with a quiet "Provider is limiting requests · next try 18:05" line instead of an
+  error. Repeated limits back off 5 → 10 → 20 → 40 → 60 minutes (or the provider's Retry-After),
+  manual Retry is spaced at least a minute apart, and Claude's usage is polled at most every
+  3 minutes because Claude Code polls the same endpoint.
 - **Models breakdown and the "Other" row come from the daemon**, including the Other row's cost per
   million tokens, so every desktop shows the same numbers.
 - "Will run out" and "cutting it close" no longer repeat after every burst of work: once sent, they
