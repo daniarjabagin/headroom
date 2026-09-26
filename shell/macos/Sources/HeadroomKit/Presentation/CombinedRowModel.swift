@@ -70,6 +70,7 @@ public struct CombinedRowModel: Sendable, Hashable, Identifiable {
         _ window: CombinedWindow, now: Timestamp, display: DisplaySettings, formatter: DisplayFormatter
     ) -> String? {
         let pace = window.pace
+        if pace.isPaused { return PausedForecast.text(pace, strings: formatter.strings) }
         switch pace.severity {
         case .runningOut where pace.runsOutAt == nil:
             return formatter.strings.text(CombinedText.runsOutBeforeReset)

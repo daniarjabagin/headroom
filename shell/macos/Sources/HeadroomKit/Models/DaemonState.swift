@@ -185,14 +185,19 @@ public struct Pace: Decodable, Sendable, Hashable {
     public let projectedPercent: Double?
     public let sparePercent: Double?
     public let runsOutAt: Timestamp?
+    public let basis: PaceBasis?
+    public let activeLeftSeconds: UInt64?
 
     enum CodingKeys: String, CodingKey {
-        case severity
+        case severity, basis
         case evenPacePercent = "even_pace_percent"
         case projectedPercent = "projected_percent"
         case sparePercent = "spare_percent"
         case runsOutAt = "runs_out_at"
+        case activeLeftSeconds = "active_left_seconds"
     }
+
+    public var isPaused: Bool { basis == .paused }
 }
 
 public struct Balance: Decodable, Sendable, Hashable, Identifiable {

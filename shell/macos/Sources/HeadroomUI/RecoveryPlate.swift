@@ -26,9 +26,7 @@
 
         private var actions: [NoticeAction] {
             guard let recovery else { return [] }
-            return [primaryAction(recovery.primary, accountID: recovery.accountID), retryAction(recovery)].compactMap {
-                $0
-            }
+            return primaryActions(recovery.primary, accountID: recovery.accountID) + [retryAction(recovery)]
         }
 
         private func retryAction(_ recovery: NoticeRecovery) -> NoticeAction {
@@ -41,20 +39,33 @@
                 run: { retries.press(accountID, refresh) })
         }
 
-        private func primaryAction(_ primary: RecoveryPrimary?, accountID: String) -> NoticeAction? {
+        private func primaryActions(_ primary: RecoveryPrimary?, accountID: String) -> [NoticeAction] {
             switch primary {
             case .signIn(let provider):
-                let signInAgain = context.sections.signInAgain
-                return NoticeAction(
-                    id: "signin", title: context.strings.text(.signInAgain), primary: true, busy: false,
-                    run: { signInAgain(accountID, provider) })
+                return [signInAction(.signInAgain, accountID: accountID, provider: provider)]
+            case .cliSignIn(let provider, let command):
+                return [
+                    signInAction(.signIn, accountID: accountID, provider: provider),
+                    copyAction(command, primary: false),
+                ]
             case .copyCommand(let command):
-                return NoticeAction(
-                    id: "copy", title: context.strings.text(copied ? .copied : .copyCommand), primary: true,
-                    busy: false, run: { copy(command) })
+                return [copyAction(command, primary: true)]
             case nil:
-                return nil
+                return []
             }
+        }
+
+        private func signInAction(_ title: PopupText, accountID: String, provider: String) -> NoticeAction {
+            let signInAgain = context.sections.signInAgain
+            return NoticeAction(
+                id: "signin", title: context.strings.text(title), primary: true, busy: false,
+                run: { signInAgain(accountID, provider) })
+        }
+
+        private func copyAction(_ command: String, primary: Bool) -> NoticeAction {
+            NoticeAction(
+                id: "copy", title: context.strings.text(copied ? .copied : .copyCommand), primary: primary,
+                busy: false, run: { copy(command) })
         }
 
         private func copy(_ command: String) {

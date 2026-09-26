@@ -101,7 +101,10 @@
                 segment.fill, span: span.width, minimum: Double(meterHeight))
             return ZStack(alignment: .leading) {
                 Capsule().fill(Palette.track).frame(height: meterHeight)
-                Capsule().fill(segment.tone.color).frame(width: CGFloat(fill), height: meterHeight)
+                Capsule()
+                    .fill(segment.tone.color)
+                    .frame(width: CGFloat(fill), height: meterHeight)
+                    .meterSheen(fill: segment.fill, width: CGFloat(fill), height: meterHeight)
                 if let tick = segment.tick {
                     RoundedRectangle(cornerRadius: 1)
                         .fill(Palette.tick)

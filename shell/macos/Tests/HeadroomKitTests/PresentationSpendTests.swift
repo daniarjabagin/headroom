@@ -55,7 +55,8 @@ final class PresentationSpendTests: XCTestCase {
                     model: "opus", totalTokens: 2_500_000, costUSDMicros: 12_340_000, partial: false,
                     costPerMTokUSDMicros: 4_936_000)
             ],
-            other: OtherModels(count: 3, totalTokens: 1500, costUSDMicros: 20_000, partial: false),
+            other: OtherModels(
+                count: 3, totalTokens: 1500, costUSDMicros: 20_000, partial: false, costPerMTokUSDMicros: nil),
             costMicros: 12_360_000, totalTokens: 2_501_500, formatter: Build.english)
         XCTAssertEqual(breakdown?.rows.map(\.name), ["opus", "Other (3)"])
         XCTAssertEqual(breakdown?.rows.map(\.tokens), ["2.5M", "1.5K"])

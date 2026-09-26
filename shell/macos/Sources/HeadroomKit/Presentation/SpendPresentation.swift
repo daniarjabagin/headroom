@@ -33,7 +33,9 @@ public struct SpendCardModel: Sendable, Hashable {
         features.release06 ? SpendUnit.allCases : [.cost]
     }
 
-    public static func make(spend: Spend, selection: SpendSelection, formatter: DisplayFormatter) -> SpendCardModel {
+    public static func make(
+        spend: Spend, selection: SpendSelection, formatter: DisplayFormatter, showBreakdown: Bool = true
+    ) -> SpendCardModel {
         let period = selection.effectivePeriod(in: spend)
         let totals = spend.period(period) ?? spend.last30Days
         let unit = selection.unit
@@ -48,7 +50,8 @@ public struct SpendCardModel: Sendable, Hashable {
             centerCaption: center.caption, value: center.value,
             fractions: DonutGeometry.visibleFractions(totals.byProvider.map { ringValue($0, ring) }),
             entries: entries, info: info(partial: totals.partial, strings: formatter.strings),
-            breakdown: SpendBreakdownModel.make(totals, mode: selection.breakdown, unit: unit, formatter: formatter))
+            breakdown: showBreakdown
+                ? SpendBreakdownModel.make(totals, mode: selection.breakdown, unit: unit, formatter: formatter) : nil)
     }
 
     static func ringValue(_ spend: ProviderSpend, _ metric: SpendMetric) -> Int64 {

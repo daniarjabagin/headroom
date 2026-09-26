@@ -1,5 +1,6 @@
 public enum RecoveryPrimary: Sendable, Hashable {
     case signIn(provider: String)
+    case cliSignIn(provider: String, command: String)
     case copyCommand(String)
 }
 
@@ -33,18 +34,19 @@ enum RecoveryRules {
         switch recovery {
         case .retry: nil
         case .signIn: .signIn(provider: provider)
-        case .cliLogin(let command): .copyCommand(command)
+        case .cliLogin(let command, nil): .copyCommand(command)
+        case .cliLogin(let command, .some): .cliSignIn(provider: provider, command: command)
         }
     }
 
     static func terminalHint(_ account: Account, strings: UIStrings) -> String? {
-        guard case .cliLogin(let command) = effective(account) else { return nil }
+        guard case .cliLogin(let command, _) = effective(account) else { return nil }
         return strings.fill(.runInTerminal, ["command": command])
     }
 
     static func signedOutDetail(_ account: Account, strings: UIStrings) -> String {
         switch effective(account) {
-        case .cliLogin(let command): strings.fill(.runInTerminal, ["command": command])
+        case .cliLogin(let command, _): strings.fill(.runInTerminal, ["command": command])
         case .retry: strings.text(.signInThenRetry)
         case .signIn, nil: strings.text(.signedOutDetail)
         }

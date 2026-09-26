@@ -1,4 +1,5 @@
 public enum BrandMark {
+    public static let name = "Headroom"
     public static let icon = SVGIcon(
         origin: PlanePoint(x: 0, y: 0), width: 16, height: 16, commands: plates.flatMap(outline))
 

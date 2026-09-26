@@ -12,7 +12,7 @@ final class RecoveryTests: XCTestCase {
         let cases: [(String, AccountRecovery)] = [
             (#"{"action":"retry"}"#, .retry),
             (#"{"action":"sign_in","account_id":"claude:1a"}"#, .signIn(accountID: "claude:1a")),
-            (Self.cliLogin, .cliLogin(command: "claude auth login --claudeai")),
+            (Self.cliLogin, .cliLogin(command: "claude auth login --claudeai", accountID: nil)),
             (#"{"action":"open_browser","url":"https://example.com"}"#, .retry),
         ]
         for (json, expected) in cases {

@@ -81,11 +81,13 @@ public struct OtherModels: Decodable, Sendable, Hashable {
     public let totalTokens: UInt64
     public let costUSDMicros: Int64
     public let partial: Bool
+    public let costPerMTokUSDMicros: Int64?
 
     enum CodingKeys: String, CodingKey {
         case count, partial
         case totalTokens = "total_tokens"
         case costUSDMicros = "cost_usd_micros"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
     }
 }
 

@@ -1,7 +1,7 @@
 public enum PopupText: Sendable, CaseIterable {
     case today, yesterday, last30Days, noUsageInPeriod
     case spendEstimate, spendUnpricedModels, usageTrend, noUsage, someModelsUnpriced, unpriced, partlyUnpriced
-    case outdated, refreshFailed, retry, retrying, signInAgain, signedOutDetail, signInThenRetry
+    case outdated, refreshFailed, retry, retrying, signIn, signInAgain, signedOutDetail, signInThenRetry
     case copyCommand, copied, accountChangedDetail
     case noSubscriptionDetail, overPace, limitSoon, runsOutAnyMinute
     case serviceDownTitle, serviceDownDetail, stateUnreadable, tryAgain, noToolsFound, checkAgain, settings
@@ -23,6 +23,7 @@ public enum PopupText: Sendable, CaseIterable {
         case .refreshFailed: "Refresh failed"
         case .retry: "Retry"
         case .retrying: "Retrying…"
+        case .signIn: "Sign in"
         case .signInAgain: "Sign in again…"
         case .signedOutDetail:
             "Sign in again through Headroom (Settings → Accounts → Add account), or remove the account there."
@@ -62,6 +63,7 @@ public enum PopupText: Sendable, CaseIterable {
         case .refreshFailed: "Не удалось обновить"
         case .retry: "Повторить"
         case .retrying: "Повторяем…"
+        case .signIn: "Войти"
         case .signInAgain: "Войти снова…"
         case .signedOutDetail:
             "Войдите снова через Headroom (Настройки → Аккаунты → Добавить аккаунт) или удалите там этот аккаунт."

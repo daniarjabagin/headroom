@@ -29,6 +29,10 @@
                     detail: strings.text(SpendSettingsText.breakdownDetail), value: display.spendBreakdown,
                     options: SpendBreakdown.allCases, label: { $0.title(strings) }, change: { .spend(.breakdown($0)) },
                     segmented: true)
+                SettingToggle(
+                    context, SpendSettingsText.showBreakdown, SpendSettingsText.showBreakdownDetail,
+                    display.showBreakdown
+                ) { .spend(.showBreakdown($0)) }
             }
         }
     }

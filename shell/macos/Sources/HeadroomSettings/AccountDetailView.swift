@@ -26,7 +26,7 @@
                         Text(strings.text(AccountsText.limitsFooter)).foregroundStyle(.secondary)
                     }
                 }
-                if case .signIn(let accountID) = account.recovery { signInAgainRow(accountID) }
+                if let accountID = account.recovery?.signInAccountID { signInAgainRow(accountID) }
                 Section { removeRow }
             }
             .formStyle(.grouped)

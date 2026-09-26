@@ -23,6 +23,8 @@ final class StringsTests: XCTestCase {
         check(LayoutOptionText.self)
         check(SpendOptionText.self)
         check(AdvancedOptionText.self)
+        check(PausedText.self)
+        check(SpendSettingsText.self)
         for key in UIText.allCases {
             assertTranslated(String(describing: key), english: key.english, russian: key.russian)
         }

@@ -129,11 +129,13 @@
             let tickHeight = layout.cg.tickHeight
             GeometryReader { proxy in
                 let width = proxy.size.width
+                let filled = fillWidth(in: width, meter: meter)
                 ZStack(alignment: .leading) {
                     Capsule().fill(Palette.track).frame(height: meter)
                     Capsule()
                         .fill(tone.color)
-                        .frame(width: fillWidth(in: width, meter: meter), height: meter)
+                        .frame(width: filled, height: meter)
+                        .meterSheen(fill: fraction, width: filled, height: meter)
                     if let tick {
                         RoundedRectangle(cornerRadius: 1)
                             .fill(Palette.tick)

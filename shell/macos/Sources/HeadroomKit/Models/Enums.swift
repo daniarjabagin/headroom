@@ -27,6 +27,11 @@ public enum PaceSeverity: String, LenientStringEnum {
     public static let fallback = PaceSeverity.untracked
 }
 
+public enum PaceBasis: String, LenientStringEnum {
+    case recent, window, paused
+    public static let fallback = PaceBasis.window
+}
+
 public enum AccountStatus: String, LenientStringEnum {
     case refreshing
     case noSubscription = "no_subscription"

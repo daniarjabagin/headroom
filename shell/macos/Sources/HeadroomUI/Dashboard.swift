@@ -24,14 +24,10 @@
                 if SpendCardModel.shows(state) {
                     SpendSection(
                         spend: state.spend, formatter: formatter, units: SpendCardModel.units(state.features),
-                        selection: selection
+                        showBreakdown: state.display.showBreakdown, selection: selection
                     ) { refreshButton }
                 } else {
-                    HStack {
-                        Spacer(minLength: 0)
-                        refreshButton
-                    }
-                    .padding(.trailing, PopupMetrics.headerTrailing)
+                    BrandHeader { refreshButton }
                 }
                 TimelineView(.periodic(from: .now, by: tickInterval)) { timeline in
                     accountLists(now: Timestamp(date: timeline.date))
