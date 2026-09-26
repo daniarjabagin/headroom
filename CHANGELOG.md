@@ -37,6 +37,8 @@ one-click CLI sign-in, and redesigned account settings.
 - **Show models and projects** (`display.show_breakdown`, on by default) hides or shows the
   breakdown list under the spend ring.
 - **Headroom mark in the popup header** when the spend section is hidden.
+- **Support Headroom** in Advanced settings (GNOME, Plasma, tray, macOS): a link to star the project
+  on GitHub.
 - **Limit bars shimmer** with a soft sheen in their own color, only while the popup is open and not
   with reduced motion.
 - **D-Bus and socket API:** `pace.basis` and `pace.active_left_seconds`; `spend.<period>.models`
