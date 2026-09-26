@@ -133,7 +133,7 @@ fn record_failure(
 }
 
 async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
-    let (record, snapshot, settings, lapsed, history, live) = {
+    let (record, snapshot, settings, lapsed, history, signal) = {
         let model = core.model();
         let record = model.account(&account.id).cloned();
         let snapshot = model.snapshots.get(&account.id).map(|e| e.snapshot.clone());
@@ -142,15 +142,15 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
             .get(&account.id)
             .and_then(|runtime| runtime.failure.as_ref())
             .is_some_and(RefreshFailure::is_no_subscription);
-        let history = model.history.account(&account.id).cloned();
-        let live = model.account_is_live(account, now);
+        let history = model.history.shared(&account.id);
+        let signal = model.activity_signal(account, now);
         (
             record,
             snapshot,
             model.settings.clone(),
             lapsed,
             history,
-            live,
+            signal,
         )
     };
     let Some(record) = record else {
@@ -175,8 +175,8 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
                 account: &record,
                 provider_name,
                 snapshot: &snapshot,
-                history: history.as_ref(),
-                live,
+                history: history.as_deref(),
+                signal,
                 settings: settings.notifications,
                 display: &settings.display,
                 locale,

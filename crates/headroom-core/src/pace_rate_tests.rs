@@ -13,7 +13,7 @@ fn at_mins(mins_ago: i64, used: f64) -> UsageSample {
 }
 
 fn session() -> Cadence {
-    Cadence::of(SignedDuration::from_hours(5))
+    Cadence::of(SignedDuration::from_hours(5), SignedDuration::from_mins(5))
 }
 
 fn close_to(actual: Option<f64>, expected: f64) -> bool {
@@ -30,7 +30,7 @@ fn cadence_scales_with_the_period() {
         (SignedDuration::from_hours(30 * 24), 120, 240),
     ];
     for (period, idle, lookback) in cases {
-        let cadence = Cadence::of(period);
+        let cadence = Cadence::of(period, SignedDuration::from_mins(5));
         assert_eq!(
             cadence.idle_after,
             SignedDuration::from_mins(idle),
@@ -131,4 +131,12 @@ fn an_idle_account_keeps_its_last_active_rate() {
         last_active_rate(&samples, session()),
         30.0 / 900.0
     ));
+}
+
+#[test]
+fn a_long_poll_interval_stretches_the_idle_threshold() {
+    let hourly = Cadence::of(SignedDuration::from_hours(5), SignedDuration::from_hours(1));
+    assert_eq!(hourly.idle_after, SignedDuration::from_hours(2));
+    let live = Cadence::of(SignedDuration::from_hours(5), SignedDuration::from_mins(1));
+    assert_eq!(live.idle_after, SignedDuration::from_mins(10));
 }

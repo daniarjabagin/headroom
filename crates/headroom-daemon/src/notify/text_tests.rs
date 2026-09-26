@@ -20,6 +20,8 @@ fn observed(severity: Severity, remaining: f64) -> Observation {
         resets_at: Some(ts("2026-09-23T10:42:00Z")),
         runs_out_at: Some(ts("2026-09-23T10:20:00Z")),
         paused: false,
+        recent: false,
+        window_severity: severity,
     }
 }
 

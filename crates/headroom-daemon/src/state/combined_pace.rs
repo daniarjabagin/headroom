@@ -59,11 +59,19 @@ fn basis(segments: &[&WindowView]) -> Basis {
     let bases = || segments.iter().filter_map(|w| w.pace.basis);
     if bases().any(|b| b == Basis::Recent) {
         Basis::Recent
-    } else if bases().next().is_some() && bases().all(|b| b == Basis::Paused) {
+    } else if all_paused(segments) {
         Basis::Paused
     } else {
         Basis::Window
     }
+}
+
+fn all_paused(segments: &[&WindowView]) -> bool {
+    let mut members = segments
+        .iter()
+        .filter(|w| w.pace.severity != Severity::Spent)
+        .peekable();
+    members.peek().is_some() && members.all(|w| w.pace.basis == Some(Basis::Paused))
 }
 
 fn active_left(segments: &[&WindowView], basis: Option<Basis>) -> Option<u64> {

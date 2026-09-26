@@ -9,6 +9,7 @@ const LOOKBACK_DIVISOR: i32 = 6;
 const LOOKBACK_FLOOR: SignedDuration = SignedDuration::from_mins(30);
 const LOOKBACK_CAP: SignedDuration = SignedDuration::from_hours(4);
 const MIN_STEPS: u32 = 3;
+const POLLS_BEFORE_IDLE: i32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Cadence {
@@ -17,9 +18,14 @@ pub(crate) struct Cadence {
 }
 
 impl Cadence {
-    pub(crate) fn of(period: SignedDuration) -> Cadence {
+    pub(crate) fn of(period: SignedDuration, poll_interval: SignedDuration) -> Cadence {
+        let polls = poll_interval
+            .checked_mul(POLLS_BEFORE_IDLE)
+            .unwrap_or(SignedDuration::MAX);
         Cadence {
-            idle_after: (period / IDLE_DIVISOR).clamp(IDLE_FLOOR, IDLE_CAP),
+            idle_after: (period / IDLE_DIVISOR)
+                .clamp(IDLE_FLOOR, IDLE_CAP)
+                .max(polls),
             lookback: (period / LOOKBACK_DIVISOR).clamp(LOOKBACK_FLOOR, LOOKBACK_CAP),
         }
     }

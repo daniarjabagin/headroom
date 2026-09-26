@@ -111,11 +111,21 @@ impl Model {
 
     #[must_use]
     pub fn account_is_live(&self, account: &AccountRef, now: Timestamp) -> bool {
-        let homes: Vec<UsageHome> = std::iter::once(account.home.clone())
+        self.activity.any_live(&self.log_homes_of(account), now)
+    }
+
+    #[must_use]
+    pub fn has_activity_source(&self, account: &AccountRef) -> bool {
+        self.log_homes_of(account)
+            .iter()
+            .any(|home| self.usage_homes.contains(home))
+    }
+
+    fn log_homes_of(&self, account: &AccountRef) -> Vec<UsageHome> {
+        std::iter::once(account.home.clone())
             .chain(self.linked_log_homes(account))
             .map(|home| usage_home(account, &home))
-            .collect();
-        self.activity.any_live(&homes, now)
+            .collect()
     }
 }
 

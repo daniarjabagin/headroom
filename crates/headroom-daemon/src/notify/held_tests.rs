@@ -16,6 +16,8 @@ fn observed(resets_at: &str) -> Observation {
         resets_at: Some(ts(resets_at)),
         runs_out_at: None,
         paused: false,
+        recent: false,
+        window_severity: Severity::Close,
     }
 }
 
@@ -25,6 +27,7 @@ fn state(resets_at: &str, fired: &[Milestone]) -> AlertState {
         tone: Tone::Warning,
         fired: fired.iter().copied().collect::<BTreeSet<_>>(),
         reset_owed: false,
+        recent_seen: false,
     }
 }
 

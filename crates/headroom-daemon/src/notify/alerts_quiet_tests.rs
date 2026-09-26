@@ -1,4 +1,6 @@
 use headroom_core::account::ProviderId;
+use headroom_core::forecast::Liveness;
+use jiff::SignedDuration;
 use tokio::sync::mpsc;
 
 use super::*;
@@ -11,6 +13,10 @@ const LATER: &str = "2026-09-24T02:00:00Z";
 const MORNING: &str = "2026-09-24T08:00:00Z";
 const SESSION_RESET: &str = "2026-09-24T01:00:00Z";
 const WEEK_RESET: &str = "2026-09-26T00:00:00Z";
+const IDLE: Signal = Signal {
+    liveness: Liveness::Idle,
+    poll_interval: SignedDuration::from_mins(5),
+};
 
 fn record(provider: ProviderId, name: &str) -> AccountRecord {
     AccountRecord {
@@ -129,7 +135,7 @@ async fn observe(
         provider_name: "Codex",
         snapshot: &limits,
         history: None,
-        live: false,
+        signal: IDLE,
         settings: settings.clone(),
         display: &DisplaySettings::default(),
         locale,

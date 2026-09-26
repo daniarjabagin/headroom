@@ -6,10 +6,26 @@ use crate::pace_rate::{Cadence, last_active_rate, recent_rate};
 use crate::quota::QuotaWindow;
 use crate::units::Percent;
 
+const RECENT_MAX_PERIOD: SignedDuration = SignedDuration::from_hours(24);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Liveness {
+    Unknown,
+    Live,
+    Idle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Signal {
+    pub liveness: Liveness,
+    pub poll_interval: SignedDuration,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Activity<'a> {
     pub samples: &'a [UsageSample],
-    pub live: bool,
+    pub signal: Signal,
+    pub observed_at: Timestamp,
 }
 
 #[must_use]
@@ -22,9 +38,12 @@ pub fn forecast(window: &QuotaWindow, activity: Activity<'_>, now: Timestamp) ->
         return average;
     }
     let samples = current_samples(activity.samples, window);
-    let cadence = Cadence::of(timing.period);
-    if is_paused(window, samples, cadence, activity.live, now) {
+    let cadence = Cadence::of(timing.period, activity.signal.poll_interval);
+    if is_paused(window, samples, cadence, activity) {
         return paused(window, average, samples, cadence);
+    }
+    if timing.period > RECENT_MAX_PERIOD {
+        return average;
     }
     match recent_rate(samples, cadence, now) {
         Some(rate) => recent(window, &average, timing, rate, now),
@@ -36,11 +55,11 @@ fn is_paused(
     window: &QuotaWindow,
     samples: &[UsageSample],
     cadence: Cadence,
-    live: bool,
-    now: Timestamp,
+    activity: Activity<'_>,
 ) -> bool {
+    let idle = activity.signal.liveness == Liveness::Idle;
     let unchanged = samples.last().is_some_and(|last| last.used == window.used);
-    !live && unchanged && cadence.is_idle(samples, now)
+    idle && unchanged && cadence.is_idle(samples, activity.observed_at)
 }
 
 fn paused(window: &QuotaWindow, average: Pace, samples: &[UsageSample], cadence: Cadence) -> Pace {

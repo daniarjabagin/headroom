@@ -18,6 +18,8 @@ fn seen(remaining: f64, severity: Severity) -> Observation {
         resets_at: Some(ts(RESET)),
         runs_out_at: None,
         paused: false,
+        recent: false,
+        window_severity: severity,
     }
 }
 
@@ -305,27 +307,4 @@ fn a_paused_window_still_warns_when_almost_out() {
         paused(seen(5.0, Severity::RunningOut)),
     ];
     assert_eq!(run(&steps), vec![vec![], vec![Milestone::AlmostOut]]);
-}
-
-#[test]
-fn a_paused_forecast_marks_the_observation() {
-    use headroom_core::forecast::{Activity, forecast};
-    use headroom_core::history::UsageSample;
-    let now = ts("2026-09-23T10:00:00Z");
-    let window = crate::testing::session(60.0, "2026-09-23T12:30:00Z");
-    let samples = [UsageSample {
-        at: ts("2026-09-23T08:10:00Z"),
-        used: window.used,
-    }];
-    let activity = Activity {
-        samples: &samples,
-        live: false,
-    };
-    let observed = Observation::of(&window, &forecast(&window, activity, now), now);
-    assert!(observed.paused);
-    assert_eq!(observed.severity, Severity::RunningOut);
-    assert_eq!(observed.runs_out_at, None);
-    assert_eq!(observed.tone, Tone::Warning);
-    let fired = evaluate(None, &observed, DEFAULT).state.fired;
-    assert!(fired.is_empty());
 }

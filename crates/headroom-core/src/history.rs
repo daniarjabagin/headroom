@@ -35,9 +35,11 @@ pub fn sample_step(
     let Some(last) = last else {
         return Some(SampleStep::Append);
     };
-    if at <= last.at {
+    if starts_after(window, last.at) {
+        Some(SampleStep::Restart)
+    } else if at <= last.at {
         None
-    } else if window.used < last.used || starts_after(window, last.at) {
+    } else if window.used < last.used {
         Some(SampleStep::Restart)
     } else if window.used == last.used {
         None
