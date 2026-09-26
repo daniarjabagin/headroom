@@ -225,34 +225,91 @@ TestCase {
         };
     }
 
-    function test_model_breakdown_rows_are_ranked_and_add_up() {
-        const result = SpendBreakdown.breakdown("en", period(), "models", "cost");
+    function merged() {
+        const result = period();
+        result.models = [
+            {
+                provider: "claude",
+                model: "opus",
+                costMicros: 5000000,
+                totalTokens: 300,
+                costPerMtokMicros: 16666667,
+                partial: false
+            },
+            {
+                provider: "codex",
+                model: "gpt",
+                costMicros: 3500000,
+                totalTokens: 500,
+                costPerMtokMicros: 7000000,
+                partial: false
+            }
+        ];
+        result.modelsOther = {
+            count: 3,
+            costMicros: 1500000,
+            totalTokens: 200,
+            costPerMtokMicros: 7500000,
+            partial: false
+        };
+        return result;
+    }
+
+    function test_model_breakdown_lists_the_daemon_models_in_order() {
+        const result = SpendBreakdown.breakdown("en", merged(), "models", "cost");
         compare(result.caption, "5 models");
-        compare(result.rows.map(row => row.name), ["opus", "gpt", "haiku", "Other"]);
-        compare(result.rows.map(row => row.value), ["$5.00", "$3.50", "$1.00", "$0.50"]);
-        compare(result.rows.map(row => row.share), ["50.0%", "35.0%", "10.0%", "5.0%"]);
-        compare(result.rows[3].detail, "2 models");
+        compare(result.rows.map(row => row.name), ["opus", "gpt", "Other"]);
+        compare(result.rows.map(row => row.value), ["$5.00", "$3.50", "$1.50"]);
+        compare(result.rows.map(row => row.share), ["50.0%", "35.0%", "15.0%"]);
+        compare(result.rows.map(row => row.provider), ["claude", "codex", ""]);
+        compare(result.rows[2].detail, "3 models");
         compare(result.rows[0].segments, [
             {
                 provider: "claude",
                 fraction: 0.5
             }
         ]);
+        compare(result.rows[2].segments, [
+            {
+                provider: "",
+                fraction: 0.15
+            }
+        ]);
     }
 
-    function test_model_breakdown_folds_after_top_five() {
-        const many = period();
-        many.providers[0].models = ["a", "b", "c", "d", "e", "f"].map((name, index) => ({
-                    model: name,
-                    costMicros: 1000000 - index,
-                    totalTokens: 10,
-                    partial: false
-                }));
-        const result = SpendBreakdown.breakdown("en", many, "models", "cost");
-        compare(result.rows.length, 6);
-        compare(result.rows[5].detail, "4 models");
-        compare(result.caption, "9 models");
-        compare(result.rows[5].segments.map(segment => segment.provider), ["codex", "claude"]);
+    function test_model_breakdown_keeps_daemon_order_in_tokens_unit() {
+        const result = SpendBreakdown.breakdown("en", merged(), "models", "tokens");
+        compare(result.rows.map(row => row.name), ["opus", "gpt", "Other"]);
+        compare(result.rows.map(row => row.value), ["300", "500", "200"]);
+        compare(result.rows.map(row => row.share), ["30.0%", "50.0%", "20.0%"]);
+    }
+
+    function test_model_breakdown_other_rate_is_the_daemons() {
+        const priced = merged();
+        compare(SpendBreakdown.breakdown("en", priced, "models", "cost_per_mtok").rows.map(row => row.value), ["$16.67", "$7.00", "$7.50"]);
+        priced.modelsOther.costPerMtokMicros = null;
+        priced.models[1].costPerMtokMicros = null;
+        compare(SpendBreakdown.breakdown("en", priced, "models", "cost_per_mtok").rows.map(row => row.value), ["$16.67", "—", "—"]);
+    }
+
+    function test_model_breakdown_without_folded_models() {
+        const exact = merged();
+        exact.modelsOther = null;
+        const result = SpendBreakdown.breakdown("ru", exact, "models", "cost");
+        compare(result.rows.map(row => row.name), ["opus", "gpt"]);
+        compare(result.caption, "2 модели");
+    }
+
+    function test_model_breakdown_falls_back_to_provider_lists() {
+        const result = SpendBreakdown.breakdown("en", period(), "models", "cost");
+        compare(result.caption, "5 models");
+        compare(result.rows.map(row => row.key), ["model:claude:opus", "model:claude:haiku", "model:codex:gpt", "model:other:codex"]);
+        compare(result.rows.map(row => row.value), ["$5.00", "$1.00", "$3.50", "$0.50"]);
+        compare(result.rows.map(row => row.share), ["50.0%", "10.0%", "35.0%", "5.0%"]);
+        compare(result.rows[3].name, "Other");
+        compare(result.rows[3].detail, "2 models");
+        compare(result.rows[3].provider, "codex");
+        compare(SpendBreakdown.breakdown("en", period(), "models", "cost_per_mtok").rows[3].value, "—");
     }
 
     function test_project_breakdown_uses_daemon_share_and_provider_segments() {
@@ -277,31 +334,6 @@ TestCase {
                 fraction: 0.3
             }
         ]);
-    }
-
-    function test_model_breakdown_ranks_by_tokens_in_tokens_unit() {
-        const result = SpendBreakdown.breakdown("en", period(), "models", "tokens");
-        compare(result.rows.map(row => row.name), ["gpt", "opus", "haiku", "Other"]);
-        compare(result.rows.map(row => row.value), ["500", "300", "100", "100"]);
-        compare(result.rows.map(row => row.share), ["50.0%", "30.0%", "10.0%", "10.0%"]);
-    }
-
-    function test_model_breakdown_breaks_token_ties_by_name() {
-        const tied = period();
-        tied.providers[0].models[1].totalTokens = 300;
-        const result = SpendBreakdown.breakdown("en", tied, "models", "tokens");
-        compare(result.rows.map(row => row.name), ["gpt", "haiku", "opus", "Other"]);
-    }
-
-    function test_model_breakdown_shows_cost_per_mtok_from_payload() {
-        const priced = period();
-        priced.providers[0].models[0].costPerMtokMicros = 16666667;
-        priced.providers[0].models[1].costPerMtokMicros = null;
-        priced.providers[1].models[0].costPerMtokMicros = 7000000;
-        const result = SpendBreakdown.breakdown("en", priced, "models", "cost_per_mtok");
-        compare(result.rows.map(row => row.name), ["gpt", "opus", "haiku", "Other"]);
-        compare(result.rows.map(row => row.value), ["$7.00", "$16.67", "—", "—"]);
-        compare(result.caption, "5 models");
     }
 
     function test_project_breakdown_ranks_by_tokens_in_tokens_unit() {

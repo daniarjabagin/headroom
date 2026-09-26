@@ -36,7 +36,7 @@ Item {
     readonly property real contentHeight: header.implicitHeight + header.Layout.bottomMargin + content.implicitHeight + (updateRow.visible ? updateRow.implicitHeight : 0) + footer.implicitHeight
     property bool themed: false
     property real reveal: 1
-    property real sheen: 0
+    property int sheen: 0
 
     signal refreshRequested(string accountId)
     signal signInRequested(string providerId)
@@ -290,19 +290,21 @@ Item {
 
     SequentialAnimation {
         running: full.sheenRunning
-        loops: Animation.Infinite
-
-        NumberAnimation {
-            target: full
-            property: "sheen"
-            from: 0
-            to: 1
-            duration: Motion.sheenSweepMs()
-            easing.type: Easing.InOutQuad
-        }
 
         PauseAnimation {
-            duration: Motion.sheenRestMs()
+            duration: Motion.sheenStartDelayMs()
+        }
+
+        SequentialAnimation {
+            loops: Animation.Infinite
+
+            ScriptAction {
+                script: full.sheen += 1
+            }
+
+            PauseAnimation {
+                duration: Motion.sheenCycleMs()
+            }
         }
     }
 

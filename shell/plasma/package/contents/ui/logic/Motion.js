@@ -6,8 +6,9 @@ const OPEN_FACTOR = 3;
 const SHIMMER_FACTOR = 7;
 const SPIN_FACTOR = 7;
 const TURN = 360;
-const SHEEN_SWEEP_MS = 1600;
-const SHEEN_REST_MS = 3500;
+const SHEEN_SWEEP_MS = 1400;
+const SHEEN_REST_MS = 5000;
+const SHEEN_START_DELAY_MS = 600;
 const SHEEN_MIN_FILL = 0.03;
 const SHEEN_LIGHTEN = 1.45;
 const SHEEN_PEAK = 0.55;
@@ -72,16 +73,16 @@ function sheenSweepMs() {
     return SHEEN_SWEEP_MS;
 }
 
-function sheenRestMs() {
-    return SHEEN_REST_MS;
+function sheenCycleMs() {
+    return SHEEN_SWEEP_MS + SHEEN_REST_MS;
 }
 
-function sheenActive(phase, fraction) {
-    return phase > 0 && phase < 1 && fraction >= SHEEN_MIN_FILL;
+function sheenStartDelayMs() {
+    return SHEEN_START_DELAY_MS;
 }
 
-function sheenOffset(phase, span, band) {
-    return -band + clamp01(phase) * (span + band);
+function sheenShown(cycle, fraction) {
+    return cycle > 0 && fraction >= SHEEN_MIN_FILL;
 }
 
 function sheenLighten() {

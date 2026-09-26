@@ -104,11 +104,20 @@ TestCase {
             count: 2,
             totalTokens: 2182045,
             costMicros: 964000,
-            costPerMtokMicros: null,
+            costPerMtokMicros: 544619,
             partial: true
         });
         compare(state.accounts[0].usage.today.modelsOther, null);
         compare(state.spend.last30Days.providers[1].modelsOther.count, 2);
+        compare(state.spend.today.models.map(model => model.provider), ["codex", "claude", "opencode", "codex", "cline"]);
+        compare(state.spend.today.models[2].providerName, "OpenCode");
+        compare(state.spend.today.modelsOther, {
+            count: 10,
+            totalTokens: 2842313,
+            costMicros: 5303400,
+            costPerMtokMicros: 1865875,
+            partial: false
+        });
     }
 
     function test_daemon_snapshot() {
@@ -116,6 +125,8 @@ TestCase {
         const state = State.parseState(json);
         compare(state.spend.today.costMicros, 12400);
         compare(state.spend.yesterday.partial, true);
+        compare(state.spend.today.models.map(model => model.model), ["claude-opus", "gpt-5.5"]);
+        compare(state.spend.today.modelsOther, null);
         compare(state.accounts[0].windows[1].pace.sparePercent, 47.5);
         compare(state.accounts[1].error.kind, "sign_in_expired");
         compare(state.accounts[2].hidden, true);

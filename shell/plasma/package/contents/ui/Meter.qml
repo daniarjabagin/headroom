@@ -14,13 +14,19 @@ Rectangle {
     property var tick: null
     property bool animated: true
     property real barHeight: Metrics.meterHeight(Kirigami.Units)
-    property real sheen: 0
+    property int sheen: 0
     readonly property real shown: fraction * progress
     readonly property color fillColor: Tokens.toneColor(Kirigami.Theme, tone)
     readonly property color glowColor: Qt.lighter(fillColor, Motion.sheenLighten())
 
     Layout.fillWidth: true
     implicitHeight: barHeight
+    onSheenChanged: {
+        if (animated && progress >= 1 && Motion.sheenShown(sheen, shown))
+            sweep.restart();
+        else
+            sweep.stop();
+    }
     radius: height / 2
     color: Tokens.track(Kirigami.Theme)
 
@@ -36,16 +42,18 @@ Rectangle {
             id: sheenClip
 
             objectName: "meterSheen"
-            visible: track.animated && track.progress >= 1 && Motion.sheenActive(track.sheen, track.shown)
+            visible: sweep.running
             x: fill.radius
             width: Math.max(0, fill.width - fill.radius * 2)
             height: fill.height
             clip: true
 
             Rectangle {
+                id: band
+
                 width: Kirigami.Units.gridUnit * 3
                 height: sheenClip.height
-                x: Motion.sheenOffset(track.sheen, sheenClip.width, width)
+                x: -width
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -65,6 +73,16 @@ Rectangle {
                         color: Tokens.alpha(track.glowColor, 0)
                     }
                 }
+            }
+
+            XAnimator {
+                id: sweep
+
+                target: band
+                from: -band.width
+                to: sheenClip.width
+                duration: Motion.sheenSweepMs()
+                easing.type: Easing.InOutQuad
             }
         }
 

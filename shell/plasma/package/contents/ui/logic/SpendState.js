@@ -32,6 +32,14 @@ function parseModels(raw) {
     return Parse.list(raw).map(parseModel);
 }
 
+function parsePeriodModel(raw) {
+    const provider = Parse.text(raw.provider) ?? "unknown";
+    return Object.assign(parseModel(raw), {
+        provider,
+        providerName: providerName(raw, provider)
+    });
+}
+
 function parseModelsOther(raw) {
     if (!Parse.isObject(raw) || Parse.count(raw.count) === 0)
         return null;
@@ -138,6 +146,8 @@ function parsePeriod(raw) {
         costPerMtokMicros: Parse.integer(period.cost_per_mtok_usd_micros),
         partial: period.partial === true,
         providers: Parse.list(period.by_provider).map(parseProviderSpend),
+        models: Parse.optionalList(period.models, parsePeriodModel),
+        modelsOther: parseModelsOther(period.models_other),
         projects: Parse.optionalList(period.projects, parseProject),
         projectsOther: parseProjectsOther(period.projects_other)
     };
