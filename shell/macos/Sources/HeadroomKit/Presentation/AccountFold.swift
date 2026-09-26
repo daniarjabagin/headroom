@@ -4,6 +4,9 @@ public struct FoldSummary: Sendable, Hashable {
     public let title: String
     public let names: String
     public let providers: [String]
+    public let attention: FoldAttention
+    public let attentionText: String?
+    public let accessibilityLabel: String
 }
 
 public struct AccountFold: Sendable, Hashable {
@@ -19,7 +22,9 @@ public struct AccountFold: Sendable, Hashable {
         let folded = sections.filter { isCollapsed($0, state: state) }
         guard !folded.isEmpty else { return AccountFold(pinned: sections, folded: [], summary: nil) }
         let pinned = sections.filter { !isCollapsed($0, state: state) }
-        return AccountFold(pinned: pinned, folded: folded, summary: summary(folded, strings: strings))
+        let attention = FoldAttention.make(folded, state: state)
+        return AccountFold(
+            pinned: pinned, folded: folded, summary: summary(folded, attention: attention, strings: strings))
     }
 
     static func isCollapsed(_ section: AccountSectionModel, state: DaemonState) -> Bool {
@@ -30,12 +35,17 @@ public struct AccountFold: Sendable, Hashable {
         return !members.isEmpty && members.allSatisfy(\.collapsed)
     }
 
-    static func summary(_ folded: [AccountSectionModel], strings: UIStrings) -> FoldSummary {
+    static func summary(
+        _ folded: [AccountSectionModel], attention: FoldAttention, strings: UIStrings
+    ) -> FoldSummary {
         var seen: Set<String> = []
         let providers = folded.map(\.provider).filter { seen.insert($0).inserted }
+        let title = strings.fill(PopupExtraText.moreCount, ["count": "\(folded.count)"])
+        let names = "· " + folded.map(\.header.title).joined(separator: ", ")
+        let note = attention.text(strings)
         return FoldSummary(
-            title: strings.fill(PopupExtraText.moreCount, ["count": "\(folded.count)"]),
-            names: "· " + folded.map(\.header.title).joined(separator: ", "),
-            providers: Array(providers.prefix(FoldSummary.maxGlyphs)))
+            title: title, names: names, providers: Array(providers.prefix(FoldSummary.maxGlyphs)),
+            attention: attention, attentionText: note,
+            accessibilityLabel: [title + " " + names, note].compactMap { $0 }.joined(separator: ". "))
     }
 }

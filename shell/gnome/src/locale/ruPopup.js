@@ -63,6 +63,7 @@ export const RU_POPUP = {
     '{count} project': ['{count} проект', '{count} проекта', '{count} проектов'],
     '{count} model': ['{count} модель', '{count} модели', '{count} моделей'],
     '{count} more': ['Ещё {count}', 'Ещё {count}', 'Ещё {count}'],
+    '{count} needs attention': ['Требуют внимания: {count}', 'Требуют внимания: {count}', 'Требуют внимания: {count}'],
     '· {count} model': ['· {count} модель', '· {count} модели', '· {count} моделей'],
     '· {count} project': ['· {count} проект', '· {count} проекта', '· {count} проектов'],
     'Live — every {interval} while {providers} is active': [

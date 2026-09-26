@@ -472,4 +472,124 @@ TestCase {
         compare(Collapse.foldedProviders(folded, 3), ["copilot", "grok", "warp"]);
         compare(Collapse.foldedTitle("ru", folded), "Ещё 5 · Copilot, Grok, Warp, Cursor");
     }
+
+    function attentionAccount(status, tones, error) {
+        return {
+            status,
+            error: error ?? null,
+            windows: (tones ?? []).map(tone => ({
+                        tone: tone.replace("!", ""),
+                        hidden: tone.startsWith("!")
+                    }))
+        };
+    }
+
+    function attentionCard(status, tones, error) {
+        return {
+            kind: "account",
+            account: attentionAccount(status, tones, error)
+        };
+    }
+
+    function test_collapsed_attention_tones() {
+        compare(Collapse.attention([], false), {
+            kind: "none",
+            tone: "",
+            count: 0
+        });
+        compare(Collapse.attention([attentionCard("fresh", ["good", "neutral"])], false).kind, "none");
+        compare(Collapse.attention([attentionCard("fresh", ["warning"]), attentionCard("fresh")], false), {
+            kind: "tone",
+            tone: "warning",
+            count: 1
+        });
+        compare(Collapse.attention([attentionCard("fresh", ["warning"]), attentionCard("fresh", ["critical"])], false), {
+            kind: "tone",
+            tone: "critical",
+            count: 2
+        });
+        compare(Collapse.attention([attentionCard("fresh", ["!critical", "good"])], false).kind, "none");
+    }
+
+    function test_collapsed_attention_notices() {
+        const http = {
+            kind: "http",
+            message: "HTTP 500"
+        };
+        const network = {
+            kind: "network",
+            message: "offline"
+        };
+        compare(Collapse.attention([attentionCard("signed_out")], false), {
+            kind: "notice",
+            tone: "warning",
+            count: 1
+        });
+        compare(Collapse.attention([attentionCard("no_subscription")], false).tone, "warning");
+        compare(Collapse.attention([attentionCard("signed_out"), attentionCard("error", [], http), attentionCard("fresh", ["warning"])], false), {
+            kind: "notice",
+            tone: "critical",
+            count: 3
+        });
+        compare(Collapse.attention([attentionCard("refreshing", [], http)], false).tone, "critical");
+        compare(Collapse.attention([attentionCard("refreshing", [], {
+                kind: "not_signed_in",
+                message: "Sign in"
+            })], false).tone, "warning");
+        compare(Collapse.attention([attentionCard("error", [], network)], true).kind, "none");
+        compare(Collapse.attention([attentionCard("error", [], network)], false).tone, "critical");
+    }
+
+    function test_collapsed_attention_combined() {
+        const calm = attentionAccount("fresh", ["critical"]);
+        const group = (members, tones) => ({
+                    kind: "combined",
+                    members,
+                    group: {
+                        windows: tones.map(tone => ({
+                                    tone,
+                                    hidden: false
+                                }))
+                    }
+                });
+        compare(Collapse.attention([group([calm], ["good"])], false).kind, "none");
+        compare(Collapse.attention([group([calm], ["warning"])], false).tone, "warning");
+        compare(Collapse.attention([group([calm, attentionAccount("signed_out"), attentionAccount("error", [], {
+                    kind: "http",
+                    message: "x"
+                })], [])], false), {
+            kind: "notice",
+            tone: "critical",
+            count: 1
+        });
+    }
+
+    function test_collapsed_attention_texts() {
+        compare(Collapse.attentionText("en", Collapse.attention([], false)), "");
+        compare(Collapse.attentionText("en", {
+            kind: "tone",
+            tone: "warning",
+            count: 1
+        }), "1 needs attention");
+        compare(Collapse.attentionText("en", {
+            kind: "notice",
+            tone: "critical",
+            count: 3
+        }), "3 need attention");
+        compare(Collapse.attentionText("ru", {
+            kind: "notice",
+            tone: "warning",
+            count: 2
+        }), "Требуют внимания: 2");
+        compare(Collapse.accessibleTitle("en", [attentionCard("signed_out")].map(card => Object.assign(card, {
+                account: Object.assign(card.account, {
+                    provider: "grok",
+                    providerName: "Grok"
+                })
+            })), {
+            kind: "notice",
+            tone: "warning",
+            count: 1
+        }), "1 more · Grok. 1 needs attention");
+    }
 }

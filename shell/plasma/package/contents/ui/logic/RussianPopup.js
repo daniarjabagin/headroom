@@ -202,6 +202,7 @@ const MESSAGES = {
     "Verifying": "Проверяем",
     "7 Days": "7 дней",
     "{count} more": ["Ещё {count}", "Ещё {count}", "Ещё {count}"],
+    "{count} needs attention": ["Требуют внимания: {count}", "Требуют внимания: {count}", "Требуют внимания: {count}"],
     "Open folder": "Открыть папку",
     "Refresh {provider}": "Обновить {provider}",
     "Hide from popup": "Скрыть из окна",

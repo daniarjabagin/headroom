@@ -235,6 +235,7 @@ ColumnLayout {
         visible: dashboard.folded.length > 0 && !dashboard.foldedOpen
         folded: dashboard.folded
         lang: dashboard.lang
+        offline: dashboard.snapshot.offline
         animated: dashboard.motion
         opacity: dashboard.appear(dashboard.itemCount - 1)
         onClicked: dashboard.setFolded(true)

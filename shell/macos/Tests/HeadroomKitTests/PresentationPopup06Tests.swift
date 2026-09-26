@@ -86,7 +86,10 @@ final class PresentationPopup06Tests: XCTestCase {
         XCTAssertEqual(fold.pinned.map(\.id), ["claude:a"])
         XCTAssertEqual(fold.folded.map(\.id), ["copilot:a", "grok:a"])
         XCTAssertEqual(
-            fold.summary, FoldSummary(title: "2 more", names: "· Copilot, Grok", providers: ["copilot", "grok"]))
+            fold.summary,
+            FoldSummary(
+                title: "2 more", names: "· Copilot, Grok", providers: ["copilot", "grok"], attention: .calm,
+                attentionText: nil, accessibilityLabel: "2 more · Copilot, Grok"))
         XCTAssertEqual(AccountFold.make(sections, state: state, strings: Build.russian.strings).summary?.title, "Ещё 2")
         let plain = try Build.state(accounts: [Build.accountJSON(id: "a")])
         let none = AccountFold.make(

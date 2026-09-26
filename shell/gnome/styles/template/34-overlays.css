@@ -196,6 +196,27 @@
     color: var(--text-secondary);
 }
 
+.headroom-more-attention {
+    icon-size: 12px;
+    color: var(--notice);
+}
+
+.headroom-more-attention.critical {
+    color: var(--crit);
+}
+
+.headroom-more-dot {
+    width: 6px;
+    height: 6px;
+    margin: 0 3px;
+    border-radius: 3px;
+    background-color: var(--warn);
+}
+
+.headroom-more-dot.critical {
+    background-color: var(--crit);
+}
+
 .headroom-more-caret {
     icon-size: 12px;
     color: var(--text-secondary);

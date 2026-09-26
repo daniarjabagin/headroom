@@ -15,9 +15,11 @@ T.AbstractButton {
 
     required property var folded
     required property string lang
+    property bool offline: false
     property bool animated: true
     readonly property int glyphLimit: 3
     readonly property var glyphs: Collapse.foldedProviders(folded, glyphLimit)
+    readonly property var attention: Collapse.attention(folded, offline)
 
     objectName: "collapsedRow"
     Layout.fillWidth: true
@@ -28,7 +30,7 @@ T.AbstractButton {
     rightPadding: Metrics.cardPadding(Kirigami.Units)
     hoverEnabled: true
     Accessible.role: Accessible.Button
-    Accessible.name: Collapse.foldedTitle(lang, folded)
+    Accessible.name: Collapse.accessibleTitle(lang, folded, attention)
 
     background: Rectangle {
         radius: Metrics.cardRadius(Kirigami.Units)
@@ -78,6 +80,39 @@ T.AbstractButton {
             elide: Text.ElideRight
         }
 
+        Item {
+            objectName: "attentionMark"
+            visible: row.attention.kind !== "none"
+            Layout.alignment: Qt.AlignVCenter
+            implicitWidth: Metrics.tinyIcon(Kirigami.Units)
+            implicitHeight: implicitWidth
+
+            Kirigami.Icon {
+                objectName: "attentionIcon"
+                anchors.fill: parent
+                visible: row.attention.kind === "notice"
+                source: "dialog-warning"
+                isMask: true
+                color: Tokens.noticeColor(Kirigami.Theme, row.attention.tone === "critical" ? "error" : "warning")
+            }
+
+            Rectangle {
+                objectName: "attentionDot"
+                anchors.centerIn: parent
+                visible: row.attention.kind === "tone"
+                width: Math.round(Kirigami.Units.smallSpacing * 1.5)
+                height: width
+                radius: width / 2
+                color: Tokens.toneColor(Kirigami.Theme, row.attention.tone)
+            }
+
+            HoverTip {
+                id: attentionTip
+
+                text: Collapse.attentionText(row.lang, row.attention)
+            }
+        }
+
         Kirigami.Icon {
             Layout.alignment: Qt.AlignVCenter
             implicitWidth: Metrics.caretIcon(Kirigami.Units)
@@ -91,6 +126,6 @@ T.AbstractButton {
     HoverTip {
         id: pointer
 
-        text: I18n.tr(row.lang, "Show accounts that are not pinned")
+        text: attentionTip.shown ? "" : I18n.tr(row.lang, "Show accounts that are not pinned")
     }
 }
