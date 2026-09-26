@@ -9,7 +9,8 @@ public enum PopupExtraText: LocalizedText {
     public var translations: (english: String, russian: String) {
         switch self {
         case .other: ("Other", "Другие")
-        case .modelsFolded: ("Models under 5% are folded into Other.", "Модели с долей меньше 5% собраны в «Другие».")
+        case .modelsFolded:
+            ("Models after the top 5 are folded into Other.", "Модели после первых пяти собраны в «Другие».")
         case .clickShowUsed: ("Click to show used", "Нажмите, чтобы показать использованное")
         case .clickShowLeft: ("Click to show what's left", "Нажмите, чтобы показать остаток")
         case .clickShowResetTime: ("Click to show the reset time", "Нажмите, чтобы показать время сброса")

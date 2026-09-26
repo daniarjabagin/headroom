@@ -121,14 +121,35 @@ public struct PeriodSpend: Decodable, Sendable, Hashable {
     public let costPerMTokUSDMicros: Int64?
     public let projects: [ProjectSpend]?
     public let projectsOther: OtherProjects?
+    public let models: [ProviderModelUsage]?
+    public let modelsOther: OtherModels?
 
     enum CodingKeys: String, CodingKey {
-        case partial, projects
+        case partial, projects, models
         case costUSDMicros = "cost_usd_micros"
         case totalTokens = "total_tokens"
         case byProvider = "by_provider"
         case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
         case projectsOther = "projects_other"
+        case modelsOther = "models_other"
+    }
+}
+
+public struct ProviderModelUsage: Decodable, Sendable, Hashable {
+    public let provider: String
+    public let providerName: String
+    public let model: String
+    public let totalTokens: UInt64
+    public let costUSDMicros: Int64
+    public let partial: Bool
+    public let costPerMTokUSDMicros: Int64?
+
+    enum CodingKeys: String, CodingKey {
+        case provider, model, partial
+        case providerName = "provider_name"
+        case totalTokens = "total_tokens"
+        case costUSDMicros = "cost_usd_micros"
+        case costPerMTokUSDMicros = "cost_per_mtok_usd_micros"
     }
 }
 
