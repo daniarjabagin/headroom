@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use headroom_core::account::AccountRef;
 use jiff::{SignedDuration, Timestamp};
 
 use crate::home::UsageHome;
@@ -32,12 +31,8 @@ impl ActivityTracker {
     }
 
     #[must_use]
-    pub fn account_is_live(&self, account: &AccountRef, now: Timestamp) -> bool {
-        self.last_writes.iter().any(|(home, at)| {
-            home.provider == account.provider
-                && home.home == account.home
-                && within_window(*at, now)
-        })
+    pub fn any_live(&self, homes: &[UsageHome], now: Timestamp) -> bool {
+        homes.iter().any(|home| self.home_is_live(home, now))
     }
 }
 
@@ -91,15 +86,14 @@ mod tests {
     }
 
     #[test]
-    fn accounts_are_live_only_through_their_own_home() {
+    fn any_live_home_makes_the_set_live() {
         let mut tracker = ActivityTracker::default();
-        let work = account(CODEX, "work");
-        let personal = account(CODEX, "personal");
-        let claude = account(CLAUDE, "main");
-        tracker.record(&usage_home_of(&work), ts(NOW), ts(NOW));
-        assert!(tracker.account_is_live(&work, ts(NOW)));
-        assert!(tracker.account_is_live(&personal, ts(NOW)));
-        assert!(!tracker.account_is_live(&claude, ts(NOW)));
-        assert!(!tracker.account_is_live(&work, ts("2026-09-23T10:10:00Z")));
+        let codex = usage_home_of(&account(CODEX, "work"));
+        let claude = usage_home_of(&account(CLAUDE, "main"));
+        tracker.record(&codex, ts(NOW), ts(NOW));
+        assert!(tracker.any_live(&[claude.clone(), codex.clone()], ts(NOW)));
+        assert!(!tracker.any_live(std::slice::from_ref(&claude), ts(NOW)));
+        assert!(!tracker.any_live(&[], ts(NOW)));
+        assert!(!tracker.any_live(&[codex], ts("2026-09-23T10:10:00Z")));
     }
 }

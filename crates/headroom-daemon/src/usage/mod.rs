@@ -1,5 +1,6 @@
 pub mod breakdown;
 pub mod ingest;
+pub mod merge;
 pub mod report;
 pub mod share;
 pub mod summary;

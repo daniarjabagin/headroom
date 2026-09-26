@@ -409,7 +409,7 @@ payload is the snapshot test `crates/headroom-daemon/src/state/snapshots/state_c
 | `windows` | Window[] | Quota windows of the last good snapshot, in provider order. |
 | `balances` | Balance[] | Credits and similar balances. |
 | `notices` | Notice[] | Provider notices to show under the account. |
-| `usage_home` | string | The account's own home, `~`-relative when under the user's home. Links the account to the `usage[]` entry with the same `usage_home` and provider; when that home has no logs there is no such entry. |
+| `usage_home` | string | The home whose logs belong to the account, `~`-relative when under the user's home. Usually the account's own home. For a `headroom`-owned account it is a CLI home of the same provider instead when that CLI home is signed in to the same account (same `id`), has logs, and is not listed as an account of its own (for example after it was removed from the panel): the CLI keeps writing its logs there. That `usage[]` entry then sums every home of the account with logs (its own and such CLI homes), and the other homes get no entry of their own; `spend` is unaffected and counts each home once. Links the account to the `usage[]` entry with the same `usage_home` and provider; when that home has no logs there is no such entry. |
 
 Status, evaluated in this order:
 
@@ -1102,7 +1102,7 @@ Refresh:
 
 | field | type | description |
 | --- | --- | --- |
-| `mode` | string | `live` while `adaptive_refresh` is on and the account's usage home (the CLI home it shares with every account listed with the same `provider` and `usage_home`) got new log records dated within the last 10 minutes; `idle` otherwise. Records that are older when the daemon reads them (catching up after it was stopped) do not count. Accounts of providers without local logs are always `idle`. |
+| `mode` | string | `live` while `adaptive_refresh` is on and the account's usage home (the CLI home it shares with every account listed with the same `provider` and `usage_home`), or its own home, got new log records dated within the last 10 minutes; `idle` otherwise. Records that are older when the daemon reads them (catching up after it was stopped) do not count. Accounts of providers without local logs are always `idle`. |
 | `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode. Never below `60`. |
 | `next_at` | timestamp \| null | This account's next scheduled refresh; `null` while it is refreshing or has no schedule. The same value that feeds the state's `next_refresh_at`. |
 | `reason` | string | Why `next_at` is what it is: `hold` after a provider rate limit or a `no_subscription` answer (the retry time the provider asked for, or the hourly recheck), `backoff` after any other failure (1, 2, 4 … 30 minutes), otherwise `activity` in `live` mode and `schedule` in `idle` mode. |

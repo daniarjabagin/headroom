@@ -32,9 +32,7 @@ async fn pass_with(at: &str) -> (bool, bool, Option<Timestamp>) {
     let changes = harness.core.activity_changes();
     ingest::pass(&harness.core, &home, &mut None).await;
     let model = harness.core.model();
-    let live = model
-        .activity
-        .account_is_live(&account(CODEX, "work"), harness.clock.now());
+    let live = model.account_is_live(&account(CODEX, "work"), harness.clock.now());
     (
         live,
         changes.has_changed().unwrap(),
