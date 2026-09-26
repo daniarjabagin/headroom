@@ -7,13 +7,9 @@ use headroom_core::account::{AccountRef, ProviderId};
 use headroom_core::descriptor::{CliLogin, ProviderDescriptor};
 use headroom_providers::registry;
 
-use crate::terminal::{Terminals, shell_quote};
+use crate::terminal::{TerminalCommand, Terminals, shell_quote};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TerminalLogin {
-    pub argv: Vec<OsString>,
-    pub display: String,
-}
+const UNSET_FOLLOWS_XDG_CONFIG_HOME: [&str; 1] = ["GH_CONFIG_DIR"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum HomeSetting {
@@ -25,7 +21,7 @@ pub fn terminal_login(
     login: &CliLogin,
     home: &Path,
     user_home: Option<&Path>,
-) -> Result<TerminalLogin> {
+) -> Result<TerminalCommand> {
     let setting = home_setting(login, home, user_home)?;
     let var = login.home_var.var();
     let mut argv: Vec<OsString> = vec!["env".into()];
@@ -46,7 +42,8 @@ pub fn terminal_login(
     };
     argv.push(login.program.into());
     argv.extend(login.args.iter().map(OsString::from));
-    Ok(TerminalLogin {
+    Ok(TerminalCommand {
+        program: login.program.into(),
         argv,
         display: format!("{prefix}{}", login.command_line()),
     })
@@ -54,7 +51,8 @@ pub fn terminal_login(
 
 fn home_setting(login: &CliLogin, home: &Path, user_home: Option<&Path>) -> Result<HomeSetting> {
     let default = user_home.map(|user| user.join(login.default_dir));
-    if default.is_some_and(|default| same_dir(&default, home)) {
+    let pinned = UNSET_FOLLOWS_XDG_CONFIG_HOME.contains(&login.home_var.var());
+    if !pinned && default.is_some_and(|default| same_dir(&default, home)) {
         return Ok(HomeSetting::Default);
     }
     match login.home_var.value_for(home) {
@@ -115,7 +113,7 @@ pub fn open_login(
 ) -> Result<TerminalOpened> {
     let command = terminal_login(login, &account.home, user_home)?;
     let yourself = format!("run `{}` in a terminal yourself", command.display);
-    match terminals.open(&command.argv) {
+    match terminals.open(&command) {
         Ok(Some(opened)) => Ok(TerminalOpened {
             account_id: account.id.0.clone(),
             terminal: opened.terminal,

@@ -87,17 +87,25 @@ pub async fn login_again(globals: &Globals, request: &LoginRequest<'_>) -> Resul
         Some(ProgressFormat::Json) => {
             cancel.on_stdout_closed();
             let result = relogin(globals, request, &cancel).await;
-            if let Ok(Relogged::InTerminal(opened)) = &result {
-                writeln!(io::stderr(), "{}", opened.message())?;
-            }
-            let done = |relogged: &Relogged| ProgressEvent::Done {
-                account_id: relogged.account_id().to_owned(),
-                label: None,
-            };
-            JsonLines::new(io::stdout()).finish(result, done)?;
+            finish_streamed(result, io::stderr(), &mut JsonLines::new(io::stdout()))?;
             Ok(())
         }
     }
+}
+
+fn finish_streamed(
+    result: Result<Relogged>,
+    mut notes: impl Write,
+    out: &mut JsonLines<impl Write>,
+) -> Result<Relogged> {
+    if let Ok(Relogged::InTerminal(opened)) = &result {
+        let _ = writeln!(notes, "{}", opened.message());
+    }
+    let done = |relogged: &Relogged| ProgressEvent::Done {
+        account_id: relogged.account_id().to_owned(),
+        label: None,
+    };
+    out.finish(result, done)
 }
 
 async fn relogin(

@@ -70,6 +70,22 @@ fn a_custom_home_is_named_to_the_login() {
 }
 
 #[test]
+fn the_default_gh_home_is_named_so_xdg_config_home_cannot_move_it() {
+    let user = Path::new("/home/ada");
+    let login = terminal_login(login_of("copilot"), &user.join(".config/gh"), Some(user)).unwrap();
+    let argv = words(&login.argv);
+    assert!(argv.contains(&"GH_CONFIG_DIR=/home/ada/.config/gh".to_owned()));
+    assert!(!argv.contains(&"XDG_CONFIG_HOME".to_owned()));
+    assert_eq!(argv.iter().filter(|word| *word == "-u").count(), 5);
+    assert!(
+        login
+            .display
+            .starts_with("GH_CONFIG_DIR=/home/ada/.config/gh gh auth login")
+    );
+    assert_eq!(login.program, "gh");
+}
+
+#[test]
 fn xdg_homes_name_their_base_and_scrub_redirecting_variables() {
     let user = Path::new("/home/ada");
     let kilo = login_of("kilo");
@@ -127,9 +143,14 @@ fn the_terminal_runs_the_login_in_the_accounts_home() {
     let bin = Bin::new();
     let home = tempfile::tempdir().unwrap();
     let fake_bin = bin.0.path().display().to_string();
+    bin.install("zsh", "shift 2\nexec /bin/sh \"$@\"");
     bin.install(
         "xdg-terminal-exec",
-        &format!("PATH=\"{fake_bin}:$PATH\" exec \"$@\" </dev/null >/dev/null 2>&1"),
+        &format!(
+            "PATH=\"{fake_bin}:$PATH\" SHELL=\"{fake_bin}/zsh\" HOME='{}' exec \"$@\" \
+             </dev/null >/dev/null 2>&1",
+            home.path().display()
+        ),
     );
     bin.install(
         "claude",
