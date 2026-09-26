@@ -3,6 +3,8 @@ use std::fs;
 use headroom_core::account::{AccountId, CredentialOwner};
 use headroom_providers::test_support::install_script;
 
+use crate::terminal::TerminalChain;
+
 use super::*;
 
 fn login_of(provider: &str) -> &'static CliLogin {
@@ -127,10 +129,10 @@ impl Bin {
     }
 
     fn terminals(&self) -> Terminals {
-        Terminals {
+        Terminals::Chain(TerminalChain {
             search_path: Some(self.0.path().as_os_str().to_owned()),
             preferred: None,
-        }
+        })
     }
 
     fn path(&self, name: &str) -> PathBuf {

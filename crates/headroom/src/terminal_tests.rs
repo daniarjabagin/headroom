@@ -36,8 +36,8 @@ impl Bin {
         text.split_terminator('\0').map(str::to_owned).collect()
     }
 
-    fn terminals(&self, preferred: Option<&str>) -> Terminals {
-        Terminals {
+    fn terminals(&self, preferred: Option<&str>) -> TerminalChain {
+        TerminalChain {
             search_path: Some(self.dir().as_os_str().to_owned()),
             preferred: preferred.map(OsString::from),
         }
@@ -82,10 +82,7 @@ fn xdg_terminal_exec_comes_first() {
     let bin = Bin::new();
     let xdg = bin.recorder("xdg-terminal-exec");
     bin.recorder("kgx");
-    let opened = bin
-        .terminals(Some("kgx"))
-        .open_linux_terminal(&command())
-        .unwrap();
+    let opened = bin.terminals(Some("kgx")).open(&command()).unwrap();
     assert_eq!(opened, Some(Opened { terminal: xdg }));
     assert_eq!(bin.recorded("xdg-terminal-exec"), held(&[]));
 }
@@ -95,10 +92,7 @@ fn the_preferred_terminal_comes_before_the_known_ones() {
     let bin = Bin::new();
     bin.recorder("kgx");
     let foot = bin.recorder("foot");
-    let opened = bin
-        .terminals(Some("foot"))
-        .open_linux_terminal(&command())
-        .unwrap();
+    let opened = bin.terminals(Some("foot")).open(&command()).unwrap();
     assert_eq!(opened, Some(Opened { terminal: foot }));
     assert_eq!(bin.recorded("foot"), held(&[]));
 }
@@ -108,7 +102,7 @@ fn a_terminal_that_fails_at_once_hands_over_to_the_next() {
     let bin = Bin::new();
     bin.install("xdg-terminal-exec", "exit 3");
     let kgx = bin.recorder("kgx");
-    let opened = bin.terminals(None).open_linux_terminal(&command()).unwrap();
+    let opened = bin.terminals(None).open(&command()).unwrap();
     assert_eq!(opened, Some(Opened { terminal: kgx }));
     assert_eq!(bin.recorded("kgx"), held(&["--"]));
 }
@@ -117,20 +111,11 @@ fn a_terminal_that_fails_at_once_hands_over_to_the_next() {
 fn every_terminal_failing_is_an_error() {
     let bin = Bin::new();
     bin.install("xterm", "exit 1");
-    let error = bin
-        .terminals(None)
-        .open_linux_terminal(&command())
-        .unwrap_err();
+    let error = bin.terminals(None).open(&command()).unwrap_err();
     assert!(error.to_string().starts_with("no terminal could be opened"));
     assert_eq!(bin.terminals(None).candidates().len(), 1);
     let empty = Bin::new();
-    assert_eq!(
-        empty
-            .terminals(None)
-            .open_linux_terminal(&command())
-            .unwrap(),
-        None
-    );
+    assert_eq!(empty.terminals(None).open(&command()).unwrap(), None);
 }
 
 #[test]
@@ -159,11 +144,17 @@ fn each_terminal_gets_the_command_its_way() {
 fn a_preferred_terminal_may_be_a_path() {
     let bin = Bin::new();
     let custom = bin.recorder("my-term");
-    let terminals = Terminals {
+    let terminals = TerminalChain {
         search_path: None,
         preferred: Some(custom.clone().into_os_string()),
     };
     assert_eq!(terminals.candidates(), [(custom, Style::DashE)]);
+}
+
+#[test]
+fn only_macos_opens_the_terminal_app() {
+    let mac = matches!(Terminals::from_env(), Terminals::MacTerminal);
+    assert_eq!(mac, cfg!(target_os = "macos"));
 }
 
 #[test]
