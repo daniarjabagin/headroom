@@ -1,13 +1,15 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import { _, fill } from '../i18n.js';
-import { moveItem } from '../order.js';
-import { accountName } from '../providers.js';
-import { AccountRow } from './accountRow.js';
-import { AddAccountDialog } from './addAccountDialog.js';
 import { ProgressProcess } from '../cli.js';
+import { _, fill } from '../i18n.js';
+import { accountName } from '../providers.js';
+import { supports06 } from '../settings.js';
+import { AccountDetail } from './accountDetail.js';
+import { AccountSidebar } from './accountSidebar.js';
+import { AccountsLayout } from './accountsLayout.js';
+import { orderAfterDrop, orderAfterMove, selectionAfter, sidebarEntries } from './accountsModel.js';
+import { AddAccountDialog } from './addAccountDialog.js';
 import { signInTarget } from './registry.js';
-import { RowDragger } from './rowDragger.js';
 
 function removalBody(account) {
     if (account.owner === 'headroom')
@@ -25,85 +27,119 @@ export class AccountsPage {
         this._window = window;
         this._dir = dir;
         this._client = client;
-        this._rows = new Map();
-        this._order = [];
+        this._accounts = [];
+        this._selected = null;
+        this._detail = null;
+        this._subpage = null;
         this.page = new Adw.PreferencesPage({ title: _('Accounts'), icon_name: 'system-users-symbolic' });
-        this._list = new Gtk.ListBox({ selection_mode: Gtk.SelectionMode.NONE, css_classes: ['boxed-list'] });
-        this._list.set_placeholder(this._placeholder());
-        this._dragger = new RowDragger({ list: this._list, onDrop: (id, slot) => this._dropAt(id, slot) });
-        const accounts = new Adw.PreferencesGroup({
-            title: _('Accounts'),
-            description: _('Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.'),
+        this._sidebar = new AccountSidebar({
+            dir,
+            onSelect: id => this._select(id),
+            onActivate: id => this._activate(id),
+            onDrop: (id, slot) => this._applyOrder(orderAfterDrop(this._sidebar.order, id, slot)),
         });
-        accounts.add(this._list);
-        this.page.add(accounts);
-        this.page.add(this._addGroup());
+        this._layout = new AccountsLayout({ sidebar: this._sidebar.list, onAdd: () => this.openAddDialog() });
+        this.page.add(this._layout.group);
+        this._layout.widenPage();
     }
 
     update(state, settings) {
-        const ids = state.accounts.map(account => account.id);
-        if (JSON.stringify(ids) !== JSON.stringify(this._order)) this._rebuild(state.accounts);
-        for (const account of state.accounts) this._rows.get(account.id).update(account, settings);
+        this._state = state;
+        this._settings = settings;
+        const previous = this._sidebar.order;
+        this._accounts = state.accounts;
+        this._sidebar.update(sidebarEntries(state.accounts, settings.display, state.offline));
+        this._layout.showEmpty(state.accounts.length === 0);
+        this._select(selectionAfter(this._sidebar.order, this._selected, previous));
+        this._syncDetails();
     }
 
-    _placeholder() {
-        const row = new Adw.ActionRow({
-            title: _('No accounts yet'),
-            subtitle: _('Sign in with a supported CLI, or add an account below.'),
-        });
-        row.add_css_class('dim-label');
-        return row;
+    _select(id) {
+        this._selected = id;
+        this._sidebar.select(id);
+        if (this._detail?.id === id) return;
+        const account = this._accountOf(id);
+        this._detail = account ? this._createDetail(account) : null;
+        this._layout.showDetail(this._detail?.widget ?? null);
+        this._syncDetails();
     }
 
-    _rebuild(accounts) {
-        const previous = this._rows;
-        this._rows = new Map();
-        this._list.remove_all();
-        for (const account of accounts) {
-            const row = previous.get(account.id) ?? this._createRow(account);
-            this._rows.set(account.id, row);
-            this._list.append(row.widget);
+    _activate(id) {
+        this._select(id);
+        const account = this._accountOf(id);
+        if (!this._layout.narrow || !account) return;
+        const detail = this._createDetail(account);
+        const page = this._layout.detailPage(accountName(account), detail.widget);
+        page.connect('hidden', () => this._subpage?.page === page && (this._subpage = null));
+        this._subpage = { page, detail };
+        this._syncDetails();
+        this._window.push_subpage(page);
+    }
+
+    _syncDetails() {
+        if (!this._state || !this._settings) return;
+        for (const detail of [this._detail, this._subpage?.detail]) {
+            const account = detail ? this._accountOf(detail.id) : null;
+            if (account) detail.update(account, this._contextOf(account));
         }
-        this._order = accounts.map(account => account.id);
+        if (this._subpage && !this._accountOf(this._subpage.detail.id)) this._closeSubpage();
     }
 
-    _createRow(account) {
-        const row = new AccountRow({
-            account,
+    _closeSubpage() {
+        this._subpage = null;
+        this._window.pop_subpage();
+    }
+
+    _contextOf(account) {
+        const provider = this._providerOf(account.provider);
+        return {
+            display: this._settings.display,
+            offline: this._state.offline,
+            canStar: supports06(this._state),
+            signIn: signInTarget(account, this._client.providers),
+            links: provider?.links ?? null,
+            order: this._sidebar.order,
+        };
+    }
+
+    _createDetail(account) {
+        return new AccountDetail({
             dir: this._dir,
             client: this._client,
-            onMove: (id, delta) => this._moveTo(id, this._order.indexOf(id) + delta),
-            onRemove: target => this._confirmRemove(target),
-            onSignIn: target => this.signIn(target),
+            account,
+            actions: {
+                onSignIn: target => this.signIn(target),
+                onRemove: target => this._confirmRemove(target),
+                onMove: (id, delta) => this._move(id, delta),
+                onOpenLink: url => this._openLink(url),
+            },
         });
-        this._dragger.attach(row.widget, row.id);
-        return row;
     }
 
-    _dropAt(id, slot) {
-        const from = this._order.indexOf(id);
-        this._moveTo(id, from < slot ? slot - 1 : slot);
+    _accountOf(id) {
+        return this._accounts.find(account => account.id === id) ?? null;
     }
 
-    _moveTo(id, index) {
-        const from = this._order.indexOf(id);
-        if (from < 0 || index < 0 || index >= this._order.length || index === from) return;
-        const order = moveItem(this._order, from, index);
-        this._rebuild(order.map(accountId => ({ id: accountId })));
+    _move(id, delta) {
+        const order = this._sidebar.order;
+        this._applyOrder(orderAfterMove(order, id, order.indexOf(id) + delta));
+    }
+
+    _applyOrder(order) {
+        if (order === null) return;
+        const byId = new Map(this._accounts.map(account => [account.id, account]));
+        this.update({ ...this._state, accounts: order.map(id => byId.get(id)) }, this._settings);
         this._client.setAccountOrder(order);
     }
 
-    _addGroup() {
-        const group = new Adw.PreferencesGroup({
-            title: _('Add Account'),
-            description: _('Sign in through a CLI, paste an API key, or let Headroom find the account.'),
+    _openLink(url) {
+        new Gtk.UriLauncher({ uri: url }).launch(this._window, null, (launcher, result) => {
+            try {
+                launcher.launch_finish(result);
+            } catch (error) {
+                this._toast(error.message);
+            }
         });
-        const row = new Adw.ActionRow({ title: _('Add account…'), activatable: true });
-        row.add_prefix(new Gtk.Image({ icon_name: 'list-add-symbolic' }));
-        row.add_suffix(new Gtk.Image({ icon_name: 'go-next-symbolic' }));
-        row.connect('activated', () => this.openAddDialog());
-        group.add(row);
-        return group;
     }
 
     openAddDialog(options = {}) {
@@ -127,9 +163,8 @@ export class AccountsPage {
     }
 
     _confirmRemove(account) {
-        const name = accountName(account);
         const dialog = new Adw.AlertDialog({
-            heading: fill(_('Remove {name}?'), { name }),
+            heading: fill(_('Remove {name}?'), { name: accountName(account) }),
             body: removalBody(account),
         });
         dialog.add_response('cancel', _('Cancel'));

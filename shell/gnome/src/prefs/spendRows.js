@@ -1,5 +1,6 @@
 import { _ } from '../i18n.js';
 import { displayPatch, supports06 } from '../settings.js';
+import { breakdownPatch, breakdownSetting } from './breakdownSetting.js';
 import { comboRow, group, switchRow } from './rows.js';
 
 const SECTIONS = [
@@ -12,12 +13,23 @@ export class SpendRows {
     constructor(client) {
         this._client = client;
         this._rows = this._spendRows();
+        this._breakdown = switchRow({
+            title: _('Show models and projects'),
+            subtitle: _('Top models and projects under the spend ring'),
+            onChange: value => client.updateSettings(breakdownPatch(value)),
+        });
         this._sections = SECTIONS.map(([key, title, subtitle]) =>
             switchRow({ title: title(), subtitle: subtitle(), onChange: this._display(key) })
         );
         const rows = this._rows;
         this.groups = [
-            group(_('Spend'), [rows.showSpend.row, rows.spendPeriod.row, rows.spendUnit.row, rows.spendBreakdown.row]),
+            group(_('Spend'), [
+                rows.showSpend.row,
+                this._breakdown.row,
+                rows.spendPeriod.row,
+                rows.spendUnit.row,
+                rows.spendBreakdown.row,
+            ]),
             group(
                 _('Sections'),
                 this._sections.map(entry => entry.row)
@@ -31,6 +43,9 @@ export class SpendRows {
         SECTIONS.forEach(([key], index) => this._sections[index].set(display[key]));
         const supported = supports06(state);
         for (const key of ['spendPeriod', 'spendUnit', 'spendBreakdown']) this._rows[key].row.visible = supported;
+        const breakdown = breakdownSetting(this._client.rawSettings);
+        this._breakdown.set(breakdown.shown);
+        this._breakdown.row.visible = breakdown.supported;
     }
 
     _display(key) {

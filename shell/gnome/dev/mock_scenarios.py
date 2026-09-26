@@ -24,6 +24,7 @@ SCENARIO_SETTINGS = {
     "collapsed": {"display": {"collapse_unstarred": True, "starred_accounts": ["claude:0a1b2c3d4e5f"]}},
     "incident": STATUS_ON,
     "onboarding": {"onboarding": {"completed": False}},
+    "accounts": {"display": {"starred_accounts": ["codex:1a2b3c4d5e6f"]}},
 }
 
 
@@ -61,6 +62,15 @@ def incident_state(now):
     return {**showcase_state(now), "provider_status": statuses}
 
 
+def accounts_state(now):
+    state = full_state(now)
+    for entry in state["accounts"]:
+        if entry["status"] == "signed_out":
+            entry["owner"] = "headroom"
+            entry["error"] = {"kind": "sign_in_expired", "message": "Sign-in expired"}
+    return state
+
+
 def spend_only_state(now):
     return assemble(now, [], showcase_usage(now), None)
 
@@ -77,6 +87,7 @@ SCENARIOS = {
     "live": live_state,
     "incident": incident_state,
     "onboarding": showcase_state,
+    "accounts": accounts_state,
 }
 
 

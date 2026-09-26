@@ -26,6 +26,7 @@ DEFAULT_DISPLAY = {
     "starred_accounts": [],
     "collapse_unstarred": False,
     "hide_on_screen_share": True,
+    "show_breakdown": True,
 }
 DEFAULT_SETTINGS = {
     "refresh_interval_secs": 300,
