@@ -64,6 +64,7 @@ fn recovery_actions_map_to_buttons() {
             json!({"action": "cli_login", "command": " claude auth login --claudeai "}),
             NoticeButton::CopyCommand {
                 command: "claude auth login --claudeai".into(),
+                primary: true,
             },
         ),
         (
@@ -119,6 +120,14 @@ fn button_models_follow_busy_and_copied_state() {
     };
     let copy = NoticeButton::CopyCommand {
         command: "codex login".into(),
+        primary: true,
+    };
+    let secondary_copy = NoticeButton::CopyCommand {
+        command: "codex login".into(),
+        primary: false,
+    };
+    let cli = NoticeButton::CliSignIn {
+        account_id: "a".into(),
     };
     let cases = [
         (Lang::En, NoticeButton::Retry, idle, ("Retry", false, false)),
@@ -142,6 +151,15 @@ fn button_models_follow_busy_and_copied_state() {
         ),
         (Lang::En, copy.clone(), idle, ("Copy command", false, true)),
         (Lang::En, copy.clone(), copied, ("Copied", false, true)),
+        (
+            Lang::En,
+            secondary_copy.clone(),
+            idle,
+            ("Copy command", false, false),
+        ),
+        (Lang::En, secondary_copy, copied, ("Copied", false, false)),
+        (Lang::En, cli.clone(), idle, ("Sign in…", false, true)),
+        (Lang::Ru, cli, idle, ("Войти…", false, true)),
         (Lang::Ru, again, idle, ("Войти снова…", false, true)),
         (Lang::Ru, copy, idle, ("Скопировать команду", false, true)),
         (
@@ -162,4 +180,45 @@ fn button_models_follow_busy_and_copied_state() {
             "{button:?} {state:?}"
         );
     }
+}
+
+#[test]
+fn cli_login_with_an_account_signs_in_through_headroom() {
+    let offered = account(Some(json!({
+        "action": "cli_login",
+        "command": "claude auth login --claudeai",
+        "account_id": "claude:0123456789ab"
+    })));
+    let buttons = notice_buttons(&offered, true, false);
+    let sign_in = NoticeButton::CliSignIn {
+        account_id: "claude:0123456789ab".into(),
+    };
+    let copy = NoticeButton::CopyCommand {
+        command: "claude auth login --claudeai".into(),
+        primary: false,
+    };
+    assert_eq!(
+        buttons,
+        [sign_in.clone(), NoticeButton::Retry, copy.clone()]
+    );
+    assert_eq!(
+        button_rows(&buttons),
+        [vec![sign_in.clone(), NoticeButton::Retry], vec![copy]]
+    );
+    let bare = account(Some(
+        json!({"action": "cli_login", "account_id": "claude:0123456789ab"}),
+    ));
+    let buttons = notice_buttons(&bare, true, false);
+    assert_eq!(buttons, [sign_in.clone(), NoticeButton::Retry]);
+    assert_eq!(button_rows(&buttons), vec![buttons]);
+    let blank = account(Some(
+        json!({"action": "cli_login", "command": "codex login", "account_id": " "}),
+    ));
+    assert_eq!(
+        notice_buttons(&blank, true, false),
+        [NoticeButton::CopyCommand {
+            command: "codex login".into(),
+            primary: true,
+        }]
+    );
 }

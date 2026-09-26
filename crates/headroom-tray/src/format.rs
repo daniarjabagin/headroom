@@ -4,9 +4,10 @@ use crate::dates::{Locale, exact_moment};
 use crate::i18n::{Lang, fill};
 use crate::labels::label_text;
 use crate::numbers::{compact_tokens, exact_usd, usd};
+use crate::pause::paused_text;
 use crate::payload::{
-    Display, ModelUsage, PeriodSpend, ProviderSpend, ResetFormat, Severity, SpendUnit, ValueMode,
-    Window,
+    Display, ModelUsage, PaceBasis, PeriodSpend, ProviderSpend, ResetFormat, Severity, SpendUnit,
+    ValueMode, Window,
 };
 
 const SECOND: i64 = 1000;
@@ -221,6 +222,9 @@ pub fn forecast_text(
     now: Timestamp,
     display: &Display,
 ) -> Option<String> {
+    if window.pace.basis == Some(PaceBasis::Paused) {
+        return Some(paused_text(locale.lang, window.pace.active_left_seconds));
+    }
     match (window.pace.severity, window.pace.spare_percent) {
         (Severity::RunningOut, _) => {
             Some(run_out_forecast(locale, window, now, display.reset_format))

@@ -154,7 +154,7 @@ fn normal_row(ctx: &Ctx, meter: &Meter) -> (gtk::Box, Parts) {
     bottom.append(&reset_toggle(ctx, &texts.trailing));
     let body = column(2, &["headroom-quota-row"]);
     body.append(&top);
-    body.append(&meter.area);
+    body.append(&meter.widget);
     body.append(&bottom);
     body.append(&forecast);
     let parts = Normal {
@@ -175,7 +175,7 @@ fn compact_row(ctx: &Ctx, meter: &Meter) -> (gtk::Box, Parts) {
     line.append(&reset_toggle(ctx, &texts.trailing));
     let body = column(3, &["headroom-quota-row"]);
     body.append(&line);
-    body.append(&meter.area);
+    body.append(&meter.widget);
     let parts = Compact {
         texts,
         meter: meter.area.clone(),

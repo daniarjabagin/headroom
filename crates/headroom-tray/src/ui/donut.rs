@@ -1,12 +1,13 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use gtk::cairo;
 use gtk::prelude::*;
+use gtk::{cairo, pango};
 
 use crate::donut::{Arc, geometry, sector_path, segments, visible_fractions};
 use crate::palette::Rgba;
 use crate::popup_model::spend_view::RingCenter;
+use crate::ring_fit::{LineMetrics, fit_scales, text_radius};
 use crate::ui::draw::{fill, set_color};
 use crate::ui::motion;
 use crate::ui::widgets::{column, label};
@@ -56,18 +57,43 @@ fn sweep(fractions: &[f64], reveal: f64) -> Vec<f64> {
         .collect()
 }
 
-fn center_label(center: &RingCenter) -> gtk::Box {
+fn line_metrics(label: &gtk::Label) -> LineMetrics {
+    let (ink, logical) = label.layout().pixel_extents();
+    LineMetrics {
+        width: f64::from(logical.width()),
+        height: f64::from(logical.height()),
+        ink_top: f64::from(ink.y() - logical.y()),
+        ink_bottom: f64::from(ink.y() + ink.height() - logical.y()),
+    }
+}
+
+fn shrink_to_fit(labels: &[gtk::Label], size: i32) {
+    let metrics: Vec<LineMetrics> = labels.iter().map(line_metrics).collect();
+    let radius = text_radius(geometry(f64::from(size)).inner);
+    for (label, scale) in labels.iter().zip(fit_scales(radius, &metrics)) {
+        if scale < 1.0 {
+            let attributes = pango::AttrList::new();
+            attributes.insert(pango::AttrFloat::new_scale(scale));
+            label.set_attributes(Some(&attributes));
+        }
+    }
+}
+
+fn center_label(center: &RingCenter, size: i32) -> gtk::Box {
     let texts = column(0, &["headroom-donut-center"]);
     texts.set_halign(gtk::Align::Center);
     texts.set_valign(gtk::Align::Center);
     let amount = label(&center.amount, &["headroom-donut-value"]);
     amount.set_xalign(0.5);
     texts.append(&amount);
+    let mut lines = vec![amount];
     if let Some(unit) = center.unit_line {
         let unit = label(unit, &["headroom-donut-unit"]);
         unit.set_xalign(0.5);
         texts.append(&unit);
+        lines.push(unit);
     }
+    motion::on_first_map(&texts, move || shrink_to_fit(&lines, size));
     texts
 }
 
@@ -99,6 +125,6 @@ pub fn donut(
     let overlay = gtk::Overlay::new();
     overlay.set_child(Some(&area));
     overlay.set_valign(gtk::Align::Center);
-    overlay.add_overlay(&center_label(center));
+    overlay.add_overlay(&center_label(center, size));
     overlay
 }

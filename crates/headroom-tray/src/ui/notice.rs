@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use crate::account::NoticeView;
 use crate::i18n::Lang;
 use crate::notices::NoticeKind;
-use crate::recovery::{ButtonModel, ButtonState, NoticeButton, button_model};
+use crate::recovery::{ButtonModel, ButtonState, NoticeButton, button_model, button_rows};
 use crate::ui::widgets::{button, column, icon, label, row, wrapping_label};
 
 const TILE_ICON: i32 = 14;
@@ -113,6 +113,24 @@ fn stacks_buttons(lang: Lang, buttons: &[NoticeButton]) -> bool {
         .any(|kind| button_model(lang, kind, ButtonState::default()).primary)
 }
 
+fn button_line<'a>(handles: impl Iterator<Item = &'a ButtonHandle>) -> gtk::Box {
+    let line = row(4, &[]);
+    line.set_valign(gtk::Align::Center);
+    for handle in handles {
+        line.append(&handle.button);
+    }
+    line
+}
+
+fn stack_buttons(texts: &gtk::Box, handles: &[ButtonHandle], kinds: &[NoticeButton]) {
+    for (index, kinds) in button_rows(kinds).iter().enumerate() {
+        let line = button_line(handles.iter().filter(|handle| kinds.contains(&handle.kind)));
+        line.set_margin_top(if index == 0 { 6 } else { 4 });
+        line.set_halign(gtk::Align::Start);
+        texts.append(&line);
+    }
+}
+
 pub fn notice_row(
     lang: Lang,
     motion: bool,
@@ -128,19 +146,10 @@ pub fn notice_row(
         .iter()
         .map(|kind| ButtonHandle::new(kind, on_press(kind)))
         .collect();
-    if !buttons.is_empty() {
-        let line = row(4, &[]);
-        line.set_valign(gtk::Align::Center);
-        for handle in &buttons {
-            line.append(&handle.button);
-        }
-        if stacks_buttons(lang, &notice.buttons) {
-            line.set_margin_top(6);
-            line.set_halign(gtk::Align::Start);
-            texts.append(&line);
-        } else {
-            body.append(&line);
-        }
+    if stacks_buttons(lang, &notice.buttons) {
+        stack_buttons(&texts, &buttons, &notice.buttons);
+    } else if !buttons.is_empty() {
+        body.append(&button_line(buttons.iter()));
     }
     MountedNotice {
         widget: body,

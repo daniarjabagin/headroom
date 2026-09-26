@@ -5,7 +5,7 @@ use crate::payload::{PeriodSpend, ProviderSpend, Spend, SpendPeriod};
 use crate::popup_model::model_card::model_card;
 use crate::popup_model::spend_view::{
     Figures, SpendChoice, SpendOverride, period_heading, period_title, periods, ring_center,
-    slice_values, unit_value,
+    shows_breakdown, slice_values, unit_value,
 };
 use crate::spend::{info_text, shows_token_line};
 use crate::ui::breakdown::{breakdown_block, dot};
@@ -139,7 +139,7 @@ pub fn spend_section(ctx: &Ctx, spend: &Spend, refresh: &gtk::Widget, animate: b
         card.append(&empty_body(ctx));
     } else {
         card.append(&ring_body(ctx, choice, period, animate));
-        if spend.has_projects() {
+        if shows_breakdown(&ctx.display, spend) {
             card.append(&breakdown_block(ctx, choice, period));
         }
     }

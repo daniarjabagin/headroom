@@ -134,6 +134,7 @@ fn recovery_is_parsed_tolerantly() {
             serde_json::json!({"action": "cli_login", "command": "codex login"}),
             RecoveryField::Offered(Recovery::CliLogin {
                 command: "codex login".into(),
+                account_id: None,
             }),
         ),
         (

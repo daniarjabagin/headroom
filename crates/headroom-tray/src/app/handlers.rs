@@ -10,7 +10,7 @@ use crate::i18n::{Lang, system_locale};
 use crate::payload::parse_state;
 use crate::preferences::change::Change;
 use crate::preferences::registry::parse_providers;
-use crate::providers::{sign_in_command, terminal_sign_in};
+use crate::providers::{login_command, sign_in_command, terminal_sign_in};
 use crate::settings::{toggled_reset_format, toggled_value_mode};
 use crate::ui::context::Action;
 use crate::update::UpdateRun;
@@ -207,6 +207,7 @@ impl App {
             }
             Action::OpenUrl(url) => self.window.borrow().open_uri(&url),
             Action::SignIn(provider) => self.sign_in(&provider),
+            Action::CliSignIn(account_id) => self.login_in_terminal(&account_id),
             Action::Quit => self.application.quit(),
         }
     }
@@ -236,6 +237,13 @@ impl App {
 
     fn sign_in(&self, provider: &str) {
         if let Some(command) = sign_in_command(provider, self.lang().tr("Press Enter to close")) {
+            launch(&command);
+            self.window.borrow().hide();
+        }
+    }
+
+    fn login_in_terminal(&self, account_id: &str) {
+        if let Some(command) = login_command(account_id, self.lang().tr("Press Enter to close")) {
             launch(&command);
             self.window.borrow().hide();
         }

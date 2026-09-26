@@ -50,13 +50,9 @@ fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
-#[must_use]
-pub fn sign_in_command(provider: &str, close_prompt: &str) -> Option<Vec<String>> {
-    if !valid_provider_id(provider) {
-        return None;
-    }
+fn terminal_command(headroom_args: &str, close_prompt: &str) -> Vec<String> {
     let login = format!(
-        "headroom accounts add {provider}; status=$?; printf '\\n%s ' {}; read -r _; exit $status",
+        "headroom {headroom_args}; status=$?; printf '\\n%s ' {}; read -r _; exit $status",
         shell_quote(close_prompt)
     );
     let quoted = shell_quote(&login);
@@ -64,7 +60,24 @@ pub fn sign_in_command(provider: &str, close_prompt: &str) -> Option<Vec<String>
         "if command -v xdg-terminal-exec >/dev/null 2>&1; then exec xdg-terminal-exec sh -c {quoted}; \
          else exec x-terminal-emulator -e sh -c {quoted}; fi"
     );
-    Some(vec!["sh".into(), "-c".into(), launcher])
+    vec!["sh".into(), "-c".into(), launcher]
+}
+
+#[must_use]
+pub fn sign_in_command(provider: &str, close_prompt: &str) -> Option<Vec<String>> {
+    valid_provider_id(provider)
+        .then(|| terminal_command(&format!("accounts add {provider}"), close_prompt))
+}
+
+#[must_use]
+pub fn login_command(account_id: &str, close_prompt: &str) -> Option<Vec<String>> {
+    let account_id = account_id.trim();
+    (!account_id.is_empty()).then(|| {
+        terminal_command(
+            &format!("accounts login {}", shell_quote(account_id)),
+            close_prompt,
+        )
+    })
 }
 
 #[cfg(test)]
@@ -90,5 +103,13 @@ mod tests {
         assert!(command[2].contains("xdg-terminal-exec sh -c 'headroom accounts add codex;"));
         assert!(command[2].contains(r"'\''Press Enter to close'\''"));
         assert!(sign_in_command("codex; rm -rf ~", "x").is_none());
+    }
+
+    #[test]
+    fn login_command_quotes_the_account_id() {
+        let command = login_command("claude:abc", "Press Enter to close").unwrap();
+        assert_eq!(command[..2], ["sh", "-c"]);
+        assert!(command[2].contains(r"headroom accounts login '\''claude:abc'\'';"));
+        assert!(login_command("  ", "x").is_none());
     }
 }

@@ -1,11 +1,11 @@
 use crate::format::{middle_ellipsis, project_label};
 use crate::i18n::{Lang, fill};
 use crate::payload::{
-    ModelUsage, OtherProjects, PeriodSpend, ProjectSpend, ProviderSpend, SpendUnit,
+    ModelUsage, OtherModels, OtherProjects, PeriodSpend, ProjectSpend, ProviderSpend, SpendUnit,
 };
 
 use super::spend_view::{
-    Basis, Figures, basis_of, measure, per_mtok_of, permille, proportion, share_text, unit_value,
+    Basis, Figures, basis_of, measure, permille, proportion, share_text, unit_value,
 };
 
 const MODEL_ROWS: usize = 5;
@@ -141,28 +141,90 @@ fn model_row(scale: Scale, provider: &str, model: &ModelUsage) -> BreakdownRow {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum Rate {
+    #[default]
+    Empty,
+    One(Option<i64>),
+    Many,
+}
+
+impl Rate {
+    fn joined(self, other: Rate) -> Rate {
+        match (self, other) {
+            (Rate::Empty, rate) | (rate, Rate::Empty) => rate,
+            _ => Rate::Many,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct Folded {
     count: u64,
     cost: i64,
     tokens: u64,
-    partial: bool,
+    rate: Rate,
 }
 
 impl Folded {
-    pub(super) fn add(&mut self, count: u64, cost: i64, tokens: u64, partial: bool) {
-        self.count = self.count.saturating_add(count);
-        self.cost = self.cost.saturating_add(cost);
-        self.tokens = self.tokens.saturating_add(tokens);
-        self.partial |= partial;
+    fn of(count: u64, cost: i64, tokens: u64, rate: Option<i64>) -> Self {
+        Self {
+            count,
+            cost,
+            tokens,
+            rate: Rate::One(rate),
+        }
+    }
+
+    pub(super) fn add(&mut self, part: Folded) {
+        self.count = self.count.saturating_add(part.count);
+        self.cost = self.cost.saturating_add(part.cost);
+        self.tokens = self.tokens.saturating_add(part.tokens);
+        self.rate = self.rate.joined(part.rate);
     }
 
     pub(super) fn figures(self) -> Figures {
         Figures {
             cost_micros: self.cost,
             tokens: self.tokens,
-            per_mtok: per_mtok_of(self.cost, self.tokens, self.partial),
+            per_mtok: match self.rate {
+                Rate::One(rate) => rate,
+                Rate::Empty | Rate::Many => None,
+            },
         }
+    }
+}
+
+impl From<&ModelUsage> for Folded {
+    fn from(model: &ModelUsage) -> Self {
+        Self::of(
+            1,
+            model.cost_usd_micros,
+            model.total_tokens,
+            model.cost_per_mtok_usd_micros,
+        )
+    }
+}
+
+impl From<&OtherModels> for Folded {
+    fn from(other: &OtherModels) -> Self {
+        Self::of(
+            other.count,
+            other.cost_usd_micros,
+            other.total_tokens,
+            other.cost_per_mtok_usd_micros,
+        )
+    }
+}
+
+impl From<&OtherProjects> for Folded {
+    fn from(other: &OtherProjects) -> Self {
+        Self::of(
+            other.count,
+            other.cost_usd_micros,
+            other.total_tokens,
+            other.cost_per_mtok_usd_micros,
+        )
     }
 }
 
@@ -175,15 +237,10 @@ fn provider_folds(
         .filter_map(|spend| {
             let mut folded = Folded::default();
             for (_, model) in ranked.iter().filter(|(id, _)| *id == spend.provider) {
-                folded.add(1, model.cost_usd_micros, model.total_tokens, model.partial);
+                folded.add(Folded::from(*model));
             }
             if let Some(other) = &spend.models_other {
-                folded.add(
-                    other.count,
-                    other.cost_usd_micros,
-                    other.total_tokens,
-                    other.partial,
-                );
+                folded.add(Folded::from(other));
             }
             (folded.count > 0).then(|| (spend.provider.clone(), folded))
         })
@@ -193,7 +250,7 @@ fn provider_folds(
 fn other_row(scale: Scale, detail: String, folds: &[(Option<String>, Folded)]) -> BreakdownRow {
     let mut total = Folded::default();
     for (_, folded) in folds {
-        total.add(folded.count, folded.cost, folded.tokens, folded.partial);
+        total.add(*folded);
     }
     BreakdownRow {
         mark: RowMark::None,
@@ -295,14 +352,6 @@ fn project_row(scale: Scale, project: &ProjectSpend) -> BreakdownRow {
     }
 }
 
-fn other_project_figures(other: &OtherProjects) -> Figures {
-    Figures {
-        cost_micros: other.cost_usd_micros,
-        tokens: other.total_tokens,
-        per_mtok: other.cost_per_mtok_usd_micros,
-    }
-}
-
 #[must_use]
 pub fn project_list(
     lang: Lang,
@@ -318,20 +367,12 @@ pub fn project_list(
         .collect();
     let mut total = u64::try_from(projects.len()).unwrap_or(u64::MAX);
     if let Some(other) = &period.projects_other {
-        let mut folded = Folded::default();
-        folded.add(
-            other.count,
-            other.cost_usd_micros,
-            other.total_tokens,
-            other.partial,
-        );
         let mut row = other_row(
             scale,
             counted(lang, PROJECT_FORMS, other.count),
-            &[(None, folded)],
+            &[(None, Folded::from(other))],
         );
         row.mark = RowMark::Folder;
-        row.value = scale.value(other_project_figures(other));
         rows.push(row);
         total = total.saturating_add(other.count);
     }

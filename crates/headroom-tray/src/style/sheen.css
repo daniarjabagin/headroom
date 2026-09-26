@@ -1,0 +1,33 @@
+@keyframes headroom-sheen {
+    0% {
+        background-position: -70% 0;
+    }
+
+    20% {
+        background-position: 170% 0;
+    }
+
+    100% {
+        background-position: 170% 0;
+    }
+}
+
+.headroom-sheen {
+    border-radius: 99px;
+    background-image: linear-gradient(to right,
+            alpha(var(--accent-fg), 0),
+            alpha(var(--accent-fg), 0.42) 50%,
+            alpha(var(--accent-fg), 0));
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    background-position: -70% 0;
+}
+
+.headroom-meter.sheen-running .headroom-sheen {
+    animation: headroom-sheen 8000ms steps(40) 600ms infinite;
+}
+
+.headroom-popup.reduced-motion .headroom-meter .headroom-sheen {
+    animation: none;
+    background-image: none;
+}

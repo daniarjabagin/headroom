@@ -27,6 +27,7 @@ mod quota_row;
 mod section_body;
 mod section_card;
 pub mod share;
+mod sheen;
 mod spend_card;
 mod status_notice;
 mod status_views;

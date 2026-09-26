@@ -26,7 +26,8 @@ fn press(ctx: &Ctx, account: &Account, button: &NoticeButton) -> Box<dyn Fn()> {
         NoticeButton::Retry => Action::Retry(account.id.clone()),
         NoticeButton::SignIn => Action::SignIn(account.provider.clone()),
         NoticeButton::SignInAgain { account_id } => Action::SignInAgain(account_id.clone()),
-        NoticeButton::CopyCommand { command } => Action::CopyCommand {
+        NoticeButton::CliSignIn { account_id } => Action::CliSignIn(account_id.clone()),
+        NoticeButton::CopyCommand { command, .. } => Action::CopyCommand {
             account_id: account.id.clone(),
             command: command.clone(),
         },

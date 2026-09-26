@@ -1,10 +1,11 @@
 use crate::palette::{Palette, PaletteError};
 
-const TEMPLATES: [&str; 4] = [
+const TEMPLATES: [&str; 5] = [
     include_str!("style/base.css"),
     include_str!("style/cards.css"),
     include_str!("style/features.css"),
     include_str!("style/compact.css"),
+    include_str!("style/sheen.css"),
 ];
 const VAR_OPEN: &str = "var(--";
 
@@ -43,6 +44,15 @@ mod tests {
             let css = stylesheet(&Palette::load(scheme).unwrap()).unwrap();
             assert!(!css.contains("var("), "{scheme:?}");
         }
+    }
+
+    #[test]
+    fn the_sheen_sweeps_only_while_running_and_with_motion() {
+        let css = stylesheet(&Palette::load(Scheme::Light).unwrap()).unwrap();
+        assert!(css.contains("@keyframes headroom-sheen"));
+        assert!(css.contains(".headroom-meter.sheen-running .headroom-sheen"));
+        assert!(css.contains(".headroom-popup.reduced-motion .headroom-meter .headroom-sheen"));
+        assert!(css.contains("alpha(#ffffff, 0.42) 50%"));
     }
 
     #[test]

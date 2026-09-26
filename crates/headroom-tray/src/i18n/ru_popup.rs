@@ -1,4 +1,12 @@
 pub(super) const CATALOG: &[(&str, &str)] = &[
+    ("≈{minutes} min", "≈{minutes} мин"),
+    ("≈{hours} h", "≈{hours} ч"),
+    ("≈{days} d", "≈{days} д"),
+    (
+        "Paused · lasts {duration} of work",
+        "Пауза · хватит {duration} работы",
+    ),
+    ("Paused", "Пауза"),
     ("Last 7 days", "За 7 дней"),
     ("Last 30 days", "За 30 дней"),
     ("Total Tokens", "Всего токенов"),

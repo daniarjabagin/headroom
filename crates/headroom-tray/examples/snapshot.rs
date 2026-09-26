@@ -26,8 +26,9 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
 const USAGE: &str = "usage: snapshot <state.json|loading|unavailable|failed> <out.png> \
-                     [dark] [ru] [12h] [expanded] [parts] [share] [toast] [providers=<providers.json>]";
+                     [dark] [ru] [12h] [expanded] [parts] [share] [toast] [sheen] [hover] [providers=<providers.json>]";
 const SETTLE: Duration = Duration::from_millis(600);
+const MID_SHEEN: Duration = Duration::from_millis(1700);
 
 #[allow(
     clippy::struct_excessive_bools,
@@ -43,6 +44,8 @@ struct Options {
     parts: bool,
     share: bool,
     toast: bool,
+    sheen: bool,
+    hover: bool,
     providers: Option<String>,
 }
 
@@ -66,6 +69,8 @@ fn options() -> Result<Options> {
         parts: has("parts"),
         share: has("share"),
         toast: has("toast"),
+        sheen: has("sheen"),
+        hover: has("hover"),
         providers: rest
             .iter()
             .find_map(|arg| arg.strip_prefix("providers="))
@@ -126,7 +131,7 @@ fn context(options: &Options, palette: Palette, view: &View) -> Result<Ctx> {
         locale: Locale::new(options.lang, TimeZone::UTC).with_clock(options.clock),
         display,
         palette,
-        motion: false,
+        motion: options.sheen,
         offline: view.state().is_some_and(|state| state.offline),
         sign_in: BTreeSet::from(["claude".to_owned(), "codex".to_owned()]),
         ui: UiState {
@@ -258,6 +263,18 @@ fn show_parts(ctx: &Ctx, view: &View, out: &Path) -> Vec<Part> {
         .collect()
 }
 
+fn hover_everything(widget: &gtk::Widget) {
+    widget.set_state_flags(gtk::StateFlags::PRELIGHT, false);
+    if widget.has_css_class("headroom-section-header") {
+        widget.add_css_class("hovered");
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        hover_everything(&current);
+        child = current.next_sibling();
+    }
+}
+
 fn main() -> Result<()> {
     let options = options()?;
     adw::init()?;
@@ -287,8 +304,19 @@ fn main() -> Result<()> {
         Rc::new(RefCell::new(Ok(()))),
     );
     let saved = Rc::clone(&result);
+    let hover = options.hover.then(|| root.clone());
     let share = options.share.then(|| view.state().cloned()).flatten();
-    glib::timeout_add_local_once(SETTLE, move || {
+    let settle = if options.sheen { MID_SHEEN } else { SETTLE };
+    glib::timeout_add_local_once(SETTLE / 2, move || {
+        if let Some(root) = &hover {
+            eprintln!("height before hover: {}", root.height());
+            hover_everything(root.upcast_ref());
+        }
+    });
+    glib::timeout_add_local_once(settle, move || {
+        if options.hover {
+            eprintln!("height after hover: {}", root.height());
+        }
         let mut outcome = save(root.upcast_ref(), &out);
         for (path, widget, _window) in &parts {
             outcome = outcome.and_then(|()| save(widget, path));

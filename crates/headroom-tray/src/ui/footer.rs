@@ -4,6 +4,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use jiff::Timestamp;
 
+use crate::assets::MARK;
 use crate::dates::Locale;
 use crate::i18n::fill;
 use crate::popup_model::footer::{FooterLines, FooterMood, footer_lines};
@@ -17,6 +18,8 @@ const REFRESH_ICON: i32 = 14;
 const FOOTER_ICON: i32 = 16;
 const STALE_ICON: i32 = 10;
 const LIVE_DOT: i32 = 12;
+const BRAND_MARK: i32 = 16;
+const PRODUCT: &str = "Headroom";
 
 pub struct RefreshButton {
     pub widget: gtk::Button,
@@ -74,12 +77,25 @@ impl RefreshButton {
     }
 }
 
-pub fn top_bar(refresh: &gtk::Widget) -> gtk::Box {
+fn brand(ctx: &Ctx) -> gtk::Box {
+    let brand = row(6, &["headroom-brand"]);
+    let mark = ctx.svg_image(MARK, &ctx.css("text"), BRAND_MARK, &["headroom-brand-mark"]);
+    mark.set_valign(gtk::Align::Center);
+    brand.append(&mark);
+    let name = label(PRODUCT, &["headroom-title", "headroom-brand-name"]);
+    name.set_valign(gtk::Align::Center);
+    brand.append(&name);
+    brand.set_hexpand(true);
+    brand
+}
+
+pub fn top_bar(ctx: &Ctx, refresh: &gtk::Widget) -> gtk::Box {
     let bar = row(0, &["headroom-top-bar"]);
+    bar.append(&brand(ctx));
     if refresh.parent().is_some() {
         refresh.unparent();
     }
-    refresh.set_hexpand(true);
+    refresh.set_hexpand(false);
     refresh.set_halign(gtk::Align::End);
     bar.append(refresh);
     bar

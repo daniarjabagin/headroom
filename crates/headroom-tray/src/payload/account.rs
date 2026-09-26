@@ -111,6 +111,18 @@ pub struct Pace {
     pub projected_percent: Option<f64>,
     pub spare_percent: Option<f64>,
     pub runs_out_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub basis: Option<PaceBasis>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub active_left_seconds: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaceBasis {
+    Recent,
+    Window,
+    Paused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

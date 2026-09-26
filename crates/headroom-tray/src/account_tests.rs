@@ -196,12 +196,14 @@ fn signed_out_notices_follow_the_recovery() {
     assert_eq!(legacy.buttons, [NoticeButton::SignIn, NoticeButton::Retry]);
     signed_out.recovery = RecoveryField::Offered(Recovery::CliLogin {
         command: "codex login".into(),
+        account_id: None,
     });
     let cli = alert_of(card_body(Lang::En, &signed_out, false, true)).unwrap();
     assert_eq!(
         cli.buttons,
         [NoticeButton::CopyCommand {
-            command: "codex login".into()
+            command: "codex login".into(),
+            primary: true,
         }]
     );
     assert_eq!(

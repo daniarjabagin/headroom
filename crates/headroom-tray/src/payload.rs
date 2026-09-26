@@ -15,8 +15,8 @@ mod status;
 mod usage;
 
 pub use account::{
-    Account, AccountError, Balance, BalanceAmount, Notice, Owner, Pace, Refresh, RefreshMode,
-    RefreshReason, Severity, Status, Window,
+    Account, AccountError, Balance, BalanceAmount, Notice, Owner, Pace, PaceBasis, Refresh,
+    RefreshMode, RefreshReason, Severity, Status, Window,
 };
 pub use diagnostics::{Diagnostics, parse_diagnostics};
 pub use display::{

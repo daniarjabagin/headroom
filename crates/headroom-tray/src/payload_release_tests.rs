@@ -214,3 +214,72 @@ fn parses_the_0_6_display_copy() {
     assert_eq!(display.panel_position.index, 3);
     assert!(display.hide_on_screen_share);
 }
+
+#[test]
+fn older_daemons_leave_the_0_6_1_fields_empty() {
+    let state = parse_state(FULL).unwrap();
+    let pace = &state.accounts[0].windows[0].pace;
+    assert_eq!(pace.basis, None);
+    assert_eq!(pace.active_left_seconds, None);
+    assert!(state.display.show_breakdown);
+}
+
+#[test]
+fn parses_the_pace_basis_and_the_work_left() {
+    let state = edited(|state| {
+        let windows = &mut state["accounts"][0]["windows"];
+        windows[0]["pace"]["basis"] = json!("paused");
+        windows[0]["pace"]["active_left_seconds"] = json!(10_800);
+        windows[1]["pace"]["basis"] = json!("tomorrow");
+        windows[1]["pace"]["active_left_seconds"] = json!(-4);
+    });
+    let windows = &state.accounts[0].windows;
+    assert_eq!(windows[0].pace.basis, Some(PaceBasis::Paused));
+    assert_eq!(windows[0].pace.active_left_seconds, Some(10_800));
+    assert_eq!(windows[1].pace.basis, None);
+    assert_eq!(windows[1].pace.active_left_seconds, None);
+    for (text, basis) in [("recent", PaceBasis::Recent), ("window", PaceBasis::Window)] {
+        let state = edited(|state| {
+            state["accounts"][0]["windows"][0]["pace"]["basis"] = json!(text);
+        });
+        assert_eq!(state.accounts[0].windows[0].pace.basis, Some(basis));
+    }
+}
+
+#[test]
+fn parses_the_breakdown_switch_and_other_rates() {
+    let state = edited(|state| {
+        state["display"]["show_breakdown"] = json!(false);
+        state["spend"]["today"]["by_provider"][0]["models_other"] = json!({
+            "count": 2,
+            "total_tokens": 1_900_000,
+            "cost_usd_micros": 1_490_000,
+            "partial": false,
+            "cost_per_mtok_usd_micros": 784_211
+        });
+    });
+    assert!(!state.display.show_breakdown);
+    let other = state.spend.today.by_provider[0]
+        .models_other
+        .as_ref()
+        .unwrap();
+    assert_eq!(other.cost_per_mtok_usd_micros, Some(784_211));
+}
+
+#[test]
+fn cli_login_recovery_carries_the_account() {
+    let state = edited(|state| {
+        state["accounts"][0]["recovery"] = json!({
+            "action": "cli_login",
+            "command": "codex login",
+            "account_id": "codex:work"
+        });
+    });
+    assert_eq!(
+        state.accounts[0].recovery,
+        RecoveryField::Offered(Recovery::CliLogin {
+            command: "codex login".into(),
+            account_id: Some("codex:work".into()),
+        })
+    );
+}

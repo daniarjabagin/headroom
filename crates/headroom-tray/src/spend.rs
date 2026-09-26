@@ -221,6 +221,7 @@ mod tests {
             total_tokens: 500,
             cost_usd_micros: 1000,
             partial: false,
+            cost_per_mtok_usd_micros: Some(2_000_000),
         };
         let text = breakdown_text(
             Lang::En,
