@@ -110,8 +110,8 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
     ),
     ("No accounts yet", "Аккаунтов пока нет"),
     (
-        "Sign in with a supported CLI, or add an account below.",
-        "Войдите через поддерживаемый CLI или добавьте аккаунт ниже.",
+        "Sign in with a supported CLI, or add an account.",
+        "Войдите через поддерживаемый CLI или добавьте аккаунт.",
     ),
     ("added in Headroom", "добавлен в Headroom"),
     ("Signed out", "Выполнен выход"),
@@ -145,11 +145,7 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
     ("Cancel", "Отмена"),
     ("Account removed", "Аккаунт удалён"),
     ("Add Account", "Добавить аккаунт"),
-    ("Add account…", "Добавить аккаунт…"),
-    (
-        "Sign in through a CLI, paste an API key, or let Headroom find the account.",
-        "Войдите через CLI, вставьте API-ключ или позвольте Headroom найти аккаунт.",
-    ),
+    ("Add Account…", "Добавить аккаунт…"),
     ("No providers available", "Нет доступных сервисов"),
     (
         "The Headroom service did not list any providers.",

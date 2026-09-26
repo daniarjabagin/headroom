@@ -1,62 +1,51 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::cell::{Cell, RefCell};
+use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
 
-use super::account_row::{AccountRow, Mover, Remover, shape};
+use super::account_actions::{Handlers, Mover, Remover, SignIn};
+use super::account_detail::{AccountDetail, DetailInput, shape};
+use super::account_list::SidebarRow;
+use super::account_panes::{DETAIL, EMPTY, Panes};
 use super::{Act, PrefsAction, Snapshot};
 use crate::i18n::{Lang, fill};
-use crate::payload::Account;
+use crate::payload::{Account, Display, ProviderStatus};
+use crate::preferences::accounts::{
+    SidebarItem, account_links, account_moves, kept_selection, sidebar_items, sidebar_title,
+};
 use crate::preferences::choices::{account_name, moved_order, removal_body};
+use crate::preferences::registry::ProviderInfo;
 
 const REMOVE: &str = "remove";
 const CANCEL: &str = "cancel";
 
-type Layout = (String, Vec<(String, Vec<(String, String)>)>);
+#[derive(Default)]
+struct Data {
+    accounts: Vec<Account>,
+    display: Display,
+    providers: Vec<ProviderInfo>,
+    statuses: Vec<ProviderStatus>,
+    logo_color: String,
+}
 
 pub struct AccountsPage {
-    pub page: adw::PreferencesPage,
-    list: gtk::ListBox,
-    rows: RefCell<Vec<AccountRow>>,
-    layout: RefCell<Option<Layout>>,
-    order: Rc<RefCell<Vec<String>>>,
+    panes: Panes,
+    rows: RefCell<Vec<SidebarRow>>,
+    detail: RefCell<Option<(String, AccountDetail)>>,
+    selected: RefCell<Option<String>>,
+    data: RefCell<Data>,
+    syncing: Cell<bool>,
+    handlers: Handlers,
     lang: Lang,
-    act: Act,
-    mover: Mover,
-    remover: Remover,
 }
 
-fn placeholder(lang: Lang) -> adw::ActionRow {
-    let row = adw::ActionRow::builder()
-        .title(lang.tr("No accounts yet"))
-        .subtitle(lang.tr("Sign in with a supported CLI, or add an account below."))
-        .build();
-    row.add_css_class("dim-label");
-    row
-}
-
-fn add_group(lang: Lang, on_add: Rc<dyn Fn()>) -> adw::PreferencesGroup {
-    let group = adw::PreferencesGroup::builder()
-        .title(lang.tr("Add Account"))
-        .description(
-            lang.tr("Sign in through a CLI, paste an API key, or let Headroom find the account."),
-        )
-        .build();
-    let row = adw::ActionRow::builder()
-        .title(lang.tr("Add account…"))
-        .activatable(true)
-        .build();
-    row.add_prefix(&gtk::Image::from_icon_name("list-add-symbolic"));
-    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
-    row.connect_activated(move |_| on_add());
-    group.add(&row);
-    group
-}
-
-fn mover(act: &Act, order: &Rc<RefCell<Vec<String>>>) -> Mover {
-    let (act, order) = (Rc::clone(act), Rc::clone(order));
+fn mover(act: &Act, order: Weak<AccountsPage>) -> Mover {
+    let act = Rc::clone(act);
     Rc::new(move |id: &str, delta: isize| {
-        let moved = moved_order(&order.borrow(), id, delta);
+        let Some(page) = order.upgrade() else {
+            return;
+        };
+        let moved = moved_order(&page.order(), id, delta);
         if let Some(moved) = moved {
             act(PrefsAction::SetOrder(moved));
         }
@@ -84,45 +73,98 @@ fn confirm_removal(lang: Lang, parent: &gtk::Widget, act: &Act, account: &Accoun
     dialog.present(Some(parent));
 }
 
-fn remover(lang: Lang, act: &Act, page: &adw::PreferencesPage) -> Remover {
-    let (act, page) = (Rc::clone(act), page.downgrade());
+fn remover(lang: Lang, act: &Act, page: Weak<AccountsPage>) -> Remover {
+    let act = Rc::clone(act);
     Rc::new(move |account: &Account| {
         if let Some(page) = page.upgrade() {
-            confirm_removal(lang, page.upcast_ref(), &act, account);
+            confirm_removal(lang, page.panes.root.upcast_ref(), &act, account);
         }
     })
 }
 
+fn statuses(snapshot: &Snapshot) -> Vec<ProviderStatus> {
+    snapshot
+        .state
+        .map(|state| state.provider_status.clone())
+        .unwrap_or_default()
+}
+
+fn providers(snapshot: &Snapshot) -> Vec<ProviderInfo> {
+    snapshot
+        .providers
+        .and_then(|providers| providers.as_ref().ok())
+        .cloned()
+        .unwrap_or_default()
+}
+
 impl AccountsPage {
-    pub fn new(lang: Lang, act: &Act, on_add: Rc<dyn Fn()>) -> Self {
-        let page = adw::PreferencesPage::builder()
-            .title(lang.tr("Accounts"))
-            .icon_name("system-users-symbolic")
-            .build();
-        let list = gtk::ListBox::new();
-        list.set_selection_mode(gtk::SelectionMode::None);
-        list.add_css_class("boxed-list");
-        list.set_placeholder(Some(&placeholder(lang)));
-        let accounts = adw::PreferencesGroup::builder()
-            .title(lang.tr("Accounts"))
-            .description(
-                lang.tr("Hidden accounts keep updating but leave the tray and notifications."),
-            )
-            .build();
-        accounts.add(&list);
-        page.add(&accounts);
-        page.add(&add_group(lang, on_add));
-        let order: Rc<RefCell<Vec<String>>> = Rc::default();
-        Self {
-            mover: mover(act, &order),
-            remover: remover(lang, act, &page),
-            page,
-            list,
-            rows: RefCell::default(),
-            layout: RefCell::default(),
-            order,
-            lang,
-            act: Rc::clone(act),
+    pub fn new(lang: Lang, act: &Act, on_add: &Rc<dyn Fn()>, sign_in: SignIn) -> Rc<Self> {
+        Rc::new_cyclic(|weak: &Weak<Self>| {
+            let page = Self {
+                panes: Panes::new(lang, on_add),
+                rows: RefCell::default(),
+                detail: RefCell::default(),
+                selected: RefCell::default(),
+                data: RefCell::default(),
+                syncing: Cell::new(false),
+                handlers: Handlers {
+                    act: Rc::clone(act),
+                    mover: mover(act, weak.clone()),
+                    remover: remover(lang, act, weak.clone()),
+                    sign_in,
+                },
+                lang,
+            };
+            page.connect_list(weak.clone());
+            page
+        })
+    }
+
+    #[must_use]
+    pub fn widget(&self) -> gtk::Widget {
+        self.panes.root.clone().upcast()
+    }
+
+    fn connect_list(&self, weak: Weak<Self>) {
+        let selecting = weak.clone();
+        self.panes.list.connect_row_selected(move |_, row| {
+            if let Some(page) = selecting.upgrade() {
+                page.selected_row(row);
+            }
+        });
+        self.panes.list.connect_row_activated(move |_, _| {
+            if let Some(page) = weak.upgrade() {
+                page.panes.split.set_show_content(true);
+            }
+        });
+    }
+
+    fn order(&self) -> Vec<String> {
+        self.data
+            .borrow()
+            .accounts
+            .iter()
+            .map(|account| account.id.clone())
+            .collect()
+    }
+
+    fn selected_row(&self, row: Option<&gtk::ListBoxRow>) {
+        if self.syncing.get() {
+            return;
+        }
+        let id = row.and_then(|row| {
+            self.rows
+                .borrow()
+                .iter()
+                .find(|known| known.row.upcast_ref::<gtk::ListBoxRow>() == row)
+                .map(|known| known.account_id.clone())
+        });
+        match id {
+            Some(id) => {
+                *self.selected.borrow_mut() = Some(id);
+                self.render_detail();
+            }
+            None => self.select_current_row(),
         }
     }
 
@@ -130,56 +172,122 @@ impl AccountsPage {
         let (Some(state), Some(settings)) = (snapshot.state, snapshot.settings) else {
             return;
         };
-        let layout: Layout = (
-            snapshot.logo_color.clone(),
-            state
-                .accounts
-                .iter()
-                .map(|account| (account.id.clone(), shape(account)))
-                .collect(),
-        );
-        let current = self.layout.borrow().clone();
-        if current.as_ref() != Some(&layout) {
-            let same_color = current.is_some_and(|(color, _)| color == layout.0);
-            self.rebuild(&state.accounts, &snapshot.logo_color, same_color);
-            *self.layout.borrow_mut() = Some(layout);
-        }
-        for (row, account) in self.rows.borrow().iter().zip(&state.accounts) {
-            row.update(self.lang, account, &settings.display);
-        }
+        let previous = self.order();
+        *self.data.borrow_mut() = Data {
+            accounts: state.accounts.clone(),
+            display: settings.display.clone(),
+            providers: providers(snapshot),
+            statuses: statuses(snapshot),
+            logo_color: snapshot.logo_color.clone(),
+        };
+        let items = {
+            let data = self.data.borrow();
+            sidebar_items(self.lang, &data.accounts, &data.display)
+        };
+        let kept = kept_selection(&items, &previous, self.selected.borrow().as_deref());
+        *self.selected.borrow_mut() = kept;
+        self.sync_rows(&items);
+        self.render_detail();
     }
 
     pub fn focus(&self, account_id: &str) {
-        if let Some(row) = self.rows.borrow().iter().find(|row| row.id == account_id) {
-            row.widget.set_expanded(true);
-            row.widget.grab_focus();
+        *self.selected.borrow_mut() = Some(account_id.to_owned());
+        self.select_current_row();
+        self.render_detail();
+        self.panes.split.set_show_content(true);
+    }
+
+    fn sync_rows(&self, items: &[SidebarItem]) {
+        let color = self.data.borrow().logo_color.clone();
+        let fits = {
+            let rows = self.rows.borrow();
+            rows.len() == items.len() && rows.iter().zip(items).all(|(row, item)| row.fits(item))
+        };
+        if !fits {
+            self.syncing.set(true);
+            self.panes.list.remove_all();
+            let rows: Vec<SidebarRow> = items
+                .iter()
+                .map(|item| SidebarRow::new(item, &color))
+                .collect();
+            for row in &rows {
+                self.panes.list.append(&row.row);
+            }
+            *self.rows.borrow_mut() = rows;
+            self.syncing.set(false);
         }
+        for (row, item) in self.rows.borrow().iter().zip(items) {
+            row.update(self.lang, item);
+        }
+        self.select_current_row();
     }
 
-    fn rebuild(&self, accounts: &[Account], logo_color: &str, reuse: bool) {
-        let mut previous = self.rows.take();
-        self.list.remove_all();
-        let rows: Vec<AccountRow> = accounts
+    fn select_current_row(&self) {
+        let selected = self.selected.borrow().clone();
+        let rows = self.rows.borrow();
+        let row = rows
             .iter()
-            .map(|account| {
-                let kept = previous
-                    .iter()
-                    .position(|row| reuse && row.id == account.id && row.shape == shape(account));
-                let row = match kept {
-                    Some(index) => previous.swap_remove(index),
-                    None => self.new_row(account, logo_color),
-                };
-                self.list.append(&row.widget);
-                row
-            })
-            .collect();
-        *self.rows.borrow_mut() = rows;
-        *self.order.borrow_mut() = accounts.iter().map(|account| account.id.clone()).collect();
+            .find(|row| Some(&row.account_id) == selected.as_ref());
+        self.syncing.set(true);
+        match row {
+            Some(row) => self.panes.list.select_row(Some(&row.row)),
+            None => self.panes.list.unselect_all(),
+        }
+        self.syncing.set(false);
     }
 
-    fn new_row(&self, account: &Account, logo_color: &str) -> AccountRow {
-        let row = AccountRow::new(self.lang, account, logo_color);
-        row.assemble(self.lang, &self.act, &self.mover, &self.remover);
-        row
+    fn render_detail(&self) {
+        let data = self.data.borrow();
+        let selected = self.selected.borrow().clone();
+        let account = selected
+            .as_deref()
+            .and_then(|id| data.accounts.iter().find(|account| account.id == id));
+        let Some(account) = account else {
+            self.panes.stack.set_visible_child_name(EMPTY);
+            self.panes.content.set_title(self.lang.tr("Accounts"));
+            return;
+        };
+        self.ensure_detail(account, &data.logo_color);
+        let status = data
+            .statuses
+            .iter()
+            .find(|status| status.provider == account.provider);
+        let provider = data
+            .providers
+            .iter()
+            .find(|provider| provider.id == account.provider);
+        let input = DetailInput {
+            account,
+            accounts: &data.accounts,
+            display: &data.display,
+            moves: account_moves(&self.order(), &account.id),
+            links: account_links(self.lang, provider, status),
+        };
+        if let Some((_, detail)) = self.detail.borrow().as_ref() {
+            detail.update(input);
+        }
+        self.panes
+            .content
+            .set_title(&sidebar_title(account, &data.accounts));
+        self.panes.stack.set_visible_child_name(DETAIL);
+    }
+
+    fn ensure_detail(&self, account: &Account, logo_color: &str) {
+        let current = self
+            .detail
+            .borrow()
+            .as_ref()
+            .is_some_and(|(color, detail)| {
+                color == logo_color && detail.id == account.id && detail.shape == shape(account)
+            });
+        if current {
+            return;
+        }
+        if let Some(old) = self.panes.stack.child_by_name(DETAIL) {
+            self.panes.stack.remove(&old);
+        }
+        let detail = AccountDetail::new(self.lang, &self.handlers, account, logo_color);
+        self.panes.stack.add_named(&detail.page, Some(DETAIL));
+        *self.detail.borrow_mut() = Some((logo_color.to_owned(), detail));
     }
 }

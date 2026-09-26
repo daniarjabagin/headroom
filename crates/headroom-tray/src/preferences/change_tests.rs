@@ -34,6 +34,10 @@ fn display_changes_touch_one_field() {
         patch(&Change::CombineAccounts(true)),
         r#"{"display":{"combine_accounts":true}}"#
     );
+    assert_eq!(
+        patch(&Change::ShowBreakdown(false)),
+        r#"{"display":{"show_breakdown":false}}"#
+    );
 }
 
 #[test]

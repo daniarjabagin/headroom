@@ -18,7 +18,7 @@ use headroom_tray::update_check::CheckRun;
 
 const USAGE: &str = "usage: settings_snapshot <state.json> <settings.json> <providers.json> \
                      <general|accounts|notifications|advanced|about|add|service|onboarding>[/step…] \
-                     <out.png> [dark] [ru]; steps: a label, scroll=<group>, type=<text>, toast=<text>, capture=<accelerator>";
+                     <out.png> [dark] [ru]; steps: a label, scroll=<group>, size=<w>x<h>, type=<text>, toast=<text>, capture=<accelerator>";
 const SETTLE: Duration = Duration::from_millis(4000);
 const OPEN_DELAY: Duration = Duration::from_millis(300);
 const PAGES: [&str; 5] = ["general", "accounts", "notifications", "advanced", "about"];
@@ -271,6 +271,16 @@ fn scroll_to(root: &gtk::Widget, title: &str) {
     }
 }
 
+fn resize(root: &gtk::Widget, size: &str) {
+    let parsed = size
+        .split_once('x')
+        .and_then(|(width, height)| Some((width.parse().ok()?, height.parse().ok()?)));
+    match (root.downcast_ref::<gtk::Window>(), parsed) {
+        (Some(window), Some((width, height))) => window.set_default_size(width, height),
+        _ => eprintln!("cannot resize to {size}"),
+    }
+}
+
 fn press(root: &gtk::Widget, label: &str) {
     if let Some(text) = label.strip_prefix("type=") {
         type_text(root, text);
@@ -278,6 +288,10 @@ fn press(root: &gtk::Widget, label: &str) {
     }
     if let Some(title) = label.strip_prefix("scroll=") {
         scroll_to(root, title);
+        return;
+    }
+    if let Some(size) = label.strip_prefix("size=") {
+        resize(root, size);
         return;
     }
     if let Some(accelerator) = label.strip_prefix("capture=") {

@@ -1,6 +1,6 @@
 use adw::prelude::*;
 
-use super::account_row::provider_image;
+use super::account_list::provider_image;
 use crate::i18n::Lang;
 
 const BODY_MARGIN: i32 = 24;

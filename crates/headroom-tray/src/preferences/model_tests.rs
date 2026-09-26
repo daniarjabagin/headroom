@@ -16,6 +16,15 @@ fn missing_fields_take_the_daemon_defaults() {
     assert!(!settings.notifications.reset);
     assert!(settings.updates.check);
     assert!(!settings.display.combine_accounts);
+    assert!(settings.display.show_breakdown);
+}
+
+#[test]
+fn the_breakdown_toggle_reads_the_daemon_value() {
+    let hidden = settings_from(&json!({"display": {"show_breakdown": false}})).unwrap();
+    assert!(!hidden.display.show_breakdown);
+    let older = settings_from(&json!({"display": {"show_spend": false}})).unwrap();
+    assert!(older.display.show_breakdown);
 }
 
 #[test]

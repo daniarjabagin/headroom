@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 
-use super::account_row::provider_image;
+use super::account_list::provider_image;
 use super::picks::{StarItem, star_items, star_label};
 use super::rows::{SwitchRow, action_row, changer, icon_button};
 use super::{Act, PrefsAction};

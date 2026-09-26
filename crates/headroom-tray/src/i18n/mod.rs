@@ -1,4 +1,5 @@
 mod ru;
+mod ru_accounts;
 mod ru_onboarding;
 mod ru_options;
 mod ru_popup;

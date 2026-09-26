@@ -1,3 +1,4 @@
+pub mod accounts;
 pub mod capability;
 pub mod change;
 pub mod choices;
