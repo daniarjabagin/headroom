@@ -199,5 +199,9 @@ const MESSAGES = {
     "Hidden limits leave the popup, the panel and notifications.": "Скрытые лимиты не показываются во всплывающем окне, на панели и в уведомлениях.",
     "Add Account…": "Добавить аккаунт…",
     "Signed out": "Выполнен выход",
-    "Couldn't refresh": "Не удалось обновить"
+    "Couldn't refresh": "Не удалось обновить",
+    "Support Headroom": "Поддержать Headroom",
+    "Star Headroom on GitHub": "Поставьте звезду на GitHub",
+    "Stars help other people find it. It's free and takes a second.": "Звёзды помогают другим найти Headroom. Это бесплатно и занимает секунду.",
+    "Open GitHub": "Открыть GitHub"
 };

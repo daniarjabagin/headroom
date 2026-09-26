@@ -169,6 +169,13 @@ pub(super) const CATALOG: &[(&str, &str)] = &[
         "Signed in again. The account updates in a moment.",
         "Вход выполнен. Аккаунт скоро обновится.",
     ),
+    ("Support Headroom", "Поддержать Headroom"),
+    ("Star Headroom on GitHub", "Поставьте звезду на GitHub"),
+    (
+        "Stars help other people find it. It's free and takes a second.",
+        "Звёзды помогают другим найти Headroom. Это бесплатно и занимает секунду.",
+    ),
+    ("Open GitHub", "Открыть GitHub"),
 ];
 
 pub(super) const PLURALS: &[(&str, [&str; 3])] = &[(

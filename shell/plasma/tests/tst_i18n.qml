@@ -23,6 +23,8 @@ TestCase {
         compare(I18n.tr("ru", "Refresh"), "Обновить");
         compare(I18n.tr("ru", "Accounts"), "Аккаунты");
         compare(I18n.tr("ru", "Notifications"), "Уведомления");
+        compare(I18n.tr("ru", "Support Headroom"), "Поддержать Headroom");
+        compare(I18n.tr("ru", "Open GitHub"), "Открыть GitHub");
         compare(I18n.tr("ru", "not in the catalog {x}", {
             x: 1
         }), "not in the catalog 1");

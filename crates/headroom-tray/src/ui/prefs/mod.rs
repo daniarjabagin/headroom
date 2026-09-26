@@ -25,6 +25,7 @@ mod rows;
 mod service;
 pub mod shortcut;
 mod spend_group;
+mod support;
 pub mod target;
 mod thresholds;
 

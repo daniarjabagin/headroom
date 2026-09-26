@@ -6,6 +6,7 @@ use gtk::{gio, glib};
 
 use super::diagnostics::expand_home;
 use super::rows::{ComboRow, action_row, changer, icon_button, suffix_button};
+use super::support::support_group;
 use super::{Act, PrefsAction, Service, Snapshot};
 use crate::i18n::Lang;
 use crate::preferences::change::Change;
@@ -156,6 +157,7 @@ impl AdvancedPage {
         page.add(&logging);
         page.add(&troubleshooting_group(lang, act));
         page.add(&reset_group(lang, act));
+        page.add(&support_group(lang, act));
         Self {
             page,
             service,

@@ -285,6 +285,7 @@ TestCase {
     }
 
     function test_advanced_helpers() {
+        compare(AdvancedPrefs.REPOSITORY_URL, "https://github.com/daniarjabagin/headroom");
         compare(AdvancedPrefs.folderUrl("~/.local/state/headroom/headroom.log", "file:///home/ada"), "file:///home/ada/.local/state/headroom");
         compare(AdvancedPrefs.folderUrl("/var/log/my logs/headroom.log", ""), "file:///var/log/my%20logs");
         compare(AdvancedPrefs.folderUrl(null, "file:///home/ada"), "");

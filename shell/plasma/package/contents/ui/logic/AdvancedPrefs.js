@@ -4,6 +4,7 @@
 .import "I18n.js" as I18n
 
 const FILE_SCHEME = "file://";
+const REPOSITORY_URL = "https://github.com/daniarjabagin/headroom";
 
 function homePath(homeUrl) {
     const text = String(homeUrl ?? "");
