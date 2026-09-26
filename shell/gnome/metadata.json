@@ -4,5 +4,5 @@
   "description": "How much of your AI coding limits is left — Codex, Claude and more — in the top panel. Requires the Headroom service.",
   "shell-version": ["46", "47", "48", "49", "50"],
   "url": "https://github.com/daniarjabagin/headroom",
-  "version-name": "0.6.0"
+  "version-name": "0.6.1"
 }
