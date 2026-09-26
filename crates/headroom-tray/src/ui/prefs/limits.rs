@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 
-use super::account_row::provider_image;
+use super::account_list::provider_image;
 use super::picks::{LimitItem, limit_items, limits_summary};
 use super::rows::Guard;
 use super::{Act, PrefsAction};

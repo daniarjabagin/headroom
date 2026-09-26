@@ -1,9 +1,13 @@
 mod about;
-mod account_row;
+mod account_actions;
+mod account_detail;
+mod account_list;
+mod account_panes;
 mod accounts;
 pub mod add_account;
 mod advanced;
 mod cards_group;
+mod chrome;
 mod detect_page;
 pub mod diagnostics;
 mod flow_page;
@@ -38,16 +42,18 @@ use crate::preferences::registry::{ProviderInfo, RegistryError};
 use crate::update::UpdateRun;
 use crate::update_check::CheckRun;
 use about::AboutPage;
+use account_actions::SignIn;
 use accounts::AccountsPage;
 use add_account::{AddAccountDialog, DialogCtx};
 use advanced::{AdvancedPage, Toast};
+use chrome::{Chrome, Tab};
 use diagnostics::Diagnostics;
 use general::GeneralPage;
 use notifications::NotificationsPage;
 use service::ServicePage;
 use target::login_method;
 
-pub use account_row::provider_image;
+pub use account_list::provider_image;
 pub use rows::pill_button;
 
 const DEFAULT_WIDTH: i32 = 900;
@@ -100,7 +106,7 @@ struct Pages {
     logo_color: String,
     service: ServicePage,
     general: GeneralPage,
-    accounts: AccountsPage,
+    accounts: Rc<AccountsPage>,
     notifications: NotificationsPage,
     advanced: AdvancedPage,
     about: AboutPage,
@@ -113,7 +119,7 @@ struct Shown {
 }
 
 pub struct SettingsWindow {
-    window: adw::PreferencesWindow,
+    chrome: Chrome,
     act: Act,
     pages: RefCell<Option<Pages>>,
     shown: Cell<Option<Shown>>,
@@ -126,17 +132,12 @@ pub struct SettingsWindow {
 impl SettingsWindow {
     #[must_use]
     pub fn new(application: Option<&adw::Application>, act: Act) -> Rc<Self> {
-        let window = adw::PreferencesWindow::builder()
-            .default_width(DEFAULT_WIDTH)
-            .default_height(DEFAULT_HEIGHT)
-            .search_enabled(false)
-            .hide_on_close(true)
-            .build();
+        let chrome = Chrome::new(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         if let Some(application) = application {
-            window.set_application(Some(application));
+            chrome.window.set_application(Some(application));
         }
         Rc::new(Self {
-            window,
+            chrome,
             act,
             pages: RefCell::default(),
             shown: Cell::default(),
@@ -148,12 +149,12 @@ impl SettingsWindow {
     }
 
     pub fn present(&self) {
-        self.window.present();
+        self.chrome.window.present();
     }
 
     #[must_use]
-    pub fn window(&self) -> &adw::PreferencesWindow {
-        &self.window
+    pub fn window(&self) -> &adw::Window {
+        &self.chrome.window
     }
 
     pub fn update(self: &Rc<Self>, snapshot: &Snapshot) {
@@ -164,11 +165,7 @@ impl SettingsWindow {
         if stale {
             self.rebuild(snapshot);
         }
-        let ready = snapshot.service == Service::Running
-            && snapshot.settings.is_some()
-            && snapshot.state.is_some();
-        let advanced = ready && Capabilities::of(snapshot.state).release_0_6;
-        self.show_pages(Shown { ready, advanced });
+        self.show_pages(Self::shown_for(snapshot));
         if let Some(pages) = self.pages.borrow().as_ref() {
             pages.service.update(snapshot.lang, &snapshot.service);
             pages.general.update(snapshot);
@@ -189,15 +186,9 @@ impl SettingsWindow {
     }
 
     fn rebuild(self: &Rc<Self>, snapshot: &Snapshot) {
-        let visible = self.window.visible_page_name();
-        self.show_nothing();
+        let visible = self.chrome.visible_name();
+        self.chrome.clear();
         let (lang, act, color) = (snapshot.lang, &self.act, snapshot.logo_color.as_str());
-        let weak = Rc::downgrade(self);
-        let on_add: Rc<dyn Fn()> = Rc::new(move || {
-            if let Some(window) = weak.upgrade() {
-                window.open_add_dialog(None);
-            }
-        });
         let advanced = AdvancedPage::new(lang, act, &self.toaster());
         advanced.set_log_file(self.log_file.borrow().as_deref());
         *self.pages.borrow_mut() = Some(Pages {
@@ -205,51 +196,65 @@ impl SettingsWindow {
             logo_color: snapshot.logo_color.clone(),
             service: ServicePage::new(lang, act, color),
             general: GeneralPage::new(lang, act, color),
-            accounts: AccountsPage::new(lang, act, on_add),
+            accounts: AccountsPage::new(lang, act, &self.adder(), self.signer()),
             notifications: NotificationsPage::new(lang, act, color),
             advanced,
             about: AboutPage::new(lang, act),
         });
-        self.window
+        self.chrome
+            .window
             .set_title(Some(&format!("Headroom — {}", lang.tr("Settings"))));
         self.shown.set(None);
         if let Some(name) = visible {
-            self.window.set_visible_page_name(&name);
+            self.show_pages(Self::shown_for(snapshot));
+            self.chrome.select_name(&name);
         }
     }
 
-    fn show_nothing(&self) {
-        if let Some(pages) = self.pages.borrow().as_ref() {
-            for page in pages.all() {
-                if page.parent().is_some() {
-                    self.window.remove(page);
-                }
+    fn adder(self: &Rc<Self>) -> Rc<dyn Fn()> {
+        let weak = Rc::downgrade(self);
+        Rc::new(move || {
+            if let Some(window) = weak.upgrade() {
+                window.open_add_dialog(None);
             }
-        }
+        })
+    }
+
+    fn signer(self: &Rc<Self>) -> SignIn {
+        let weak = Rc::downgrade(self);
+        Rc::new(move |provider: &str, account_id: &str| {
+            if let Some(window) = weak.upgrade()
+                && !window.open_login_dialog(provider, account_id)
+            {
+                window.open_add_dialog(Some(provider));
+            }
+        })
+    }
+
+    fn shown_for(snapshot: &Snapshot) -> Shown {
+        let ready = snapshot.service == Service::Running
+            && snapshot.settings.is_some()
+            && snapshot.state.is_some();
+        let advanced = ready && Capabilities::of(snapshot.state).release_0_6;
+        Shown { ready, advanced }
     }
 
     fn show_pages(&self, shown: Shown) {
         if self.shown.get() == Some(shown) {
             return;
         }
-        self.show_nothing();
         if let Some(pages) = self.pages.borrow().as_ref() {
-            let mut visible: Vec<&adw::PreferencesPage> = if shown.ready {
-                vec![
-                    &pages.general.page,
-                    &pages.accounts.page,
-                    &pages.notifications.page,
-                ]
+            let [general, accounts, notifications, advanced, about, service] = pages.tabs();
+            let mut visible = if shown.ready {
+                vec![general, accounts, notifications]
             } else {
-                vec![&pages.service.page]
+                vec![service]
             };
             if shown.advanced {
-                visible.push(&pages.advanced.page);
+                visible.push(advanced);
             }
-            visible.push(&pages.about.page);
-            for page in visible {
-                self.window.add(page);
-            }
+            visible.push(about);
+            self.chrome.show(&visible);
         }
         self.shown.set(Some(shown));
     }
@@ -277,7 +282,7 @@ impl SettingsWindow {
     }
 
     fn present_dialog(&self, dialog: Rc<AddAccountDialog>) {
-        dialog.dialog.present(Some(&self.window));
+        dialog.dialog.present(Some(&self.chrome.window));
         *self.dialog.borrow_mut() = Some(dialog);
     }
 
@@ -313,8 +318,7 @@ impl SettingsWindow {
         let Some(pages) = pages.as_ref() else {
             return;
         };
-        if pages.accounts.page.parent().is_some() {
-            self.window.set_visible_page(&pages.accounts.page);
+        if self.chrome.select(&pages.accounts.widget()) {
             pages.accounts.focus(account_id);
         }
     }
@@ -331,7 +335,7 @@ impl SettingsWindow {
             .timeout(TOAST_SECONDS)
             .use_markup(false)
             .build();
-        self.window.add_toast(toast);
+        self.chrome.toast(toast);
     }
 
     pub fn request_diagnostics_copy(&self) {
@@ -347,7 +351,7 @@ impl SettingsWindow {
                     pages.advanced.set_log_file(diagnostics.log_file.as_deref());
                 }
                 if copy {
-                    self.window.clipboard().set_text(&diagnostics.text);
+                    self.chrome.window.clipboard().set_text(&diagnostics.text);
                     self.toast(lang.tr("Diagnostics copied"));
                 }
             }
@@ -359,29 +363,27 @@ impl SettingsWindow {
     #[must_use]
     pub fn select_page(&self, index: usize) -> bool {
         let pages = self.pages.borrow();
-        let Some(page) = pages
+        pages
             .as_ref()
-            .and_then(|pages| pages.all().get(index).copied().cloned())
-        else {
-            return false;
-        };
-        if page.parent().is_none() {
-            return false;
-        }
-        self.window.set_visible_page(&page);
-        true
+            .and_then(|pages| pages.tabs().into_iter().nth(index))
+            .is_some_and(|tab| self.chrome.select(&tab.widget))
     }
 }
 
 impl Pages {
-    fn all(&self) -> [&adw::PreferencesPage; 6] {
+    fn tabs(&self) -> [Tab; 6] {
         [
-            &self.general.page,
-            &self.accounts.page,
-            &self.notifications.page,
-            &self.advanced.page,
-            &self.about.page,
-            &self.service.page,
+            Tab::of_page("general", &self.general.page),
+            Tab {
+                name: "accounts",
+                title: self.lang.tr("Accounts").to_owned(),
+                icon: String::from("system-users-symbolic"),
+                widget: self.accounts.widget(),
+            },
+            Tab::of_page("notifications", &self.notifications.page),
+            Tab::of_page("advanced", &self.advanced.page),
+            Tab::of_page("about", &self.about.page),
+            Tab::of_page("service", &self.service.page),
         ]
     }
 }

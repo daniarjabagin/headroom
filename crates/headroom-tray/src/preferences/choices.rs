@@ -126,7 +126,8 @@ pub fn account_name(account: &Account) -> String {
         .unwrap_or_else(|| account.provider_name.clone())
 }
 
-fn status_text(lang: Lang, status: Status) -> Option<&'static str> {
+#[must_use]
+pub fn status_text(lang: Lang, status: Status) -> Option<&'static str> {
     match status {
         Status::SignedOut => Some(lang.tr("Signed out")),
         Status::NoSubscription => Some(lang.tr("No active subscription")),

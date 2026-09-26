@@ -4,7 +4,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 
 use super::Act;
-use super::account_row::provider_image;
+use super::account_list::provider_image;
 use super::detect_page::DetectPage;
 use super::flow_page::{navigation_page, wrapping};
 use super::key_page::KeyPage;

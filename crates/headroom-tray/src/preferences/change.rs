@@ -72,6 +72,7 @@ pub enum Change {
     ResetFormat(ResetFormat),
     Section(Section, bool),
     CombineAccounts(bool),
+    ShowBreakdown(bool),
     ReducedMotion(bool),
     RefreshInterval(u32),
     Headline(Headline),
@@ -200,6 +201,7 @@ impl Change {
             Change::ResetFormat(format) => named("reset_format", reset_format_name(*format)),
             Change::Section(section, on) => display(section.field(), &json!(on)),
             Change::CombineAccounts(on) => display("combine_accounts", &json!(on)),
+            Change::ShowBreakdown(on) => display("show_breakdown", &json!(on)),
             Change::ReducedMotion(on) => json!({ "reduced_motion": on }),
             Change::RefreshInterval(secs) => json!({
                 "refresh_interval_secs": (*secs).clamp(MIN_REFRESH_SECS, MAX_REFRESH_SECS)

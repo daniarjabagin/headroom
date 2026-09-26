@@ -269,6 +269,7 @@ pub(super) fn lookup(msgid: &str) -> Option<&'static str> {
         .chain(super::ru_settings::CATALOG)
         .chain(super::ru_onboarding::CATALOG)
         .chain(super::ru_popup::CATALOG)
+        .chain(super::ru_accounts::CATALOG)
         .find(|(key, _)| *key == msgid)
         .map(|(_, value)| *value)
 }

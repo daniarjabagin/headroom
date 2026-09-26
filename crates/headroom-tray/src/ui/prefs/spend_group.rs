@@ -15,6 +15,7 @@ pub struct SpendGroup {
     show: SwitchRow,
     period: ComboRow<SpendPeriod>,
     unit: SegmentedRow<SpendUnit>,
+    show_breakdown: SwitchRow,
     breakdown: SegmentedRow<SpendBreakdown>,
     lang: Lang,
 }
@@ -41,6 +42,11 @@ impl SpendGroup {
                 spend_unit_choices(lang),
                 changer(act, Change::SpendUnit),
             ),
+            show_breakdown: SwitchRow::new(
+                lang.tr("Show models and projects"),
+                lang.tr("Model and project lists in the spend card"),
+                changer(act, Change::ShowBreakdown),
+            ),
             breakdown: SegmentedRow::new(
                 lang.tr("Breakdown on hover"),
                 lang.tr("Split a slice of the ring when the pointer rests on it"),
@@ -53,6 +59,7 @@ impl SpendGroup {
             spend.show.row.upcast_ref::<gtk::Widget>(),
             spend.period.row.upcast_ref(),
             spend.unit.row.upcast_ref(),
+            spend.show_breakdown.row.upcast_ref(),
             spend.breakdown.row.upcast_ref(),
         ] {
             spend.group.add(row);
@@ -68,6 +75,7 @@ impl SpendGroup {
             &display.spend_period,
         );
         self.unit.set(&display.spend_unit);
+        self.show_breakdown.set(display.show_breakdown);
         self.breakdown.set_choices(
             spend_breakdown_choices(self.lang, Some(&state.spend)),
             &display.spend_breakdown,
@@ -75,6 +83,7 @@ impl SpendGroup {
         for row in [
             self.period.row.upcast_ref::<gtk::Widget>(),
             self.unit.row.upcast_ref(),
+            self.show_breakdown.row.upcast_ref(),
             self.breakdown.row.upcast_ref(),
         ] {
             row.set_sensitive(display.show_spend);
