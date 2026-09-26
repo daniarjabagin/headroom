@@ -46,12 +46,14 @@ public enum SpendChange: Sendable, Hashable {
     case period(SpendPeriodPreference)
     case unit(SpendUnit)
     case breakdown(SpendBreakdown)
+    case showBreakdown(Bool)
 
     var key: String {
         switch self {
         case .period: "spend_period"
         case .unit: "spend_unit"
         case .breakdown: "spend_breakdown"
+        case .showBreakdown: "show_breakdown"
         }
     }
 
@@ -60,6 +62,7 @@ public enum SpendChange: Sendable, Hashable {
         case .period(let period): .string(period.rawValue)
         case .unit(let unit): .string(unit.rawValue)
         case .breakdown(let breakdown): .string(breakdown.rawValue)
+        case .showBreakdown(let shown): .bool(shown)
         }
     }
 
@@ -68,6 +71,7 @@ public enum SpendChange: Sendable, Hashable {
         case .period(let period): display.spendPeriod = period
         case .unit(let unit): display.spendUnit = unit
         case .breakdown(let breakdown): display.spendBreakdown = breakdown
+        case .showBreakdown(let shown): display.showBreakdown = shown
         }
     }
 }

@@ -45,6 +45,7 @@ public struct DisplaySettings: Decodable, Sendable, Hashable {
     public var spendPeriod = SpendPeriodPreference.last30Days
     public var spendUnit = SpendUnit.cost
     public var spendBreakdown = SpendBreakdown.models
+    public var showBreakdown = true
     public var starredAccounts: [String] = []
     public var collapseUnstarred = false
     public var hideOnScreenShare = true
@@ -68,6 +69,7 @@ public struct DisplaySettings: Decodable, Sendable, Hashable {
         case spendPeriod = "spend_period"
         case spendUnit = "spend_unit"
         case spendBreakdown = "spend_breakdown"
+        case showBreakdown = "show_breakdown"
         case starredAccounts = "starred_accounts"
         case collapseUnstarred = "collapse_unstarred"
         case hideOnScreenShare = "hide_on_screen_share"
@@ -100,6 +102,7 @@ public struct DisplaySettings: Decodable, Sendable, Hashable {
         spendPeriod = try container.value(.spendPeriod, default: spendPeriod)
         spendUnit = try container.value(.spendUnit, default: spendUnit)
         spendBreakdown = try container.value(.spendBreakdown, default: spendBreakdown)
+        showBreakdown = try container.value(.showBreakdown, default: showBreakdown)
         starredAccounts = try container.value(.starredAccounts, default: starredAccounts)
         collapseUnstarred = try container.value(.collapseUnstarred, default: collapseUnstarred)
         hideOnScreenShare = try container.value(.hideOnScreenShare, default: hideOnScreenShare)

@@ -57,7 +57,8 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
         case .spent:
             return PaceNote(flame: true, text: strings.text(.limitReached))
         case .runningOut:
-            let text = showForecast ? strings.text(.overPace) : limitText(pace.runsOutAt, now, formatter)
+            let calm = showForecast || pace.isPaused
+            let text = calm ? strings.text(.overPace) : limitText(pace.runsOutAt, now, formatter)
             return PaceNote(flame: true, text: text)
         case .close:
             guard let spare = pace.sparePercent, !showForecast else { return nil }
@@ -76,6 +77,7 @@ public struct QuotaRowModel: Sendable, Hashable, Identifiable {
     static func forecast(
         _ pace: Pace, resetsAt: Timestamp?, now: Timestamp, display: DisplaySettings, formatter: DisplayFormatter
     ) -> String? {
+        if pace.isPaused { return PausedForecast.text(pace, strings: formatter.strings) }
         switch pace.severity {
         case .runningOut:
             return runOutForecast(pace, resetsAt: resetsAt, now: now, format: display.resetFormat, formatter: formatter)

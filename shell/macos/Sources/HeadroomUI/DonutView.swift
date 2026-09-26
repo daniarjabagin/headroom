@@ -77,6 +77,7 @@
 
         var body: some View {
             let size = layout.cg.donutSize
+            let fit = labelFit(size: size)
             ZStack {
                 ForEach(Array(model.entries.enumerated()), id: \.element.id) { index, entry in
                     DonutSliceShape(fractions: AnimatableVector(values: model.fractions), reveal: reveal, index: index)
@@ -84,16 +85,20 @@
                 }
                 VStack(spacing: 0) {
                     Text(model.centerAmount)
-                        .font(layout.type.ring)
+                        .font(.system(size: CGFloat(fit.fontSize), weight: .semibold, design: .rounded))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                        .minimumScaleFactor(CGFloat(RingLabelFit.minimumScale))
                         .contentTransition(.numericText())
                     if let caption = model.centerCaption {
-                        Text(caption).font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+                        Text(caption)
+                            .font(.system(size: CGFloat(RingLabelFit.captionSize), weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(CGFloat(RingLabelFit.minimumScale))
                     }
                 }
                 .monospacedDigit()
-                .padding(.horizontal, size * 0.15)
+                .frame(width: CGFloat(fit.width))
             }
             .frame(width: size, height: size)
             .animation(Motion.animation(Motion.standard, reduced: reducedMotion), value: model.fractions)
@@ -102,6 +107,12 @@
                 Motion.perform(Motion.sweep, reduced: reducedMotion) { reveal = 1 }
             }
             .accessibilityElement(children: .combine)
+        }
+
+        private func labelFit(size: CGFloat) -> RingLabelFit {
+            RingLabelFit.make(
+                text: model.centerAmount, ringSize: Double(size), amountSize: layout.size(RingLabelFit.amountSize),
+                captionSize: model.centerCaption == nil ? nil : RingLabelFit.captionSize)
         }
     }
 #endif

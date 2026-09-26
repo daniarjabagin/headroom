@@ -20,12 +20,14 @@
         let model: AppModel
         let actions: PopupActions
         let presentation: Int
+        let isShown: Bool
         let maxHeight: CGFloat?
         let onResize: @MainActor (CGSize) -> Void
 
         var body: some View {
             PopupView(
-                model: model, actions: actions, presentation: presentation, maxHeight: maxHeight, onResize: onResize
+                model: model, actions: actions, presentation: presentation, isShown: isShown, maxHeight: maxHeight,
+                onResize: onResize
             )
             .frame(maxHeight: .infinity, alignment: .top)
         }
@@ -48,6 +50,7 @@
         private weak var anchor: NSStatusBarButton?
         private var lastAutoClose = Date.distantPast
         private var presentation = 0
+        private var shown = false
         private var contentSize: CGSize?
         private var shownAt = Date.distantPast
 
@@ -55,7 +58,9 @@
             self.model = model
             self.actions = actions
             hosting = NSHostingView(
-                rootView: PanelRoot(model: model, actions: actions, presentation: 0, maxHeight: nil, onResize: { _ in })
+                rootView: PanelRoot(
+                    model: model, actions: actions, presentation: 0, isShown: false, maxHeight: nil,
+                    onResize: { _ in })
             )
             panel = HeadroomPanel(
                 contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 200),
@@ -95,8 +100,10 @@
         }
 
         private func root() -> PanelRoot {
-            PanelRoot(model: model, actions: actions, presentation: presentation, maxHeight: anchorMaxHeight) {
-                [weak self] size in
+            PanelRoot(
+                model: model, actions: actions, presentation: presentation, isShown: shown,
+                maxHeight: anchorMaxHeight
+            ) { [weak self] size in
                 self?.contentSizeChanged(size)
             }
         }
@@ -125,6 +132,7 @@
             anchor = button
             shownAt = Date()
             presentation += 1
+            shown = true
             hosting.rootView = root()
             layout(animated: false)
             panel.makeKeyAndOrderFront(nil)
@@ -136,6 +144,8 @@
             stopOutsideClickMonitor()
             anchor?.highlight(false)
             panel.orderOut(nil)
+            shown = false
+            hosting.rootView = root()
         }
 
         private func contentSizeChanged(_ size: CGSize) {

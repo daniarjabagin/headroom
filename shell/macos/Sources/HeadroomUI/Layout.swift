@@ -26,7 +26,6 @@
         var reading: Font { .system(size: size(11)) }
         var segment: Font { .system(size: size(11), weight: .medium) }
         var segmentSelected: Font { .system(size: size(11), weight: .semibold) }
-        var ring: Font { .system(size: size(13), weight: .semibold, design: .rounded) }
 
         private func size(_ base: Double) -> CGFloat {
             CGFloat(layout.size(base))

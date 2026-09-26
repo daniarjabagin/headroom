@@ -35,6 +35,7 @@ public enum MenuBarSettingsText: LocalizedText {
 
 public enum SpendSettingsText: LocalizedText {
     case spend, showSpend, showSpendDetail, defaultPeriod, defaultPeriodDetail, units, breakdown, breakdownDetail
+    case showBreakdown, showBreakdownDetail
 
     public var translations: (english: String, russian: String) {
         switch self {
@@ -46,6 +47,9 @@ public enum SpendSettingsText: LocalizedText {
         case .units: ("Units", "Единицы")
         case .breakdown: ("Breakdown on hover", "Разбивка при наведении")
         case .breakdownDetail: ("What a legend entry splits into", "На что делится строка легенды")
+        case .showBreakdown: ("Show models and projects", "Показывать модели и проекты")
+        case .showBreakdownDetail:
+            ("The list under the spend ring", "Список под кольцом расходов")
         }
     }
 }

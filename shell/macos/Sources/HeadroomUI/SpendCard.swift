@@ -6,12 +6,14 @@
         let spend: Spend
         let formatter: DisplayFormatter
         let units: [SpendUnit]
+        let showBreakdown: Bool
         @Binding var selection: SpendSelection
         @ViewBuilder let trailing: () -> Trailing
         @Environment(\.popupLayout) private var layout
 
         private var model: SpendCardModel {
-            SpendCardModel.make(spend: spend, selection: selection, formatter: formatter)
+            SpendCardModel.make(
+                spend: spend, selection: selection, formatter: formatter, showBreakdown: showBreakdown)
         }
 
         var body: some View {

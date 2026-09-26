@@ -61,21 +61,24 @@
         let model: AppModel
         let actions: PopupActions
         let presentation: Int
+        let isShown: Bool
         let maxHeight: CGFloat?
         let onResize: (@MainActor (CGSize) -> Void)?
         @State private var ui = PopupUIState()
+        @State private var sheenEpoch = PopupView.nextSheenEpoch()
         @State private var contentHeight: CGFloat = 0
         @State private var footerHeight: CGFloat = 0
         @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
         @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
 
         public init(
-            model: AppModel, actions: PopupActions, presentation: Int = 0, maxHeight: CGFloat? = nil,
-            onResize: (@MainActor (CGSize) -> Void)? = nil
+            model: AppModel, actions: PopupActions, presentation: Int = 0, isShown: Bool = true,
+            maxHeight: CGFloat? = nil, onResize: (@MainActor (CGSize) -> Void)? = nil
         ) {
             self.model = model
             self.actions = actions
             self.presentation = presentation
+            self.isShown = isShown
             self.maxHeight = maxHeight
             self.onResize = onResize
         }
@@ -109,6 +112,7 @@
             .environment(\.headroomReducedMotion, reducedMotion)
             .environment(\.headroomTranslucent, translucent)
             .environment(\.popupLayout, layout)
+            .environment(\.sheenClock, SheenClock(epoch: sheenEpoch, running: isShown))
             .environment(ui.tips)
             .environment(ui.icons)
             .onChange(of: model.state.map(PopupScreen.isRefreshing) ?? false, initial: true) { _, busy in
@@ -120,7 +124,14 @@
             .onChange(of: model.state.map { SpendSelection(display: $0.display) }, initial: true) { _, _ in
                 syncSelection()
             }
-            .onChange(of: presentation) { _, _ in ui.toast = nil }
+            .onChange(of: presentation) { _, _ in
+                ui.toast = nil
+                sheenEpoch = Self.nextSheenEpoch()
+            }
+        }
+
+        nonisolated private static func nextSheenEpoch() -> Date {
+            Date().addingTimeInterval(MeterSheen.startDelaySeconds)
         }
 
         private var maxScrollHeight: CGFloat {
