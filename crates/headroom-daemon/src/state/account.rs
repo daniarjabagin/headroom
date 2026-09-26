@@ -1,4 +1,4 @@
-use headroom_core::forecast::{Activity, forecast};
+use headroom_core::forecast::{Activity, Liveness, forecast_with_spend};
 use headroom_core::history::observed_at;
 use headroom_core::pace::{Pace, Severity, tone};
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, QuotaWindow};
@@ -89,6 +89,11 @@ fn windows(
     let display = &model.settings.display;
     let history = model.history.account(record.id());
     let signal = model.activity_signal(&record.reference, now);
+    let spend = if signal.liveness == Liveness::Live {
+        model.account_spend(&record.reference)
+    } else {
+        Vec::new()
+    };
     snapshot
         .windows
         .iter()
@@ -100,7 +105,8 @@ fn windows(
                 signal,
                 observed_at: observed_at(snapshot),
             };
-            window_view(w, forecast(w, activity, now), now, hidden, key)
+            let pace = forecast_with_spend(w, activity, &spend, now);
+            window_view(w, pace, now, hidden, key)
         })
         .collect()
 }
@@ -175,6 +181,10 @@ fn notice_view(notice: &Notice) -> NoticeView {
         text: notice.text.clone(),
     }
 }
+
+#[cfg(test)]
+#[path = "account_spend_tests.rs"]
+mod spend_tests;
 
 #[cfg(test)]
 mod tests {

@@ -30,6 +30,10 @@ impl Cadence {
         }
     }
 
+    pub(crate) fn lookback(self) -> SignedDuration {
+        self.lookback
+    }
+
     pub(crate) fn is_idle(self, samples: &[UsageSample], now: Timestamp) -> bool {
         samples
             .last()
