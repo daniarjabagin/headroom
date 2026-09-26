@@ -4,8 +4,8 @@ use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
 use headroom_daemon::update::{GithubRelease, Version};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use tokio::process::{ChildStderr, ChildStdout, Command};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, BufReader};
+use tokio::process::Command;
 
 use super::feed::GithubFeed;
 use super::method::TrayVariant;
@@ -176,9 +176,9 @@ async fn run_installer<W: Write, E: Write>(
     Ok(())
 }
 
-async fn relay<W: Write, E: Write>(
-    stdout: ChildStdout,
-    mut stderr: ChildStderr,
+async fn relay<O: AsyncRead + Unpin, R: AsyncRead + Unpin, W: Write, E: Write>(
+    stdout: O,
+    mut stderr: R,
     reporter: &mut Reporter<W, E>,
 ) -> Result<()> {
     let mut lines = BufReader::new(stdout).lines();
@@ -186,6 +186,7 @@ async fn relay<W: Write, E: Write>(
     let (mut stdout_open, mut stderr_open) = (true, true);
     while stdout_open || stderr_open {
         tokio::select! {
+            biased;
             line = lines.next_line(), if stdout_open => match line? {
                 Some(line) => reporter.installer_line(&line)?,
                 None => stdout_open = false,
@@ -197,4 +198,23 @@ async fn relay<W: Write, E: Write>(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn installer_output_that_is_already_written_keeps_its_order() {
+        let lines = "installer line\n".repeat(32);
+        let mut reporter = Reporter::json(Vec::new(), Vec::new());
+        relay(lines.as_bytes(), &b"warning\n"[..], &mut reporter)
+            .await
+            .unwrap();
+        let (_, diagnostics) = reporter.into_parts();
+        assert_eq!(
+            String::from_utf8(diagnostics).unwrap(),
+            format!("{lines}warning\n")
+        );
+    }
 }
