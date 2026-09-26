@@ -13,6 +13,8 @@ const KIND_ICONS = {
 };
 const SPINNER_SIZE = 10;
 const COPIED_MS = 1500;
+const COPY_ICON = 'edit-copy-symbolic';
+const COPIED_ICON = 'object-select-symbolic';
 
 function iconTile(kind) {
     const tile = new St.Bin({ style_class: `headroom-notice-tile ${kind}`, y_align: Clutter.ActorAlign.START });
@@ -107,6 +109,21 @@ export class CopyButton {
         copy(text);
         this._label.text = _('Copied');
         this._reset.start(COPIED_MS, () => (this._label.text = _('Copy command')));
+    }
+}
+
+export class CopyIconButton {
+    constructor(copy, text) {
+        this._icon = themeIcon(COPY_ICON, 'headroom-small-button-icon');
+        this.actor = button(this._icon, 'headroom-small-button icon', () => this._onClicked(copy, text));
+        this.actor.accessible_name = _('Copy command');
+        this._reset = new OneShot(this.actor);
+    }
+
+    _onClicked(copy, text) {
+        copy(text);
+        this._icon.icon_name = COPIED_ICON;
+        this._reset.start(COPIED_MS, () => (this._icon.icon_name = COPY_ICON));
     }
 }
 

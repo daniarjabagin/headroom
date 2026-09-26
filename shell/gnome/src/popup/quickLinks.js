@@ -24,7 +24,10 @@ export class QuickLinks {
     }
 
     reveal(shown) {
-        for (const child of this.actor.get_children()) child.reactive = shown;
+        for (const child of this.actor.get_children()) {
+            child.reactive = shown;
+            child.can_focus = shown;
+        }
         return this.actor.visible;
     }
 }

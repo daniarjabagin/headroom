@@ -105,9 +105,9 @@ export class SpendBreakdown {
         this.actor.add_child(this._list);
     }
 
-    update(period, tab, unit) {
+    update(period, tab, unit, shown) {
         const data = table(tab, period, unit);
-        this.actor.visible = period.providers.length > 0 && hasProjects(period) && data.rows.length > 0;
+        this.actor.visible = shown && period.providers.length > 0 && hasProjects(period) && data.rows.length > 0;
         if (!this.actor.visible) return;
         for (const [key, segment] of this._tabs) {
             if (key === tab) segment.add_style_pseudo_class('checked');

@@ -1,8 +1,9 @@
+import Clutter from 'gi://Clutter';
 import { dashboardCards } from '../combined.js';
 import { enter, settle, STAGGER_MS } from '../motion.js';
 import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
-import { row, spacer } from '../widgets.js';
+import { fileIcon, label, row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
 import { collapsedNames, collapsedRow } from './collapsedRow.js';
 import { CombinedSection } from './combinedSection.js';
@@ -30,8 +31,18 @@ function sectionFor(ctx, card, accounts) {
     return new AccountSection(ctx, card.account, titleShowsName(ctx, card, accounts));
 }
 
-function topBar(trailing) {
-    const actor = row({ style_class: 'headroom-top-bar', x_expand: true });
+const BRAND_NAME = 'Headroom';
+
+function brand(ctx) {
+    const actor = row({ style_class: 'headroom-brand' });
+    actor.add_child(fileIcon(ctx.dir, 'headroom-symbolic.svg', 'headroom-brand-mark'));
+    actor.add_child(label(BRAND_NAME, 'headroom-title', { y_align: Clutter.ActorAlign.CENTER }));
+    return actor;
+}
+
+function topBar(ctx, trailing) {
+    const actor = row({ style_class: 'headroom-section-header spend', x_expand: true });
+    actor.add_child(brand(ctx));
     actor.add_child(spacer());
     actor.add_child(trailing);
     return actor;
@@ -81,7 +92,7 @@ export class Dashboard {
         this.replace([]);
         const refresh = this.detachRefresh();
         this._spendSection = spend ? new SpendSection(this._ctx, spend, refresh) : null;
-        this._head = this._spendSection?.actor ?? topBar(refresh);
+        this._head = this._spendSection?.actor ?? topBar(this._ctx, refresh);
         this._layoutKey = key;
         this._fresh.add(this._head);
         this._content.add_child(this._head);

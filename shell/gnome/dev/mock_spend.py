@@ -88,6 +88,12 @@ def merge_models(groups):
     return by_cost(model_usage(name, v["tokens"], v["cost"], v["partial"]) for name, v in merged.items())
 
 
+def rest_rate(rest):
+    if any(model["partial"] for model in rest):
+        return None
+    return cost_per_mtok(sum(model["cost_usd_micros"] for model in rest), sum(model["total_tokens"] for model in rest))
+
+
 def models_other(rest):
     if not rest:
         return None
@@ -96,6 +102,7 @@ def models_other(rest):
         "total_tokens": sum(model["total_tokens"] for model in rest),
         "cost_usd_micros": sum(model["cost_usd_micros"] for model in rest),
         "partial": any(model["partial"] for model in rest),
+        "cost_per_mtok_usd_micros": rest_rate(rest),
     }
 
 

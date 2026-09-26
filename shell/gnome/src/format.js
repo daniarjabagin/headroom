@@ -90,6 +90,14 @@ export function duration(ms, withSeconds = false) {
     return fill(_('{minutes}m'), { minutes: Math.max(1, minutes) });
 }
 
+export function roughDuration(ms) {
+    const minutes = Math.max(1, Math.round(ms / MINUTE));
+    if (minutes < 60) return fill(_('{minutes}m'), { minutes });
+    const totalHours = Math.round(ms / HOUR);
+    if (totalHours < 24) return fill(_('{hours}h'), { hours: totalHours });
+    return fill(_('{days}d {hours}h'), { days: Math.floor(totalHours / 24), hours: totalHours % 24 });
+}
+
 export function isCountdownLive(resetsAt, now) {
     return resetsAt !== null && resetsAt > now && resetsAt - now < HOUR;
 }
@@ -152,9 +160,16 @@ function atResetForecast(window, valueMode) {
     return fill(_('At this pace: ~{percent}% left at reset'), { percent: roundPercent(pace.sparePercent) });
 }
 
+export function pausedForecast(activeLeftSeconds) {
+    if (activeLeftSeconds === null) return _('Paused');
+    const duration = roughDuration(activeLeftSeconds * SECOND);
+    return fill(_('Paused · lasts ≈{duration} of work'), { duration });
+}
+
 export function forecastText(window, now, display, hour12 = false) {
-    const { severity, sparePercent } = window.pace;
+    const { severity, sparePercent, basis } = window.pace;
     if (window.remainingPercent === null) return null;
+    if (basis === 'paused') return pausedForecast(window.pace.activeLeftSeconds ?? null);
     if (severity === 'running_out') return runOutForecast(window, now, display.resetFormat, hour12);
     if ((severity === 'healthy' || severity === 'close') && sparePercent !== null)
         return atResetForecast(window, display.valueMode);

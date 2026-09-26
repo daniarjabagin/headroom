@@ -9,7 +9,7 @@ import { Meter } from './meter.js';
 import { NumberTween } from './tween.js';
 
 const SINGLE_LOOK = {
-    meter: () => new Meter(),
+    meter: ctx => new Meter(ctx.sheen),
     meterState: (window, display) => ({
         fraction: fillFraction(window, display.valueMode),
         tone: meterTone(window),
@@ -41,7 +41,7 @@ export class QuotaRow {
         this._label = label('', 'headroom-metric-label', { x_expand: true });
         this._flame = fileIcon(ctx.dir, 'flame-symbolic.svg', 'headroom-flame');
         this._note = label('', 'headroom-reading dim');
-        this._meter = look.meter();
+        this._meter = look.meter(ctx);
         this._headline = label('', 'headroom-reading');
         this._headline.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
         this._reading = new NumberTween(ctx.motion, this._headline, percent => this._readingText(percent));

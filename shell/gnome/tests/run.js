@@ -14,6 +14,7 @@ import { testOptionModel } from './optionModelTests.js';
 import { testPanel } from './panelTests.js';
 import { testPayload, testSampleAdditions } from './payloadTests.js';
 import { testPopup } from './popupTests.js';
+import { testPopupFit } from './popupFitTests.js';
 import { testPopupPolish } from './popupPolishTests.js';
 import { testPrefsClient } from './prefsClientTests.js';
 import { testPrefsModels } from './prefsModelTests.js';
@@ -130,7 +131,7 @@ function testSampleContract() {
     check(
         'recoveries',
         state.accounts.map(account => account.recovery?.action ?? null),
-        [null, null, 'retry', 'retry', null, null]
+        [null, null, 'retry', 'cli_login', null, null]
     );
     check('update check', state.updateCheck.checkedAt.toISOString(), '2026-09-23T04:00:00.000Z');
 }
@@ -162,6 +163,7 @@ function testSampleUsage() {
         totalTokens: 2_182_045,
         costMicros: 964_000,
         partial: true,
+        costPerMtokMicros: null,
     });
     check('totals models', claudeMonth.models.length, 5);
     const summed = claudeMonth.models.reduce((sum, entry) => sum + entry.totalTokens, 0);
@@ -236,6 +238,7 @@ testOptionModel();
 testPanel();
 testPopup();
 testPopupPolish();
+testPopupFit(parseState(readSample()));
 testHeaderMarks();
 testRenderChurn(readSample());
 testSectionPlan(readSample());

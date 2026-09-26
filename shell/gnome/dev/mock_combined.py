@@ -37,6 +37,8 @@ def combined_pace(parts, capacity):
         "projected_percent": projected,
         "spare_percent": capacity - projected if severity in TRACKED else None,
         "runs_out_at": single_run_out,
+        "basis": "window" if severity in (*TRACKED, "running_out") else None,
+        "active_left_seconds": None,
     }
 
 

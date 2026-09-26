@@ -242,6 +242,7 @@
 }
 
 .headroom-toast {
+    max-width: 292px;
     padding: 6px 12px 6px 9px;
     spacing: 6px;
     border-radius: 999px;

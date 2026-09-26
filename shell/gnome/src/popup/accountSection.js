@@ -6,12 +6,12 @@ import {
     recoveryActions,
     subscriptionNote,
 } from '../accountStatus.js';
-import { _, fill } from '../i18n.js';
+import { _, C_, fill } from '../i18n.js';
 import { column } from '../widgets.js';
 import { AccountHeader } from './accountHeader.js';
 import { Expander } from './expander.js';
 import { noticeKind, noticeText } from '../notices.js';
-import { CopyButton, Notice, noticeLine, noticeRow, RetryButton } from './notice.js';
+import { CopyButton, CopyIconButton, Notice, noticeLine, noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
 import { accountShapeKey, awaitingFirstData, showsSpend, shownWindows, statusShape } from './sectionShape.js';
 import { skeletonRows } from './skeleton.js';
@@ -27,11 +27,14 @@ function runCommandText(account) {
     return fill(_('Run `{command}` in a terminal — Headroom picks it up automatically.'), { command });
 }
 
+function signInAgainText(account) {
+    return fill(_('Sign in to {provider} again, then retry.'), { provider: account.providerName });
+}
+
 function signedOutDetail(account) {
     const action = account.recovery?.action;
-    if (action === 'cli_login') return runCommandText(account);
-    if (action === 'retry')
-        return fill(_('Sign in to {provider} again, then retry.'), { provider: account.providerName });
+    if (action === 'cli_login') return runCommandText(account) ?? signInAgainText(account);
+    if (action === 'retry') return signInAgainText(account);
     return _('Sign in again through Headroom (Preferences → Accounts → Add account), or remove the account there.');
 }
 
@@ -69,10 +72,19 @@ function noticeTexts(ctx, account) {
     return kind === null ? null : NOTICE_TEXTS[kind](account);
 }
 
+function copyAction(ctx, recovery) {
+    if (!recovery.accountId) return new CopyButton(ctx.actions.copy, recovery.command).actor;
+    const actor = new CopyIconButton(ctx.actions.copy, recovery.command).actor;
+    ctx.tooltips.attach(actor, () => _('Copy command'));
+    return actor;
+}
+
 function recoveryAction(ctx, account, retry, name) {
     if (name === 'sign_in')
         return { label: _('Sign in again…'), run: () => ctx.actions.openPreferences(), primary: true };
-    if (name === 'copy_command') return { actor: new CopyButton(ctx.actions.copy, account.recovery.command).actor };
+    if (name === 'cli_sign_in')
+        return { label: C_('button', 'Sign in'), run: () => ctx.signIn(account.recovery.accountId), primary: true };
+    if (name === 'copy_command') return { actor: copyAction(ctx, account.recovery) };
     return { actor: retry.actor };
 }
 

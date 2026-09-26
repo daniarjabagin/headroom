@@ -115,6 +115,24 @@ function sectorArcs(geometry, { start, end }, corner, outerOffset, innerOffset) 
     ];
 }
 
+export function centerTextRoom(size, halfHeight, padding) {
+    const { inner } = donutGeometry(size);
+    const reach = Math.min(Math.max(halfHeight, 0), inner);
+    return Math.max(0, 2 * Math.sqrt(inner * inner - reach * reach) - 2 * padding);
+}
+
+export function valueReach({ lineHeight, captionHeight, inkY, inkHeight }) {
+    const top = -(lineHeight + captionHeight) / 2 + inkY;
+    return Math.max(Math.abs(top), Math.abs(top + inkHeight));
+}
+
+export function fitCenterText(textWidth, baseSize, room, { minSize, step }) {
+    if (textWidth <= room) return { size: baseSize, clip: false };
+    const scaled = (baseSize * room) / textWidth;
+    const size = Math.max(minSize, Math.floor(scaled / step) * step);
+    return { size, clip: (textWidth * size) / baseSize > room };
+}
+
 export function sectorPath(geometry, segment) {
     if (!segment.gap && segment.end - segment.start >= FULL_TURN - ANGLE_EPSILON) return ringPath(geometry);
     const halfGap = segment.gap ? geometry.gap / 2 : 0;

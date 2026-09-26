@@ -2,6 +2,7 @@ import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
 export const FAST_MS = 120;
+export const HOVER_MS = 160;
 export const STANDARD_MS = 200;
 export const STAGGER_MS = 30;
 const RISE_PX = 4;

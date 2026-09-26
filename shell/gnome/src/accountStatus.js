@@ -46,10 +46,15 @@ export function accountNotice(account, offline) {
     return hasErrorNotice(account, offline) ? 'error' : null;
 }
 
+function cliLoginActions(recovery) {
+    const copy = recovery.command ? ['copy_command'] : [];
+    return recovery.accountId ? ['cli_sign_in', 'retry', ...copy] : [...copy, 'retry'];
+}
+
 export function recoveryActions(account) {
     const action = account.recovery?.action;
     if (action === 'sign_in') return ['sign_in', 'retry'];
-    if (action === 'cli_login') return ['copy_command', 'retry'];
+    if (action === 'cli_login') return cliLoginActions(account.recovery);
     if (account.recovery === null && isSignedOut(account)) return ['sign_in', 'retry'];
     return ['retry'];
 }

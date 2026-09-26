@@ -122,6 +122,16 @@ function testRecoveryActions() {
         actionsFor('signed_out', 'not_signed_in', { action: 'cli_login', command: 'claude auth login' }),
         ['copy_command', 'retry']
     );
+    check(
+        'sign in through the cli',
+        actionsFor('signed_out', 'sign_in_expired', { action: 'cli_login', command: 'claude', account_id: 'claude:1' }),
+        ['cli_sign_in', 'retry', 'copy_command']
+    );
+    check(
+        'sign in without a command',
+        actionsFor('signed_out', 'not_signed_in', { action: 'cli_login', account_id: 'c' }),
+        ['cli_sign_in', 'retry']
+    );
     check('cli login on api key error', actionsFor('error', 'api_key_only', { action: 'cli_login', command: 'x' }), [
         'copy_command',
         'retry',
@@ -154,6 +164,17 @@ function testRecoveryParsing() {
     check('cli login parsed', recoveryOf({ action: 'cli_login', command: 'claude auth login' }), {
         action: 'cli_login',
         command: 'claude auth login',
+        accountId: null,
+    });
+    check('cli login with account', recoveryOf({ action: 'cli_login', command: 'claude', account_id: 'claude:1' }), {
+        action: 'cli_login',
+        command: 'claude',
+        accountId: 'claude:1',
+    });
+    check('cli login with account only', recoveryOf({ action: 'cli_login', account_id: 'claude:1' }), {
+        action: 'cli_login',
+        command: null,
+        accountId: 'claude:1',
     });
     check('cli login without command', recoveryOf({ action: 'cli_login' }), null);
     check('unknown action', recoveryOf({ action: 'reboot' }), null);
