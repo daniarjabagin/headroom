@@ -10,6 +10,8 @@ Item {
     readonly property var themeIcons: ({
             "arrow-down": "ui/pan-down-symbolic.svg",
             "arrow-up": "ui/pan-up-symbolic.svg",
+            "go-up": "actions/go-up-symbolic.svg",
+            "go-down": "actions/go-down-symbolic.svg",
             "dialog-warning": "status/dialog-warning-symbolic.svg",
             "dialog-error": "status/dialog-error-symbolic.svg",
             "documentinfo": "actions/help-about-symbolic.svg",

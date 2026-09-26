@@ -6,7 +6,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "package" / "contents"
-CATALOG = SOURCES / "ui" / "logic" / "Russian.js"
+LOGIC = SOURCES / "ui" / "logic"
+AGGREGATE = LOGIC / "Russian.js"
+CATALOGS = sorted(LOGIC.glob("Russian?*.js"))
 LITERAL = r'"((?:[^"\\]|\\.)*)"'
 SINGLE = re.compile(r"\b(?:tr|N)\(\s*(?:[\w.]+\s*,\s*)?" + LITERAL)
 PLURAL = re.compile(r"\btrn\(\s*[\w.]+\s*,\s*" + LITERAL + r"\s*,\s*" + LITERAL)
@@ -18,16 +20,27 @@ def unescape(literal):
     return json.loads(f'"{literal}"')
 
 
-def catalog():
-    text = CATALOG.read_text(encoding="utf-8")
+def entries(path):
+    text = path.read_text(encoding="utf-8")
     start = text.index("{")
     end = text.rindex("}") + 1
     return json.loads(text[start:end])
 
 
+def catalog():
+    merged, duplicates = {}, []
+    for path in CATALOGS:
+        for msgid, entry in entries(path).items():
+            if msgid in merged:
+                duplicates.append(f"{path.name}: duplicate entry {msgid!r}")
+            merged[msgid] = entry
+    return merged, duplicates
+
+
 def sources():
+    skipped = set(CATALOGS) | {AGGREGATE}
     for path in sorted(SOURCES.rglob("*")):
-        if path.suffix in {".qml", ".js"} and path != CATALOG:
+        if path.suffix in {".qml", ".js"} and path not in skipped:
             yield path
 
 
@@ -74,9 +87,9 @@ def check_plural(msgid, plural, entry):
 
 
 def problems():
-    messages = catalog()
+    messages, found = catalog()
     singles, plurals = used_messages()
-    found = unmarked_throws()
+    found.extend(unmarked_throws())
     for msgid, source in singles.items():
         if msgid not in messages:
             found.append(f"{source}: missing Russian entry for {msgid!r}")
@@ -88,7 +101,7 @@ def problems():
         elif (problem := check_plural(msgid, plural, messages[msgid])) is not None:
             found.append(f"{source}: {problem}")
     unused = set(messages) - set(singles) - set(plurals)
-    found.extend(f"Russian.js: unused entry {msgid!r}" for msgid in sorted(unused))
+    found.extend(f"Russian catalogs: unused entry {msgid!r}" for msgid in sorted(unused))
     return found
 
 

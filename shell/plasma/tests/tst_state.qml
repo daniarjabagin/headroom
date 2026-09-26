@@ -104,6 +104,7 @@ TestCase {
             count: 2,
             totalTokens: 2182045,
             costMicros: 964000,
+            costPerMtokMicros: null,
             partial: true
         });
         compare(state.accounts[0].usage.today.modelsOther, null);

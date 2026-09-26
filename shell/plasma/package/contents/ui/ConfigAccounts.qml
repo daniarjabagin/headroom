@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import "logic/AccountList.js" as AccountList
 import "logic/Commands.js" as Commands
 import "logic/I18n.js" as I18n
 import "logic/Motion.js" as Motion
@@ -16,51 +17,32 @@ ConfigScaffold {
     trackProviders: true
     readonly property var accounts: snapshot?.accounts ?? []
     readonly property var providers: daemon.providers ?? []
-    property string selectedProvider: ""
-    readonly property var chosenProvider: Registry.findProvider(providers, selectedProvider) ?? providers[0] ?? null
-    property var expandedIds: []
+    readonly property bool animated: Motion.enabled(Kirigami.Units, current.reducedMotion)
+    property string selectedId: ""
+    property bool adding: false
+    readonly property var selectedAccount: AccountList.selected(accounts, selectedId)
+    readonly property bool showsAdd: adding || selectedAccount === null
     property string launchedProvider: ""
     property var pendingKinds: ({})
-    property int dragIndex: -1
-    property real dragOffset: 0
-    property int dropTarget: -1
-    readonly property var dropSlot: Order.indicatorSlot(dragIndex, dropTarget, accounts.length)
 
-    function toggleExpanded(accountId) {
-        expandedIds = expandedIds.includes(accountId) ? expandedIds.filter(id => id !== accountId) : expandedIds.concat([accountId]);
+    function select(accountId) {
+        selectedId = accountId;
+        adding = false;
     }
 
-    function centers() {
-        const found = [];
-        for (let index = 0; index < rows.count; index++) {
-            const item = rows.itemAt(index);
-            found.push(item ? item.y + item.height / 2 : 0);
-        }
-        return found;
-    }
-
-    function dragMoved(index, offset) {
-        const item = rows.itemAt(index);
-        if (!item)
-            return;
-        dragIndex = index;
-        dragOffset = offset;
-        dropTarget = Order.targetIndex(centers(), index, item.y + item.height / 2 + offset);
-    }
-
-    function dragFinished(index) {
-        const target = dropTarget;
-        dragIndex = -1;
-        dragOffset = 0;
-        dropTarget = -1;
-        if (target < 0 || target === index)
-            return;
+    function move(accountId, offset) {
         const ids = accounts.map(account => account.id);
-        daemon.setOrder(Order.moveItem(ids, index, target));
+        const from = ids.indexOf(accountId);
+        selectedId = accountId;
+        daemon.setOrder(Order.moveItem(ids, from, from + offset));
     }
 
     function setWindowHidden(accountId, windowId, hidden) {
         updateSettings(Settings.displayPatch(Settings.windowHiddenPatch(current.display, accountId, windowId, hidden)));
+    }
+
+    function setStarred(accountId, starred) {
+        updateSettings(Settings.displayPatch(Settings.starredPatch(current.display, accountId, starred)));
     }
 
     function launch(command, kind) {
@@ -83,6 +65,15 @@ ConfigScaffold {
                 launch(plan.command, "add");
             else
                 daemon.restoreAccounts(provider.id);
+        } catch (error) {
+            showCommandError(error);
+        }
+    }
+
+    function signIn(accountId) {
+        message = "";
+        try {
+            launch(Commands.loginAccountCommand(accountId, tr("Press Enter to close this window")), "add");
         } catch (error) {
             showCommandError(error);
         }
@@ -118,77 +109,60 @@ ConfigScaffold {
         daemon.rescan();
     }
 
-    SettingsGroup {
-        title: page.tr("Accounts")
-        description: page.tr("Drag to reorder. Hidden accounts keep updating but leave the panel and notifications.")
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Kirigami.Units.largeSpacing
 
-        SettingsRow {
-            visible: page.accounts.length === 0
-            separated: false
-            title: page.tr("No accounts yet")
-            subtitle: page.tr("Sign in with a supported CLI, or add an account below.")
-        }
-
-        Repeater {
-            id: rows
-
-            model: page.accounts.length
-
-            AccountConfigRow {
-                required property int index
-
-                account: page.accounts[index]
-                display: page.current.display
-                lang: page.lang
-                animated: Motion.enabled(Kirigami.Units, page.current.reducedMotion)
-                separated: index > 0
-                expanded: page.expandedIds.includes(account.id)
-                canReorder: page.accounts.length > 1
-                lifted: page.dragIndex === index
-                dragOffset: lifted ? page.dragOffset : 0
-                indicator: page.dropSlot?.index === index ? (page.dropSlot.below ? "below" : "above") : ""
-                onHiddenToggled: hidden => page.daemon.setHidden(account.id, hidden)
-                onLabelApplied: label => page.daemon.setLabel(account.id, label)
-                onWindowToggled: (windowId, hidden) => page.setWindowHidden(account.id, windowId, hidden)
-                onRemoveConfirmed: page.remove(account.id)
-                onExpandToggled: page.toggleExpanded(account.id)
-                onDragMoved: offset => page.dragMoved(index, offset)
-                onDragFinished: page.dragFinished(index)
-            }
-        }
-    }
-
-    SettingsGroup {
-        title: page.tr("Add Account")
-        description: page.tr("Pick a service. Accounts added here never touch the one your CLI uses.")
-
-        SettingsRow {
-            visible: page.chosenProvider === null
-            separated: false
-            title: page.daemon.providersRequested ? page.tr("No providers available") : page.tr("Loading…")
-        }
-
-        ProviderPicker {
-            visible: page.chosenProvider !== null
-            providers: page.providers
-            selected: page.chosenProvider?.id ?? ""
-            animated: Motion.enabled(Kirigami.Units, page.current.reducedMotion)
-            onPicked: providerId => {
-                page.selectedProvider = providerId;
-                page.launchedProvider = "";
-            }
+        AccountListPane {
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 13
+            Layout.maximumWidth: Layout.preferredWidth
+            Layout.alignment: Qt.AlignTop
+            accounts: page.accounts
+            display: page.current.display
+            lang: page.lang
+            selectedId: page.selectedAccount?.id ?? ""
+            adding: page.showsAdd
+            animated: page.animated
+            onAccountSelected: accountId => page.select(accountId)
+            onAddRequested: page.adding = true
         }
 
         Loader {
             Layout.fillWidth: true
-            active: page.chosenProvider !== null
+            Layout.alignment: Qt.AlignTop
+            active: !page.showsAdd
+            visible: active
 
-            sourceComponent: AddAccountRow {
-                provider: page.chosenProvider
+            sourceComponent: AccountDetailPane {
+                account: page.selectedAccount
+                display: page.current.display
+                links: Registry.providerLinks(page.providers, page.selectedAccount.provider)
                 lang: page.lang
-                launched: page.launchedProvider === page.chosenProvider.id
-                onAddRequested: label => page.add(page.chosenProvider, label)
+                position: AccountList.position(page.accounts, page.selectedAccount.id)
+                count: page.accounts.length
+                canStar: page.daemon.supports06
+                animated: page.animated
+                onHiddenToggled: hidden => page.daemon.setHidden(page.selectedAccount.id, hidden)
+                onStarToggled: starred => page.setStarred(page.selectedAccount.id, starred)
+                onLabelApplied: label => page.daemon.setLabel(page.selectedAccount.id, label)
+                onMoveRequested: offset => page.move(page.selectedAccount.id, offset)
+                onWindowToggled: (windowId, hidden) => page.setWindowHidden(page.selectedAccount.id, windowId, hidden)
+                onSignInRequested: accountId => page.signIn(accountId)
+                onLinkOpened: url => Qt.openUrlExternally(url)
+                onRemoveConfirmed: page.remove(page.selectedAccount.id)
             }
+        }
+
+        AddAccountPane {
+            visible: page.showsAdd
+            Layout.alignment: Qt.AlignTop
+            providers: page.providers
+            lang: page.lang
+            providersRequested: page.daemon.providersRequested
+            launchedProvider: page.launchedProvider
+            animated: page.animated
+            onProviderPicked: page.launchedProvider = ""
+            onAddRequested: (provider, label) => page.add(provider, label)
         }
     }
 

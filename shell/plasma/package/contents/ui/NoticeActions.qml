@@ -1,11 +1,10 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "logic/Recovery.js" as Recovery
 
-RowLayout {
+Flow {
     id: actionRow
 
     property var actions: []
@@ -25,6 +24,7 @@ RowLayout {
 
             text: actionData ? Recovery.buttonLabel(actionData, actionRow.copiedValue) : ""
             busy: actionData?.busy ?? false
+            primary: actionData?.primary ?? false
             animated: actionRow.animated
             onClicked: actionRow.triggered(actionData?.kind ?? "", actionData?.value ?? "")
         }

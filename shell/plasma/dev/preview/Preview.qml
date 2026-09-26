@@ -63,6 +63,8 @@ Window {
             findObjects(stage, item => item.objectName === "unitTitle", []).forEach(title => title.clicked());
         if (flag("--menu"))
             findObjects(stage, item => typeof item.openMenu === "function", []).slice(1, 2).forEach(header => header.openMenu());
+        if (option("--sheen", "") !== "")
+            findObjects(stage, item => item.glowColor !== undefined && item.sheen !== undefined, []).forEach(meter => meter.sheen = Number(option("--sheen", "")));
         if (flag("--unfold"))
             findObjects(stage, item => typeof item.setFolded === "function", []).forEach(dashboard => dashboard.setFolded(true));
         if (option("--share", "") !== "") {

@@ -30,7 +30,8 @@ function parseRecovery(raw) {
     if (raw.action === "cli_login" && command !== null)
         return {
             action: "cli_login",
-            command
+            command,
+            accountId: text(raw.account_id)
         };
     return null;
 }
@@ -65,12 +66,21 @@ function signInAction(lang, account, providers, msgid) {
     };
 }
 
-function loginAction(lang, accountId) {
+function loginAction(lang, accountId, msgid) {
     return {
         kind: "signin",
-        label: I18n.tr(lang, "Sign in again…"),
+        label: I18n.tr(lang, msgid),
         value: accountId
     };
+}
+
+function cliLoginActions(lang, account, recovery) {
+    if ((recovery.accountId ?? null) === null)
+        return [copyAction(lang, recovery.command), retryAction(lang, account)];
+    const signIn = Object.assign(loginAction(lang, recovery.accountId, I18n.N("Sign in")), {
+        primary: true
+    });
+    return [signIn, retryAction(lang, account), copyAction(lang, recovery.command)];
 }
 
 function copyAction(lang, command) {
@@ -86,9 +96,9 @@ function actions(lang, account, providers, signedOut) {
     const recovery = effective(account, signedOut);
     switch (recovery?.action) {
     case "sign_in":
-        return [loginAction(lang, recovery.accountId ?? account.id)];
+        return [loginAction(lang, recovery.accountId ?? account.id, I18n.N("Sign in again…"))];
     case "cli_login":
-        return [copyAction(lang, recovery.command), retryAction(lang, account)];
+        return cliLoginActions(lang, account, recovery);
     case "retry":
         return signedOut ? [signInAction(lang, account, providers, I18n.N("Sign in…")), retryAction(lang, account)] : [retryAction(lang, account)];
     default:

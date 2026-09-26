@@ -25,6 +25,7 @@ ColumnLayout {
     required property string lang
     required property real reveal
     required property bool reducedMotion
+    property real sheen: 0
     readonly property bool capable: snapshot.supports06
     readonly property var accounts: State.visibleAccounts(snapshot)
     readonly property var parts: Collapse.partition(Combined.cards(snapshot, accounts))
@@ -166,6 +167,7 @@ ColumnLayout {
         incident: Incident.notice(dashboard.lang, ProviderStatus.forProvider(dashboard.snapshot.providerStatus, account.provider), dashboard.now)
         starred: dashboard.isStarred(card)
         canStar: dashboard.capable
+        sheen: dashboard.sheen
         onRefreshRequested: accountId => dashboard.refreshRequested(accountId)
         onMenuRefreshRequested: dashboard.refreshCard(cardSection.card)
         onSignInRequested: providerId => dashboard.signInRequested(providerId)
@@ -199,6 +201,7 @@ ColumnLayout {
             unit: dashboard.unit
             breakdown: dashboard.breakdown
             capable: dashboard.capable
+            showBreakdown: dashboard.display.showBreakdown
             compact: Density.isCompact(dashboard.display)
             lang: dashboard.lang
             appear: dashboard.appear(0)

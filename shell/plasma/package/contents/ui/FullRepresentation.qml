@@ -31,9 +31,12 @@ Item {
     readonly property bool animated: expanded && Motion.enabled(Kirigami.Units, reducedMotion)
     readonly property bool empty: ready && State.visibleAccounts(view.state).length === 0 && !(display.showSpend && view.state.spend !== null)
     readonly property var popupColors: Tokens.popupPalette(systemTheme, display.theme, display.translucent)
-    readonly property real contentHeight: refreshButton.implicitHeight + refreshButton.Layout.bottomMargin + content.implicitHeight + (updateRow.visible ? updateRow.implicitHeight : 0) + footer.implicitHeight
+    readonly property bool showBrand: !display.showSpend
+    readonly property bool sheenRunning: animated && visible
+    readonly property real contentHeight: header.implicitHeight + header.Layout.bottomMargin + content.implicitHeight + (updateRow.visible ? updateRow.implicitHeight : 0) + footer.implicitHeight
     property bool themed: false
     property real reveal: 1
+    property real sheen: 0
 
     signal refreshRequested(string accountId)
     signal signInRequested(string providerId)
@@ -96,6 +99,10 @@ Item {
     Layout.preferredHeight: Math.min(contentHeight, Screen.desktopAvailableHeight * 0.8)
     Layout.minimumHeight: Math.min(Layout.preferredHeight, Kirigami.Units.gridUnit * 10)
     onPopupColorsChanged: applyTheme()
+    onSheenRunningChanged: {
+        if (!sheenRunning)
+            sheen = 0;
+    }
     onExpandedChanged: {
         if (expanded)
             playOpen();
@@ -119,17 +126,48 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        RefreshButton {
-            id: refreshButton
+        RowLayout {
+            id: header
 
-            objectName: "refreshButton"
-            Layout.alignment: Qt.AlignRight
+            Layout.fillWidth: true
             Layout.bottomMargin: Kirigami.Units.smallSpacing
-            text: I18n.tr(full.lang, "Refresh")
-            enabled: full.view.kind !== "unavailable"
-            busy: full.ready && State.isRefreshing(full.view.state)
-            animated: full.animated
-            onRefreshNowRequested: full.refreshNowRequested(() => refreshButton.fail())
+            spacing: Kirigami.Units.mediumSpacing
+
+            Kirigami.Icon {
+                objectName: "brandMark"
+                visible: full.showBrand
+                Layout.leftMargin: Metrics.headerInset(Kirigami.Units)
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: Kirigami.Units.iconSizes.small
+                implicitHeight: implicitWidth
+                source: Qt.resolvedUrl("../icons/headroom-symbolic.svg")
+                isMask: true
+                color: Kirigami.Theme.textColor
+            }
+
+            TextLabel {
+                objectName: "brandName"
+                visible: full.showBrand
+                Layout.alignment: Qt.AlignVCenter
+                role: "title"
+                text: "Headroom"
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            RefreshButton {
+                id: refreshButton
+
+                objectName: "refreshButton"
+                Layout.alignment: Qt.AlignVCenter
+                text: I18n.tr(full.lang, "Refresh")
+                enabled: full.view.kind !== "unavailable"
+                busy: full.ready && State.isRefreshing(full.view.state)
+                animated: full.animated
+                onRefreshNowRequested: full.refreshNowRequested(() => refreshButton.fail())
+            }
         }
 
         PlasmaComponents3.ScrollView {
@@ -169,6 +207,7 @@ Item {
                         lang: full.lang
                         reveal: full.reveal
                         reducedMotion: !full.animated
+                        sheen: full.sheen
                         onRefreshRequested: accountId => full.refreshRequested(accountId)
                         onSignInRequested: providerId => full.signInRequested(providerId)
                         onSettingsRequested: full.settingsRequested()
@@ -247,6 +286,24 @@ Item {
         onSaved: folder => toast.show(full.tr("Saved to Pictures/Headroom"), "", false, full.tr("Open folder"), Share.folderUrl(folder))
         onFailed: toast.show(full.tr("Could not save the image"), "", true, "", "")
         onCopied: toast.show(full.tr("Copied as text"), "", false, "", "")
+    }
+
+    SequentialAnimation {
+        running: full.sheenRunning
+        loops: Animation.Infinite
+
+        NumberAnimation {
+            target: full
+            property: "sheen"
+            from: 0
+            to: 1
+            duration: Motion.sheenSweepMs()
+            easing.type: Easing.InOutQuad
+        }
+
+        PauseAnimation {
+            duration: Motion.sheenRestMs()
+        }
     }
 
     NumberAnimation {

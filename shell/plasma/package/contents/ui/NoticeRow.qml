@@ -102,6 +102,7 @@ Rectangle {
 
             NoticeActions {
                 visible: !notice.inlineAction && notice.actions.length > 0
+                Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.mediumSpacing
                 actions: notice.actions
                 copiedValue: notice.copiedValue

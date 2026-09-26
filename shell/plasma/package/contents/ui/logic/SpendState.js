@@ -39,6 +39,7 @@ function parseModelsOther(raw) {
         count: Parse.count(raw.count),
         totalTokens: Parse.count(raw.total_tokens),
         costMicros: Parse.count(raw.cost_usd_micros),
+        costPerMtokMicros: Parse.integer(raw.cost_per_mtok_usd_micros),
         partial: raw.partial === true
     };
 }

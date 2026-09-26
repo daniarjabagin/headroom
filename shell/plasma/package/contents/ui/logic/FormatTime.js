@@ -77,6 +77,20 @@ function duration(lang, ms, withSeconds) {
     });
 }
 
+function roughDuration(lang, ms) {
+    if (ms < HOUR)
+        return I18n.tr(lang, "{minutes} min", {
+            minutes: Math.max(1, Math.round(ms / MINUTE))
+        });
+    if (ms < 2 * DAY)
+        return I18n.tr(lang, "{hours} h", {
+            hours: Math.round(ms / HOUR)
+        });
+    return I18n.tr(lang, "{days} d", {
+        days: Math.round(ms / DAY)
+    });
+}
+
 function startOfDay(date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
