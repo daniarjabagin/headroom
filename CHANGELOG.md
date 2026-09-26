@@ -6,6 +6,63 @@ All notable changes to Headroom are documented here. The format is based on
 
 ## [Unreleased]
 
+A forecast that follows how you actually work, usage history for accounts added through Headroom,
+one-click CLI sign-in, and redesigned account settings.
+
+### Added
+
+- **Forecast from recent work.** Session-length windows (24 hours or less) are now projected from
+  your pace over the latest stretch of active work, measured in active time only, instead of the
+  average since the window started. When nothing is running, a card says *"Paused · lasts ≈3 h of
+  work"* (how long the rest lasts at your last active pace) instead of counting down to a run-out
+  that will not happen; idleness is judged between refreshes, so stale data never looks paused.
+  Only accounts whose CLI writes local logs can pause. Weekly and longer windows keep the window
+  average. `headroom status` shows the same forecast.
+- **Usage history for accounts added through Headroom.** A Claude or Codex account added with
+  `headroom accounts add` now gets usage history, spend and live refresh from the CLI's own logs
+  (`~/.claude`, `~/.codex`) when that CLI is signed in to the same account and is not shown as an
+  account of its own. Spend still counts every log once.
+- **Sign in from the card.** When a CLI's sign-in expires, the card's **Sign in** opens a terminal
+  running the CLI's own login (`claude auth login --claudeai`, `codex login`, `gh auth login`, …)
+  through your login shell, so the CLI is found on your usual `PATH` (Terminal on macOS). Headroom
+  picks up the new sign-in by itself; **Retry** and copying the command stay. `headroom accounts
+  login <id>` now works for CLI accounts too.
+- **Show models and projects** (`display.show_breakdown`, on by default) hides or shows the
+  breakdown list under the spend ring.
+- **Headroom mark in the popup header** when the spend section is hidden.
+- **Limit bars shimmer** with a soft sheen in their own color, only while the popup is open and not
+  with reduced motion.
+- **D-Bus and socket API:** `pace.basis` and `pace.active_left_seconds`; `spend.<period>.models`
+  and `models_other` with its `cost_per_mtok_usd_micros`; `display.show_breakdown`;
+  `recovery.account_id` for `cli_login`; `refresh.last_attempt_at`. All additive, `version` stays
+  `1`. See [docs/dbus-api.md](docs/dbus-api.md).
+
+### Changed
+
+- **Account settings are a list and a details pane**, as on macOS, in GNOME, Plasma and the tray:
+  providers and accounts on the left, and the selected account's visibility, star, label, single
+  limits, links, order, Sign in again… and Remove… on the right.
+- **Collapse unstarred folds every account without a star**, including ones that need attention;
+  with no starred accounts at all, every account folds. Starred accounts never fold.
+- **Models breakdown and the "Other" row come from the daemon**, including the Other row's cost per
+  million tokens, so every desktop shows the same numbers.
+- "Will run out" and "cutting it close" no longer repeat after every burst of work: once sent, they
+  come back only after the window resets or your pace has really calmed down. They are not sent
+  while an account is paused.
+
+### Fixed
+
+- **`headroom waybar | head -1` no longer prints "Broken pipe".** Every printing command exits
+  quietly when its output is closed.
+- **GNOME: cards no longer shift on hover.** The status-page and other hover buttons keep the
+  card's height.
+- **The number in the Total tokens ring always fits**, in every shell.
+- **Kilo Code and Devin CLI sign-ins are picked up automatically**: the credential watcher now
+  looks where these CLIs write (under `$XDG_DATA_HOME`), and a CLI account in a custom directory is
+  watched there.
+- **Copilot sign-in in a terminal** always signs `gh` in to the account's own config dir, even when
+  your login shell sets `XDG_CONFIG_HOME`.
+
 ## [0.6.0] - 2026-09-25
 
 A panel indicator you can shape yourself, spend by model and project, provider status pages, quiet

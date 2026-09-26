@@ -269,10 +269,10 @@ Settings is ever opened. Texts follow `display.language`
 
 | tab | contents |
 | --- | --- |
-| General | **Appearance**: theme, language, time format (auto, 12 h, 24 h), density (normal, compact), translucent background, reduce motion. **Popup**: values left/used, reset countdown/exact, combine accounts. **Menu bar**: what it shows (one limit, several limits, icon only), the limit (auto or a pinned account + window) or up to three limits, indicator style (ring, bar, none) and label (percent, limit name, none), with a ⌘-drag hint. **Spend**: default period, units, breakdown (models or projects). **Sections**: per-account spend, trend, forecast. **Popup cards**: collapse cards on demand and a star per account ("always open"). **Data refresh**: interval and faster refresh while coding tools run. **Privacy**: hide from screen sharing, provider status pages. **Keyboard**: the global shortcut with a recorder |
+| General | **Appearance**: theme, language, time format (auto, 12 h, 24 h), density (normal, compact), translucent background, reduce motion. **Popup**: values left/used, reset countdown/exact, combine accounts. **Menu bar**: what it shows (one limit, several limits, icon only), the limit (auto or a pinned account + window) or up to three limits, indicator style (ring, bar, none) and label (percent, limit name, none), with a ⌘-drag hint. **Spend**: default period, units, breakdown (models or projects), Show models and projects (`display.show_breakdown`, the list under the spend ring). **Sections**: per-account spend, trend, forecast. **Popup cards**: collapse cards on demand (every account without a star folds into one "N more" row; with no stars, all of them) and a star per account ("always open"). **Data refresh**: interval and faster refresh while coding tools run. **Privacy**: hide from screen sharing, provider status pages. **Keyboard**: the global shortcut with a recorder |
 | Accounts | the daemon's accounts in their order: drag to reorder, show/hide, rename, hide single limits, remove. Remove runs `headroom accounts remove <id> --yes --progress json`: a CLI-owned account is only hidden ("The <provider> CLI stays signed in"), a Headroom-owned one is signed out |
 | Accounts → Add Account… | the providers from `ListProviders`. `cli_login` runs `headroom accounts add <provider> --progress json` and shows the progress (Open Sign-In Page, a device code with Copy, a field to paste a code, the CLI output, Cancel); `api_key` sends the key on stdin with `--api-key-stdin`, never on the command line; `auto_detect` explains where Headroom looks and offers Detect Again (`RestoreAccounts`) |
-| Accounts → account | show in the menu bar, label, single limits to hide, **Sign In Again…** for a Headroom-owned account whose sign-in failed (runs `headroom accounts login <id> --progress json` with the same progress view as Add Account), Remove… |
+| Accounts → account | show in the menu bar, label, single limits to hide, **Sign In Again…** when the account's sign-in failed (runs `headroom accounts login <id> --progress json`: a Headroom-owned account signs in again with the same progress view as Add Account, a CLI-owned one opens Terminal with the CLI's own login and the daemon picks up the new sign-in), Remove… |
 | Notifications | the four milestones of the settings schema; the "almost out" threshold (5, 10, 20 or 30 % left) with per-provider overrides; quiet hours (from, to, let critical alerts through). macOS asks for permission on the first alert or when a milestone is switched on; when notifications are denied the tab links to System Settings |
 | Service | app version, service status, the helper's `daemon.log` (Open Log, Show in Finder), Launch at login, app updates (Automatically check for updates, Check Now, last check) |
 | Advanced | service status and version; log level (`logging.level`, applied without a restart) and the daemon's `headroom.log` (Copy Path, Show in Finder); Copy Diagnostics (`GetDiagnostics`); Reset All Settings… with a confirmation (`ResetSettings`, accounts are kept) |
@@ -285,6 +285,21 @@ foreign older daemon keeps the 0.5 layout.
 The account commands run the bundled `Contents/Helpers/headroom` with the same environment as the
 daemon (login-shell `PATH`, `CODEX_HOME`, …) plus `HEADROOM_SOCKET` set to the app's socket, so the
 CLI and the app always talk to the same daemon.
+
+### Popup
+
+- **Spend breakdown.** The model list and its "N other models" row (including the Other row's cost
+  per million tokens) come from the daemon's `spend.<period>.models` and `models_other`, so the app
+  shows the same numbers as Linux. Show models and projects off hides the list under the ring.
+- **Header.** With the spend section hidden, the header shows the Headroom mark and name next to the
+  refresh button.
+- **Limit bars** shimmer with a soft sheen in their own color only while the popup is shown, and not
+  when Reduce motion is on in Headroom or in System Settings → Accessibility.
+- **Forecast.** A paused account reads "Paused · lasts ≈3 h of work" (`pace.basis = paused`)
+  instead of a run-out time.
+- **Sign in.** When a CLI-owned account is signed out, the card's **Sign in** runs `headroom
+  accounts login <id>`, which opens Terminal with the CLI's own login through your login shell;
+  **Copy command** and **Retry** stay next to it. The daemon picks up the new sign-in by itself.
 
 ### Menu bar, shortcut and screen sharing
 
