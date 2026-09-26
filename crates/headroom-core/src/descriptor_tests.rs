@@ -23,6 +23,7 @@ fn descriptor(add_account: &'static [AddAccountMethod]) -> ProviderDescriptor {
         add_account,
         multi_account: true,
         local_usage: false,
+        min_poll_interval: None,
         links: ProviderLinks::NONE,
     }
 }

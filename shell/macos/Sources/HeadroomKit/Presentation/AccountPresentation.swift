@@ -135,7 +135,9 @@ public struct AccountSectionModel: Sendable, Hashable, Identifiable {
     }
 
     static func limits(_ account: Account, state: DaemonState, formatter: DisplayFormatter) -> AccountLimits {
-        let notices = notices(account, offline: state.offline, strings: formatter.strings)
+        let notices =
+            RateLimitNote.notices(account, formatter: formatter)
+            + notices(account, offline: state.offline, strings: formatter.strings)
         if AccountStatusRules.awaitingFirstData(account) {
             return AccountLimits(
                 notices: notices, skeletonRows: max(minimumSkeletonRows, account.windows.count), windows: [],

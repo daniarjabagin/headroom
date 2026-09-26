@@ -3,6 +3,7 @@ public enum AccountStatusRules {
     static let noSubscriptionKind = "no_subscription"
     static let networkKind = "network"
     static let accountChangedKind = "account_changed"
+    static let rateLimitedKind = "rate_limited"
     static let noSubscriptionTitle = "no active subscription"
 
     public static func isSignedOut(_ account: Account) -> Bool {
@@ -27,7 +28,12 @@ public enum AccountStatusRules {
         failedLastRefresh(account) && !failedOffline(account, offline: offline)
     }
 
+    public static func isQuietlyLimited(_ account: Account) -> Bool {
+        account.error?.kind == rateLimitedKind && account.updatedAt != nil
+    }
+
     static func failedLastRefresh(_ account: Account) -> Bool {
+        if isQuietlyLimited(account) { return false }
         if account.status == .error { return true }
         return account.status == .refreshing && account.error != nil && !isBlocked(account)
     }

@@ -67,9 +67,7 @@ async fn rate_limits_honour_retry_after_and_the_primary_limit_reset() {
     let limited = answering(ResponseTemplate::new(429).insert_header("retry-after", "60")).await;
     assert_eq!(
         fetch(&limited).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(60))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(60)))
     );
     let reset = now().as_second() + 300;
     let primary = answering(
@@ -80,9 +78,7 @@ async fn rate_limits_honour_retry_after_and_the_primary_limit_reset() {
     .await;
     assert_eq!(
         fetch(&primary).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_mins(5))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_mins(5)))
     );
 }
 

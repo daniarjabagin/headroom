@@ -26,7 +26,7 @@ use headroom_core::descriptor::{
 use headroom_core::event::UsageEvent;
 use headroom_core::provider::{Provider, ProviderError};
 use headroom_core::quota::{LimitsSnapshot, LimitsSource};
-use jiff::Timestamp;
+use jiff::{SignedDuration, Timestamp};
 
 use self::auth::Credentials;
 use self::client::UsageClient;
@@ -37,6 +37,8 @@ use crate::http;
 
 pub use self::config::{ClaudeConfig, DEFAULT_API_BASE};
 pub use self::oauth::DEFAULT_TOKEN_URL;
+
+const MIN_POLL_INTERVAL: SignedDuration = SignedDuration::from_secs(180);
 
 pub const ID: ProviderId = ProviderId::from_static("claude");
 
@@ -54,6 +56,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: true,
+    min_poll_interval: Some(MIN_POLL_INTERVAL),
     links: ProviderLinks {
         status: Some("https://status.claude.com"),
         dashboard: Some("https://claude.ai"),

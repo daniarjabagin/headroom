@@ -107,7 +107,7 @@ fn status_error(
     let code = status.as_u16();
     match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited { retry_after },
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::rate_limited(retry_after),
         status if status.is_server_error() => {
             ProviderError::Network(format!("Kilo {endpoint} endpoint returned HTTP {code}"))
         }

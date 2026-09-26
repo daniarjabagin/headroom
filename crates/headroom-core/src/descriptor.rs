@@ -1,5 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
+use jiff::SignedDuration;
+
 use crate::account::{CredentialOwner, ProviderId};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -10,6 +12,7 @@ pub struct ProviderDescriptor {
     pub add_account: &'static [AddAccountMethod],
     pub multi_account: bool,
     pub local_usage: bool,
+    pub min_poll_interval: Option<SignedDuration>,
     pub links: ProviderLinks,
 }
 

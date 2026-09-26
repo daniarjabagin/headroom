@@ -60,6 +60,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: false,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: Some("https://www.githubstatus.com"),
         dashboard: Some("https://github.com/settings/copilot"),

@@ -11,8 +11,9 @@ import { column } from '../widgets.js';
 import { AccountHeader } from './accountHeader.js';
 import { Expander } from './expander.js';
 import { noticeKind, noticeText } from '../notices.js';
-import { CopyButton, CopyIconButton, Notice, noticeLine, noticeRow, RetryButton } from './notice.js';
+import { CopyButton, CopyIconButton, Notice, noticeLine, NoticeLine, noticeRow, RetryButton } from './notice.js';
 import { QuotaRow } from './quotaRow.js';
+import { rateLimitNote } from './rateLimitTexts.js';
 import { accountShapeKey, awaitingFirstData, showsSpend, shownWindows, statusShape } from './sectionShape.js';
 import { skeletonRows } from './skeleton.js';
 import { StatusNotice } from './statusNotice.js';
@@ -114,6 +115,7 @@ export class AccountSection {
         this._extras = null;
         this._retry = null;
         this._notice = null;
+        this._limited = null;
         this._status = null;
         this.actor = column({ style_class: 'headroom-section', x_expand: true });
         this._build(account, showName);
@@ -141,6 +143,7 @@ export class AccountSection {
         this._status?.update();
         this._retry?.setBusy(isRetrying(account));
         this._notice?.update(noticeTexts(this._ctx, account));
+        this._limited?.update(rateLimitNote(account, this._ctx.hour12()) ?? '');
         shownWindows(account).forEach((window, index) => this._rows[index]?.update(window));
         if (account.usage) this._trend?.update(account.usage);
         this._extras?.update(account);
@@ -193,8 +196,16 @@ export class AccountSection {
         card.add_child(this._notice.actor);
     }
 
+    _addRateLimit(card, account) {
+        const text = rateLimitNote(account, this._ctx.hour12());
+        if (text === null) return;
+        this._limited = new NoticeLine(text);
+        card.add_child(this._limited.actor);
+    }
+
     _addLimits(card, account) {
         this._addNotice(card, account);
+        this._addRateLimit(card, account);
         for (const notice of account.notices) card.add_child(daemonNotice(notice));
         this._addBody(card, account);
     }

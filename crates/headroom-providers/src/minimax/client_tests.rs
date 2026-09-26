@@ -46,9 +46,7 @@ async fn statuses_map_to_typed_errors() {
     );
     assert_eq!(
         fetch(429, "").await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(45))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(45)))
     );
     assert!(matches!(
         fetch(502, "").await,

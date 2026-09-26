@@ -78,16 +78,12 @@ async fn rate_limits_carry_the_retry_delay() {
     let server = answering(429, "{}", Some("120")).await;
     assert_eq!(
         fetch(&server).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_secs(120)))
     );
     let dated = answering(429, "{}", Some("Wed, 23 Sep 2026 10:05:00 GMT")).await;
     assert_eq!(
         fetch(&dated).await.unwrap_err(),
-        ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_mins(5))
-        }
+        ProviderError::rate_limited(Some(SignedDuration::from_mins(5)))
     );
 }
 

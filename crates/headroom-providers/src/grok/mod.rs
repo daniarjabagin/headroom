@@ -47,6 +47,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: true,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: Some("https://status.x.ai"),
         dashboard: Some("https://console.x.ai"),

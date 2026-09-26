@@ -139,9 +139,9 @@ async fn too_many_requests_honours_retry_after_seconds() {
     let server = serve(ResponseTemplate::new(429).insert_header("retry-after", "120")).await;
     assert_eq!(
         fetch(&server, None).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(120)
+        )))
     );
 }
 
@@ -151,9 +151,9 @@ async fn too_many_requests_honours_retry_after_date() {
     let server = serve(ResponseTemplate::new(429).insert_header("retry-after", date)).await;
     assert_eq!(
         fetch(&server, None).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_mins(5))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_mins(5)
+        )))
     );
 }
 
@@ -162,7 +162,7 @@ async fn too_many_requests_without_header_has_no_hint() {
     let server = serve(ResponseTemplate::new(429)).await;
     assert_eq!(
         fetch(&server, None).await,
-        Err(ProviderError::RateLimited { retry_after: None })
+        Err(ProviderError::rate_limited(None))
     );
 }
 

@@ -102,9 +102,7 @@ async fn failures_map_to_provider_errors() {
         (ResponseTemplate::new(403), ProviderError::SignInExpired),
         (
             ResponseTemplate::new(429).insert_header("retry-after", "120"),
-            ProviderError::RateLimited {
-                retry_after: Some(SignedDuration::from_secs(120)),
-            },
+            ProviderError::rate_limited(Some(SignedDuration::from_secs(120))),
         ),
         (
             ResponseTemplate::new(503),

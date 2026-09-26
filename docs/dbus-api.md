@@ -23,8 +23,8 @@ The same methods, payloads and events are served over a Unix socket as JSON-RPC 
 | --- | --- | --- |
 | `GetState` | `() → s` | Current state payload (see [State](#state-payload)). Assembled on every call. |
 | `ListProviders` | `() → s` | The providers compiled into this build and how to add their accounts (see [Providers](#providers)). Does not change while the daemon runs. |
-| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule, unless it is inside a provider rate-limit hold (`retry_after`). Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. When the account's last error is `account_changed`, `not_signed_in` or `sign_in_expired`, the daemon first runs a rescan (coalesced with any other, see [Rescan semantics](#rescan-semantics)) and then refreshes the account if it is still listed; the call still returns at once with the account `refreshing`. An account whose home now holds another identity leaves `accounts[]` and the new account is refreshed by the rescan. This is what a card's Retry button calls when `recovery.action` is `retry`. |
-| `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold (`retry_after`) keep their hold and are skipped; `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
+| `Refresh` | `(s account_id) → ()` | `""`: refresh every visible or hidden active account whose last attempt is older than 60 s, that is not refreshing and not inside a rate-limit or `no_subscription` hold. An account id: force a refresh of that account now, ignoring the 60 s rule. Inside a provider rate-limit hold the forced attempt runs at most once per 60 s per account (counted from its last attempt) and not while it is already refreshing; other calls in that time only publish the state. Returns as soon as the work is scheduled; the account already has status `refreshing` in `GetState` and a `StateChanged` follows at once. Every refresh reads the account's credentials from disk again, so retrying a `signed_out` account picks up a new CLI sign-in. When the account's last error is `account_changed`, `not_signed_in` or `sign_in_expired`, the daemon first runs a rescan (coalesced with any other, see [Rescan semantics](#rescan-semantics)) and then refreshes the account if it is still listed; the call still returns at once with the account `refreshing`. An account whose home now holds another identity leaves `accounts[]` and the new account is refreshed by the rescan. This is what a card's Retry button calls when `recovery.action` is `retry`. |
+| `RefreshNow` | `() → ()` | Force a refresh of every visible or hidden active account now, ignoring the 60 s rule, and read the local usage logs of every usage home at once. Accounts inside a provider rate-limit hold are skipped when their last attempt is less than 60 s old or they are refreshing, and otherwise get one attempt (the hold is renewed if the provider still refuses); `no_subscription` accounts are checked again. Returns as soon as the work is scheduled; the refreshed accounts already have status `refreshing` in `GetState` and in the next `StateChanged`. This is what a shell's refresh button calls (`headroom refresh --now`). |
 | `Rescan` | `() → ()` | Run account discovery now instead of waiting for the next 10-minute pass, then refresh newly found accounts at once. Returns when the discovered accounts are stored and listed in the state; the refreshes it starts finish later. |
 | `CheckForUpdates` | `() → s` | Ask GitHub for the latest Headroom release now and return the result as JSON (see [Checking on demand](#checking-on-demand)). Returns when the check is done; concurrent calls share one request, and a call within 60 s of the last check returns that result without a request. Fails with `NotSupported` on a daemon started with `--no-update-check`. Since 0.6.0. |
 | `GetSettings` | `() → s` | Current settings JSON (see [Settings](#settings)). |
@@ -46,19 +46,24 @@ Refresh semantics:
   queues exactly one follow-up refresh that starts when the current one finishes. Further requests in
   the meantime are coalesced into that follow-up.
 - Scheduled refreshes run every `refresh_interval_secs` ± 10 %. Failures back off 60 s, 120 s, 240 s, …
-  up to 30 min (± 10 %). A provider rate limit waits `retry_after`, or 5 min when none is given.
+  up to 30 min (± 10 %). A provider rate limit waits `Retry-After` (at most 1 h) when the provider
+  sends one; otherwise consecutive rate limits wait 5, 10, 20, 40 and then 60 min (± 10 %, never
+  above 1 h). A success or any other failure resets that count.
   `no_subscription` is not transient: the account is checked again after 1 h (± 10 %).
+- Some providers set a minimum poll interval in their descriptor (Claude: 180 s, because its usage
+  endpoint also serves Claude Code's own polling). No scheduled refresh of such an account, live
+  mode, backoff and rate-limit holds included, comes sooner; `refresh.interval_secs` reports the
+  raised interval. Forced refreshes (`Refresh(account_id)`, `RefreshNow`) are not delayed by it.
 - Rate-limited and `no_subscription` accounts are skipped by `Refresh("")` until their next scheduled
-  check; `Refresh(account_id)` still forces a check of `no_subscription` accounts and of rate-limited
-  accounts whose `retry_after` has passed. `RefreshNow` skips only rate-limited accounts
-  whose `retry_after` has not passed yet; it rechecks `no_subscription` accounts.
+  check; `Refresh(account_id)` and `RefreshNow` still force a check of `no_subscription` accounts,
+  and of rate-limited accounts at most once per 60 s each (see `Refresh`).
 - `Refresh("")` suits automatic calls such as opening a popup; a user's explicit refresh should call
   `RefreshNow`, which also re-reads local usage logs instead of waiting for the file watcher or the
   60 s usage poll.
 - Each provider call has a 30 s timeout.
 - With `adaptive_refresh` on, accounts whose usage home is getting new log records are scheduled every
-  60 s instead of every `refresh_interval_secs`; backoff, rate-limit holds and `no_subscription`
-  rechecks keep priority. Each account reports its mode, interval, next time and reason as
+  60 s (or the provider's minimum poll interval, when longer) instead of every
+  `refresh_interval_secs`; backoff, rate-limit holds and `no_subscription` rechecks keep priority. Each account reports its mode, interval, next time and reason as
   [`refresh`](#account-additions).
 - When the access token of a Headroom-owned account (`"owner": "headroom"`) has expired or is
   rejected, the daemon refreshes it with the OAuth refresh token stored in its Headroom home: under a
@@ -430,9 +435,15 @@ Status, evaluated in this order:
 | `refreshing` | A refresh is in flight. |
 | `no_subscription` | The account is signed in, but the provider reports no active paid plan (for example a free ChatGPT plan without Codex limits, or a Claude account without Pro/Max). `error.kind` is `no_subscription` and `error.message` says what the provider reported. The last good snapshot is dropped: `windows`, `balances` and `notices` are empty, `updated_at`, `source` and `plan` are `null`. The account never drives the headline or window notifications. The state survives daemon restarts until a refresh succeeds. |
 | `signed_out` | The last refresh failed with `not_signed_in` or `sign_in_expired`. Offer what `recovery` says. |
-| `error` | The last refresh failed for another reason. Any previous data is still shown. |
+| `error` | The last refresh failed for another reason, or was rate limited while no data exists yet. Any previous data is still shown. |
 | `fresh` | Data is at most 10 minutes old. |
 | `stale` | Data is older than 10 minutes, or there is no data yet. |
+
+Since 0.6.1 a refresh the provider rate limited (`error.kind` `rate_limited`) does not turn an account
+with data into `error`: it stays `fresh` or `stale` by the age of that data, keeps `error`
+(`kind` `rate_limited`) and `recovery` `null`, and the next attempt is `refresh.next_at` (with
+`refresh.reason` `hold`). Shells show the data with a quiet "provider is limiting requests" note
+instead of an error notice. Without any data the account is `error` as before.
 
 Source:
 
@@ -448,6 +459,9 @@ Error:
 | --- | --- | --- |
 | `kind` | string | `not_signed_in`, `sign_in_expired`, `account_changed`, `api_key_only`, `no_subscription`, `rate_limited`, `network`, `invalid_response`, `local_data`, `unsupported`, `timeout`, `no_provider` |
 | `message` | string | Safe, human-readable message. Never contains tokens. |
+
+`rate_limited` messages name the limited call: `usage endpoint rate limited by the provider` or
+`token refresh rate limited by the provider` (a Headroom-owned account refreshing its OAuth token).
 
 `account_changed` means another identity is now signed in at the account's home (for example after
 signing into a different account in the CLI). `Refresh` of such an account rescans first, so the new
@@ -1173,9 +1187,9 @@ Refresh:
 | field | type | description |
 | --- | --- | --- |
 | `mode` | string | `live` while `adaptive_refresh` is on and the account's usage home (the CLI home it shares with every account listed with the same `provider` and `usage_home`), or its own home, got new log records dated within the last 10 minutes; `idle` otherwise. Records that are older when the daemon reads them (catching up after it was stopped) do not count. Accounts of providers without local logs are always `idle`. |
-| `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode. Never below `60`. |
+| `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode, raised to the provider's minimum poll interval (Claude: `180`) when that is longer. Never below `60`. |
 | `next_at` | timestamp \| null | This account's next scheduled refresh; `null` while it is refreshing or has no schedule. The same value that feeds the state's `next_refresh_at`. |
-| `reason` | string | Why `next_at` is what it is: `hold` after a provider rate limit or a `no_subscription` answer (the retry time the provider asked for, or the hourly recheck), `backoff` after any other failure (1, 2, 4 … 30 minutes), otherwise `activity` in `live` mode and `schedule` in `idle` mode. |
+| `reason` | string | Why `next_at` is what it is: `hold` after a provider rate limit or a `no_subscription` answer (the retry time the provider asked for, the rate-limit backoff, or the hourly recheck), `backoff` after any other failure (1, 2, 4 … 30 minutes), otherwise `activity` in `live` mode and `schedule` in `idle` mode. |
 | `last_attempt_at` | timestamp \| null | When this daemon last finished a refresh of the account, successful or not; `null` before the first attempt since the daemon started. A Retry that ends in the same error still moves it, so a shell can tell the attempt finished. Older daemons omit it. |
 
 Adaptive refresh only ever moves a refresh earlier while the last refresh succeeded: when a usage

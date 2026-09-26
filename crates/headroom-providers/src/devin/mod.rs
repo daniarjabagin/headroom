@@ -49,6 +49,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: false,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: Some("https://www.devinstatus.com"),
         dashboard: Some("https://app.devin.ai"),

@@ -5,6 +5,7 @@ public enum PopupText: Sendable, CaseIterable {
     case copyCommand, copied, accountChangedDetail
     case noSubscriptionDetail, overPace, limitSoon, runsOutAnyMinute
     case serviceDownTitle, serviceDownDetail, stateUnreadable, tryAgain, noToolsFound, checkAgain, settings
+    case providerLimiting
 
     var english: String {
         switch self {
@@ -43,6 +44,7 @@ public enum PopupText: Sendable, CaseIterable {
         case .noToolsFound: "No AI coding tools found."
         case .checkAgain: "Check again"
         case .settings: "Settings"
+        case .providerLimiting: "Provider is limiting requests"
         }
     }
 
@@ -82,6 +84,7 @@ public enum PopupText: Sendable, CaseIterable {
         case .noToolsFound: "ИИ-инструменты для программирования не найдены."
         case .checkAgain: "Проверить снова"
         case .settings: "Настройки"
+        case .providerLimiting: "Провайдер ограничил запросы"
         }
     }
 }
@@ -89,7 +92,7 @@ public enum PopupText: Sendable, CaseIterable {
 public enum PopupTemplate: Sendable, CaseIterable {
     case spare, limitIn, runsOutIn, paceRunsOut, paceRunsOutResets, paceUsedAtReset, paceLeftAtReset
     case lastUpdated, signedOutOf, couldNotRefresh, otherModels, dayTitle, version
-    case accountChanged, runInTerminal
+    case accountChanged, runInTerminal, providerLimitingNextTry
 
     var english: String {
         switch self {
@@ -108,6 +111,7 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .version: "Headroom {version}"
         case .accountChanged: "Another account is signed in to {provider}"
         case .runInTerminal: "Run `{command}` in Terminal, then press Retry."
+        case .providerLimitingNextTry: "Provider is limiting requests · next try {time}"
         }
     }
 
@@ -128,6 +132,7 @@ public enum PopupTemplate: Sendable, CaseIterable {
         case .version: "Headroom {version}"
         case .accountChanged: "В {provider} выполнен вход в другой аккаунт"
         case .runInTerminal: "Выполните `{command}` в Терминале, затем нажмите «Повторить»."
+        case .providerLimitingNextTry: "Провайдер ограничил запросы · повтор в {time}"
         }
     }
 }

@@ -225,7 +225,7 @@ async fn an_expired_keyring_token_is_never_refreshed() {
 async fn cloud_errors_surface_unchanged() {
     for (status, expected) in [
         (401, ProviderError::SignInExpired),
-        (429, ProviderError::RateLimited { retry_after: None }),
+        (429, ProviderError::rate_limited(None)),
     ] {
         let setup = Setup::new().await;
         setup

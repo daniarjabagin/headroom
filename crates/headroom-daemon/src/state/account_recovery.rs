@@ -128,9 +128,7 @@ mod tests {
     #[test]
     fn waiting_states_offer_nothing_to_do() {
         let cli = owned(CODEX, CredentialOwner::Cli);
-        let limited = ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(60)),
-        };
+        let limited = ProviderError::rate_limited(Some(SignedDuration::from_secs(60)));
         assert_eq!(of(limited, &cli), None);
         let lapsed = ProviderError::NoSubscription {
             detail: "none".into(),

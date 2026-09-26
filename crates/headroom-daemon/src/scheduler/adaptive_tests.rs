@@ -141,9 +141,7 @@ async fn with_adaptive_refresh_off_writes_keep_the_normal_interval() {
 
 #[tokio::test(start_paused = true)]
 async fn going_live_keeps_a_rate_limit_hold() {
-    let limited = Err(ProviderError::RateLimited {
-        retry_after: Some(secs(120)),
-    });
+    let limited = Err(ProviderError::rate_limited(Some(secs(120))));
     let provider = Arc::new(ScriptedProvider::new(vec![limited]));
     let (harness, _scheduler) = started_live(&provider).await;
     let held = runtime(&harness, &work_id()).hold_until;

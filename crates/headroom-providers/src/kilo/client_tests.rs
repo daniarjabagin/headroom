@@ -82,9 +82,9 @@ async fn http_failures_map_to_provider_errors() {
     let (_server, client) = serving("/api/profile/balance", limited).await;
     assert_eq!(
         client.balance(TOKEN, None, now()).await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(90))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(90)
+        )))
     );
     let (_server, client) = serving("/api/profile/balance", json(500, "")).await;
     assert!(matches!(

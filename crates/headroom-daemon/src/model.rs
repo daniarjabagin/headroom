@@ -55,6 +55,7 @@ pub struct AccountRuntime {
     pub last_attempt: Option<Timestamp>,
     pub failure: Option<RefreshFailure>,
     pub failures: u32,
+    pub rate_limits: u32,
     pub hold_until: Option<Timestamp>,
     pub next_refresh_at: Option<Timestamp>,
 }
@@ -166,6 +167,7 @@ impl Model {
         runtime.last_attempt = Some(now);
         runtime.failure = None;
         runtime.failures = 0;
+        runtime.rate_limits = 0;
         runtime.hold_until = None;
     }
 
@@ -181,6 +183,11 @@ impl Model {
         }
         let runtime = self.runtime_mut(id);
         runtime.last_attempt = Some(now);
+        runtime.rate_limits = if failure.is_rate_limited() {
+            runtime.rate_limits.saturating_add(1)
+        } else {
+            0
+        };
         runtime.failure = Some(failure);
         runtime.failures = runtime.failures.saturating_add(1);
         runtime.hold_until = hold_until;

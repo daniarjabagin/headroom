@@ -26,6 +26,7 @@ static KEYED: ProviderDescriptor = ProviderDescriptor {
     })],
     multi_account: true,
     local_usage: false,
+    min_poll_interval: None,
     links: headroom_core::descriptor::ProviderLinks::NONE,
 };
 

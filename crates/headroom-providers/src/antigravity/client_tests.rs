@@ -44,7 +44,7 @@ async fn auth_and_rate_limits_stop_at_the_first_base() {
     for (status, expected) in [
         (401, ProviderError::SignInExpired),
         (403, ProviderError::SignInExpired),
-        (429, ProviderError::RateLimited { retry_after: None }),
+        (429, ProviderError::rate_limited(None)),
     ] {
         let daily = cloud(status, "").await;
         let prod = cloud(200, SUMMARY).await;

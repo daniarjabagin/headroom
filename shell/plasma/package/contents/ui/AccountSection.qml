@@ -40,6 +40,7 @@ Item {
     readonly property var notices: Account.notices(lang, account, offline, providers)
     readonly property var plates: Account.plates(notices)
     readonly property var infoLines: Account.infoLines(notices)
+    readonly property string limitNote: Account.rateLimitNote(lang, account, display.timeFormat)
     readonly property var windows: group !== null ? group.windows : Account.showsQuotas(account) ? State.shownWindows(account) : []
     readonly property bool extrasOpen: Account.extrasAlwaysOpen(account)
 
@@ -139,6 +140,11 @@ Item {
                     animated: section.animated
                     onLinkActivated: url => section.linkOpened(url)
                 }
+            }
+
+            NoticeLine {
+                visible: section.limitNote !== ""
+                text: section.limitNote
             }
 
             Repeater {

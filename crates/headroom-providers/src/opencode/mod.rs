@@ -42,6 +42,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
     ],
     multi_account: true,
     local_usage: false,
+    min_poll_interval: None,
     links: ProviderLinks {
         status: None,
         dashboard: Some("https://opencode.ai/zen"),

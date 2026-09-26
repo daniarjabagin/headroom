@@ -94,9 +94,9 @@ async fn rate_limits_keep_retry_after() {
     let server = respond(429, "", Some("120")).await;
     assert_eq!(
         client(&server).billing("t").await,
-        Err(ProviderError::RateLimited {
-            retry_after: Some(SignedDuration::from_secs(120))
-        })
+        Err(ProviderError::rate_limited(Some(
+            SignedDuration::from_secs(120)
+        )))
     );
 }
 

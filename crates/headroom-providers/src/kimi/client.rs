@@ -125,9 +125,9 @@ fn common_error(
 ) -> ProviderError {
     let code = status.as_u16();
     match status {
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited {
-            retry_after: http::retry_after(headers, now),
-        },
+        StatusCode::TOO_MANY_REQUESTS => {
+            ProviderError::rate_limited(http::retry_after(headers, now))
+        }
         status if status.is_server_error() => {
             ProviderError::Network(format!("the Kimi {what} endpoint returned HTTP {code}"))
         }

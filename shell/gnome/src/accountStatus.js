@@ -34,9 +34,14 @@ export function subscriptionNote(error) {
     return message;
 }
 
+export function isQuietlyLimited(account) {
+    return account.error?.kind === 'rate_limited' && account.updatedAt !== null;
+}
+
 function hasErrorNotice(account, offline) {
     if (account.error === null) return false;
     if (account.status !== 'error' && account.status !== 'refreshing') return false;
+    if (isQuietlyLimited(account)) return false;
     return !(offline && account.error.kind === 'network');
 }
 

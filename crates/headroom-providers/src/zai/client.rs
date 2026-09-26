@@ -119,7 +119,7 @@ fn status_error(
     match status {
         StatusCode::FORBIDDEN if mentions_plan(body) => super::no_plan(),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => ProviderError::SignInExpired,
-        StatusCode::TOO_MANY_REQUESTS => ProviderError::RateLimited { retry_after },
+        StatusCode::TOO_MANY_REQUESTS => ProviderError::rate_limited(retry_after),
         status if status.is_server_error() => {
             ProviderError::Network(format!("Z.ai returned HTTP {code}"))
         }

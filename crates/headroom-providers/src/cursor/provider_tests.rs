@@ -282,9 +282,7 @@ async fn rate_limit_honours_retry_after() {
         .unwrap_err();
     assert_eq!(
         error,
-        ProviderError::RateLimited {
-            retry_after: Some(jiff::SignedDuration::from_secs(90))
-        }
+        ProviderError::rate_limited(Some(jiff::SignedDuration::from_secs(90)))
     );
 }
 
