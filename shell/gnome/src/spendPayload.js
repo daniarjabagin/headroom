@@ -31,6 +31,14 @@ function parseModels(raw) {
     return list(raw).map(parseModel);
 }
 
+function parseProviderModel(raw) {
+    return { ...providerOf(raw), ...parseModel(raw) };
+}
+
+function parsePeriodModels(raw) {
+    return Array.isArray(raw) ? list(raw).map(parseProviderModel) : null;
+}
+
 function parseModelsOther(raw) {
     if (!isObject(raw)) return null;
     return {
@@ -127,6 +135,8 @@ function parsePeriod(raw) {
         partial: period.partial === true,
         costPerMtokMicros: costPerMtok(period),
         providers: list(period.by_provider).map(parseProviderSpend),
+        models: parsePeriodModels(period.models),
+        modelsOther: parseModelsOther(period.models_other),
         projects: parseProjects(period.projects),
         projectsOther: parseProjectsOther(period.projects_other),
     };

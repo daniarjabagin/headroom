@@ -3,7 +3,6 @@ import GLib from 'gi://GLib';
 import St from 'gi://St';
 import { usesHour12 } from '../dates.js';
 import { DesktopClock } from '../desktopClock.js';
-import { _ } from '../i18n.js';
 import { parseDisplay, supports06 } from '../settings.js';
 import { isRefreshing } from '../state.js';
 import { column } from '../widgets.js';
@@ -11,7 +10,6 @@ import { CardActions } from './cardActions.js';
 import { Dashboard } from './dashboard.js';
 import { FloatingMenu } from './floatingMenu.js';
 import { Footer } from './footer.js';
-import { LoginLauncher } from './loginLauncher.js';
 import { MaskBanner } from './maskBanner.js';
 import { Overlay } from './overlay.js';
 import { RefreshButton } from './refreshButton.js';
@@ -63,9 +61,6 @@ export class PopupView {
         this._tooltips = new Tooltips(motion);
         this._clock = new DesktopClock(() => this._rerender());
         this._refreshControl = new RefreshControl(() => actions.refreshNow());
-        this._login = new LoginLauncher(message =>
-            this._toast.show(_("Couldn't start sign-in"), message, 'dialog-warning')
-        );
         this._ctx = this._createContext(dir, motion, actions);
         this._refreshButton = new RefreshButton(this._ctx);
         this._refreshControl.attach(this._refreshButton);
@@ -96,7 +91,7 @@ export class PopupView {
             canReorder: () => this._reorderer.enabled,
             sheen: new SheenClock(motion),
             pressRefresh: () => this._refreshControl.press(),
-            signIn: accountId => this._login.launch(accountId),
+            signIn: accountId => actions.signIn(accountId),
             hour12: () => usesHour12(ctx.display.timeFormat, this._clock.format),
             links: provider => this._links.get(provider) ?? null,
             providerStatus: () => this._view.state?.providerStatus ?? [],
@@ -287,7 +282,6 @@ export class PopupView {
 
     destroy() {
         this._sheen.stop();
-        this._login.destroy();
         this._reorderer.destroy();
         this._hideScrollbar();
         this._toast.hide();

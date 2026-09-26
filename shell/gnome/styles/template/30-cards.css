@@ -199,6 +199,10 @@
     border-radius: 4px;
 }
 
+.headroom-legend-dot.other {
+    background-color: var(--text-tertiary);
+}
+
 .headroom-legend-name {
     font-size: 9pt;
     color: var(--text);

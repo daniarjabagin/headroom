@@ -41,9 +41,9 @@ function otherText(tab, entry) {
 
 function marker(ctx, tab, entry) {
     if (tab === 'projects') return popupIcon(ctx.dir, 'folder', 'headroom-breakdown-folder');
-    const series = entry.parts[0]?.series;
+    const series = entry.other === null ? entry.parts[0]?.series : null;
     return new St.Widget({
-        style_class: `headroom-legend-dot headroom-series-${series ?? 'other-0'}`,
+        style_class: series ? `headroom-legend-dot headroom-series-${series}` : 'headroom-legend-dot other',
         y_align: Clutter.ActorAlign.CENTER,
     });
 }

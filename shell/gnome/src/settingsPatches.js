@@ -25,6 +25,7 @@ const DISPLAY_FIELDS = {
     spendPeriod: ['spend_period', among(display.SPEND_PERIODS)],
     spendUnit: ['spend_unit', among(display.SPEND_UNITS)],
     spendBreakdown: ['spend_breakdown', among(display.SPEND_BREAKDOWNS)],
+    showBreakdown: ['show_breakdown', isBool],
     collapseUnstarred: ['collapse_unstarred', isBool],
     hideOnScreenShare: ['hide_on_screen_share', isBool],
 };

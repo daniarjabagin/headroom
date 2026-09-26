@@ -1,7 +1,18 @@
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
-import { REST_MS, sheenClip, sheenOffset, sheenStrength, START_DELAY_MS, SWEEP_MS } from './sheenPlan.js';
+import {
+    pointerQuiet,
+    QUIET_MS,
+    REST_MS,
+    sheenClip,
+    sheenOffset,
+    sheenStrength,
+    START_DELAY_MS,
+    STEP_MS,
+    SWEEP_MS,
+    sweepProgress,
+} from './sheenPlan.js';
 
 const OPAQUE = 255;
 
@@ -12,18 +23,33 @@ function childBox(x, y, width, height) {
     return box;
 }
 
+const MICROS_PER_MS = 1000;
+const INTERACTIONS = new Set([
+    Clutter.EventType.MOTION,
+    Clutter.EventType.SCROLL,
+    Clutter.EventType.BUTTON_PRESS,
+    Clutter.EventType.TOUCH_BEGIN,
+    Clutter.EventType.TOUCH_UPDATE,
+]);
+
+function nowMs() {
+    return GLib.get_monotonic_time() / MICROS_PER_MS;
+}
+
 export class SheenClock {
     constructor(motion) {
         this._motion = motion;
         this._bands = new Set();
         this._actor = null;
-        this._timeline = null;
-        this._waitId = 0;
+        this._sourceId = 0;
+        this._sweepStart = 0;
+        this._lastInteraction = -QUIET_MS;
         this._running = false;
     }
 
     attach(actor) {
         this._actor = actor;
+        actor.connect('captured-event', (_actor, event) => this._noteEvent(event));
     }
 
     add(band) {
@@ -42,25 +68,32 @@ export class SheenClock {
 
     stop() {
         this._running = false;
-        this._clearWait();
-        this._timeline?.stop();
-        this._timeline = null;
+        this._clearSource();
         this._park();
     }
 
+    _noteEvent(event) {
+        if (INTERACTIONS.has(event.type())) this._lastInteraction = nowMs();
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _quiet() {
+        return pointerQuiet(nowMs() - this._lastInteraction);
+    }
+
     _wait(delayMs) {
-        this._clearWait();
-        this._waitId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
-            this._waitId = 0;
+        this._clearSource();
+        this._sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            this._sourceId = 0;
             this._sweep();
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _clearWait() {
-        if (this._waitId === 0) return;
-        GLib.source_remove(this._waitId);
-        this._waitId = 0;
+    _clearSource() {
+        if (this._sourceId === 0) return;
+        GLib.source_remove(this._sourceId);
+        this._sourceId = 0;
     }
 
     _canSweep() {
@@ -69,27 +102,25 @@ export class SheenClock {
 
     _sweep() {
         if (!this._running) return;
-        if (!this._canSweep()) {
-            this._wait(REST_MS);
+        if (!this._canSweep() || !this._quiet()) {
+            this._wait(this._quiet() ? REST_MS : QUIET_MS);
             return;
         }
-        this._timeline ??= this._createTimeline();
-        this._timeline.rewind();
-        this._timeline.start();
+        this._sweepStart = nowMs();
+        this._place(0);
+        this._sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, STEP_MS, () => this._step());
     }
 
-    _createTimeline() {
-        const timeline = new Clutter.Timeline({
-            actor: this._actor,
-            duration: SWEEP_MS,
-            progress_mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
-        });
-        timeline.connect('new-frame', () => this._place(timeline.get_progress()));
-        timeline.connect('completed', () => {
-            this._park();
-            if (this._running) this._wait(REST_MS);
-        });
-        return timeline;
+    _step() {
+        const elapsed = nowMs() - this._sweepStart;
+        if (elapsed < SWEEP_MS && this._canSweep()) {
+            this._place(sweepProgress(elapsed));
+            return GLib.SOURCE_CONTINUE;
+        }
+        this._sourceId = 0;
+        this._park();
+        if (this._running) this._wait(REST_MS);
+        return GLib.SOURCE_REMOVE;
     }
 
     _place(progress) {

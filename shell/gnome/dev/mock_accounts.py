@@ -9,6 +9,7 @@ WAITING_ERRORS = ("no_subscription", "rate_limited", "unsupported", "no_provider
 CLI_LOGINS = {"claude": "claude auth login", "codex": "codex login"}
 IDLE_SECS = 300
 LIVE_SECS = 60
+LAST_ATTEMPT_AGO_SECS = 42
 ACCOUNT_KEYS = ("id", "provider", "provider_name", "label", "email", "plan", "owner", "hidden", "status", "error",
                 "recovery", "updated_at", "source", "windows", "balances", "notices", "usage_home", "refresh",
                 "collapsed")
@@ -52,6 +53,7 @@ def refresh(now, seconds, mode="idle", reason=None):
         "interval_secs": LIVE_SECS if mode == "live" else IDLE_SECS,
         "next_at": iso(now + timedelta(seconds=seconds)),
         "reason": reason or ("activity" if mode == "live" else "schedule"),
+        "last_attempt_at": iso(now - timedelta(seconds=LAST_ATTEMPT_AGO_SECS)),
     }
 
 

@@ -1,7 +1,7 @@
 export const RU_POPUP = {
     'Numbers hidden while your screen is shared': 'Цифры скрыты, пока идёт демонстрация экрана',
     'Show anyway': 'Всё равно показать',
-    'Models under 5% are folded into Other.': 'Модели с долей меньше 5% объединены в «Другие».',
+    'Models after the top 5 are folded into Other.': 'Модели после первых пяти объединены в «Другие».',
     '7 Days': '7 дней',
     'Last 7 days': 'Последние 7 дней',
     'Last 30 days': 'Последние 30 дней',

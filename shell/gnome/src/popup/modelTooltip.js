@@ -53,7 +53,7 @@ function heading(title, total) {
 
 function notes(totals, breakdown) {
     const lines = [];
-    if (totals.modelsOther) lines.push(_('Models under 5% are folded into Other.'));
+    if (totals.modelsOther) lines.push(_('Models after the top 5 are folded into Other.'));
     lines.push(_('Estimated from local logs and public pricing.'));
     if (breakdown.partial) lines.push(`${PARTIAL_MARK} ${_('Partly unpriced, cost leaves it out')}`);
     const text = label(lines.join('\n'), 'headroom-pop-note', { x_align: Clutter.ActorAlign.START });

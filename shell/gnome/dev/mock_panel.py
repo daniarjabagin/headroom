@@ -140,6 +140,7 @@ def adjusted_refresh(entry, settings):
         "interval_secs": 60 if live else settings["refresh_interval_secs"],
         "next_at": None if entry["status"] == "refreshing" else current["next_at"],
         "reason": reason,
+        "last_attempt_at": current["last_attempt_at"],
     }
 
 
