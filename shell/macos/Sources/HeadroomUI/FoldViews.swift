@@ -26,6 +26,7 @@
                         .lineLimit(1)
                         .truncationMode(.tail)
                     Spacer(minLength: 0)
+                    attentionMark
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
@@ -41,8 +42,28 @@
                 .contentShape(RoundedRectangle(cornerRadius: PopupMetrics.cardRadius, style: .continuous))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: summary.accessibilityLabel))
             .onHover { hovered = $0 }
             .animation(Motion.animation(Motion.hover, reduced: reducedMotion), value: hovered)
+        }
+
+        @ViewBuilder
+        private var attentionMark: some View {
+            switch summary.attention.kind {
+            case .notice:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(summary.attention.tone == .critical ? Palette.crit : Palette.notice)
+                    .hoverTip(id: "fold.attention", text: summary.attentionText)
+            case .tone:
+                Circle()
+                    .fill(summary.attention.tone.color)
+                    .frame(width: 6, height: 6)
+                    .padding(.horizontal, 2)
+                    .hoverTip(id: "fold.attention", text: summary.attentionText)
+            case .none:
+                EmptyView()
+            }
         }
     }
 

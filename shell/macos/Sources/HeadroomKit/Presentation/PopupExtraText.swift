@@ -83,7 +83,7 @@ public enum PopupExtraText: LocalizedText {
 }
 
 public enum PopupPlural: Sendable, CaseIterable {
-    case models, projects, otherModels, otherProjects
+    case models, projects, otherModels, otherProjects, needAttention
 
     func forms(_ language: UILanguage) -> [String] {
         switch (self, language) {
@@ -95,6 +95,9 @@ public enum PopupPlural: Sendable, CaseIterable {
         case (.otherModels, .ru): ["· {count} модель", "· {count} модели", "· {count} моделей"]
         case (.otherProjects, .en): ["· {count} project", "· {count} projects"]
         case (.otherProjects, .ru): ["· {count} проект", "· {count} проекта", "· {count} проектов"]
+        case (.needAttention, .en): ["{count} needs attention", "{count} need attention"]
+        case (.needAttention, .ru):
+            ["Требуют внимания: {count}", "Требуют внимания: {count}", "Требуют внимания: {count}"]
         }
     }
 }

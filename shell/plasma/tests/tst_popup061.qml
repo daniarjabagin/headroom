@@ -146,6 +146,36 @@ TestCase {
         compare([header.height, card.height], before);
     }
 
+    function openFolded(ids) {
+        const raw = rawSample();
+        raw.accounts.forEach(account => account.collapsed = ids.includes(account.id));
+        open({}, {
+            accounts: raw.accounts
+        });
+        return named("collapsedRow");
+    }
+
+    function test_collapsed_row_marks_folded_problems() {
+        const calm = openFolded(["zai:7b8c9d0e1f2a", "openrouter:4d5e6f7a8b9c"]);
+        const height = calm.implicitHeight;
+        verify(!named("attentionMark").visible);
+        compare(calm.Accessible.name, "2 more · Z.ai, OpenRouter");
+        cleanup();
+        const toned = openFolded(["zai:7b8c9d0e1f2a", "codex:9f8e7d6c5b4a"]);
+        verify(named("attentionMark").visible);
+        verify(named("attentionDot").visible);
+        verify(!named("attentionIcon").visible);
+        compare(toned.attention.tone, "critical");
+        compare(toned.implicitHeight, height);
+        cleanup();
+        const failing = openFolded(["zai:7b8c9d0e1f2a", "claude:0a1b2c3d4e5f"]);
+        verify(named("attentionIcon").visible);
+        verify(!named("attentionDot").visible);
+        compare(failing.attention.tone, "critical");
+        compare(failing.implicitHeight, height);
+        verify(failing.Accessible.name.endsWith(". 1 needs attention"));
+    }
+
     function test_big_token_total_fits_inside_the_ring() {
         const donut = createTemporaryObject(donutComponent, suite) as Donut;
         const value = findAll(donut, item => item.objectName === "ringValue", [])[0];

@@ -5,6 +5,7 @@ import { mergeOrder, moveItem } from '../order.js';
 import { showsName } from '../providers.js';
 import { fileIcon, label, row, spacer } from '../widgets.js';
 import { AccountSection } from './accountSection.js';
+import { collapsedAttention } from './collapsedAttention.js';
 import { collapsedNames, collapsedRow } from './collapsedRow.js';
 import { CombinedSection } from './combinedSection.js';
 import { isEmptyState, needsToolsHint, shownSpend, visibleAccounts } from './dashboardPlan.js';
@@ -121,13 +122,15 @@ export class Dashboard {
 
     _syncMore(folded) {
         const expanded = this._ctx.moreExpanded;
+        const attention = collapsedAttention(folded, this._ctx.offline);
         const key =
             folded.length === 0
                 ? null
-                : JSON.stringify([expanded, folded.map(card => card.id), collapsedNames(folded)]);
+                : JSON.stringify([expanded, folded.map(card => card.id), collapsedNames(folded), attention]);
         if (key === this._moreKey) return;
         this._more?.destroy();
-        this._more = key === null ? null : collapsedRow(this._ctx, folded, expanded, () => this._toggleMore());
+        this._more =
+            key === null ? null : collapsedRow(this._ctx, folded, attention, expanded, () => this._toggleMore());
         this._moreKey = key;
         if (this._more) this._fresh.add(this._more);
     }
