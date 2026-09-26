@@ -14,6 +14,7 @@ static XDG_TOOL: ProviderDescriptor = ProviderDescriptor {
             subdir: "xdgtool",
         },
         credentials_file: "auth.json",
+        default_dir: ".tool",
         needs_pty: false,
         scrub_env: &[],
     })],
@@ -27,6 +28,7 @@ static PTY_LOGIN: CliLogin = CliLogin {
     args: &["login"],
     home_var: HomeVar::Direct("PTYTOOL_DIR"),
     credentials_file: "auth.json",
+    default_dir: ".tool",
     needs_pty: true,
     scrub_env: &[],
 };

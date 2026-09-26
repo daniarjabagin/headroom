@@ -43,6 +43,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
                 subdir: DATA_SUBDIR,
             },
             credentials_file: auth::AUTH_FILE,
+            default_dir: ".local/share/kilo",
             needs_pty: true,
             scrub_env: &["KILO_API_URL", "KILO_AUTH_CONTENT"],
         }),

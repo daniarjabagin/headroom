@@ -99,8 +99,13 @@ async fn a_live_account_refreshes_every_minute() {
         interval_secs: 60,
         next_at: after(&harness, 60),
         reason: RefreshReason::Activity,
+        last_attempt_at: None,
     };
-    eventually_virtual(|| refresh_view(&harness) == expected).await;
+    let scheduled = || RefreshView {
+        last_attempt_at: None,
+        ..refresh_view(&harness)
+    };
+    eventually_virtual(|| scheduled() == expected).await;
     eventually_virtual(|| provider.calls() == 4).await;
     assert_eq!(provider.gaps(), [60, 60, 60]);
 }

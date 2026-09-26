@@ -5,6 +5,7 @@ const LOGIN: CliLogin = CliLogin {
     args: &["login"],
     home_var: HomeVar::Direct("TOOL_HOME"),
     credentials_file: "auth.json",
+    default_dir: ".tool",
     needs_pty: false,
     scrub_env: &[],
 };
@@ -103,6 +104,15 @@ fn login_specs_must_stay_inside_the_home() {
         scrub_env: &["tool_token"],
         ..LOGIN
     })];
+    static ESCAPING_DEFAULT: [AddAccountMethod; 1] = [AddAccountMethod::CliLogin(CliLogin {
+        default_dir: "/etc/tool",
+        ..LOGIN
+    })];
+    assert!(
+        problem(&ESCAPING_DEFAULT)
+            .unwrap()
+            .contains("default directory")
+    );
     assert!(problem(&SCRUBBED_HOME).unwrap().contains("scrubbed"));
     assert!(problem(&LOWER_SCRUB).unwrap().contains("scrubbed"));
     assert!(problem(&PATH_PROGRAM).unwrap().contains("bare command"));
@@ -150,6 +160,51 @@ fn credentials_resolve_below_the_home_var_target() {
     };
     assert_eq!(xdg.credentials_path(home), home.join("tool/auth.json"));
     assert_eq!(xdg.home_var.var(), "XDG_DATA_HOME");
+}
+
+#[test]
+fn cli_owned_credentials_sit_directly_in_the_tool_directory() {
+    let xdg = CliLogin {
+        home_var: HomeVar::XdgBase {
+            var: "XDG_DATA_HOME",
+            subdir: "tool",
+        },
+        ..LOGIN
+    };
+    let cli = Path::new("/home/ada/.local/share/tool");
+    let owned = Path::new("/data/accounts/tool/1");
+    assert_eq!(
+        xdg.account_credentials_path(cli, CredentialOwner::Cli),
+        cli.join("auth.json")
+    );
+    assert_eq!(
+        xdg.account_credentials_path(owned, CredentialOwner::Headroom),
+        owned.join("tool/auth.json")
+    );
+    assert_eq!(
+        LOGIN.account_credentials_path(cli, CredentialOwner::Cli),
+        cli.join("auth.json")
+    );
+}
+
+#[test]
+fn home_values_point_the_tool_at_a_directory() {
+    let dir = Path::new("/work/share/tool");
+    assert_eq!(LOGIN.home_var.value_for(dir), Some(dir.to_path_buf()));
+    let xdg = HomeVar::XdgBase {
+        var: "XDG_DATA_HOME",
+        subdir: "tool",
+    };
+    assert_eq!(xdg.value_for(dir), Some(PathBuf::from("/work/share")));
+    let nested = HomeVar::XdgBase {
+        var: "XDG_CONFIG_HOME",
+        subdir: "vendor/tool",
+    };
+    assert_eq!(
+        nested.value_for(Path::new("/cfg/vendor/tool")),
+        Some(PathBuf::from("/cfg"))
+    );
+    assert_eq!(xdg.value_for(Path::new("/work/share/other")), None);
 }
 
 #[test]

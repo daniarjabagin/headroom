@@ -44,6 +44,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             ],
             home_var: HomeVar::Direct("GH_CONFIG_DIR"),
             credentials_file: hosts::HOSTS_FILE,
+            default_dir: ".config/gh",
             needs_pty: false,
             scrub_env: &[
                 "GH_TOKEN",

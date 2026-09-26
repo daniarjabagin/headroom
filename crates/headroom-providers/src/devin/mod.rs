@@ -39,6 +39,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
                 subdir: DATA_SUBDIR,
             },
             credentials_file: auth::CREDENTIALS_FILE,
+            default_dir: ".local/share/devin",
             needs_pty: false,
             scrub_env: &[],
         }),

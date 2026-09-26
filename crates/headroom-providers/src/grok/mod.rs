@@ -37,6 +37,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             args: &["login"],
             home_var: HomeVar::Direct("GROK_HOME"),
             credentials_file: "auth.json",
+            default_dir: ".grok",
             needs_pty: false,
             scrub_env: &["GROK_OIDC_ISSUER", "GROK_OIDC_CLIENT_ID"],
         }),

@@ -23,6 +23,7 @@ pub fn refresh_view(
         interval_secs: policy::effective_interval(&model.settings, live).as_secs(),
         next_at: runtime.and_then(|runtime| runtime.next_refresh_at),
         reason: reason(runtime, live),
+        last_attempt_at: runtime.and_then(|runtime| runtime.last_attempt),
     }
 }
 

@@ -1,13 +1,14 @@
 use std::io::{self, Write};
 
 use anyhow::{Result, anyhow, bail};
-use headroom_core::account::{AccountRef, CredentialOwner, ProviderId};
+use headroom_core::account::{AccountRef, CredentialOwner};
 use headroom_core::descriptor::ProviderDescriptor;
-use headroom_providers::{key_accounts, registry};
+use headroom_providers::key_accounts;
 
 use super::announce::{refresh_signed_in, shown_owner};
 use super::api_key::{self, KeyTarget};
 use super::cancel::{CANCELLED, Cancel};
+use super::cli_relogin::{TerminalOpened, sign_in_in_terminal};
 use super::discovery::discover_local;
 use super::home::headroom_home;
 use super::login::{
@@ -33,13 +34,33 @@ struct Relogin {
     plan: AddPlan,
 }
 
+enum Relogged {
+    SignedIn { name: &'static str, id: String },
+    InTerminal(TerminalOpened),
+}
+
+impl Relogged {
+    fn account_id(&self) -> &str {
+        match self {
+            Relogged::SignedIn { id, .. } => id,
+            Relogged::InTerminal(opened) => &opened.account_id,
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Relogged::SignedIn { name, id } => format!("Signed in to {name} account {id} again"),
+            Relogged::InTerminal(opened) => opened.message(),
+        }
+    }
+}
+
 impl Relogin {
-    async fn resolve(globals: &Globals, request: &LoginRequest<'_>) -> Result<Relogin> {
-        let id = request.account_id;
-        let registry = LocalRegistry::for_cli(globals)?;
-        let accounts = discover_local(&registry.all()).await;
-        let shown = shown_owner(globals, id).await?;
-        let mut account = owned_record(&accounts, id, shown)?.clone();
+    fn resolve(
+        mut account: AccountRef,
+        registry: LocalRegistry,
+        request: &LoginRequest<'_>,
+    ) -> Result<Relogin> {
         account.home = headroom_home(&accounts_root()?, &account.provider, &account.home)?;
         let descriptor = providers::descriptor(account.provider.as_str())?;
         let holds_key = key_accounts::load_record(&account.home)?.is_some();
@@ -59,15 +80,18 @@ pub async fn login_again(globals: &Globals, request: &LoginRequest<'_>) -> Resul
     cancel.on_signals()?;
     match request.progress {
         None => {
-            let (name, id) = relogin(globals, request, &cancel).await?;
-            writeln!(io::stdout(), "Signed in to {name} account {id} again")?;
+            let relogged = relogin(globals, request, &cancel).await?;
+            writeln!(io::stdout(), "{}", relogged.message())?;
             Ok(())
         }
         Some(ProgressFormat::Json) => {
             cancel.on_stdout_closed();
             let result = relogin(globals, request, &cancel).await;
-            let done = |(_, id): &(&str, String)| ProgressEvent::Done {
-                account_id: id.clone(),
+            if let Ok(Relogged::InTerminal(opened)) = &result {
+                writeln!(io::stderr(), "{}", opened.message())?;
+            }
+            let done = |relogged: &Relogged| ProgressEvent::Done {
+                account_id: relogged.account_id().to_owned(),
                 label: None,
             };
             JsonLines::new(io::stdout()).finish(result, done)?;
@@ -80,16 +104,36 @@ async fn relogin(
     globals: &Globals,
     request: &LoginRequest<'_>,
     cancel: &Cancel,
-) -> Result<(&'static str, String)> {
-    let target = Relogin::resolve(globals, request).await?;
+) -> Result<Relogged> {
+    let id = request.account_id;
+    let registry = LocalRegistry::for_cli(globals)?;
+    let accounts = discover_local(&registry.all()).await;
+    let shown = shown_owner(globals, id).await?;
+    let account = shown_record(&accounts, id, shown)?.clone();
+    if account.owner == CredentialOwner::Cli {
+        let with_key = request.api_key_stdin;
+        let opened =
+            tokio::task::spawn_blocking(move || sign_in_in_terminal(&account, with_key)).await??;
+        return Ok(Relogged::InTerminal(opened));
+    }
+    let target = Relogin::resolve(account, registry, request)?;
+    renew(globals, &target, request, cancel).await
+}
+
+async fn renew(
+    globals: &Globals,
+    target: &Relogin,
+    request: &LoginRequest<'_>,
+    cancel: &Cancel,
+) -> Result<Relogged> {
     let renewed = match target.plan {
-        AddPlan::Login(spec) => renew_with_cli(&target, spec, request.progress, cancel).await?,
+        AddPlan::Login(spec) => renew_with_cli(target, spec, request.progress, cancel).await?,
         AddPlan::KeyFromStdin => {
-            renew_with_key(&target, io::stdin().lock(), request, cancel).await?
+            renew_with_key(target, io::stdin().lock(), request, cancel).await?
         }
         AddPlan::KeyFromPrompt(prompt) => {
             let input = io::Cursor::new(ask_for_key(prompt, cancel).await?);
-            renew_with_key(&target, input, request, cancel).await?
+            renew_with_key(target, input, request, cancel).await?
         }
     };
     if let Some(note) = identity_note(&target.account, &renewed) {
@@ -100,7 +144,10 @@ async fn relogin(
         () = cancel.cancelled() => bail!(CANCELLED),
         result = refresh_signed_in(globals, &renewed.id.0) => result?,
     }
-    Ok((target.descriptor.display_name, renewed.id.0))
+    Ok(Relogged::SignedIn {
+        name: target.descriptor.display_name,
+        id: renewed.id.0,
+    })
 }
 
 async fn renew_with_cli(
@@ -154,7 +201,7 @@ async fn renew_with_key(
     api_key::renew(&key_target, &target.account, input, &mut events, cancel).await
 }
 
-fn owned_record<'a>(
+fn shown_record<'a>(
     accounts: &'a [AccountRef],
     id: &str,
     shown: Option<CredentialOwner>,
@@ -162,28 +209,10 @@ fn owned_record<'a>(
     let mut records = accounts.iter().filter(|account| account.id.0 == id);
     let first = records.clone().next();
     let preferred = shown.unwrap_or(CredentialOwner::Headroom);
-    let account = records
+    records
         .find(|account| account.owner == preferred)
         .or(first)
-        .ok_or_else(|| anyhow!("no signed-in account {id} found"))?;
-    match account.owner {
-        CredentialOwner::Headroom => Ok(account),
-        CredentialOwner::Cli => bail!(cli_owned(&account.provider)),
-    }
-}
-
-fn cli_owned(provider: &ProviderId) -> String {
-    let Some(descriptor) = registry::descriptor(provider.as_str()) else {
-        return format!("This account belongs to the {provider} CLI — sign in there again");
-    };
-    let name = descriptor.display_name;
-    match descriptor.cli_login() {
-        Some(login) => format!(
-            "This account belongs to the {name} CLI — run `{}` instead",
-            login.command_line()
-        ),
-        None => format!("This account belongs to {name} outside Headroom — sign in there again"),
-    }
+        .ok_or_else(|| anyhow!("no signed-in account {id} found"))
 }
 
 fn identity_note(previous: &AccountRef, renewed: &AccountRef) -> Option<String> {

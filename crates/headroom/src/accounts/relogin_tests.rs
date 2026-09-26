@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use headroom_core::account::AccountId;
+use headroom_core::account::{AccountId, ProviderId};
 
 use super::*;
 
@@ -18,7 +18,7 @@ fn refusal(result: Result<&AccountRef>) -> String {
 }
 
 #[test]
-fn only_headroom_owned_accounts_sign_in_again() {
+fn the_account_to_sign_in_again_must_be_signed_in_somewhere() {
     let own = record("codex", "/data/codex/1", CredentialOwner::Headroom);
     let accounts = std::slice::from_ref(&own);
     for shown in [
@@ -27,39 +27,13 @@ fn only_headroom_owned_accounts_sign_in_again() {
         Some(CredentialOwner::Cli),
     ] {
         assert_eq!(
-            owned_record(accounts, "codex:0123456789ab", shown).unwrap(),
+            shown_record(accounts, "codex:0123456789ab", shown).unwrap(),
             &own
         );
     }
     assert_eq!(
-        refusal(owned_record(accounts, "codex:ffffffffffff", None)),
+        refusal(shown_record(accounts, "codex:ffffffffffff", None)),
         "no signed-in account codex:ffffffffffff found"
-    );
-}
-
-#[test]
-fn cli_accounts_point_at_their_own_login() {
-    let cli = record("codex", "/home/ada/.codex", CredentialOwner::Cli);
-    assert_eq!(
-        refusal(owned_record(
-            std::slice::from_ref(&cli),
-            "codex:0123456789ab",
-            None
-        )),
-        "This account belongs to the Codex CLI — run `codex login` instead"
-    );
-    let claude = record("claude", "/home/ada/.claude", CredentialOwner::Cli);
-    assert_eq!(
-        refusal(owned_record(
-            std::slice::from_ref(&claude),
-            "claude:0123456789ab",
-            Some(CredentialOwner::Cli)
-        )),
-        "This account belongs to the Claude CLI — run `claude auth login --claudeai` instead"
-    );
-    assert_eq!(
-        cli_owned(&ProviderId::parse("cursor").unwrap()),
-        "This account belongs to Cursor outside Headroom — sign in there again"
     );
 }
 
@@ -67,14 +41,17 @@ fn cli_accounts_point_at_their_own_login() {
 fn the_record_the_daemon_shows_decides_between_two_homes() {
     let cli = record("codex", "/home/ada/.codex", CredentialOwner::Cli);
     let own = record("codex", "/data/codex/1", CredentialOwner::Headroom);
-    let both = [cli, own.clone()];
+    let both = [cli.clone(), own.clone()];
     let id = "codex:0123456789ab";
-    assert_eq!(owned_record(&both, id, None).unwrap(), &own);
+    assert_eq!(shown_record(&both, id, None).unwrap(), &own);
     assert_eq!(
-        owned_record(&both, id, Some(CredentialOwner::Headroom)).unwrap(),
+        shown_record(&both, id, Some(CredentialOwner::Headroom)).unwrap(),
         &own
     );
-    assert!(refusal(owned_record(&both, id, Some(CredentialOwner::Cli))).contains("`codex login`"));
+    assert_eq!(
+        shown_record(&both, id, Some(CredentialOwner::Cli)).unwrap(),
+        &cli
+    );
 }
 
 #[test]

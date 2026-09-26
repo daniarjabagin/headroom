@@ -45,6 +45,7 @@ pub static DESCRIPTOR: ProviderDescriptor = ProviderDescriptor {
             args: &["login"],
             home_var: HomeVar::Direct("KIMI_SHARE_DIR"),
             credentials_file: credentials::CREDENTIALS_FILE,
+            default_dir: ".kimi",
             needs_pty: false,
             scrub_env: &[],
         }),

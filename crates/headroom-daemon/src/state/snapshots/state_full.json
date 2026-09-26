@@ -144,7 +144,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": "2026-09-23T10:03:00Z",
-        "reason": "schedule"
+        "reason": "schedule",
+        "last_attempt_at": "2026-09-23T09:58:00Z"
       },
       "collapsed": false
     },
@@ -193,7 +194,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": null,
-        "reason": "backoff"
+        "reason": "backoff",
+        "last_attempt_at": null
       },
       "collapsed": false
     },
@@ -219,7 +221,8 @@
         "mode": "idle",
         "interval_secs": 300,
         "next_at": null,
-        "reason": "schedule"
+        "reason": "schedule",
+        "last_attempt_at": null
       },
       "collapsed": false
     }

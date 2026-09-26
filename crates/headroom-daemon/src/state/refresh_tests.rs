@@ -22,6 +22,7 @@ fn runtime(failure: Option<RefreshFailure>) -> AccountRuntime {
         failures: u32::from(failure.is_some()),
         failure,
         next_refresh_at: Some(ts(NEXT)),
+        last_attempt: Some(ts(NOW)),
         ..AccountRuntime::default()
     }
 }
@@ -38,6 +39,7 @@ fn a_live_account_reports_activity_every_minute() {
         interval_secs: 60,
         next_at: Some(ts(NEXT)),
         reason: RefreshReason::Activity,
+        last_attempt_at: Some(ts(NOW)),
     };
     assert_eq!(view(&model, &work, &runtime(None)), expected);
 }

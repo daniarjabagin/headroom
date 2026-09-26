@@ -71,7 +71,9 @@ Refresh semantics:
   `api_key_only` or `account_changed` and its provider signs in through a CLI, the daemon watches that
   account's credential file (for example `~/.codex/auth.json`, `~/.claude/.credentials.json`). A change
   waits 2 s for the writer to finish, then acts like `Refresh(account_id)` (so a rescan runs first).
-  The watched set is re-evaluated every 5 s; healthy accounts are not watched. Sign-ins stored only in
+  The watched set is re-evaluated every 5 s; healthy accounts are not watched. A CLI-owned account is
+  watched in its own directory, also when that is not the CLI's default (a custom `CLAUDE_CONFIG_DIR`,
+  `CODEX_HOME` or `$XDG_DATA_HOME/<tool>`). Sign-ins stored only in
   the macOS Keychain produce no file events and are not watched.
 
 ### Rescan semantics
@@ -447,11 +449,19 @@ Recovery, tagged by `action`:
 | --- | --- | --- | --- |
 | `retry` | — | Transient errors (`network`, `timeout`, `invalid_response`, `local_data`), `account_changed`, and sign-in errors of a CLI-owned account whose provider has no CLI login | A Retry button that calls `Refresh(account_id)`. |
 | `sign_in` | `account_id` | `not_signed_in`, `sign_in_expired` or `api_key_only` on a Headroom-owned account (its token could not be refreshed) | "Sign in again…": run the provider's sign-in into the same Headroom home. `account_id` is the account to replace. |
-| `cli_login` | `command` | The same errors on a CLI-owned account | Show or copy `command` (the CLI login as typed in a terminal, e.g. `codex login`, `claude auth login --claudeai`). The credential watcher picks up the new sign-in without a click. |
+| `cli_login` | `command`, `account_id` | The same errors on a CLI-owned account | "Sign in…": run `headroom accounts login <account_id>`, which opens a terminal running the CLI's own login in the account's home (see [Adding accounts](#adding-and-removing-accounts-from-a-shell)); offer copying `command` (the CLI login as typed in a terminal, e.g. `codex login`, `claude auth login --claudeai`) as well. The credential watcher picks up the new sign-in without a click. Older daemons omit `account_id`; then only `command` can be offered. |
 
 ```json
-"recovery": { "action": "cli_login", "command": "codex login" }
+"recovery": { "action": "cli_login", "command": "codex login", "account_id": "codex:work" }
 ```
+
+Headroom never refreshes a CLI-owned sign-in itself: a refresh with the CLI's refresh token would
+rotate it and sign the CLI out. No supported CLI has a command known to refresh its token without
+starting a session (`claude auth status` only reads the stored sign-in), so recovery waits for the
+CLI: every retry and every backoff refresh (1, 2, 4 … 30 minutes)
+reads the credential file again, and the credential watcher refreshes the account as soon as the CLI
+rewrites that file, whether after `claude auth login` or after the CLI refreshed its own token the
+next time it ran.
 
 An account without an active subscription:
 
@@ -727,7 +737,7 @@ not list a 7-day period.
       ],
       "notices": [],
       "usage_home": "~/.codex",
-      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": "2026-09-23T10:03:00Z", "reason": "schedule" },
+      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": "2026-09-23T10:03:00Z", "reason": "schedule", "last_attempt_at": "2026-09-23T09:58:00Z" },
       "collapsed": false
     },
     {
@@ -744,7 +754,7 @@ not list a 7-day period.
         "kind": "sign_in_expired",
         "message": "sign-in expired, open the CLI to sign in again"
       },
-      "recovery": { "action": "cli_login", "command": "claude auth login --claudeai" },
+      "recovery": { "action": "cli_login", "command": "claude auth login --claudeai", "account_id": "claude:main" },
       "updated_at": "2026-09-23T09:00:00Z",
       "source": "cache",
       "windows": [
@@ -769,7 +779,7 @@ not list a 7-day period.
       "balances": [],
       "notices": [],
       "usage_home": "~/.claude",
-      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": null, "reason": "backoff" },
+      "refresh": { "mode": "idle", "interval_secs": 300, "next_at": null, "reason": "backoff", "last_attempt_at": null },
       "collapsed": false
     }
   ],
@@ -1100,6 +1110,7 @@ Refresh:
 | `interval_secs` | integer | The interval in effect: `60` in `live` mode, `refresh_interval_secs` in `idle` mode. Never below `60`. |
 | `next_at` | timestamp \| null | This account's next scheduled refresh; `null` while it is refreshing or has no schedule. The same value that feeds the state's `next_refresh_at`. |
 | `reason` | string | Why `next_at` is what it is: `hold` after a provider rate limit or a `no_subscription` answer (the retry time the provider asked for, or the hourly recheck), `backoff` after any other failure (1, 2, 4 … 30 minutes), otherwise `activity` in `live` mode and `schedule` in `idle` mode. |
+| `last_attempt_at` | timestamp \| null | When this daemon last finished a refresh of the account, successful or not; `null` before the first attempt since the daemon started. A Retry that ends in the same error still moves it, so a shell can tell the attempt finished. Older daemons omit it. |
 
 Adaptive refresh only ever moves a refresh earlier while the last refresh succeeded: when a usage
 home turns live, each of its accounts is rescheduled to 60 s after its previous attempt (at once
@@ -1109,7 +1120,7 @@ recheck, and jitter only lengthens the 60 s interval, so no account is polled mo
 it uses `refresh_interval_secs`; `mode` switches to `idle` as soon as the 10 minutes are over.
 
 ```json
-"refresh": { "mode": "live", "interval_secs": 60, "next_at": "2026-09-23T10:01:00Z", "reason": "activity" }
+"refresh": { "mode": "live", "interval_secs": 60, "next_at": "2026-09-23T10:01:00Z", "reason": "activity", "last_attempt_at": "2026-09-23T10:00:00Z" }
 ```
 
 ### Provider status
@@ -1568,10 +1579,24 @@ keeps its id, label, order and hidden setting. A home that holds an API key asks
 (`--api-key-stdin`, or a hidden prompt in a terminal); the key is checked and replaces the stored one.
 Any other home runs the provider's login CLI with its config dir set to that home; the login must
 leave a changed credentials file (or, for credentials kept outside the home, an account the provider
-can read), otherwise it fails. `--api-key-stdin` on such a home fails. When the daemon shows the
-account from a CLI home (`"owner": "cli"`), `login` fails before any `started` with a message that
-names the CLI's own login, e.g. "This account belongs to the Codex CLI — run `codex login`
-instead"; an id that is not signed in anywhere fails with "no signed-in account … found". A failed or
+can read), otherwise it fails. `--api-key-stdin` on such a home fails. An id that is not signed in
+anywhere fails with "no signed-in account … found".
+
+When the daemon shows the account from a CLI home (`"owner": "cli"`, [`recovery`](#account)
+`cli_login`), `login` never writes the CLI's files: it opens a terminal window running the CLI's own
+login (`claude auth login --claudeai`, `codex login`, …) and returns. The terminal is the first of
+`xdg-terminal-exec`, `$TERMINAL`, `kgx`, `ptyxis`, `gnome-terminal`, `konsole`, `foot`, `kitty`,
+`alacritty`, `wezterm` and `xterm` that is installed and does not fail at once; on macOS it is
+Terminal (`open -a Terminal` with a one-shot `.command` script). The login runs through `env`: for the
+CLI's default directory (`~/.claude`, `~/.codex`, …) with the home variable removed, for any other
+directory with it set (`CLAUDE_CONFIG_DIR=<home>`, `CODEX_HOME=<home>`, `XDG_DATA_HOME=<base>`), so
+the CLI signs in exactly where Headroom reads the account. The window waits for Enter after the login
+ends. `login` prints which terminal it opened (to stderr with `--progress json`, followed by `done`
+with the account id); the account turns fresh when the credential watcher sees the CLI's new file.
+Without a usable terminal it fails, naming the command to run by hand, e.g. "No terminal found to
+sign claude:… in again; run `claude auth login --claudeai` in a terminal yourself".
+`--api-key-stdin`, and CLI accounts of providers without a CLI login, fail with a message that names
+where to sign in instead, e.g. "This account belongs to the Codex CLI — run `codex login` instead". A failed or
 cancelled `login` never deletes the home; the previous credentials stay unless the login CLI itself
 replaced them. After success `login` asks a running daemon to `Rescan` and then `Refresh` the
 account. If the sign-in used a different account than before, the home now holds that account:
