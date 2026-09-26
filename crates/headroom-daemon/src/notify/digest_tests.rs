@@ -13,6 +13,7 @@ fn observed(severity: Severity) -> Observation {
         tone: Tone::Critical,
         resets_at: Some(ts("2026-09-24T10:30:00Z")),
         runs_out_at: None,
+        paused: false,
     }
 }
 

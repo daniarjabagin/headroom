@@ -2,6 +2,7 @@ use super::*;
 use crate::storage::{Storage, settings};
 
 const VERSION_0_5: usize = 8;
+const VERSION_0_6: usize = 9;
 
 fn database_from_0_5(prior_use: &str) -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -75,4 +76,17 @@ fn migrated_onboarding_row_fills_every_other_default() {
     let mut expected = crate::settings::Settings::default();
     expected.onboarding.completed = true;
     assert_eq!(loaded, expected);
+}
+
+#[test]
+fn upgraded_database_from_0_6_gains_empty_quota_samples() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut conn = Connection::open(dir.path().join("headroom.db")).unwrap();
+    migrate_through(&mut conn, VERSION_0_6).unwrap();
+    migrate(&mut conn).unwrap();
+    assert_eq!(user_version(&conn).unwrap(), latest());
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM quota_samples", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(count, 0);
 }

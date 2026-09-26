@@ -47,6 +47,8 @@ async fn climb(core: &Core) {
             account: &work(),
             provider_name: "Codex",
             snapshot: &limits,
+            history: None,
+            live: false,
             settings: settings.clone(),
             display: &DisplaySettings::default(),
             locale: Locale::En,

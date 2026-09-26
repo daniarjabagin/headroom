@@ -183,6 +183,8 @@ fn tone_for(severity: Severity, used: f64, runs_out_in: Option<SignedDuration>) 
         even_pace: None,
         projected: None,
         runs_out_at: runs_out_in.map(|d| now() + d),
+        basis: None,
+        active_left: None,
     };
     tone(&session(used, 150), &pace, now())
 }
@@ -227,6 +229,8 @@ fn imminence_scales_with_long_periods() {
         even_pace: None,
         projected: None,
         runs_out_at: Some(now() + SignedDuration::from_hours(hours)),
+        basis: None,
+        active_left: None,
     };
     assert_eq!(tone(&weekly, &pace_at(25), now()), Tone::Critical);
     assert_eq!(tone(&weekly, &pace_at(26), now()), Tone::Warning);
@@ -283,4 +287,25 @@ fn severity_serializes_snake_case() {
         serde_json::to_string(&Tone::Warning).unwrap(),
         "\"warning\""
     );
+}
+
+#[test]
+fn window_average_basis_is_set_only_when_tracked() {
+    let cases = [
+        (session(40.0, 150), Some(Basis::Window)),
+        (session(60.0, 150), Some(Basis::Window)),
+        (session(0.0, 150), None),
+        (session(100.0, 150), None),
+        (session(50.0, 10), None),
+    ];
+    for (window, expected) in cases {
+        let result = pace(&window, now());
+        assert_eq!(result.basis, expected, "{window:?}");
+        assert_eq!(result.active_left, None);
+    }
+}
+
+#[test]
+fn basis_serializes_snake_case() {
+    assert_eq!(serde_json::to_string(&Basis::Paused).unwrap(), "\"paused\"");
 }

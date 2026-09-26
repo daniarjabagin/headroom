@@ -81,7 +81,9 @@
             "even_pace_percent": 46.0,
             "projected_percent": 82.0,
             "spare_percent": 18.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -98,7 +100,9 @@
             "even_pace_percent": 38.0,
             "projected_percent": 50.0,
             "spare_percent": 50.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -149,7 +153,9 @@
             "even_pace_percent": 76.0,
             "projected_percent": 96.0,
             "spare_percent": 4.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -166,7 +172,9 @@
             "even_pace_percent": 55.0,
             "projected_percent": 151.0,
             "spare_percent": null,
-            "runs_out_at": "2026-09-24T19:00:00Z"
+            "runs_out_at": "2026-09-24T19:00:00Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -183,7 +191,9 @@
             "even_pace_percent": 20.0,
             "projected_percent": null,
             "spare_percent": null,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": null,
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -237,7 +247,9 @@
             "even_pace_percent": null,
             "projected_percent": null,
             "spare_percent": null,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": null,
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -254,7 +266,9 @@
             "even_pace_percent": 70.0,
             "projected_percent": 88.0,
             "spare_percent": 12.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -271,7 +285,9 @@
             "even_pace_percent": 70.0,
             "projected_percent": 17.0,
             "spare_percent": 83.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -383,7 +399,9 @@
             "even_pace_percent": 36.0,
             "projected_percent": 67.0,
             "spare_percent": 33.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -400,7 +418,9 @@
             "even_pace_percent": 73.0,
             "projected_percent": 56.0,
             "spare_percent": 44.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }

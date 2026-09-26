@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use headroom_core::account::AccountId;
+use headroom_core::forecast::{Activity, forecast};
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -15,6 +16,7 @@ use super::quiet::is_quiet_at;
 use super::text::{Alert, Locale, Notification, Subject, Urgency, compose, compose_lapse, heading};
 use crate::error::StorageError;
 use crate::model::window_key;
+use crate::quota_history::{WindowSamples, window_samples};
 use crate::settings::{DisplaySettings, NotificationSettings};
 use crate::storage::Storage;
 use crate::storage::accounts::AccountRecord;
@@ -58,6 +60,8 @@ pub struct Review<'a> {
     pub account: &'a AccountRecord,
     pub provider_name: &'a str,
     pub snapshot: &'a LimitsSnapshot,
+    pub history: Option<&'a WindowSamples>,
+    pub live: bool,
     pub settings: NotificationSettings,
     pub display: &'a DisplaySettings,
     pub locale: Locale,
@@ -162,7 +166,12 @@ impl Alerts {
         window: &QuotaWindow,
     ) -> Result<(), StorageError> {
         let key = (review.account.id().clone(), window_key(&window.id));
-        let observed = Observation::of(window, review.now);
+        let activity = Activity {
+            samples: window_samples(review.history, &key.1),
+            live: review.live,
+        };
+        let pace = forecast(window, activity, review.now);
+        let observed = Observation::of(window, &pace, review.now);
         let previous = self.state(&key);
         let threshold = threshold_for(&review.settings, review.account.reference.provider.as_str());
         let mut evaluation = evaluate(previous.as_ref(), &observed, threshold);

@@ -8,6 +8,7 @@ pub mod held;
 pub mod lapses;
 mod migrations;
 mod private;
+pub mod samples;
 pub mod settings;
 pub mod snapshots;
 pub mod status_cache;

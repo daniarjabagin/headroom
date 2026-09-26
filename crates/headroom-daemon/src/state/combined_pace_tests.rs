@@ -1,4 +1,4 @@
-use headroom_core::pace::{Severity, Tone};
+use headroom_core::pace::{Basis, Severity, Tone};
 
 use super::*;
 use crate::state::test_views::{tracked, window};
@@ -182,4 +182,55 @@ fn a_window_only_one_account_has_keeps_that_account_pace_and_tone() {
     let (pace, tone) = combined_pace(&[&only]);
     assert_eq!(pace, only.pace);
     assert_eq!(tone, Tone::Critical);
+}
+
+fn based(percent: f64, projected: f64, basis: Option<Basis>, left: Option<u64>) -> WindowView {
+    let mut view = projecting(percent, projected);
+    view.pace.basis = basis;
+    view.pace.active_left_seconds = left;
+    view
+}
+
+#[test]
+fn combined_basis_follows_the_members() {
+    let recent = Some(Basis::Recent);
+    let paused = Some(Basis::Paused);
+    let window_basis = Some(Basis::Window);
+    let cases = [
+        ([recent, paused], Some(Basis::Recent)),
+        ([paused, window_basis], Some(Basis::Window)),
+        ([paused, paused], Some(Basis::Paused)),
+        ([paused, None], Some(Basis::Paused)),
+        ([None, None], Some(Basis::Window)),
+    ];
+    for (members, expected) in cases {
+        let first = based(40.0, 60.0, members[0], None);
+        let second = based(40.0, 60.0, members[1], None);
+        let (pace, _) = combined_pace(&[&first, &second]);
+        assert_eq!(pace.basis, expected, "{members:?}");
+    }
+}
+
+#[test]
+fn paused_groups_add_up_the_work_left() {
+    let paused = Some(Basis::Paused);
+    let first = based(40.0, 60.0, paused, Some(600));
+    let second = based(40.0, 60.0, paused, Some(1_200));
+    let left = |a: &WindowView, b: &WindowView| combined_pace(&[a, b]).0.active_left_seconds;
+    assert_eq!(left(&first, &second), Some(1_800));
+    assert_eq!(left(&first, &based(40.0, 60.0, paused, None)), None);
+    let mut spent = used(100.0);
+    spent.pace.severity = Severity::Spent;
+    assert_eq!(left(&first, &spent), Some(600));
+}
+
+#[test]
+fn untracked_or_active_groups_have_no_work_left() {
+    let recent = based(40.0, 60.0, Some(Basis::Recent), None);
+    let paused = based(40.0, 60.0, Some(Basis::Paused), Some(600));
+    let (pace, _) = combined_pace(&[&recent, &paused]);
+    assert_eq!(pace.active_left_seconds, None);
+    let (idle, _) = combined_pace(&[&used(0.0), &used(0.0)]);
+    assert_eq!(idle.basis, None);
+    assert_eq!(idle.active_left_seconds, None);
 }

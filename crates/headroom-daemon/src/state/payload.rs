@@ -1,5 +1,5 @@
 use headroom_core::account::{CredentialOwner, ProviderId};
-use headroom_core::pace::{Severity, Tone};
+use headroom_core::pace::{Basis, Severity, Tone};
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
@@ -212,6 +212,10 @@ pub struct PaceView {
     pub projected_percent: Option<f64>,
     pub spare_percent: Option<f64>,
     pub runs_out_at: Option<Timestamp>,
+    #[serde(default)]
+    pub basis: Option<Basis>,
+    #[serde(default)]
+    pub active_left_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

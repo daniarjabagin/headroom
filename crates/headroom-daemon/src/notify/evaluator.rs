@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use headroom_core::pace::{Severity, Tone, pace, tone};
+use headroom_core::pace::{Basis, Pace, Severity, Tone, tone};
 use headroom_core::quota::QuotaWindow;
 use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
@@ -32,18 +32,20 @@ pub struct Observation {
     pub tone: Tone,
     pub resets_at: Option<Timestamp>,
     pub runs_out_at: Option<Timestamp>,
+    #[serde(default)]
+    pub paused: bool,
 }
 
 impl Observation {
     #[must_use]
-    pub fn of(window: &QuotaWindow, now: Timestamp) -> Observation {
-        let pace = pace(window, now);
+    pub fn of(window: &QuotaWindow, pace: &Pace, now: Timestamp) -> Observation {
         Observation {
             remaining: window.used.remaining().value(),
             severity: pace.severity,
-            tone: tone(window, &pace, now),
+            tone: tone(window, pace, now),
             resets_at: window.resets_at,
             runs_out_at: pace.runs_out_at,
+            paused: pace.basis == Some(Basis::Paused),
         }
     }
 }
@@ -117,6 +119,9 @@ fn reached(observed: &Observation, threshold: u8) -> BTreeSet<Milestone> {
     if observed.remaining < f64::from(threshold) {
         reached.insert(Milestone::AlmostOut);
     }
+    if observed.paused {
+        return reached;
+    }
     if observed.severity >= Severity::Close {
         reached.insert(Milestone::CuttingItClose);
     }
@@ -134,7 +139,7 @@ fn rearm(fired: &mut BTreeSet<Milestone>, observed: &Observation, threshold: u8)
     if observed.remaining >= f64::from(threshold) + ALMOST_OUT_REARM_MARGIN {
         fired.remove(&Milestone::AlmostOut);
     }
-    if observed.severity < Severity::Close {
+    if observed.severity < Severity::Close && !observed.paused {
         fired.remove(&Milestone::CuttingItClose);
         fired.remove(&Milestone::WillRunOut);
     }

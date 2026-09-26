@@ -10,6 +10,16 @@ pub struct Pace {
     pub even_pace: Option<Percent>,
     pub projected: Option<Percent>,
     pub runs_out_at: Option<Timestamp>,
+    pub basis: Option<Basis>,
+    pub active_left: Option<SignedDuration>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Basis {
+    Recent,
+    Window,
+    Paused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -55,7 +65,17 @@ pub fn pace(window: &QuotaWindow, now: Timestamp) -> Pace {
         even_pace,
         projected,
         runs_out_at,
+        basis: is_tracked(severity).then_some(Basis::Window),
+        active_left: None,
     }
+}
+
+#[must_use]
+pub fn is_tracked(severity: Severity) -> bool {
+    matches!(
+        severity,
+        Severity::Healthy | Severity::Close | Severity::RunningOut
+    )
 }
 
 #[must_use]
@@ -112,16 +132,17 @@ fn tone_by_usage(used: Percent) -> Tone {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Timing {
-    start: Timestamp,
-    reset: Timestamp,
+pub(crate) struct Timing {
+    pub(crate) start: Timestamp,
+    pub(crate) reset: Timestamp,
+    pub(crate) period: SignedDuration,
     elapsed: SignedDuration,
     progress: f64,
-    young: bool,
+    pub(crate) young: bool,
 }
 
 impl Timing {
-    fn of(window: &QuotaWindow, now: Timestamp) -> Option<Timing> {
+    pub(crate) fn of(window: &QuotaWindow, now: Timestamp) -> Option<Timing> {
         let reset = window.resets_at?;
         let period = window.period.filter(SignedDuration::is_positive)?;
         if reset <= now {
@@ -134,6 +155,7 @@ impl Timing {
         Some(Timing {
             start,
             reset,
+            period,
             elapsed,
             progress,
             young,
@@ -160,20 +182,26 @@ fn project(used: Percent, timing: Option<Timing>, now: Timestamp) -> Projection 
         return untracked;
     };
     let projected = used / timing.progress;
-    let severity = if projected <= HEALTHY_PROJECTION {
-        Severity::Healthy
-    } else if used < MIN_TRACKED_USED {
+    let Some(severity) = classify(used, projected) else {
         return untracked;
-    } else if projected <= CLOSE_PROJECTION {
-        Severity::Close
-    } else {
-        Severity::RunningOut
     };
     let runs_out_at = timing.runs_out_at(used, now);
     (severity, Some(Percent::new(projected)), runs_out_at)
 }
 
-fn is_spent(used: Percent) -> bool {
+pub(crate) fn classify(used: f64, projected: f64) -> Option<Severity> {
+    if projected <= HEALTHY_PROJECTION {
+        Some(Severity::Healthy)
+    } else if used < MIN_TRACKED_USED {
+        None
+    } else if projected <= CLOSE_PROJECTION {
+        Some(Severity::Close)
+    } else {
+        Some(Severity::RunningOut)
+    }
+}
+
+pub(crate) fn is_spent(used: Percent) -> bool {
     used.remaining().value().round() <= 0.0
 }
 

@@ -57,6 +57,8 @@ pub fn tracked(mut window: WindowView, severity: Severity, projected: f64) -> Wi
         projected_percent: Some(projected),
         spare_percent: None,
         runs_out_at: None,
+        basis: None,
+        active_left_seconds: None,
     };
     window
 }
@@ -68,6 +70,8 @@ pub fn untracked() -> PaceView {
         projected_percent: None,
         spare_percent: None,
         runs_out_at: None,
+        basis: None,
+        active_left_seconds: None,
     }
 }
 

@@ -128,6 +128,8 @@ async fn observe(
         account,
         provider_name: "Codex",
         snapshot: &limits,
+        history: None,
+        live: false,
         settings: settings.clone(),
         display: &DisplaySettings::default(),
         locale,

@@ -1,4 +1,4 @@
-use headroom_core::pace::{Severity, Tone};
+use headroom_core::pace::{Basis, Severity, Tone};
 use headroom_daemon::state::payload::{AccountView, PaceView, WindowView};
 use jiff::{SignedDuration, Timestamp};
 
@@ -59,17 +59,30 @@ pub fn reset_text(resets_at: Option<Timestamp>, now: Timestamp) -> String {
 }
 
 pub fn pace_note(pace: &PaceView, now: Timestamp) -> Option<Note> {
+    let paused = pace.basis == Some(Basis::Paused);
     let text = match pace.severity {
         Severity::Spent => "limit reached".to_owned(),
+        Severity::RunningOut | Severity::Close if paused => paused_text(pace.active_left_seconds),
         Severity::RunningOut => limit_text(pace.runs_out_at, now),
         Severity::Close => format!("~{}% spare", rounded_percent(pace.spare_percent?)),
         Severity::Healthy | Severity::Untracked => return None,
     };
     let tone = match pace.severity {
         Severity::Close => Tone::Warning,
+        Severity::RunningOut if paused => Tone::Warning,
         _ => Tone::Critical,
     };
     Some(Note { text, tone })
+}
+
+fn paused_text(active_left_seconds: Option<u64>) -> String {
+    match active_left_seconds.and_then(|secs| i64::try_from(secs).ok()) {
+        Some(secs) => format!(
+            "paused · lasts ≈{} of work",
+            duration(SignedDuration::from_secs(secs))
+        ),
+        None => "paused".to_owned(),
+    }
 }
 
 fn limit_text(runs_out_at: Option<Timestamp>, now: Timestamp) -> String {
@@ -164,6 +177,8 @@ mod tests {
             projected_percent: projected,
             spare_percent: spare,
             runs_out_at: runs_out_at.map(ts),
+            basis: None,
+            active_left_seconds: None,
         }
     }
 
@@ -224,6 +239,35 @@ mod tests {
             None
         );
         assert_eq!(pace_note(&pace(Severity::Untracked, None, None), now), None);
+    }
+
+    #[test]
+    fn paused_windows_show_the_work_left_instead_of_a_countdown() {
+        let now = ts("2026-09-23T10:00:00Z");
+        let paused = |severity, left| PaceView {
+            basis: Some(Basis::Paused),
+            active_left_seconds: left,
+            ..pace(severity, Some(120.0), None)
+        };
+        let cases = [
+            (
+                Severity::RunningOut,
+                Some(11_400),
+                Some("paused · lasts ≈3h 10m of work"),
+            ),
+            (
+                Severity::Close,
+                Some(600),
+                Some("paused · lasts ≈10m of work"),
+            ),
+            (Severity::RunningOut, None, Some("paused")),
+            (Severity::Healthy, Some(600), None),
+        ];
+        for (severity, left, expected) in cases {
+            let note = pace_note(&paused(severity, left), now);
+            assert_eq!(note.as_ref().map(|n| n.text.as_str()), expected);
+            assert!(note.is_none_or(|n| n.tone == Tone::Warning));
+        }
     }
 
     #[test]

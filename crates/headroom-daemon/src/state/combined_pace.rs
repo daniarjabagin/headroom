@@ -1,4 +1,4 @@
-use headroom_core::pace::{Severity, Tone};
+use headroom_core::pace::{Basis, Severity, Tone, is_tracked};
 
 use super::payload::{PaceView, WindowView};
 
@@ -42,14 +42,41 @@ pub fn combined_pace(segments: &[&WindowView]) -> (PaceView, Tone) {
     }
     let totals = Totals::of(segments);
     let severity = severity(totals);
+    let basis = is_tracked(severity).then(|| basis(segments));
     let pace = PaceView {
         severity,
         even_pace_percent: totals.even_pace,
         projected_percent: totals.projected.filter(|_| is_tracked(severity)),
         spare_percent: spare(totals, severity),
         runs_out_at: None,
+        basis,
+        active_left_seconds: active_left(segments, basis),
     };
     (pace, tone(totals, severity))
+}
+
+fn basis(segments: &[&WindowView]) -> Basis {
+    let bases = || segments.iter().filter_map(|w| w.pace.basis);
+    if bases().any(|b| b == Basis::Recent) {
+        Basis::Recent
+    } else if bases().next().is_some() && bases().all(|b| b == Basis::Paused) {
+        Basis::Paused
+    } else {
+        Basis::Window
+    }
+}
+
+fn active_left(segments: &[&WindowView], basis: Option<Basis>) -> Option<u64> {
+    if basis != Some(Basis::Paused) {
+        return None;
+    }
+    segments
+        .iter()
+        .map(|w| match w.pace.severity {
+            Severity::Spent => Some(0),
+            _ => w.pace.active_left_seconds,
+        })
+        .try_fold(0_u64, |total, left| total.checked_add(left?))
 }
 
 fn projected_used(window: &WindowView) -> f64 {
@@ -76,13 +103,6 @@ fn severity(totals: Totals) -> Severity {
     } else {
         Severity::RunningOut
     }
-}
-
-fn is_tracked(severity: Severity) -> bool {
-    matches!(
-        severity,
-        Severity::Healthy | Severity::Close | Severity::RunningOut
-    )
 }
 
 fn spare(totals: Totals, severity: Severity) -> Option<f64> {

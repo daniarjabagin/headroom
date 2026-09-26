@@ -57,6 +57,8 @@ async fn review(
         account,
         provider_name: "Codex",
         snapshot: limits,
+        history: None,
+        live: false,
         settings,
         display,
         locale: Locale::En,
@@ -193,6 +195,8 @@ async fn russian_locale_is_used_for_delivery() {
             account: &work(),
             provider_name: "Codex",
             snapshot: &limits,
+            history: None,
+            live: false,
             settings: NotificationSettings::default(),
             display: &display,
             locale: Locale::Ru,
@@ -294,6 +298,36 @@ async fn provider_thresholds_replace_the_global_threshold() {
         ]
     );
     assert!(sent[1].body.starts_with("Under 20% left"));
+}
+
+#[tokio::test]
+async fn a_stale_burst_does_not_warn_while_the_window_is_paused() {
+    let storage = Storage::open_in_memory().unwrap();
+    let notifier = Arc::new(RecordingNotifier::default());
+    let alerts = load(&storage, &notifier);
+    observe(&alerts, &work(), 10.0).await;
+    let burst = headroom_core::history::UsageSample {
+        at: ts("2026-09-23T08:00:00Z"),
+        used: headroom_core::units::Percent::new(70.0),
+    };
+    let history = WindowSamples::from([("session".to_owned(), vec![burst])]);
+    let limits = snapshot(vec![session(70.0, RESET)], NOW);
+    let review = Review {
+        account: &work(),
+        provider_name: "Codex",
+        snapshot: &limits,
+        history: Some(&history),
+        live: false,
+        settings: NotificationSettings::default(),
+        display: &DisplaySettings::default(),
+        locale: Locale::En,
+        now: ts(NOW),
+        tz: &TimeZone::UTC,
+    };
+    alerts.review(&review).await.unwrap();
+    assert!(notifier.texts().is_empty());
+    observe(&alerts, &work(), 70.0).await;
+    assert_eq!(notifier.texts().len(), 1);
 }
 
 #[test]

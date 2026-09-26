@@ -18,6 +18,7 @@ mod log_homes;
 pub mod model;
 pub mod notify;
 mod once;
+pub mod quota_history;
 pub mod random;
 pub mod registry;
 pub mod rescan;
