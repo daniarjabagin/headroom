@@ -11,7 +11,7 @@ const REPORTED_STEP: f64 = 1.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SpendPoint {
     pub at: Timestamp,
-    pub cost: MicroUsd,
+    pub cost: Option<MicroUsd>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -54,35 +54,68 @@ impl Calibration {
         let estimate = (used + since_change).min(used + REPORTED_STEP + since_seen);
         Percent::new(estimate.min(100.0).max(used))
     }
+
+    #[must_use]
+    pub fn contradicts(self, observed: Observed, spend: &[SpendPoint]) -> bool {
+        let unseen = spend_between(spend, observed.changed_at, observed.observed_at);
+        self.percent_of(unseen) > REPORTED_STEP
+    }
+
+    fn add(&mut self, rise: f64, spend: MicroUsd) {
+        self.rise += rise;
+        self.spend += spend;
+    }
 }
 
 #[must_use]
-pub fn calibrate(samples: &[UsageSample], spend: &[SpendPoint]) -> Option<Calibration> {
-    let mut rise = 0.0;
-    let mut cost = MicroUsd::ZERO;
+pub fn calibrate(
+    samples: &[UsageSample],
+    spend: &[SpendPoint],
+    observed_at: Timestamp,
+) -> Option<Calibration> {
+    let last = samples.last()?;
+    let mut calibration = Calibration {
+        rise: 0.0,
+        spend: MicroUsd::ZERO,
+    };
+    calibration.add(0.0, priced_between(spend, last.at, observed_at)?);
     for pair in samples.windows(2).rev() {
         let [earlier, later] = pair else {
             break;
         };
-        rise += (later.used.value() - earlier.used.value()).max(0.0);
-        cost += spend_between(spend, earlier.at, later.at);
-        if rise >= ENOUGH_RISE {
+        let rise = (later.used.value() - earlier.used.value()).max(0.0);
+        calibration.add(rise, priced_between(spend, earlier.at, later.at)?);
+        if calibration.rise >= ENOUGH_RISE {
             break;
         }
     }
-    (rise >= MIN_RISE && cost >= MIN_SPEND).then_some(Calibration { rise, spend: cost })
+    let enough = calibration.rise >= MIN_RISE && calibration.spend >= MIN_SPEND;
+    enough.then_some(calibration)
 }
 
 #[must_use]
 pub fn spend_between(spend: &[SpendPoint], from: Timestamp, to: Timestamp) -> MicroUsd {
+    points_between(spend, from, to)
+        .iter()
+        .filter_map(|point| point.cost)
+        .sum()
+}
+
+#[must_use]
+pub fn has_unpriced(spend: &[SpendPoint], from: Timestamp, to: Timestamp) -> bool {
+    points_between(spend, from, to)
+        .iter()
+        .any(|point| point.cost.is_none())
+}
+
+fn priced_between(spend: &[SpendPoint], from: Timestamp, to: Timestamp) -> Option<MicroUsd> {
+    (!has_unpriced(spend, from, to)).then(|| spend_between(spend, from, to))
+}
+
+fn points_between(spend: &[SpendPoint], from: Timestamp, to: Timestamp) -> &[SpendPoint] {
     let start = spend.partition_point(|point| point.at <= from);
     let end = spend.partition_point(|point| point.at <= to);
-    spend
-        .get(start..end)
-        .unwrap_or_default()
-        .iter()
-        .map(|point| point.cost)
-        .sum()
+    spend.get(start..end).unwrap_or_default()
 }
 
 #[allow(

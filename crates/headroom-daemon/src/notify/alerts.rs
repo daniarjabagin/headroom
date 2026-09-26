@@ -2,8 +2,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use headroom_core::account::AccountId;
-use headroom_core::forecast::{Activity, Signal, forecast};
+use headroom_core::calibration::SpendPoint;
+use headroom_core::forecast::{Activity, Signal, forecast, forecast_with_spend};
 use headroom_core::history::observed_at;
+use headroom_core::pace::Severity;
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -29,6 +31,8 @@ mod release;
 pub use release::Release;
 
 type AlertKey = (AccountId, String);
+
+const PACE_MILESTONES: [Milestone; 2] = [Milestone::WillRunOut, Milestone::CuttingItClose];
 
 pub struct Alerts {
     states: Mutex<HashMap<AlertKey, AlertState>>,
@@ -63,6 +67,7 @@ pub struct Review<'a> {
     pub snapshot: &'a LimitsSnapshot,
     pub history: Option<&'a WindowSamples>,
     pub signal: Signal,
+    pub spend: &'a [SpendPoint],
     pub settings: NotificationSettings,
     pub display: &'a DisplaySettings,
     pub locale: Locale,
@@ -177,6 +182,9 @@ impl Alerts {
         let previous = self.state(&key);
         let threshold = threshold_for(&review.settings, review.account.reference.provider.as_str());
         let mut evaluation = evaluate(previous.as_ref(), &observed, threshold);
+        if spend_calms(review, window, activity) {
+            hold_back_pace(previous.as_ref(), &mut evaluation);
+        }
         self.deliver(review, window, &observed, threshold, &mut evaluation)
             .await;
         if previous.as_ref() != Some(&evaluation.state) {
@@ -292,6 +300,27 @@ pub fn threshold_for(settings: &NotificationSettings, provider: &str) -> u8 {
         .unwrap_or(settings.threshold_percent)
 }
 
+fn spend_calms(review: &Review<'_>, window: &QuotaWindow, activity: Activity<'_>) -> bool {
+    !review.spend.is_empty()
+        && forecast_with_spend(window, activity, review.spend, review.now).severity
+            < Severity::Close
+}
+
+fn hold_back_pace(previous: Option<&AlertState>, evaluation: &mut Evaluation) {
+    let Some(previous) = previous else {
+        return;
+    };
+    for milestone in PACE_MILESTONES {
+        let fresh = !previous.fired.contains(&milestone);
+        if fresh && evaluation.state.fired.contains(&milestone) {
+            rollback(&mut evaluation.state, milestone);
+        }
+    }
+    evaluation
+        .alerts
+        .retain(|milestone| !PACE_MILESTONES.contains(milestone));
+}
+
 fn headed(provider: &str, account_name: Option<&str>) -> String {
     match account_name {
         Some(name) => format!("{provider} · {name}"),
@@ -315,3 +344,7 @@ mod tests;
 #[cfg(test)]
 #[path = "alerts_quiet_tests.rs"]
 mod quiet_tests;
+
+#[cfg(test)]
+#[path = "alerts_spend_tests.rs"]
+mod spend_tests;

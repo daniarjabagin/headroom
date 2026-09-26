@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
 use headroom_core::account::{AccountId, AccountRef};
 use headroom_core::calibration::SpendPoint;
-use headroom_core::forecast::{Liveness, Signal};
+use headroom_core::forecast::{Liveness, Signal, follows_spend};
 use headroom_core::history::{SampleStep, UsageSample, is_retained, observed_at, sample_step};
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
 use jiff::Timestamp;
@@ -57,13 +57,21 @@ impl QuotaHistory {
         self.spend.insert(home.clone(), points.into());
     }
 
+    pub fn retain_spend(&mut self, homes: &BTreeSet<UsageHome>) {
+        self.spend.retain(|home, _| homes.contains(home));
+    }
+
     #[must_use]
-    pub fn spend_of(&self, homes: &[UsageHome]) -> Vec<SpendPoint> {
-        merge_spend(
-            homes
-                .iter()
-                .filter_map(|home| self.spend.get(home).map(AsRef::as_ref)),
-        )
+    pub fn spend_of(&self, homes: &[UsageHome]) -> Arc<[SpendPoint]> {
+        let found: Vec<&Arc<[SpendPoint]>> = homes
+            .iter()
+            .filter_map(|home| self.spend.get(home))
+            .collect();
+        match found.as_slice() {
+            [] => Arc::from([]),
+            [only] => Arc::clone(only),
+            many => merge_spend(many.iter().map(|points| &points[..])).into(),
+        }
     }
 
     fn prune(&mut self, now: Timestamp) {
@@ -92,7 +100,27 @@ impl Model {
     }
 
     #[must_use]
-    pub fn account_spend(&self, account: &AccountRef) -> Vec<SpendPoint> {
+    pub fn live_spend(
+        &self,
+        account: &AccountRef,
+        snapshot: &LimitsSnapshot,
+        signal: Signal,
+    ) -> Arc<[SpendPoint]> {
+        let short = snapshot.windows.iter().any(follows_spend);
+        if signal.liveness == Liveness::Live && short {
+            self.account_spend(account)
+        } else {
+            Arc::from([])
+        }
+    }
+
+    pub fn store_spend(&mut self, home: &UsageHome, points: Vec<SpendPoint>) {
+        self.history.set_spend(home, points);
+        self.history.retain_spend(&self.usage_homes);
+    }
+
+    #[must_use]
+    pub fn account_spend(&self, account: &AccountRef) -> Arc<[SpendPoint]> {
         let homes: Vec<UsageHome> = std::iter::once(account.home.clone())
             .chain(self.linked_log_homes(account))
             .map(|home| UsageHome {

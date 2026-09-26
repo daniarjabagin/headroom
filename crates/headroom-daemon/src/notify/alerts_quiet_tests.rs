@@ -136,6 +136,7 @@ async fn observe(
         snapshot: &limits,
         history: None,
         signal: IDLE,
+        spend: &[],
         settings: settings.clone(),
         display: &DisplaySettings::default(),
         locale,

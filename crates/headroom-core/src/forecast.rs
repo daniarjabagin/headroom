@@ -1,6 +1,6 @@
 use jiff::{SignedDuration, Timestamp};
 
-use crate::calibration::{Observed, SpendPoint, calibrate};
+use crate::calibration::{Observed, SpendPoint, calibrate, has_unpriced};
 use crate::history::{UsageSample, current_samples};
 use crate::pace::{Basis, Pace, Severity, Timing, classify, is_spent, is_tracked, pace};
 use crate::pace_rate::{Cadence, last_active_rate, recent_rate};
@@ -35,6 +35,13 @@ struct Evidence<'a> {
     spend: &'a [SpendPoint],
     cadence: Cadence,
     observed_at: Timestamp,
+}
+
+#[must_use]
+pub fn follows_spend(window: &QuotaWindow) -> bool {
+    window
+        .period
+        .is_some_and(|period| period <= RECENT_MAX_PERIOD)
 }
 
 #[must_use]
@@ -87,22 +94,25 @@ fn spend_forecast(
     evidence: Evidence<'_>,
     now: Timestamp,
 ) -> Option<Pace> {
-    let calibration = calibrate(evidence.samples, evidence.spend)?;
+    let calibration = calibrate(evidence.samples, evidence.spend, evidence.observed_at)?;
     let from = now
         .checked_sub(evidence.cadence.lookback())
         .ok()?
         .max(timing.start);
-    let rate = calibration.rate(evidence.spend, from, now)?;
-    let changed_at = evidence
-        .samples
-        .last()
-        .filter(|last| last.used == window.used)
-        .map_or(evidence.observed_at, |last| last.at);
     let observed = Observed {
         used: window.used,
-        changed_at,
+        changed_at: evidence
+            .samples
+            .last()
+            .filter(|last| last.used == window.used)
+            .map_or(evidence.observed_at, |last| last.at),
         observed_at: evidence.observed_at,
     };
+    let unpriced = has_unpriced(evidence.spend, from.min(observed.changed_at), now);
+    if unpriced || calibration.contradicts(observed, evidence.spend) {
+        return None;
+    }
+    let rate = calibration.rate(evidence.spend, from, now)?;
     let used = calibration.estimate_used(observed, evidence.spend, now);
     Some(recent(window, used, average, timing, rate, now))
 }

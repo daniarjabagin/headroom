@@ -55,6 +55,7 @@ async fn climb(core: &Core) {
             snapshot: &limits,
             history: None,
             signal: IDLE,
+            spend: &[],
             settings: settings.clone(),
             display: &DisplaySettings::default(),
             locale: Locale::En,

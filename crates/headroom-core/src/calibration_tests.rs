@@ -20,7 +20,7 @@ fn sample(mins: i64, used: f64) -> UsageSample {
 fn spent(mins: i64, micros: i64) -> SpendPoint {
     SpendPoint {
         at: ago(mins),
-        cost: MicroUsd(micros),
+        cost: Some(MicroUsd(micros)),
     }
 }
 
@@ -82,7 +82,7 @@ fn calibration_needs_enough_rise_and_spend() {
         ),
     ];
     for (samples, spend, expected) in cases {
-        let calibration = calibrate(&samples, &spend);
+        let calibration = calibrate(&samples, &spend, ago(10));
         let expected = expected.map(|(rise, micros)| Calibration {
             rise,
             spend: MicroUsd(micros),
@@ -104,7 +104,7 @@ fn calibration_uses_the_latest_pairs_up_to_enough_rise() {
         spent(40, 900_000),
         spent(20, 2_000_000),
     ];
-    let calibration = calibrate(&samples, &spend).unwrap();
+    let calibration = calibrate(&samples, &spend, ago(10)).unwrap();
     assert_eq!(
         calibration,
         Calibration {
@@ -116,7 +116,7 @@ fn calibration_uses_the_latest_pairs_up_to_enough_rise() {
 }
 
 fn calibrated() -> Calibration {
-    calibrate(&steady_steps(), &steady_spend()).unwrap()
+    calibrate(&steady_steps(), &steady_spend(), ago(10)).unwrap()
 }
 
 fn observed(used: f64, changed: i64, seen: i64) -> Observed {
@@ -163,4 +163,68 @@ fn the_rate_is_calibrated_spend_per_second() {
     assert!(close_to(rate, 6.0 / 1_800.0));
     assert_eq!(calibration.rate(&[], ago(30), now()), None);
     assert_eq!(calibration.rate(&spend, now(), now()), None);
+}
+
+fn unpriced(mins: i64) -> SpendPoint {
+    SpendPoint {
+        at: ago(mins),
+        cost: None,
+    }
+}
+
+#[test]
+fn spend_since_the_last_step_without_a_step_dilutes_the_ratio() {
+    let mut spend = steady_spend();
+    spend.push(spent(5, 300_000));
+    let calibration = calibrate(&steady_steps(), &spend, ago(2)).unwrap();
+    assert_eq!(
+        calibration,
+        Calibration {
+            rise: 3.0,
+            spend: MicroUsd(600_000),
+        }
+    );
+    let before_the_poll = calibrate(&steady_steps(), &spend, ago(10)).unwrap();
+    assert!(close_to(before_the_poll.percent_of(MicroUsd(100_000)), 1.0));
+}
+
+#[test]
+fn unpriced_usage_inside_the_calibration_leaves_it_out() {
+    let with = |point: SpendPoint| {
+        let mut spend = steady_spend();
+        spend.push(point);
+        spend.sort_unstable();
+        calibrate(&steady_steps(), &spend, ago(2))
+    };
+    assert_eq!(with(unpriced(25)), None);
+    assert_eq!(with(unpriced(5)), None);
+    assert!(with(unpriced(45)).is_some());
+    assert!(with(unpriced(1)).is_some());
+}
+
+#[test]
+fn unpriced_points_weigh_nothing_but_are_found() {
+    let spend = [spent(20, 100), unpriced(15), spent(10, 1_000)];
+    assert_eq!(spend_between(&spend, ago(30), now()), MicroUsd(1_100));
+    assert!(has_unpriced(&spend, ago(30), now()));
+    assert!(!has_unpriced(&spend, ago(15), now()));
+    assert!(!has_unpriced(&spend, ago(30), ago(20)));
+}
+
+#[test]
+fn spend_the_provider_should_have_shown_contradicts_the_calibration() {
+    let calibration = calibrated();
+    let cases = [
+        (observed(43.0, 10, 2), vec![spent(5, 100_000)], false),
+        (observed(43.0, 10, 2), vec![spent(5, 100_001)], true),
+        (observed(43.0, 10, 2), vec![spent(1, 900_000)], false),
+        (observed(43.0, 10, 10), vec![spent(5, 900_000)], false),
+    ];
+    for (observation, spend, expected) in cases {
+        assert_eq!(
+            calibration.contradicts(observation, &spend),
+            expected,
+            "{observation:?} {spend:?}"
+        );
+    }
 }

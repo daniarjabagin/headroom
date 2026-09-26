@@ -38,7 +38,7 @@ fn steady_spend() -> Vec<SpendPoint> {
         .rev()
         .map(|mins| SpendPoint {
             at: ts(NOW) - SignedDuration::from_mins(mins),
-            cost: MicroUsd(20_000),
+            cost: Some(MicroUsd(20_000)),
         })
         .collect()
 }
@@ -47,7 +47,7 @@ fn burst_spend() -> Vec<SpendPoint> {
     let mut spend = steady_spend();
     spend.push(SpendPoint {
         at: ts(NOW) - SignedDuration::from_secs(30),
-        cost: MicroUsd(1_500_000),
+        cost: Some(MicroUsd(1_500_000)),
     });
     spend
 }
