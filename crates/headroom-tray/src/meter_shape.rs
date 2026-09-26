@@ -3,6 +3,7 @@ pub const TRACK_HEIGHT: f64 = 5.0;
 pub const TICK_WIDTH: f64 = 2.0;
 pub const TICK_RADIUS: f64 = 1.0;
 pub const SEGMENT_GAP: f64 = 2.0;
+pub const SHEEN_MIN_FRACTION: f64 = 0.03;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -29,6 +30,21 @@ pub fn fill_width(width: f64, fraction: f64) -> f64 {
         return 0.0;
     }
     (width * fraction).round().max(TRACK_HEIGHT).min(width)
+}
+
+#[must_use]
+pub fn shows_sheen(fraction: f64) -> bool {
+    fraction >= SHEEN_MIN_FRACTION
+}
+
+#[must_use]
+pub fn sheen_rect(width: f64, height: f64, track: f64, fraction: f64) -> Option<Rect> {
+    shows_sheen(fraction).then(|| Rect {
+        x: 0.0,
+        y: ((height - track) / 2.0).round(),
+        width: fill_width(width, fraction),
+        height: track,
+    })
 }
 
 #[must_use]
@@ -119,6 +135,27 @@ mod tests {
         assert!((fill_width(200.0, 0.001) - TRACK_HEIGHT).abs() < 1e-9);
         assert!((fill_width(200.0, 0.5) - 100.0).abs() < 1e-9);
         assert!((fill_width(200.0, 1.5) - 200.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sheen_covers_the_fill_and_skips_slivers() {
+        assert_eq!(
+            sheen_rect(200.0, 9.0, TRACK_HEIGHT, 0.5),
+            Some(Rect {
+                x: 0.0,
+                y: 2.0,
+                width: 100.0,
+                height: TRACK_HEIGHT,
+            })
+        );
+        assert_eq!(
+            sheen_rect(200.0, 8.0, 4.0, 1.2).map(|rect| (rect.y, rect.width)),
+            Some((2.0, 200.0))
+        );
+        assert_eq!(sheen_rect(200.0, 9.0, TRACK_HEIGHT, 0.029), None);
+        assert!(sheen_rect(200.0, 9.0, TRACK_HEIGHT, SHEEN_MIN_FRACTION).is_some());
+        assert!(!shows_sheen(0.0));
+        assert!(shows_sheen(0.03));
     }
 
     #[test]

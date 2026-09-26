@@ -62,6 +62,8 @@ pub struct OtherModels {
     pub total_tokens: u64,
     pub cost_usd_micros: i64,
     pub partial: bool,
+    #[serde(default)]
+    pub cost_per_mtok_usd_micros: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]

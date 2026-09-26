@@ -12,7 +12,6 @@ const PERIODS: [SpendPeriod; 4] = [
 ];
 const UNITS: [SpendUnit; 3] = [SpendUnit::Cost, SpendUnit::Tokens, SpendUnit::CostPerMtok];
 const MISSING: &str = "—";
-const MICROS_PER_MILLION_TOKENS: u128 = 1_000_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SpendOverride {
@@ -77,6 +76,11 @@ impl SpendChoice {
             SpendUnit::Tokens | SpendUnit::CostPerMtok => Basis::Tokens,
         }
     }
+}
+
+#[must_use]
+pub fn shows_breakdown(display: &Display, spend: &Spend) -> bool {
+    display.show_breakdown && spend.has_projects()
 }
 
 #[must_use]
@@ -180,17 +184,6 @@ pub fn slice_values(choice: SpendChoice, period: &PeriodSpend) -> Vec<f64> {
 #[must_use]
 pub fn per_mtok_text(micros: Option<i64>) -> String {
     micros.map_or_else(|| MISSING.to_owned(), usd)
-}
-
-#[must_use]
-pub fn per_mtok_of(cost_micros: i64, tokens: u64, partial: bool) -> Option<i64> {
-    if partial || tokens == 0 || cost_micros < 0 {
-        return None;
-    }
-    let cost = u128::try_from(cost_micros).ok()?;
-    let tokens = u128::from(tokens);
-    let micros = (cost * MICROS_PER_MILLION_TOKENS * 2 + tokens) / (tokens * 2);
-    i64::try_from(micros).ok()
 }
 
 #[must_use]

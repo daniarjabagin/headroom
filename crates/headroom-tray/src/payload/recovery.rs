@@ -10,7 +10,10 @@ pub enum Recovery {
         account_id: Option<String>,
     },
     CliLogin {
+        #[serde(default)]
         command: String,
+        #[serde(default)]
+        account_id: Option<String>,
     },
     #[serde(other)]
     Unknown,

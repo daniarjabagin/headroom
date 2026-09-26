@@ -84,6 +84,18 @@ fn periods_and_units_depend_on_the_daemon() {
 }
 
 #[test]
+fn the_breakdown_follows_the_setting_and_the_payload() {
+    let shown = Display::default();
+    assert!(shows_breakdown(&shown, &spend(false, true)));
+    assert!(!shows_breakdown(&shown, &spend(false, false)));
+    let hidden = Display {
+        show_breakdown: false,
+        ..Display::default()
+    };
+    assert!(!shows_breakdown(&hidden, &spend(false, true)));
+}
+
+#[test]
 fn ring_centers_per_unit() {
     let period = period(127_650_000, 182_900_000);
     let cost = ring_center(Lang::En, SpendUnit::Cost, &period);
@@ -114,14 +126,6 @@ fn slices_follow_the_basis() {
     let mut free = period.clone();
     free.cost_usd_micros = 0;
     assert_eq!(basis_of(Basis::Cost, &free), Basis::Tokens);
-}
-
-#[test]
-fn per_million_tokens_rounds_half_up_and_skips_partial() {
-    assert_eq!(per_mtok_of(1_000_000, 3_000_000, false), Some(333_333));
-    assert_eq!(per_mtok_of(1, 2_000_000, false), Some(1));
-    assert_eq!(per_mtok_of(5, 0, false), None);
-    assert_eq!(per_mtok_of(5, 10, true), None);
 }
 
 #[test]

@@ -25,7 +25,7 @@ use crate::view::View;
 
 #[derive(PartialEq)]
 enum LeadingKey {
-    TopBar,
+    TopBar(LookKey),
     Spend {
         look: LookKey,
         spend: Box<Spend>,
@@ -85,15 +85,18 @@ struct Pass<'m> {
 
 impl Mounted {
     fn leading(&mut self, ctx: &Ctx, spend: Option<&Spend>, frame: &Frame) -> gtk::Widget {
-        let key = spend.map_or(LeadingKey::TopBar, |spend| LeadingKey::Spend {
-            look: LookKey::of(ctx),
-            spend: Box::new(spend.clone()),
-            choice: ctx.spend,
-        });
+        let key = spend.map_or_else(
+            || LeadingKey::TopBar(LookKey::of(ctx)),
+            |spend| LeadingKey::Spend {
+                look: LookKey::of(ctx),
+                spend: Box::new(spend.clone()),
+                choice: ctx.spend,
+            },
+        );
         let refresh: gtk::Widget = self.refresh.widget.clone().upcast();
         let (kept, _) = Keyed::reuse(self.leading.take(), key, ctx, |_| match spend {
             Some(spend) => spend_section(ctx, spend, &refresh, frame.animate).upcast(),
-            None => top_bar(&refresh).upcast(),
+            None => top_bar(ctx, &refresh).upcast(),
         });
         let widget = kept.widget.clone();
         self.leading = Some(kept);

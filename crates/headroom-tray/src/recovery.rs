@@ -6,7 +6,8 @@ pub enum NoticeButton {
     Retry,
     SignIn,
     SignInAgain { account_id: String },
-    CopyCommand { command: String },
+    CliSignIn { account_id: String },
+    CopyCommand { command: String, primary: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -22,23 +23,64 @@ pub struct ButtonModel {
     pub primary: bool,
 }
 
+fn chosen_id(offered: Option<&String>, account: &Account) -> String {
+    offered
+        .filter(|id| !id.trim().is_empty())
+        .map_or_else(|| account.id.clone(), |id| id.trim().to_owned())
+}
+
+fn cli_login_buttons(
+    account: &Account,
+    command: &str,
+    account_id: Option<&String>,
+) -> Vec<NoticeButton> {
+    let command = command.trim();
+    let sign_in = account_id.is_some_and(|id| !id.trim().is_empty());
+    let mut buttons = Vec::new();
+    if sign_in {
+        buttons.push(NoticeButton::CliSignIn {
+            account_id: chosen_id(account_id, account),
+        });
+        buttons.push(NoticeButton::Retry);
+    }
+    if !command.is_empty() {
+        buttons.push(NoticeButton::CopyCommand {
+            command: command.to_owned(),
+            primary: !sign_in,
+        });
+    }
+    if buttons.is_empty() {
+        buttons.push(NoticeButton::Retry);
+    }
+    buttons
+}
+
 fn offered_buttons(account: &Account, recovery: &Recovery) -> Vec<NoticeButton> {
     match recovery {
         Recovery::SignIn { account_id } => vec![NoticeButton::SignInAgain {
-            account_id: account_id
-                .clone()
-                .filter(|id| !id.is_empty())
-                .unwrap_or_else(|| account.id.clone()),
+            account_id: chosen_id(account_id.as_ref(), account),
         }],
-        Recovery::CliLogin { command } if !command.trim().is_empty() => {
-            vec![NoticeButton::CopyCommand {
-                command: command.trim().to_owned(),
-            }]
-        }
-        Recovery::Retry | Recovery::CliLogin { .. } | Recovery::Unknown => {
-            vec![NoticeButton::Retry]
-        }
+        Recovery::CliLogin {
+            command,
+            account_id,
+        } => cli_login_buttons(account, command, account_id.as_ref()),
+        Recovery::Retry | Recovery::Unknown => vec![NoticeButton::Retry],
     }
+}
+
+#[must_use]
+pub fn button_rows(buttons: &[NoticeButton]) -> Vec<Vec<NoticeButton>> {
+    if buttons.len() <= 2 {
+        return vec![buttons.to_vec()];
+    }
+    let (copy, rest): (Vec<NoticeButton>, Vec<NoticeButton>) = buttons
+        .iter()
+        .cloned()
+        .partition(|button| matches!(button, NoticeButton::CopyCommand { .. }));
+    [rest, copy]
+        .into_iter()
+        .filter(|row| !row.is_empty())
+        .collect()
 }
 
 #[must_use]
@@ -59,7 +101,7 @@ pub fn notice_buttons(
 
 #[must_use]
 pub fn cli_login_hint(lang: Lang, account: &Account) -> Option<String> {
-    let RecoveryField::Offered(Recovery::CliLogin { command }) = &account.recovery else {
+    let RecoveryField::Offered(Recovery::CliLogin { command, .. }) = &account.recovery else {
         return None;
     };
     let command = command.trim();
@@ -76,10 +118,10 @@ pub fn button_model(lang: Lang, button: &NoticeButton, state: ButtonState) -> Bu
     let (label, busy, primary) = match button {
         NoticeButton::Retry if state.busy => ("Retrying…", true, false),
         NoticeButton::Retry => ("Retry", false, false),
-        NoticeButton::SignIn => ("Sign in…", false, true),
+        NoticeButton::SignIn | NoticeButton::CliSignIn { .. } => ("Sign in…", false, true),
         NoticeButton::SignInAgain { .. } => ("Sign in again…", false, true),
-        NoticeButton::CopyCommand { .. } if state.copied => ("Copied", false, true),
-        NoticeButton::CopyCommand { .. } => ("Copy command", false, true),
+        NoticeButton::CopyCommand { primary, .. } if state.copied => ("Copied", false, *primary),
+        NoticeButton::CopyCommand { primary, .. } => ("Copy command", false, *primary),
     };
     ButtonModel {
         label: lang.tr(label),

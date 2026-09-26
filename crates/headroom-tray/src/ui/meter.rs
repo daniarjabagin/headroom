@@ -11,6 +11,7 @@ use crate::meter_shape::{
 use crate::palette::Rgba;
 use crate::ui::draw::{capsule, fill, rounded_rect, set_color};
 use crate::ui::motion;
+use crate::ui::sheen::{Sheen, SheenTrack};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MeterColors {
@@ -79,12 +80,25 @@ fn draw(cr: &cairo::Context, width: f64, height: f64, track: f64, parts: &[Meter
     }
 }
 
-fn area(size: MeterSize) -> gtk::DrawingArea {
+fn plain_area(size: MeterSize) -> gtk::DrawingArea {
     let area = gtk::DrawingArea::new();
     area.set_content_height(size.height);
     area.set_hexpand(true);
+    area
+}
+
+fn area(size: MeterSize) -> gtk::DrawingArea {
+    let area = plain_area(size);
     area.add_css_class("headroom-meter");
     area
+}
+
+fn sheen_frame(area: &gtk::DrawingArea) -> gtk::Overlay {
+    let frame = gtk::Overlay::new();
+    frame.set_child(Some(area));
+    frame.set_hexpand(true);
+    frame.add_css_class("headroom-meter");
+    frame
 }
 
 pub struct SegmentedMeter {
@@ -133,14 +147,26 @@ impl Shown {
 }
 
 pub struct Meter {
+    pub widget: gtk::Overlay,
     pub area: gtk::DrawingArea,
     shown: Rc<Shown>,
     animation: adw::TimedAnimation,
+    sheen: Sheen,
+}
+
+fn attach_sheen(frame: &gtk::Overlay, shown: &Rc<Shown>, size: MeterSize) -> Sheen {
+    let source = Rc::clone(shown);
+    let track = SheenTrack {
+        height: size.track,
+        target: shown.part.get().fraction,
+    };
+    Sheen::attach(frame, track, Rc::new(move || source.fraction.get()))
 }
 
 impl Meter {
     pub fn new(part: MeterPart, animate: bool, size: MeterSize) -> Self {
-        let area = area(size);
+        let area = plain_area(size);
+        let widget = sheen_frame(&area);
         let shown = Rc::new(Shown {
             fraction: Cell::new(if animate { 0.0 } else { part.fraction }),
             from: Cell::new(0.0),
@@ -155,8 +181,14 @@ impl Meter {
             };
             draw(cr, f64::from(width), f64::from(height), size.track, &[part]);
         });
-        let stepped = Rc::clone(&shown);
-        let animation = motion::progress_animation(&area, move |progress| stepped.step(progress));
+        let sheen = attach_sheen(&widget, &shown, size);
+        let (stepped, frame) = (Rc::clone(&shown), widget.downgrade());
+        let animation = motion::progress_animation(&area, move |progress| {
+            stepped.step(progress);
+            if let Some(frame) = frame.upgrade() {
+                frame.queue_allocate();
+            }
+        });
         if animate {
             let (first, grown) = (animation.clone(), Rc::clone(&shown));
             motion::on_first_map(&area, move || {
@@ -165,9 +197,11 @@ impl Meter {
             });
         }
         Self {
+            widget,
             area,
             shown,
             animation,
+            sheen,
         }
     }
 
@@ -188,6 +222,7 @@ impl Meter {
             self.animation.reset();
             self.shown.fraction.set(part.fraction);
         }
+        self.sheen.follow(part.fraction);
         self.area.queue_draw();
     }
 }

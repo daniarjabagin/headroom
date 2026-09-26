@@ -48,6 +48,7 @@ fn providers() -> Vec<ProviderSpend> {
             total_tokens: 1_900_000,
             cost_usd_micros: 1_490_000,
             partial: false,
+            cost_per_mtok_usd_micros: Some(784_211),
         }),
     );
     let codex = provider(
@@ -197,4 +198,27 @@ fn the_model_card_lists_one_provider() {
     assert!(card.folded);
     let bare = provider("x", "X", Vec::new(), None);
     assert!(model_card(Lang::En, SpendUnit::Cost, Basis::Cost, "t", &bare).is_none());
+}
+
+#[test]
+fn other_rates_come_only_from_the_daemon() {
+    let period = period();
+    let list = model_list(Lang::En, SpendUnit::CostPerMtok, Basis::Cost, &period);
+    assert_eq!(list.rows[5].name, "Other");
+    assert_eq!(list.rows[5].value, "—");
+    let card = model_card(
+        Lang::En,
+        SpendUnit::CostPerMtok,
+        Basis::Cost,
+        "Last 30 days",
+        &period.by_provider[0],
+    )
+    .unwrap();
+    assert_eq!(card.lines[3].value, "$0.78");
+    let mut single = period.clone();
+    single.by_provider.truncate(1);
+    single.by_provider[0].models.truncate(2);
+    let list = model_list(Lang::En, SpendUnit::CostPerMtok, Basis::Cost, &single);
+    assert_eq!(list.rows[2].name, "Other");
+    assert_eq!(list.rows[2].value, "$0.78");
 }

@@ -109,6 +109,8 @@ mod tests {
                 projected_percent: Some(92.0),
                 spare_percent: Some(8.0),
                 runs_out_at: Some(at("2026-09-25T11:00:00Z")),
+                basis: None,
+                active_left_seconds: None,
             },
             hidden: false,
         }

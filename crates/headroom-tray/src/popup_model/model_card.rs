@@ -36,18 +36,11 @@ fn model_line(scale: Scale, name: String, detail: Option<String>, figures: Figur
 }
 
 fn other_line(scale: Scale, other: &OtherModels) -> ModelLine {
-    let mut folded = Folded::default();
-    folded.add(
-        other.count,
-        other.cost_usd_micros,
-        other.total_tokens,
-        other.partial,
-    );
     model_line(
         scale,
         scale.lang.tr("Other").to_owned(),
         Some(counted(scale.lang, MODEL_FORMS, other.count)),
-        folded.figures(),
+        Folded::from(other).figures(),
     )
 }
 

@@ -1,7 +1,7 @@
 use jiff::tz::TimeZone;
 
 use super::*;
-use crate::payload::{Pace, Tone};
+use crate::payload::{Pace, PaceBasis, Tone};
 
 fn at(text: &str) -> Timestamp {
     text.parse().unwrap()
@@ -25,6 +25,8 @@ fn window(severity: Severity, spare: Option<f64>, runs_out_at: Option<&str>) -> 
             projected_percent: spare.map(|value| 100.0 - value),
             spare_percent: spare,
             runs_out_at: runs_out_at.map(at),
+            basis: None,
+            active_left_seconds: None,
         },
         hidden: false,
     }
@@ -126,6 +128,40 @@ fn forecasts() {
     );
     let spent = window(Severity::Spent, None, None);
     assert_eq!(forecast_text(&locale, &spent, now, &display), None);
+}
+
+#[test]
+fn one_forecast_line_follows_the_pace_basis() {
+    let now = at("2026-09-23T10:00:00Z");
+    let display = Display::default();
+    let mut paused = window(Severity::Healthy, Some(33.4), None);
+    paused.pace.basis = Some(PaceBasis::Paused);
+    paused.pace.active_left_seconds = Some(10_800);
+    assert_eq!(
+        forecast_text(&utc(Lang::En), &paused, now, &display).as_deref(),
+        Some("Paused · lasts ≈3 h of work")
+    );
+    assert_eq!(
+        forecast_text(&utc(Lang::Ru), &paused, now, &display).as_deref(),
+        Some("Пауза · хватит ≈3 ч работы")
+    );
+    paused.pace.active_left_seconds = None;
+    assert_eq!(
+        forecast_text(&utc(Lang::En), &paused, now, &display).as_deref(),
+        Some("Paused")
+    );
+    let mut recent = window(Severity::RunningOut, None, Some("2026-09-23T11:00:00Z"));
+    recent.pace.basis = Some(PaceBasis::Recent);
+    assert_eq!(
+        forecast_text(&utc(Lang::En), &recent, now, &display).as_deref(),
+        Some("At this pace: runs out in 1h 0m · resets in 2h 41m")
+    );
+    let mut averaged = window(Severity::Healthy, Some(33.4), None);
+    averaged.pace.basis = Some(PaceBasis::Window);
+    assert_eq!(
+        forecast_text(&utc(Lang::En), &averaged, now, &display).as_deref(),
+        Some("At this pace: ~33% left at reset")
+    );
 }
 
 #[test]

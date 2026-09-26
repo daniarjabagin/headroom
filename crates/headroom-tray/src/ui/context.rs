@@ -36,6 +36,7 @@ pub enum Action {
     OpenUrl(String),
     SignIn(String),
     SignInAgain(String),
+    CliSignIn(String),
     CopyCommand { account_id: String, command: String },
     OpenSettings,
     Quit,
