@@ -1,6 +1,7 @@
 use gtk::prelude::*;
 
-use crate::popup_model::collapse::MoreSummary;
+use crate::popup_model::collapse::{Attention, MoreAttention, MoreSummary};
+use crate::ui::breakdown::dot;
 use crate::ui::context::{Action, Ctx};
 use crate::ui::header::provider_icon_sized;
 use crate::ui::widgets::{button, icon, label, row};
@@ -8,6 +9,28 @@ use crate::ui::widgets::{button, icon, label, row};
 const GLYPH: i32 = 14;
 const CHEVRON: i32 = 12;
 const SHOW_LESS_ICON: i32 = 10;
+const WARNING_ICON: i32 = 12;
+
+fn attention_mark(ctx: &Ctx, attention: &MoreAttention) -> gtk::Widget {
+    let mark: gtk::Widget = match attention.mark {
+        Attention::Notice => icon(
+            "dialog-warning-symbolic",
+            WARNING_ICON,
+            &["headroom-header-warning"],
+        )
+        .upcast(),
+        Attention::Tone(tone) => dot(ctx.tone_color(tone)).upcast(),
+    };
+    mark.set_tooltip_text(Some(&attention.text));
+    mark
+}
+
+fn tooltip(summary: &MoreSummary) -> String {
+    match &summary.attention {
+        Some(attention) => format!("{}\n{}", summary.names, attention.text),
+        None => summary.names.clone(),
+    }
+}
 
 pub fn more_row(ctx: &Ctx, summary: &MoreSummary) -> gtk::Button {
     let line = row(8, &[]);
@@ -21,13 +44,18 @@ pub fn more_row(ctx: &Ctx, summary: &MoreSummary) -> gtk::Button {
     names.set_hexpand(true);
     names.set_ellipsize(gtk::pango::EllipsizeMode::End);
     line.append(&names);
+    if let Some(attention) = &summary.attention {
+        line.append(&attention_mark(ctx, attention));
+    }
     line.append(&icon("pan-end-symbolic", CHEVRON, &["headroom-caret-icon"]));
     let more = button(
         &line,
         &["headroom-more-row"],
         ctx.action(Action::SetMoreExpanded(true)),
     );
-    more.set_tooltip_text(Some(&summary.names));
+    let text = tooltip(summary);
+    more.set_tooltip_text(Some(&text));
+    more.update_property(&[gtk::accessible::Property::Description(&text)]);
     more
 }
 

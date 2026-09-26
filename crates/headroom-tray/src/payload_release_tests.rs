@@ -217,7 +217,12 @@ fn parses_the_0_6_display_copy() {
 
 #[test]
 fn older_daemons_leave_the_0_6_1_fields_empty() {
-    let state = parse_state(FULL).unwrap();
+    let state = edited(|state| {
+        let pace = &mut state["accounts"][0]["windows"][0]["pace"];
+        remove(pace, "basis");
+        remove(pace, "active_left_seconds");
+        remove(&mut state["display"], "show_breakdown");
+    });
     let pace = &state.accounts[0].windows[0].pace;
     assert_eq!(pace.basis, None);
     assert_eq!(pace.active_left_seconds, None);

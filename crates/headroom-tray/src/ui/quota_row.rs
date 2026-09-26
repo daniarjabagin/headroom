@@ -154,7 +154,7 @@ fn normal_row(ctx: &Ctx, meter: &Meter) -> (gtk::Box, Parts) {
     bottom.append(&reset_toggle(ctx, &texts.trailing));
     let body = column(2, &["headroom-quota-row"]);
     body.append(&top);
-    body.append(&meter.widget);
+    body.append(&meter.area);
     body.append(&bottom);
     body.append(&forecast);
     let parts = Normal {
@@ -175,7 +175,7 @@ fn compact_row(ctx: &Ctx, meter: &Meter) -> (gtk::Box, Parts) {
     line.append(&reset_toggle(ctx, &texts.trailing));
     let body = column(3, &["headroom-quota-row"]);
     body.append(&line);
-    body.append(&meter.widget);
+    body.append(&meter.area);
     let parts = Compact {
         texts,
         meter: meter.area.clone(),
@@ -193,7 +193,12 @@ pub struct MountedQuota {
 impl MountedQuota {
     pub fn new(ctx: &Ctx, window: &Window, now: Timestamp, animate: bool) -> Self {
         let view = quota_view(&ctx.locale, window, &ctx.display, now);
-        let meter = Meter::new(meter_part(ctx, &view), animate, meter_size(ctx.compact()));
+        let meter = Meter::new(
+            meter_part(ctx, &view),
+            animate,
+            meter_size(ctx.compact()),
+            &ctx.sheen,
+        );
         let (widget, parts) = if ctx.compact() {
             compact_row(ctx, &meter)
         } else {

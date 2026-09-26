@@ -28,7 +28,7 @@ use jiff::tz::TimeZone;
 const USAGE: &str = "usage: snapshot <state.json|loading|unavailable|failed> <out.png> \
                      [dark] [ru] [12h] [expanded] [parts] [share] [toast] [sheen] [hover] [providers=<providers.json>]";
 const SETTLE: Duration = Duration::from_millis(600);
-const MID_SHEEN: Duration = Duration::from_millis(1700);
+const MID_SHEEN: Duration = Duration::from_millis(1300);
 
 #[allow(
     clippy::struct_excessive_bools,
@@ -145,6 +145,7 @@ fn context(options: &Options, palette: Palette, view: &View) -> Result<Ctx> {
         spend,
         recent,
         textures: Rc::default(),
+        sheen: Rc::default(),
     })
 }
 
@@ -286,6 +287,7 @@ fn main() -> Result<()> {
         animate: false,
     };
     let ctx = context(&options, palette, &view)?;
+    ctx.sheen.configure(options.sheen, ctx.color("sheen"));
     let mut tree = PopupTree::default();
     let root = tree.mount(&ctx, &view, &frame);
     if options.toast {

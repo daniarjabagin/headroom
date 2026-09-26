@@ -161,6 +161,7 @@ impl App {
             spend,
             recent,
             textures: Rc::clone(&self.textures),
+            sheen: Rc::clone(&self.sheen),
             display,
         }
     }
@@ -171,6 +172,7 @@ impl App {
         }
         let display = self.display();
         let ctx = self.context(display);
+        self.sheen.configure(ctx.motion, ctx.color("sheen"));
         let frame = Frame {
             now: Timestamp::now(),
             max_height: self.window.borrow().max_height(),

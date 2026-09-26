@@ -111,4 +111,12 @@ pub(super) const PLURALS: &[(&str, [&str; 3])] = &[
         "{count} project",
         ["{count} проект", "{count} проекта", "{count} проектов"],
     ),
+    (
+        "{count} needs attention",
+        [
+            "{count} требует внимания",
+            "{count} требуют внимания",
+            "{count} требуют внимания",
+        ],
+    ),
 ];

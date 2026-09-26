@@ -2,9 +2,8 @@ use gtk::prelude::*;
 
 use crate::palette::Rgba;
 use crate::payload::{PeriodSpend, SpendBreakdown};
-use crate::popup_model::breakdown::{
-    BreakdownList, BreakdownRow, RowMark, model_list, project_list,
-};
+use crate::popup_model::breakdown::{BreakdownList, BreakdownRow, RowMark, project_list};
+use crate::popup_model::models::model_list;
 use crate::popup_model::spend_view::SpendChoice;
 use crate::ui::context::{Action, Ctx};
 use crate::ui::draw::{fill, set_color};

@@ -32,7 +32,8 @@ pub use spend_query::{
 };
 pub use status::{ProviderStatus, StatusIndicator};
 pub use usage::{
-    Daily, ModelUsage, OtherModels, PeriodSpend, ProviderSpend, Spend, Tokens, Totals, Usage,
+    Daily, ModelUsage, OtherModels, PeriodSpend, ProviderModelUsage, ProviderSpend, Spend, Tokens,
+    Totals, Usage,
 };
 
 use lenient::{lenient, lenient_items, lenient_list};

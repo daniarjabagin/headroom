@@ -4,7 +4,9 @@ use jiff::Timestamp;
 use crate::account::shows_name;
 use crate::combined::CombinedGroup;
 use crate::payload::{Account, Spend, State};
-use crate::popup_model::collapse::{MoreSummary, more_summary};
+use crate::popup_model::collapse::{
+    Attention, MoreMember, MoreSummary, account_attention, group_attention, more_summary,
+};
 use crate::ui::account_section::SectionInput;
 use crate::ui::combined_section::GroupInput;
 use crate::ui::context::Ctx;
@@ -33,7 +35,7 @@ pub enum Entry<'a> {
 struct Placed<'a> {
     entry: Entry<'a>,
     collapsed: bool,
-    member: (&'a str, &'a str),
+    member: MoreMember<'a>,
 }
 
 fn group_of<'a>(state: &'a State, account: &Account) -> Option<&'a CombinedGroup> {
@@ -43,6 +45,14 @@ fn group_of<'a>(state: &'a State, account: &Account) -> Option<&'a CombinedGroup
         .find(|group| group.account_ids.contains(&account.id))
 }
 
+fn member(account: &Account, attention: Option<Attention>) -> MoreMember<'_> {
+    MoreMember {
+        provider: account.provider.as_str(),
+        name: account.provider_name.as_str(),
+        attention,
+    }
+}
+
 fn place<'a>(
     state: &'a State,
     account: &'a Account,
@@ -50,7 +60,6 @@ fn place<'a>(
     frame: &Frame,
 ) -> Option<Placed<'a>> {
     let status = state.provider_status_of(&account.provider);
-    let member = (account.provider.as_str(), account.provider_name.as_str());
     if let Some(group) = group_of(state, account) {
         let first = group
             .account_ids
@@ -64,7 +73,7 @@ fn place<'a>(
                 now: frame.now,
             }),
             collapsed: group.collapsed,
-            member,
+            member: member(account, group_attention(group, accounts, state.offline)),
         });
     }
     Some(Placed {
@@ -77,7 +86,7 @@ fn place<'a>(
             animate: frame.animate,
         }),
         collapsed: account.collapsed,
-        member,
+        member: member(account, account_attention(account, state.offline)),
     })
 }
 
@@ -91,7 +100,7 @@ pub fn ready_entries<'a>(ctx: &Ctx, state: &'a State, frame: &Frame) -> Vec<Entr
         .iter()
         .filter_map(|account| place(state, account, &accounts, frame))
         .partition(|placed| placed.collapsed);
-    let members: Vec<(&str, &str)> = collapsed.iter().map(|placed| placed.member).collect();
+    let members: Vec<MoreMember> = collapsed.iter().map(|placed| placed.member).collect();
     let mut entries = vec![Entry::Leading(spend)];
     entries.extend(pinned.into_iter().map(|placed| placed.entry));
     let Some(summary) = more_summary(ctx.locale.lang, &members) else {

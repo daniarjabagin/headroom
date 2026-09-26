@@ -62,6 +62,14 @@ fn parses_the_gnome_sample_state() {
     let state = parse_state(SAMPLE).unwrap();
     assert!(state.app_version.is_some_and(|version| !version.is_empty()));
     assert_eq!(state.display.value_mode, ValueMode::Left);
+    let today = &state.spend.today;
+    let models = today.models.as_ref().unwrap();
+    assert_eq!(models[0].provider, "codex");
+    assert_eq!(models[0].usage.model, "gpt-5.5");
+    assert_eq!(models[0].usage.cost_per_mtok_usd_micros, Some(3_756_938));
+    let other = today.models_other.as_ref().unwrap();
+    assert_eq!(other.count, 7);
+    assert_eq!(other.cost_per_mtok_usd_micros, Some(1_646_068));
 }
 
 #[test]

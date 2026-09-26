@@ -9,6 +9,7 @@ use crate::palette::{Palette, Rgba};
 use crate::payload::{Density, Display, SpendBreakdown, SpendPeriod, SpendUnit, Tone};
 use crate::popup_model::spend_view::{SpendChoice, SpendOverride};
 use crate::preferences::registry::ProviderLinks;
+use crate::ui::sheen::SheenClock;
 use crate::ui::widgets::Textures;
 use crate::update::UpdateRun;
 use crate::update_check::CheckRun;
@@ -101,6 +102,7 @@ pub struct Ctx {
     pub spend: Option<SpendChoice>,
     pub recent: bool,
     pub textures: Rc<Textures>,
+    pub sheen: Rc<SheenClock>,
 }
 
 impl Ctx {

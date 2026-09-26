@@ -23,6 +23,7 @@ use crate::shortcut::{Shortcuts, Support};
 use crate::ui::context::{Tick, UiState};
 use crate::ui::popup_tree::PopupTree;
 use crate::ui::prefs::SettingsWindow;
+use crate::ui::sheen::SheenClock;
 use crate::ui::style::Styles;
 use crate::ui::window::PopupWindow;
 use crate::ui::{Textures, svg_texture_at};
@@ -55,6 +56,7 @@ pub struct App {
     styles: RefCell<Styles>,
     palettes: Palettes,
     textures: Rc<Textures>,
+    sheen: Rc<SheenClock>,
     commands: tokio::sync::mpsc::UnboundedSender<Command>,
     tray: tokio::sync::mpsc::UnboundedSender<TrayUpdate>,
     ticker: RefCell<Option<glib::SourceId>>,
@@ -100,6 +102,7 @@ impl App {
             styles: RefCell::new(Styles::install(&display)),
             palettes,
             textures: Rc::default(),
+            sheen: Rc::default(),
             commands: channels.commands,
             tray: channels.tray,
             ticker: RefCell::new(None),
