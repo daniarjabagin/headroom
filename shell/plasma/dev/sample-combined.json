@@ -75,7 +75,9 @@
             "even_pace_percent": 36.0,
             "projected_percent": 67.0,
             "spare_percent": 33.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -92,7 +94,9 @@
             "even_pace_percent": 63.4,
             "projected_percent": 107.0,
             "spare_percent": null,
-            "runs_out_at": "2026-09-25T12:00:00Z"
+            "runs_out_at": "2026-09-25T12:00:00Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -109,7 +113,9 @@
             "even_pace_percent": 63.4,
             "projected_percent": 28.0,
             "spare_percent": 72.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -153,7 +159,9 @@
             "even_pace_percent": 46.3,
             "projected_percent": 67.0,
             "spare_percent": 33.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -170,7 +178,9 @@
             "even_pace_percent": 39.3,
             "projected_percent": 69.0,
             "spare_percent": 31.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -214,7 +224,9 @@
             "even_pace_percent": 76.0,
             "projected_percent": 96.0,
             "spare_percent": 4.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -231,7 +243,9 @@
             "even_pace_percent": 55.0,
             "projected_percent": 129.0,
             "spare_percent": null,
-            "runs_out_at": "2026-09-24T19:00:00Z"
+            "runs_out_at": "2026-09-24T19:00:00Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -248,7 +262,9 @@
             "even_pace_percent": 60.0,
             "projected_percent": 70.0,
             "spare_percent": 30.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -292,7 +308,9 @@
             "even_pace_percent": 63.3,
             "projected_percent": 70.0,
             "spare_percent": 30.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -336,7 +354,9 @@
             "even_pace_percent": 54.8,
             "projected_percent": 66.0,
             "spare_percent": 34.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -388,7 +408,9 @@
             "even_pace_percent": 122.3,
             "projected_percent": 163.0,
             "spare_percent": 37.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "segments": [
             {
@@ -422,7 +444,9 @@
             "even_pace_percent": 94.3,
             "projected_percent": 198.0,
             "spare_percent": 2.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "segments": [
             {
@@ -456,7 +480,9 @@
             "even_pace_percent": 60.0,
             "projected_percent": 70.0,
             "spare_percent": 30.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "segments": [
             {

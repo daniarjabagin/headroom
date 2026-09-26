@@ -11,11 +11,12 @@ use crate::activity::ActivityTracker;
 use crate::dismissed::DismissedHomes;
 use crate::error::StorageError;
 use crate::home::UsageHome;
+use crate::quota_history::QuotaHistory;
 use crate::settings::Settings;
 use crate::status::ProviderStatus;
 use crate::storage::accounts::{self, AccountRecord};
 use crate::storage::lapses::{self, Lapse};
-use crate::storage::{dismissed, settings, snapshots};
+use crate::storage::{dismissed, samples, settings, snapshots};
 use crate::update::{AvailableUpdate, UpdateCheckState};
 
 #[derive(Debug, Clone, Default)]
@@ -24,6 +25,7 @@ pub struct Model {
     pub accounts: Vec<AccountRecord>,
     pub dismissed: DismissedHomes,
     pub snapshots: HashMap<AccountId, SnapshotEntry>,
+    pub history: QuotaHistory,
     pub runtime: HashMap<AccountId, AccountRuntime>,
     pub usage_homes: BTreeSet<UsageHome>,
     pub usage: BTreeMap<UsageHome, UsageSummary>,
@@ -120,6 +122,7 @@ impl Model {
             accounts: accounts::load_all(conn)?,
             dismissed: dismissed::load_all(conn)?,
             snapshots,
+            history: QuotaHistory::from_rows(samples::load_all(conn)?),
             runtime: lapsed_runtime(lapses::load_all(conn)?),
             usage_homes: BTreeSet::new(),
             usage: BTreeMap::new(),
@@ -152,6 +155,7 @@ impl Model {
 
     pub fn record_success(&mut self, id: &AccountId, snapshot: LimitsSnapshot, now: Timestamp) {
         let origin = SnapshotOrigin::Refreshed;
+        self.history.record(id, &snapshot, now);
         self.snapshots
             .insert(id.clone(), SnapshotEntry { snapshot, origin });
         let runtime = self.runtime_mut(id);

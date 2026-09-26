@@ -103,7 +103,9 @@
             "even_pace_percent": 60.0,
             "projected_percent": 91.66666666666667,
             "spare_percent": 8.333333333333329,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -120,7 +122,9 @@
             "even_pace_percent": 57.14285714285714,
             "projected_percent": 52.5,
             "spare_percent": 47.5,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": true
         }
@@ -181,7 +185,9 @@
             "even_pace_percent": 90.0,
             "projected_percent": 102.22222222222221,
             "spare_percent": null,
-            "runs_out_at": "2026-09-23T10:23:28.695652174Z"
+            "runs_out_at": "2026-09-23T10:23:28.695652174Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -251,7 +257,9 @@
             "even_pace_percent": 50.0,
             "projected_percent": 40.0,
             "spare_percent": 60.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -268,7 +276,9 @@
             "even_pace_percent": 71.42857142857143,
             "projected_percent": 84.0,
             "spare_percent": 16.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }
@@ -319,7 +329,9 @@
             "even_pace_percent": 110.0,
             "projected_percent": 131.66666666666669,
             "spare_percent": 68.33333333333331,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "segments": [
             {
@@ -353,7 +365,9 @@
             "even_pace_percent": 71.42857142857143,
             "projected_percent": 84.0,
             "spare_percent": 16.0,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "segments": [
             {
@@ -962,6 +976,7 @@
           "total_tokens": 6200,
           "partial": false,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",
@@ -1019,6 +1034,7 @@
           "total_tokens": 615,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "codex",
@@ -1088,6 +1104,7 @@
           "total_tokens": 6815,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",
@@ -1163,6 +1180,7 @@
           "total_tokens": 6815,
           "partial": true,
           "share_permille": 1000,
+          "cost_per_mtok_usd_micros": 2000000,
           "by_provider": [
             {
               "provider": "claude",

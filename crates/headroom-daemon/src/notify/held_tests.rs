@@ -15,6 +15,7 @@ fn observed(resets_at: &str) -> Observation {
         tone: Tone::Warning,
         resets_at: Some(ts(resets_at)),
         runs_out_at: None,
+        paused: false,
     }
 }
 

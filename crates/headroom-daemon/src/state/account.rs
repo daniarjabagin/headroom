@@ -1,6 +1,7 @@
-use headroom_core::pace::{Pace, Severity, pace, tone};
+use headroom_core::forecast::{Activity, forecast};
+use headroom_core::pace::{Pace, Severity, tone};
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, QuotaWindow};
-use jiff::Timestamp;
+use jiff::{SignedDuration, Timestamp};
 
 use super::AssembleContext;
 use super::account_collapse::account_collapsed;
@@ -11,6 +12,7 @@ use super::payload::{
 use super::refresh::refresh_view;
 use super::status::{error_view, source, status};
 use crate::model::{Model, RefreshFailure, window_key};
+use crate::quota_history::window_samples;
 use crate::storage::accounts::AccountRecord;
 
 #[must_use]
@@ -84,20 +86,32 @@ fn windows(
     now: Timestamp,
 ) -> Vec<WindowView> {
     let display = &model.settings.display;
+    let history = model.history.account(record.id());
+    let live = model.activity.account_is_live(&record.reference, now);
     snapshot
         .windows
         .iter()
         .map(|w| {
-            let hidden = display.is_hidden(&record.id().0, &window_key(&w.id));
-            window_view(w, now, hidden)
+            let key = window_key(&w.id);
+            let hidden = display.is_hidden(&record.id().0, &key);
+            let activity = Activity {
+                samples: window_samples(history, &key),
+                live,
+            };
+            window_view(w, forecast(w, activity, now), now, hidden, key)
         })
         .collect()
 }
 
-fn window_view(window: &QuotaWindow, now: Timestamp, hidden: bool) -> WindowView {
-    let pace = pace(window, now);
+fn window_view(
+    window: &QuotaWindow,
+    pace: Pace,
+    now: Timestamp,
+    hidden: bool,
+    id: String,
+) -> WindowView {
     WindowView {
-        id: window_key(&window.id),
+        id,
         label: window.label.clone(),
         used_percent: window.used.value(),
         remaining_percent: window.used.remaining().value(),
@@ -116,7 +130,13 @@ fn pace_view(pace: &Pace) -> PaceView {
         projected_percent: pace.projected.map(f64::from),
         spare_percent: spare_percent(pace),
         runs_out_at: pace.runs_out_at,
+        basis: pace.basis,
+        active_left_seconds: pace.active_left.and_then(whole_seconds),
     }
+}
+
+fn whole_seconds(span: SignedDuration) -> Option<u64> {
+    u64::try_from(span.as_secs()).ok()
 }
 
 fn spare_percent(pace: &Pace) -> Option<f64> {

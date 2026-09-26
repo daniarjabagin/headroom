@@ -17,6 +17,7 @@ fn seen(remaining: f64, severity: Severity) -> Observation {
         tone,
         resets_at: Some(ts(RESET)),
         runs_out_at: None,
+        paused: false,
     }
 }
 
@@ -269,8 +270,62 @@ fn state_serializes_compactly() {
 #[test]
 fn observation_uses_core_pace_and_tone() {
     let window = crate::testing::session(55.0, RESET);
-    let observed = Observation::of(&window, ts("2026-09-23T10:00:00Z"));
+    let now = ts("2026-09-23T10:00:00Z");
+    let observed = Observation::of(&window, &headroom_core::pace::pace(&window, now), now);
     assert_eq!(observed.severity, Severity::Close);
     assert_eq!(observed.tone, Tone::Warning);
     assert!((observed.remaining - 45.0).abs() < f64::EPSILON);
+}
+
+fn paused(mut observation: Observation) -> Observation {
+    observation.paused = true;
+    observation.tone = Tone::Warning;
+    observation
+}
+
+#[test]
+fn a_paused_window_fires_no_pace_alerts_and_keeps_fired_ones() {
+    let steps = [
+        seen(60.0, Severity::Healthy),
+        paused(seen(40.0, Severity::RunningOut)),
+        seen(40.0, Severity::RunningOut),
+        paused(seen(38.0, Severity::Healthy)),
+        seen(36.0, Severity::RunningOut),
+    ];
+    assert_eq!(
+        run(&steps),
+        vec![vec![], vec![], vec![Milestone::WillRunOut], vec![], vec![]]
+    );
+}
+
+#[test]
+fn a_paused_window_still_warns_when_almost_out() {
+    let steps = [
+        seen(60.0, Severity::Healthy),
+        paused(seen(5.0, Severity::RunningOut)),
+    ];
+    assert_eq!(run(&steps), vec![vec![], vec![Milestone::AlmostOut]]);
+}
+
+#[test]
+fn a_paused_forecast_marks_the_observation() {
+    use headroom_core::forecast::{Activity, forecast};
+    use headroom_core::history::UsageSample;
+    let now = ts("2026-09-23T10:00:00Z");
+    let window = crate::testing::session(60.0, "2026-09-23T12:30:00Z");
+    let samples = [UsageSample {
+        at: ts("2026-09-23T08:10:00Z"),
+        used: window.used,
+    }];
+    let activity = Activity {
+        samples: &samples,
+        live: false,
+    };
+    let observed = Observation::of(&window, &forecast(&window, activity, now), now);
+    assert!(observed.paused);
+    assert_eq!(observed.severity, Severity::RunningOut);
+    assert_eq!(observed.runs_out_at, None);
+    assert_eq!(observed.tone, Tone::Warning);
+    let fired = evaluate(None, &observed, DEFAULT).state.fired;
+    assert!(fired.is_empty());
 }

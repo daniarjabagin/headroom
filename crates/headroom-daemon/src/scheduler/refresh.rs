@@ -8,7 +8,7 @@ use crate::core::Core;
 use crate::model::RefreshFailure;
 use crate::notify::alerts::{LapseReview, Review};
 use crate::notify::text::Locale;
-use crate::storage::{accounts, lapses, snapshots};
+use crate::storage::{accounts, lapses, samples, snapshots};
 
 pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuration {
     begin_refresh(core, account);
@@ -19,7 +19,7 @@ pub async fn refresh_account(core: &Core, account: &AccountRef) -> SignedDuratio
     let now = core.clock.now();
     let delay = match fetched {
         Ok(snapshot) => {
-            persist(core, account, &snapshot).await;
+            persist(core, account, &snapshot, now).await;
             core.alerts.renewed(&account.id);
             record_success(core, account, snapshot, now)
         }
@@ -60,13 +60,14 @@ async fn fetch(core: &Core, account: &AccountRef) -> Result<LimitsSnapshot, Refr
     }
 }
 
-async fn persist(core: &Core, account: &AccountRef, snapshot: &LimitsSnapshot) {
+async fn persist(core: &Core, account: &AccountRef, snapshot: &LimitsSnapshot, now: Timestamp) {
     let id = account.id.clone();
     let stored = snapshot.clone();
     let result = core
         .storage
         .run(move |conn| {
             snapshots::save(conn, &id, &stored)?;
+            samples::record(conn, &id, &stored, now)?;
             lapses::clear(conn, &id)?;
             let identity = &stored.identity;
             accounts::set_identity(
@@ -132,7 +133,7 @@ fn record_failure(
 }
 
 async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
-    let (record, snapshot, settings, lapsed) = {
+    let (record, snapshot, settings, lapsed, history, live) = {
         let model = core.model();
         let record = model.account(&account.id).cloned();
         let snapshot = model.snapshots.get(&account.id).map(|e| e.snapshot.clone());
@@ -141,7 +142,16 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
             .get(&account.id)
             .and_then(|runtime| runtime.failure.as_ref())
             .is_some_and(RefreshFailure::is_no_subscription);
-        (record, snapshot, model.settings.clone(), lapsed)
+        let history = model.history.account(&account.id).cloned();
+        let live = model.activity.account_is_live(account, now);
+        (
+            record,
+            snapshot,
+            model.settings.clone(),
+            lapsed,
+            history,
+            live,
+        )
     };
     let Some(record) = record else {
         return;
@@ -165,6 +175,8 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
                 account: &record,
                 provider_name,
                 snapshot: &snapshot,
+                history: history.as_ref(),
+                live,
                 settings: settings.notifications,
                 display: &settings.display,
                 locale,

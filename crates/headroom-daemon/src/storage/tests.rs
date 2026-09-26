@@ -51,6 +51,7 @@ fn fresh_database_is_migrated_to_latest() {
             "limits_snapshots",
             "log_cursors",
             "notification_state",
+            "quota_samples",
             "settings",
             "status_cache",
             "subscription_lapses",

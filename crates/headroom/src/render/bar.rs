@@ -96,6 +96,8 @@ mod tests {
                 projected_percent: None,
                 spare_percent: None,
                 runs_out_at: None,
+                basis: None,
+                active_left_seconds: None,
             },
             hidden: false,
         }

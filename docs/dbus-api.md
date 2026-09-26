@@ -326,6 +326,10 @@ Combined pace, with `C = capacity_percent` and per segment `u` = `used_percent` 
 - `projected_percent = projected` for `healthy`, `close` and `running_out`, else `null`.
   `spare_percent = max(0, C − projected)` for `healthy` and `close`, else `null`. `runs_out_at` is
   always `null`: the accounts do not run out together.
+- `basis` (only when the combined severity is tracked, else `null`): `recent` when any segment is
+  `recent`; `paused` when every segment with a basis is `paused`; `window` otherwise.
+  `active_left_seconds` (only for `paused`): the sum of the segments' `active_left_seconds`, a
+  `spent` segment adding 0; `null` when any other segment has none.
 - Tone: `spent` → `critical`; `running_out` → `critical` when `U ≥ 90`, else `warning`; `close` →
   `warning`; `healthy` → `good`; `untracked` → by level: `critical` when `U ≥ 90`, `warning` when
   `U ≥ 80`, else `good`.
@@ -357,7 +361,9 @@ Notifications stay per account; combining never changes what is notified.
           "even_pace_percent": 110.0,
           "projected_percent": 131.66666666666669,
           "spare_percent": 68.33333333333331,
-          "runs_out_at": null
+          "runs_out_at": null,
+          "basis": "window",
+          "active_left_seconds": null
         },
         "segments": [
           { "account_id": "codex:work", "label": "Work", "remaining_percent": 45.0, "used_percent": 55.0,
@@ -375,7 +381,8 @@ Notifications stay per account; combining never changes what is notified.
         "resets_at": "2026-09-25T10:00:00Z",
         "tone": "good",
         "pace": { "severity": "healthy", "even_pace_percent": 71.42857142857143, "projected_percent": 84.0,
-                  "spare_percent": 16.0, "runs_out_at": null },
+                  "spare_percent": 16.0, "runs_out_at": null, "basis": "window",
+                  "active_left_seconds": null },
         "segments": [
           { "account_id": "codex:personal", "label": "Personal", "remaining_percent": 40.0, "used_percent": 60.0,
             "resets_at": "2026-09-25T10:00:00Z", "tone": "good" }
@@ -502,7 +509,29 @@ Pace:
 | `even_pace_percent` | number \| null | Where an even burn would be now (position of the pace tick). Present whenever reset and period are known. |
 | `projected_percent` | number \| null | Projected use at reset. `null` for `untracked` and `spent`. |
 | `spare_percent` | number \| null | `100 − projected_percent`, the headroom left at reset (`~8% spare`). Only for `healthy` and `close`; `null` otherwise. |
-| `runs_out_at` | timestamp \| null | Projected run-out time when it falls before the reset. |
+| `runs_out_at` | timestamp \| null | Projected run-out time when it falls before the reset. Always `null` for `paused`. |
+| `basis` | Basis \| null | What the projection is built on: `recent`, `window`, `paused`, or `null` for `untracked` and `spent`. Added in 0.6.1; older daemons omit it (read as `null`). |
+| `active_left_seconds` | integer \| null | Only for `paused`: how many seconds of active work the remaining percent lasts at the last measured active rate. `null` when no active rate is known. Added in 0.6.1. |
+
+Basis:
+
+- `recent` — the account is working now (the percent rose recently, or its CLI wrote usage logs in
+  the last 10 minutes) and the daemon has seen at least three rises in the latest active stretch.
+  The rate is measured over active time only: pairs of observations further apart than the idle
+  threshold are skipped, the lookback is `period / 6` of active time (30 min to 4 h, 50 min for a
+  5-hour window), and a step that is overdue slows the rate down. `projected_percent = used + rate ×
+  time to reset`, `runs_out_at = now + remaining / rate`.
+- `window` — not enough history yet: the 0.6.0 window average, `projected_percent = used /
+  elapsed share`, `runs_out_at = start + elapsed × 100 / used`.
+- `paused` — no activity: the percent has not changed for the idle threshold (`period / 30`,
+  10 min to 2 h; 10 min for a 5-hour window, 2 h for a week) and the CLI wrote no logs. There is no
+  countdown (`runs_out_at = null`); `projected_percent`, `severity` and `tone` use the window average,
+  and without a run-out time a `running_out` window is `warning` unless 90 % or more is used.
+  "Will run out" and "cutting it close" notifications are not sent while paused.
+
+The young-window rule (the first 15 % of the period, at most a day, stays `untracked`) and the 5 %
+minimum-use rule apply to every basis. The daemon keeps the history in `quota_samples`: one row per
+change of `used_percent` per account window, cleared when the window resets and pruned after 8 days.
 
 Tone: `neutral`, `good`, `warning`, `critical` (blue accent, amber, red; neutral is grey).
 
@@ -711,7 +740,9 @@ not list a 7-day period.
             "even_pace_percent": 60.0,
             "projected_percent": 91.66666666666667,
             "spare_percent": 8.333333333333329,
-            "runs_out_at": null
+            "runs_out_at": null,
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         },
@@ -761,7 +792,9 @@ not list a 7-day period.
             "even_pace_percent": 90.0,
             "projected_percent": 102.22222222222221,
             "spare_percent": null,
-            "runs_out_at": "2026-09-23T10:23:28.695652174Z"
+            "runs_out_at": "2026-09-23T10:23:28.695652174Z",
+            "basis": "window",
+            "active_left_seconds": null
           },
           "hidden": false
         }

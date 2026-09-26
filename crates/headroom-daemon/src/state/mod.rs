@@ -82,6 +82,9 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
 mod tests;
 
 #[cfg(test)]
+mod forecast_state_tests;
+
+#[cfg(test)]
 mod lapse_tests;
 
 #[cfg(test)]
