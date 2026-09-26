@@ -1,3 +1,4 @@
+use headroom_core::forecast::{Liveness, Signal};
 use jiff::SignedDuration;
 use jiff::tz::TimeZone;
 
@@ -6,6 +7,11 @@ use crate::notify::alerts::Review;
 use crate::settings::DisplaySettings;
 use crate::storage::accounts::AccountRecord;
 use crate::testing::{CODEX, account, eventually, harness, snapshot, ts, weekly};
+
+const IDLE: Signal = Signal {
+    liveness: Liveness::Idle,
+    poll_interval: SignedDuration::from_mins(5),
+};
 
 #[test]
 fn waits_until_quiet_hours_end_but_never_longer_than_a_minute() {
@@ -48,7 +54,7 @@ async fn climb(core: &Core) {
             provider_name: "Codex",
             snapshot: &limits,
             history: None,
-            live: false,
+            signal: IDLE,
             settings: settings.clone(),
             display: &DisplaySettings::default(),
             locale: Locale::En,

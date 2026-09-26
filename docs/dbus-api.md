@@ -331,7 +331,8 @@ Combined pace, with `C = capacity_percent` and per segment `u` = `used_percent` 
   `spare_percent = max(0, C − projected)` for `healthy` and `close`, else `null`. `runs_out_at` is
   always `null`: the accounts do not run out together.
 - `basis` (only when the combined severity is tracked, else `null`): `recent` when any segment is
-  `recent`; `paused` when every segment with a basis is `paused`; `window` otherwise.
+  `recent`; `paused` when every segment that is not `spent` is `paused` (a young or `untracked`
+  segment keeps the group out of `paused`); `window` otherwise.
   `active_left_seconds` (only for `paused`): the sum of the segments' `active_left_seconds`, a
   `spent` segment adding 0; `null` when any other segment has none.
 - Tone: `spent` → `critical`; `running_out` → `critical` when `U ≥ 90`, else `warning`; `close` →
@@ -527,19 +528,30 @@ Pace:
 
 Basis:
 
-- `recent` — the account is working now (the percent rose recently, or its CLI wrote usage logs in
-  the last 10 minutes) and the daemon has seen at least three rises in the latest active stretch.
-  The rate is measured over active time only: pairs of observations further apart than the idle
-  threshold are skipped, the lookback is `period / 6` of active time (30 min to 4 h, 50 min for a
-  5-hour window), and a step that is overdue slows the rate down. `projected_percent = used + rate ×
-  time to reset`, `runs_out_at = now + remaining / rate`.
-- `window` — not enough history yet: the 0.6.0 window average, `projected_percent = used /
-  elapsed share`, `runs_out_at = start + elapsed × 100 / used`.
-- `paused` — no activity: the percent has not changed for the idle threshold (`period / 30`,
-  10 min to 2 h; 10 min for a 5-hour window, 2 h for a week) and the CLI wrote no logs. There is no
-  countdown (`runs_out_at = null`); `projected_percent`, `severity` and `tone` use the window average,
-  and without a run-out time a `running_out` window is `warning` unless 90 % or more is used.
-  "Will run out" and "cutting it close" notifications are not sent while paused.
+- `recent` — only for windows of 24 hours or less. The account is working now (the percent rose
+  recently, or its CLI wrote usage logs in the last 10 minutes) and the daemon has seen at least
+  three rises in the latest active stretch. The rate is measured over active time only: pairs of
+  observations further apart than the idle threshold are skipped, the lookback is `period / 6` of
+  active time (30 min to 4 h, 50 min for a 5-hour window), and a step that is overdue slows the rate
+  down. `projected_percent = used + rate × time to reset`, `runs_out_at = now + remaining / rate`.
+- `window` — the 0.6.0 window average, `projected_percent = used / elapsed share`, `runs_out_at =
+  start + elapsed × 100 / used`. Used when there is not enough recent history, and always (unless
+  `paused`) for windows longer than 24 hours: a weekly window is forecast from its average.
+- `paused` — no activity. Only for accounts with a local activity source (a CLI home of the account
+  with usage logs); providers without logs are never `paused`. The CLI wrote no logs recently and
+  the percent did not change for the idle threshold, measured between observations: the last
+  refresh's data time minus the time of the last change must exceed `max(period / 30 clamped to
+  10 min … 2 h, 2 × the refresh interval)` (10 min for a 5-hour window at the default interval,
+  2 h for a week). A failing refresh does not advance the data time, so stale data never turns
+  into `paused`. There is no countdown (`runs_out_at = null`); `projected_percent`, `severity` and
+  `tone` use the window average, and without a run-out time a `running_out` window is `warning`
+  unless 90 % or more is used. "Will run out" and "cutting it close" notifications are not sent
+  while paused.
+
+Once they fired, "will run out" and "cutting it close" are re-armed only by a window reset or by an
+observation where both the window average and — when the window has used a `recent` forecast — a
+`recent` forecast are below `close`. Falling back from `recent` to `window` between bursts does not
+re-arm them.
 
 The young-window rule (the first 15 % of the period, at most a day, stays `untracked`) and the 5 %
 minimum-use rule apply to every basis. The daemon keeps the history in `quota_samples`: one row per

@@ -1,4 +1,5 @@
 use headroom_core::forecast::{Activity, forecast};
+use headroom_core::history::observed_at;
 use headroom_core::pace::{Pace, Severity, tone};
 use headroom_core::quota::{Balance, BalanceAmount, LimitsSnapshot, Notice, QuotaWindow};
 use jiff::{SignedDuration, Timestamp};
@@ -87,7 +88,7 @@ fn windows(
 ) -> Vec<WindowView> {
     let display = &model.settings.display;
     let history = model.history.account(record.id());
-    let live = model.account_is_live(&record.reference, now);
+    let signal = model.activity_signal(&record.reference, now);
     snapshot
         .windows
         .iter()
@@ -96,7 +97,8 @@ fn windows(
             let hidden = display.is_hidden(&record.id().0, &key);
             let activity = Activity {
                 samples: window_samples(history, &key),
-                live,
+                signal,
+                observed_at: observed_at(snapshot),
             };
             window_view(w, forecast(w, activity, now), now, hidden, key)
         })

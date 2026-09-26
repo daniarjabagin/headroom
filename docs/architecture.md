@@ -199,7 +199,10 @@ pub struct Pace {
     pub even_pace: Option<Percent>,
     pub projected: Option<Percent>,
     pub runs_out_at: Option<Timestamp>,
+    pub basis: Option<Basis>,
+    pub active_left: Option<SignedDuration>,
 }
+pub enum Basis { Recent, Window, Paused }
 pub enum Severity { Untracked, Healthy, Close, RunningOut, Spent }
 pub enum Tone { Neutral, Good, Warning, Critical }
 ```
@@ -242,6 +245,33 @@ One function maps a window to `Tone`, used by every surface (panel, popup, tray,
 
 `tone(window: &QuotaWindow, pace: &Pace, now: Timestamp) -> Tone` implements the rows with data.
 Example: 5 h session, 77 % used after 2.5 h → runs out in ~44 min, within the 1 h horizon → Critical.
+
+### Forecast (`headroom-core::forecast`)
+
+`pace` above is the window average (`basis = window`). The payload and notifications use
+`forecast(window, activity, now)`, which may replace it:
+
+- **History.** The daemon records one `quota_samples` row per change of `used_percent` per account
+  window (`history::sample_step`), at the snapshot's data time; a window reset or a drop restarts
+  the history, rows older than 8 days are pruned.
+- **Activity.** `Activity { samples, signal, observed_at }`. `Signal.liveness` is `Unknown` when
+  none of the account's usage homes (its own or linked CLI homes) has local logs, else `Live` or
+  `Idle` from the log activity tracker; `Signal.poll_interval` is the effective refresh interval;
+  `observed_at` is the snapshot's data time.
+- **Paused.** Only with `Idle`: the percent is unchanged since the last sample and
+  `observed_at − last change > idle_after`, where `idle_after = max(clamp(period / 30, 10 min,
+  2 h), 2 × poll_interval)`. Idleness is measured between observations, not against the wall
+  clock, so a failing refresh or a long interval never drifts into `paused`. Severity, tone and
+  projection stay the window average, `runs_out_at` is dropped and `active_left` is the remaining
+  percent at the last active rate.
+- **Recent.** Only for windows of 24 h or less: the rate over the latest active stretch (at least
+  three rises, gaps longer than `idle_after` end the stretch, lookback `clamp(period / 6, 30 min,
+  4 h)` of active time, an overdue step slows it) projects `used + rate × time to reset`.
+- **Window average** otherwise, including every window longer than 24 h unless it is paused.
+
+Young, untracked and spent windows keep the window-average result. Pace alerts fired on a `recent`
+forecast are re-armed only by a window reset or by a `recent` observation with both the recent and
+the window-average severity below Close.
 
 ## Usage summary (`headroom-core::usage`)
 

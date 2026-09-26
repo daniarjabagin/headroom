@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use headroom_core::pace::{Basis, Pace, Severity, Tone, tone};
+use headroom_core::pace::{self, Basis, Pace, Severity, Tone, tone};
 use headroom_core::quota::QuotaWindow;
 use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,8 @@ pub struct AlertState {
     pub tone: Tone,
     pub fired: BTreeSet<Milestone>,
     pub reset_owed: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub recent_seen: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -34,6 +36,10 @@ pub struct Observation {
     pub runs_out_at: Option<Timestamp>,
     #[serde(default)]
     pub paused: bool,
+    #[serde(default)]
+    pub recent: bool,
+    #[serde(default = "untracked")]
+    pub window_severity: Severity,
 }
 
 impl Observation {
@@ -46,8 +52,14 @@ impl Observation {
             resets_at: window.resets_at,
             runs_out_at: pace.runs_out_at,
             paused: pace.basis == Some(Basis::Paused),
+            recent: pace.basis == Some(Basis::Recent),
+            window_severity: pace::pace(window, now).severity,
         }
     }
+}
+
+fn untracked() -> Severity {
+    Severity::Untracked
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,9 +80,11 @@ pub fn evaluate(
     let mut state = previous.clone();
     if has_reset(previous.resets_at, observed.resets_at) {
         state.fired.clear();
+        state.recent_seen = false;
         state.reset_owed |= previous.tone >= Tone::Warning;
     }
-    rearm(&mut state.fired, observed, threshold);
+    state.recent_seen |= observed.recent;
+    rearm(&mut state, observed, threshold);
     let reached = reached(observed, threshold);
     let mut alerts: Vec<Milestone> = reached
         .iter()
@@ -102,6 +116,7 @@ fn prime(observed: &Observation, threshold: u8) -> Evaluation {
             tone: observed.tone,
             fired: reached(observed, threshold),
             reset_owed: false,
+            recent_seen: observed.recent,
         },
         alerts: Vec::new(),
     }
@@ -135,16 +150,25 @@ fn suppressed(milestone: Milestone, reached: &BTreeSet<Milestone>) -> bool {
     milestone == Milestone::CuttingItClose && reached.contains(&Milestone::WillRunOut)
 }
 
-fn rearm(fired: &mut BTreeSet<Milestone>, observed: &Observation, threshold: u8) {
+fn rearm(state: &mut AlertState, observed: &Observation, threshold: u8) {
     if observed.remaining >= f64::from(threshold) + ALMOST_OUT_REARM_MARGIN {
-        fired.remove(&Milestone::AlmostOut);
+        state.fired.remove(&Milestone::AlmostOut);
     }
-    if observed.severity < Severity::Close && !observed.paused {
-        fired.remove(&Milestone::CuttingItClose);
-        fired.remove(&Milestone::WillRunOut);
+    if pace_calmed(state.recent_seen, observed) {
+        state.fired.remove(&Milestone::CuttingItClose);
+        state.fired.remove(&Milestone::WillRunOut);
     }
+}
+
+fn pace_calmed(recent_seen: bool, observed: &Observation) -> bool {
+    let calm = observed.severity < Severity::Close && observed.window_severity < Severity::Close;
+    calm && !observed.paused && (observed.recent || !recent_seen)
 }
 
 #[cfg(test)]
 #[path = "evaluator_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "evaluator_forecast_tests.rs"]
+mod forecast_tests;

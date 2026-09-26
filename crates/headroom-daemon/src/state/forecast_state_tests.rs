@@ -32,10 +32,10 @@ fn model_with_history() -> Model {
         row(&work, "weekly", "2026-09-23T09:20:00Z", 28.0),
         row(&work, "weekly", "2026-09-23T09:40:00Z", 29.0),
         row(&work, "weekly", "2026-09-23T09:58:00Z", 30.0),
-        row(&claude, "session", "2026-09-23T08:45:00Z", 80.0),
-        row(&claude, "session", "2026-09-23T08:50:00Z", 84.0),
-        row(&claude, "session", "2026-09-23T08:55:00Z", 88.0),
-        row(&claude, "session", "2026-09-23T09:00:00Z", 92.0),
+        row(&claude, "session", "2026-09-23T08:25:00Z", 80.0),
+        row(&claude, "session", "2026-09-23T08:30:00Z", 84.0),
+        row(&claude, "session", "2026-09-23T08:35:00Z", 88.0),
+        row(&claude, "session", "2026-09-23T08:40:00Z", 92.0),
     ]);
     model
 }
@@ -68,10 +68,10 @@ fn history_drives_recent_and_paused_forecasts() {
     assert_eq!(session.projected_percent, Some(95.0));
     assert_eq!(session.spare_percent, Some(5.0));
     let (weekly, weekly_tone) = &paces[1];
-    assert_eq!(weekly.basis, Some(Basis::Recent));
-    assert_eq!(weekly.severity, Severity::RunningOut);
-    assert_eq!(weekly.runs_out_at, Some(ts("2026-09-24T08:33:20Z")));
-    assert_eq!(*weekly_tone, Tone::Critical);
+    assert_eq!(weekly.basis, Some(Basis::Window));
+    assert_eq!(weekly.severity, Severity::Healthy);
+    assert_eq!(weekly.runs_out_at, None);
+    assert_eq!(*weekly_tone, Tone::Good);
     let (claude, _) = &paces[2];
     assert_eq!(claude.basis, Some(Basis::Paused));
     assert_eq!(claude.severity, Severity::RunningOut);
@@ -88,4 +88,28 @@ fn live_activity_resumes_a_paused_forecast() {
     assert_eq!(claude.basis, Some(Basis::Window));
     assert_eq!(claude.active_left_seconds, None);
     assert!(claude.runs_out_at.is_some());
+}
+
+#[test]
+fn an_account_without_local_logs_is_never_paused() {
+    let mut model = model_with_history();
+    let home = usage_home_of(&model.accounts[1].reference);
+    model.usage_homes.remove(&home);
+    let (claude, _) = &paces(&model)[2];
+    assert_eq!(claude.basis, Some(Basis::Window));
+    assert_eq!(claude.active_left_seconds, None);
+}
+
+#[test]
+fn a_failing_account_with_a_stale_snapshot_does_not_drift_into_a_pause() {
+    let mut model = sample_model();
+    let claude = model.accounts[1].id().clone();
+    model.history = QuotaHistory::from_rows(vec![
+        row(&claude, "session", "2026-09-23T08:45:00Z", 80.0),
+        row(&claude, "session", "2026-09-23T08:50:00Z", 84.0),
+        row(&claude, "session", "2026-09-23T08:55:00Z", 88.0),
+        row(&claude, "session", "2026-09-23T09:00:00Z", 92.0),
+    ]);
+    let (claude, _) = &paces(&model)[2];
+    assert_eq!(claude.basis, Some(Basis::Window));
 }

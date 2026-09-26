@@ -4,6 +4,7 @@ use crate::quota::WindowId;
 
 const FIVE_HOURS: SignedDuration = SignedDuration::from_hours(5);
 const WEEK: SignedDuration = SignedDuration::from_hours(7 * 24);
+const POLL: SignedDuration = SignedDuration::from_mins(5);
 
 fn now() -> Timestamp {
     "2026-09-23T10:00:00Z".parse().unwrap()
@@ -30,8 +31,28 @@ fn ago(mins: i64, used: f64) -> UsageSample {
     }
 }
 
+fn observe(
+    window: &QuotaWindow,
+    samples: &[UsageSample],
+    liveness: Liveness,
+    poll_interval: SignedDuration,
+    observed_at: Timestamp,
+) -> Pace {
+    let signal = Signal {
+        liveness,
+        poll_interval,
+    };
+    let activity = Activity {
+        samples,
+        signal,
+        observed_at,
+    };
+    forecast(window, activity, now())
+}
+
 fn run(window: &QuotaWindow, samples: &[UsageSample], live: bool) -> Pace {
-    forecast(window, Activity { samples, live }, now())
+    let liveness = if live { Liveness::Live } else { Liveness::Idle };
+    observe(window, samples, liveness, POLL, now())
 }
 
 fn bursty_week() -> (QuotaWindow, Vec<UsageSample>) {
@@ -52,20 +73,30 @@ fn burst_then_idle() -> Vec<UsageSample> {
 }
 
 #[test]
-fn a_burst_after_idle_days_runs_out_soon() {
+fn a_burst_in_a_long_window_keeps_the_window_average() {
     let (week, samples) = bursty_week();
-    assert_eq!(pace(&week, now()).severity, Severity::Healthy);
+    let average = pace(&week, now());
+    assert_eq!(average.severity, Severity::Healthy);
     let result = run(&week, &samples, false);
-    assert_eq!(result.basis, Some(Basis::Recent));
-    assert_eq!(result.severity, Severity::RunningOut);
-    assert_eq!(
-        result.runs_out_at,
-        Some(now() + SignedDuration::from_secs(48_000))
-    );
-    let projected = f64::from(result.projected.unwrap());
-    assert!((projected - 596.0).abs() < 1e-9, "{projected}");
-    assert_eq!(result.active_left, None);
-    assert_eq!(tone(&week, &result, now()), Tone::Critical);
+    assert_eq!(result, average);
+    assert_eq!(result.basis, Some(Basis::Window));
+    assert_eq!(tone(&week, &result, now()), Tone::Good);
+}
+
+#[test]
+fn an_idle_long_window_is_paused_with_its_last_active_rate() {
+    let (week, samples) = bursty_week();
+    let earlier: Vec<_> = samples
+        .iter()
+        .map(|sample| UsageSample {
+            at: sample.at - SignedDuration::from_hours(3),
+            used: sample.used,
+        })
+        .collect();
+    let result = run(&week, &earlier, false);
+    assert_eq!(result.basis, Some(Basis::Paused));
+    assert_eq!(result.severity, pace(&week, now()).severity);
+    assert_eq!(result.active_left, Some(SignedDuration::from_secs(48_000)));
 }
 
 #[test]
@@ -179,4 +210,48 @@ fn a_change_missing_from_history_is_not_idle() {
     let busy = session(60.0);
     let result = run(&busy, &[ago(60, 55.0)], false);
     assert_eq!(result.basis, Some(Basis::Window));
+}
+
+fn fifteen_minute_steps() -> [UsageSample; 3] {
+    [ago(45, 40.0), ago(30, 41.0), ago(15, 42.0)]
+}
+
+#[test]
+fn a_provider_without_an_activity_source_is_never_paused() {
+    let steady = session(42.0);
+    let samples = fifteen_minute_steps();
+    for mins in [0, 5, 10, 14] {
+        let observed = now() - SignedDuration::from_mins(mins);
+        let result = observe(&steady, &samples, Liveness::Unknown, POLL, observed);
+        assert_eq!(result.basis, Some(Basis::Window), "{mins}");
+    }
+}
+
+#[test]
+fn a_long_poll_interval_is_not_mistaken_for_a_pause() {
+    let busy = session(60.0);
+    let samples = [ago(70, 60.0)];
+    let hourly = SignedDuration::from_hours(1);
+    let refreshed = now() - SignedDuration::from_mins(10);
+    let result = observe(&busy, &samples, Liveness::Idle, hourly, refreshed);
+    assert_eq!(result.basis, Some(Basis::Window));
+}
+
+#[test]
+fn a_stale_snapshot_does_not_drift_into_a_pause() {
+    let busy = session(60.0);
+    let samples = [ago(40, 60.0)];
+    let last_success = now() - SignedDuration::from_mins(40);
+    let result = observe(&busy, &samples, Liveness::Idle, POLL, last_success);
+    assert_eq!(result.basis, Some(Basis::Window));
+}
+
+#[test]
+fn an_idle_account_with_logs_and_no_new_change_is_paused() {
+    let busy = session(60.0);
+    let samples = [ago(15, 60.0)];
+    let result = observe(&busy, &samples, Liveness::Idle, POLL, now());
+    assert_eq!(result.basis, Some(Basis::Paused));
+    let unknown = observe(&busy, &samples, Liveness::Unknown, POLL, now());
+    assert_eq!(unknown.basis, Some(Basis::Window));
 }

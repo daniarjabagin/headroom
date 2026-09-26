@@ -200,7 +200,7 @@ fn combined_basis_follows_the_members() {
         ([recent, paused], Some(Basis::Recent)),
         ([paused, window_basis], Some(Basis::Window)),
         ([paused, paused], Some(Basis::Paused)),
-        ([paused, None], Some(Basis::Paused)),
+        ([paused, None], Some(Basis::Window)),
         ([None, None], Some(Basis::Window)),
     ];
     for (members, expected) in cases {
@@ -209,6 +209,19 @@ fn combined_basis_follows_the_members() {
         let (pace, _) = combined_pace(&[&first, &second]);
         assert_eq!(pace.basis, expected, "{members:?}");
     }
+}
+
+#[test]
+fn a_young_member_keeps_a_group_from_looking_paused() {
+    let paused = based(40.0, 60.0, Some(Basis::Paused), Some(600));
+    let young = used(30.0);
+    let (pace, _) = combined_pace(&[&paused, &young]);
+    assert_eq!(pace.basis, Some(Basis::Window));
+    assert_eq!(pace.active_left_seconds, None);
+    let mut spent = used(100.0);
+    spent.pace.severity = Severity::Spent;
+    let (pace, _) = combined_pace(&[&paused, &spent]);
+    assert_eq!(pace.basis, Some(Basis::Paused));
 }
 
 #[test]

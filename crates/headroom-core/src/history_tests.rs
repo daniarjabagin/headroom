@@ -34,6 +34,7 @@ fn sample_step_table() {
         (Some(last), 12.0, later, Some(SampleStep::Restart)),
         (Some(last), 41.0, ts("2026-09-23T09:00:00Z"), None),
         (Some(last), 41.0, ts("2026-09-23T08:00:00Z"), None),
+        (Some(last), 12.0, ts("2026-09-23T08:00:00Z"), None),
     ];
     for (last, used, at, expected) in cases {
         assert_eq!(
@@ -49,6 +50,8 @@ fn a_sample_from_an_earlier_window_restarts_history() {
     let old = sample("2026-09-23T06:59:59Z", 10.0);
     let step = sample_step(Some(&old), &session(30.0), ts("2026-09-23T07:10:00Z"));
     assert_eq!(step, Some(SampleStep::Restart));
+    let behind = sample_step(Some(&old), &session(30.0), ts("2026-09-23T06:00:00Z"));
+    assert_eq!(behind, Some(SampleStep::Restart));
 }
 
 #[test]

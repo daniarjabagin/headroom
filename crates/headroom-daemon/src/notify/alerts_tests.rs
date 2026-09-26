@@ -1,9 +1,16 @@
+use headroom_core::forecast::Liveness;
+use jiff::SignedDuration;
+
 use super::*;
 use crate::testing::{CLAUDE, CODEX};
 use crate::testing::{RecordingNotifier, account, session, snapshot, ts, weekly};
 
 const NOW: &str = "2026-09-23T10:00:00Z";
 const RESET: &str = "2026-09-23T12:00:00Z";
+const IDLE: Signal = Signal {
+    liveness: Liveness::Idle,
+    poll_interval: SignedDuration::from_mins(5),
+};
 
 fn work() -> AccountRecord {
     AccountRecord {
@@ -58,7 +65,7 @@ async fn review(
         provider_name: "Codex",
         snapshot: limits,
         history: None,
-        live: false,
+        signal: IDLE,
         settings,
         display,
         locale: Locale::En,
@@ -196,7 +203,7 @@ async fn russian_locale_is_used_for_delivery() {
             provider_name: "Codex",
             snapshot: &limits,
             history: None,
-            live: false,
+            signal: IDLE,
             settings: NotificationSettings::default(),
             display: &display,
             locale: Locale::Ru,
@@ -317,7 +324,7 @@ async fn a_stale_burst_does_not_warn_while_the_window_is_paused() {
         provider_name: "Codex",
         snapshot: &limits,
         history: Some(&history),
-        live: false,
+        signal: IDLE,
         settings: NotificationSettings::default(),
         display: &DisplaySettings::default(),
         locale: Locale::En,

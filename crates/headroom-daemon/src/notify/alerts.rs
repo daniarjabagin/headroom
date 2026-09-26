@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use headroom_core::account::AccountId;
-use headroom_core::forecast::{Activity, forecast};
+use headroom_core::forecast::{Activity, Signal, forecast};
+use headroom_core::history::observed_at;
 use headroom_core::quota::{LimitsSnapshot, QuotaWindow};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -61,7 +62,7 @@ pub struct Review<'a> {
     pub provider_name: &'a str,
     pub snapshot: &'a LimitsSnapshot,
     pub history: Option<&'a WindowSamples>,
-    pub live: bool,
+    pub signal: Signal,
     pub settings: NotificationSettings,
     pub display: &'a DisplaySettings,
     pub locale: Locale,
@@ -168,7 +169,8 @@ impl Alerts {
         let key = (review.account.id().clone(), window_key(&window.id));
         let activity = Activity {
             samples: window_samples(review.history, &key.1),
-            live: review.live,
+            signal: review.signal,
+            observed_at: observed_at(review.snapshot),
         };
         let pace = forecast(window, activity, review.now);
         let observed = Observation::of(window, &pace, review.now);
