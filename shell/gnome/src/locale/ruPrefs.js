@@ -143,4 +143,14 @@ export const RU_PREFS = {
     'Accounts stay signed in; appearance, notifications and hidden limits return to defaults.':
         'Аккаунты останутся подключены; внешний вид, уведомления и скрытые лимиты вернутся к значениям по умолчанию.',
     Reset: 'Сбросить',
+    'Show models and projects': 'Показывать модели и проекты',
+    'Top models and projects under the spend ring': 'Главные модели и проекты под кольцом расходов',
+    'Select an account': 'Выберите аккаунт',
+    Hidden: 'Скрыт',
+    Limits: 'Лимиты',
+    'Hidden limits leave the popup, the panel and notifications.':
+        'Скрытые лимиты не появляются во всплывающем окне, на панели и в уведомлениях.',
+    'The sign-in for this account has expired': 'Срок входа в этот аккаунт истёк',
+    Links: 'Ссылки',
+    'Remove…': 'Удалить…',
 };

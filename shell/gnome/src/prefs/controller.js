@@ -5,6 +5,7 @@ import { DesktopClock } from '../desktopClock.js';
 import { currentLanguage, resolveLanguage, setLanguage } from '../i18n.js';
 import { needsOnboarding } from '../settings.js';
 import { UpdateRunner } from '../updateRunner.js';
+import { SIDEBAR_CSS } from './accountSidebar.js';
 import { AccountsPage } from './accountsPage.js';
 import { AdvancedPage } from './advancedPage.js';
 import { PrefsClient } from './client.js';
@@ -28,7 +29,7 @@ export class PrefsController {
         this._onboardingOffered = false;
         this._lastVisible = 0;
         this._css = new Gtk.CssProvider();
-        this._css.load_from_string([DRAG_CSS, KEYCAPS_CSS, PANEL_ART_CSS].join('\n'));
+        this._css.load_from_string([DRAG_CSS, KEYCAPS_CSS, PANEL_ART_CSS, SIDEBAR_CSS].join('\n'));
         Gtk.StyleContext.add_provider_for_display(window.get_display(), this._css, Gtk.STYLE_PROVIDER_PRIORITY_USER);
         window.set_default_size(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         window.search_enabled = false;

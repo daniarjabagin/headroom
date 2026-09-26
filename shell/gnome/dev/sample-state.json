@@ -46,7 +46,8 @@
     "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
-    "hide_on_screen_share": true
+    "hide_on_screen_share": true,
+    "show_breakdown": true
   },
   "accounts": [
     {

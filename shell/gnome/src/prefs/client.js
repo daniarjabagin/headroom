@@ -47,6 +47,10 @@ export class PrefsClient {
         this._handlers = null;
     }
 
+    get rawSettings() {
+        return this._rawSettings;
+    }
+
     updateSettings(patch) {
         if (this._rawSettings) this._acceptOptimistic(mergePatch(this._rawSettings, patch));
         const sequence = ++this._patchSequence;
