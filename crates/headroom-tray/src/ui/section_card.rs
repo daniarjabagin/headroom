@@ -72,7 +72,7 @@ pub fn rest_widget(ctx: &Ctx, account: &Account, rest: &RestKey) -> gtk::Widget 
 
 pub fn card<'a>(ctx: &Ctx, account: &'a Account) -> Card<'a> {
     let terminal_sign_in = ctx.sign_in.contains(&account.provider);
-    match card_body(ctx.locale.lang, account, ctx.offline, terminal_sign_in) {
+    match card_body(&ctx.locale, account, ctx.offline, terminal_sign_in) {
         CardBody::Blocked(notice) => Card {
             alert: Some(notice),
             rest: None,

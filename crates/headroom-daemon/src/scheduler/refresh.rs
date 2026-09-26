@@ -149,7 +149,7 @@ async fn review_alerts(core: &Core, account: &AccountRef, now: Timestamp) {
             .and_then(|runtime| runtime.failure.as_ref())
             .is_some_and(RefreshFailure::is_no_subscription);
         let history = model.history.shared(&account.id);
-        let signal = model.activity_signal(account, now);
+        let signal = model.activity_signal(account, min_poll(core, account), now);
         let spend = snapshot
             .as_ref()
             .map(|snapshot| model.live_spend(account, snapshot, signal));

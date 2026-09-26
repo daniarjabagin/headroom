@@ -24,6 +24,7 @@ pub mod preferences;
 pub mod process;
 pub mod providers;
 pub mod quota;
+pub mod rate_limit;
 pub mod recovery;
 pub mod ring_fit;
 pub mod settings;

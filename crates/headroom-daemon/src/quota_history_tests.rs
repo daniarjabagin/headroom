@@ -6,10 +6,11 @@ use jiff::SignedDuration;
 
 use super::*;
 use crate::storage::accounts::AccountRecord;
-use crate::testing::{CODEX, account, session, snapshot, ts, usage_home_of, weekly};
+use crate::testing::{CLAUDE, CODEX, account, session, snapshot, ts, usage_home_of, weekly};
 
 const RESET: &str = "2026-09-23T12:00:00Z";
 const NEXT_RESET: &str = "2026-09-23T17:00:00Z";
+const NOW: &str = "2026-09-23T10:00:00Z";
 
 fn id() -> AccountId {
     account(CODEX, "work").id
@@ -182,4 +183,19 @@ fn spend_of_homes_no_longer_in_use_is_dropped() {
     model.store_spend(&home, vec![spent("2026-09-23T09:10:00Z", 2)]);
     assert!(model.history.spend_of(&[gone]).is_empty());
     assert_eq!(model.history.spend_of(&[home]).len(), 1);
+}
+
+#[test]
+fn a_live_account_signals_its_provider_poll_floor() {
+    let claude = account(CLAUDE, "main");
+    let mut model = model_with(&claude);
+    let home = usage_home_of(&claude);
+    model.usage_homes.insert(home.clone());
+    model.activity.record(&home, ts(NOW), ts(NOW));
+    let floor = Some(SignedDuration::from_secs(180));
+    let floored = model.activity_signal(&claude, floor, ts(NOW));
+    let unfloored = model.activity_signal(&claude, None, ts(NOW));
+    assert_eq!(floored.liveness, Liveness::Live);
+    assert_eq!(floored.poll_interval, SignedDuration::from_secs(180));
+    assert_eq!(unfloored.poll_interval, SignedDuration::from_secs(60));
 }

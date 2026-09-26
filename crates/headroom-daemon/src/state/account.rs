@@ -61,7 +61,7 @@ fn base_view(record: &AccountRecord, model: &Model, ctx: &AssembleContext<'_>) -
         recovery: recovery(failure, &record.reference, ctx.catalog),
         updated_at: entry.map(crate::model::SnapshotEntry::data_time),
         source: entry.map(source),
-        windows: snapshot.map_or_else(Vec::new, |s| windows(s, record, model, ctx.now)),
+        windows: snapshot.map_or_else(Vec::new, |s| windows(s, record, model, ctx)),
         balances: snapshot.map_or_else(Vec::new, |s| s.balances.iter().map(balance_view).collect()),
         notices: snapshot.map_or_else(Vec::new, |s| s.notices.iter().map(notice_view).collect()),
         usage_home: ctx.homes.show(&model.usage_home_of(&record.reference)),
@@ -84,11 +84,13 @@ fn windows(
     snapshot: &LimitsSnapshot,
     record: &AccountRecord,
     model: &Model,
-    now: Timestamp,
+    ctx: &AssembleContext<'_>,
 ) -> Vec<WindowView> {
+    let now = ctx.now;
     let display = &model.settings.display;
     let history = model.history.account(record.id());
-    let signal = model.activity_signal(&record.reference, now);
+    let min_poll = ctx.catalog.min_poll_interval(&record.reference.provider);
+    let signal = model.activity_signal(&record.reference, min_poll, now);
     let spend = model.live_spend(&record.reference, snapshot, signal);
     snapshot
         .windows
