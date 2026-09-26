@@ -73,9 +73,15 @@ impl TerminalCommand {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Terminals {
+pub struct TerminalChain {
     pub search_path: Option<OsString>,
     pub preferred: Option<OsString>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Terminals {
+    MacTerminal,
+    Chain(TerminalChain),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,20 +91,29 @@ pub struct Opened {
 
 impl Terminals {
     pub fn from_env() -> Terminals {
-        Terminals {
+        if cfg!(target_os = "macos") {
+            return Terminals::MacTerminal;
+        }
+        Terminals::Chain(TerminalChain::from_env())
+    }
+
+    pub fn open(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
+        match self {
+            Terminals::MacTerminal => open_macos_terminal(command).map(Some),
+            Terminals::Chain(chain) => chain.open(command),
+        }
+    }
+}
+
+impl TerminalChain {
+    fn from_env() -> TerminalChain {
+        TerminalChain {
             search_path: std::env::var_os("PATH"),
             preferred: std::env::var_os("TERMINAL").filter(|value| !value.is_empty()),
         }
     }
 
-    pub fn open(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
-        if cfg!(target_os = "macos") {
-            return open_macos_terminal(command).map(Some);
-        }
-        self.open_linux_terminal(command)
-    }
-
-    fn open_linux_terminal(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
+    fn open(&self, command: &TerminalCommand) -> Result<Option<Opened>> {
         let mut failures = Vec::new();
         for (terminal, style) in self.candidates() {
             match launch(&terminal, style, command) {
