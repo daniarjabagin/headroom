@@ -4,7 +4,7 @@ use headroom_core::account::ProviderId;
 use headroom_core::usage::{PeriodUsage, UsageSummary, UsageTotals};
 
 use super::AssembleContext;
-use super::models::{ModelMerge, top_models};
+use super::models::{ModelMerge, ProviderModel, merged_top_models, top_models};
 use super::payload::{PeriodSpendView, ProviderSpendView, SpendView};
 use super::projects::ProjectMerge;
 use crate::home::UsageHome;
@@ -41,13 +41,13 @@ fn period(homes: &[HomeSummary<'_>], ctx: &AssembleContext<'_>, pick: Pick) -> P
         projects.add(&home.provider, &usage.projects);
         totals.absorb(&usage.totals);
     }
-    let by_provider = ranked(
-        providers
-            .into_iter()
-            .map(|(id, merge)| provider_view(id, merge, ctx))
-            .filter(has_usage)
-            .collect(),
-    );
+    let (views, merged): (Vec<_>, Vec<_>) = providers
+        .into_iter()
+        .map(|(id, merge)| provider_spend(id, merge, ctx))
+        .filter(|(view, _)| has_usage(view))
+        .unzip();
+    let by_provider = ranked(views);
+    let (models, models_other) = merged_top_models(merged.into_iter().flatten().collect());
     let projects = projects.finish(&totals, ctx);
     PeriodSpendView {
         cost_usd_micros: by_provider
@@ -59,28 +59,41 @@ fn period(homes: &[HomeSummary<'_>], ctx: &AssembleContext<'_>, pick: Pick) -> P
         partial: by_provider.iter().any(|p| p.partial),
         cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
         by_provider,
+        models,
+        models_other,
         projects: projects.listed,
         projects_other: projects.other,
     }
 }
 
-fn provider_view(
+fn provider_spend(
     provider: ProviderId,
     merge: ProviderMerge,
     ctx: &AssembleContext<'_>,
-) -> ProviderSpendView {
-    let (models, models_other) = top_models(&merge.models.ranked());
+) -> (ProviderSpendView, Vec<ProviderModel>) {
+    let provider_name = ctx.catalog.display_name(&provider).to_owned();
+    let ranked = merge.models.ranked();
+    let (models, models_other) = top_models(&ranked);
+    let merged = ranked
+        .into_iter()
+        .map(|usage| ProviderModel {
+            provider: provider.clone(),
+            provider_name: provider_name.clone(),
+            usage,
+        })
+        .collect();
     let totals = merge.totals;
-    ProviderSpendView {
-        provider_name: ctx.catalog.display_name(&provider).to_owned(),
+    let view = ProviderSpendView {
         provider,
+        provider_name,
         cost_usd_micros: totals.cost.0,
         total_tokens: totals.tokens.total().0,
         partial: totals.is_partial(),
         cost_per_mtok_usd_micros: totals.cost_per_mtok().map(|cost| cost.0),
         models,
         models_other,
-    }
+    };
+    (view, merged)
 }
 
 fn has_usage(spend: &ProviderSpendView) -> bool {

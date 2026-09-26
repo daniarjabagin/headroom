@@ -253,3 +253,75 @@ fn provider_models_keep_the_top_five_and_fold_the_rest_after_merging() {
         })
     );
 }
+
+fn reconciled(period: &PeriodSpendView) -> (i64, u64) {
+    let other = period.models_other.clone().unwrap_or_default();
+    period.models.iter().fold(
+        (other.cost_usd_micros, other.total_tokens),
+        |(cost, tokens), m| {
+            (
+                cost + m.model.cost_usd_micros,
+                tokens + m.model.total_tokens,
+            )
+        },
+    )
+}
+
+#[test]
+fn merged_models_span_providers_and_reconcile_with_the_period_totals() {
+    let codex: Vec<UsageEvent> = [("a", 90), ("b", 70), ("shared", 50), ("unknown", 400)]
+        .iter()
+        .map(|(name, tokens)| used(name, name, *tokens))
+        .collect();
+    let claude = [
+        used("c1", "shared", 60),
+        used("c2", "c", 30),
+        used("c3", "d", 20),
+        used("c4", "unknown", 5),
+        event("c5", LAST_MONTH, "old", 1_000, 0),
+    ];
+    let spend = Fixture::new()
+        .home(&CODEX, "/home/ada/.codex", &codex)
+        .home(&CODEX, "/srv/codex", &[used("s", "b", 15)])
+        .home(&CLAUDE, "/home/ada/.claude", &claude)
+        .spend();
+    let today = &spend.today;
+    let rows: Vec<_> = today
+        .models
+        .iter()
+        .map(|m| (m.provider.clone(), m.model.model.as_str()))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            (CODEX, "a"),
+            (CODEX, "b"),
+            (CLAUDE, "shared"),
+            (CODEX, "shared"),
+            (CLAUDE, "c"),
+        ]
+    );
+    assert_eq!(today.models[1].model, model("b", 85, 170, false));
+    assert_eq!(today.models[2].provider_name, "Claude");
+    assert_eq!(
+        today.models_other,
+        Some(OtherModelsView {
+            count: 3,
+            total_tokens: 425,
+            cost_usd_micros: 40,
+            partial: true,
+            cost_per_mtok_usd_micros: Some(2_000_000),
+        })
+    );
+    assert_eq!(
+        reconciled(today),
+        (today.cost_usd_micros, today.total_tokens)
+    );
+    let month = &spend.last_30_days;
+    assert_eq!(
+        reconciled(month),
+        (month.cost_usd_micros, month.total_tokens)
+    );
+    assert_eq!(spend.yesterday.models, []);
+    assert_eq!(spend.yesterday.models_other, None);
+}

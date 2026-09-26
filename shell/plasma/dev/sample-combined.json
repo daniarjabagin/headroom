@@ -1636,6 +1636,60 @@
           "cost_per_mtok_usd_micros": 2894089
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus-4-5",
+          "total_tokens": 647436,
+          "cost_usd_micros": 6856400,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 10590081
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 1990448,
+          "cost_usd_micros": 6567600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3299559
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-sonnet-4-5",
+          "total_tokens": 723603,
+          "cost_usd_micros": 3034800,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 4194012
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "model": "grok-4",
+          "total_tokens": 568400,
+          "cost_usd_micros": 1927000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3390218
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5-mini",
+          "total_tokens": 674184,
+          "cost_usd_micros": 1010400,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 1498701
+        }
+      ],
+      "models_other": {
+        "count": 7,
+        "total_tokens": 1322549,
+        "cost_usd_micros": 2613800,
+        "partial": false,
+        "cost_per_mtok_usd_micros": 1976335
+      },
       "projects": [
         {
           "project": "~/code/headroom",
@@ -1792,6 +1846,60 @@
           "cost_per_mtok_usd_micros": 2852941
         }
       ],
+      "models": [
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus-4-5",
+          "total_tokens": 1058080,
+          "cost_usd_micros": 10894600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 10296575
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 3102480,
+          "cost_usd_micros": 10085400,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3250754
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-sonnet-4-5",
+          "total_tokens": 1182560,
+          "cost_usd_micros": 4822200,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 4077763
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "model": "grok-4",
+          "total_tokens": 714000,
+          "cost_usd_micros": 2386200,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3342017
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5-mini",
+          "total_tokens": 1050840,
+          "cost_usd_micros": 1551600,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 1476533
+        }
+      ],
+      "models_other": {
+        "count": 7,
+        "total_tokens": 2028040,
+        "cost_usd_micros": 3960000,
+        "partial": false,
+        "cost_per_mtok_usd_micros": 1952624
+      },
       "projects": [
         {
           "project": "~/code/headroom",
@@ -1948,6 +2056,60 @@
           "cost_per_mtok_usd_micros": 2699301
         }
       ],
+      "models": [
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 59594400,
+          "cost_usd_micros": 180765000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3033255
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus-4-5",
+          "total_tokens": 16425570,
+          "cost_usd_micros": 160064000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 9744806
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-sonnet-4-5",
+          "total_tokens": 18357990,
+          "cost_usd_micros": 70848000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3859246
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "model": "grok-4",
+          "total_tokens": 10010000,
+          "cost_usd_micros": 31652000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3162038
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5-mini",
+          "total_tokens": 20185200,
+          "cost_usd_micros": 27810000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 1377742
+        }
+      ],
+      "models_other": {
+        "count": 7,
+        "total_tokens": 34157340,
+        "cost_usd_micros": 61611000,
+        "partial": false,
+        "cost_per_mtok_usd_micros": 1803741
+      },
       "projects": [
         {
           "project": "~/code/headroom",
@@ -2104,6 +2266,60 @@
           "cost_per_mtok_usd_micros": 2699301
         }
       ],
+      "models": [
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5",
+          "total_tokens": 59594400,
+          "cost_usd_micros": 180765000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3033255
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-opus-4-5",
+          "total_tokens": 16425570,
+          "cost_usd_micros": 160064000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 9744806
+        },
+        {
+          "provider": "claude",
+          "provider_name": "Claude",
+          "model": "claude-sonnet-4-5",
+          "total_tokens": 18357990,
+          "cost_usd_micros": 70848000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3859246
+        },
+        {
+          "provider": "grok",
+          "provider_name": "Grok",
+          "model": "grok-4",
+          "total_tokens": 10010000,
+          "cost_usd_micros": 31652000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 3162038
+        },
+        {
+          "provider": "codex",
+          "provider_name": "Codex",
+          "model": "gpt-5.5-mini",
+          "total_tokens": 20185200,
+          "cost_usd_micros": 27810000,
+          "partial": false,
+          "cost_per_mtok_usd_micros": 1377742
+        }
+      ],
+      "models_other": {
+        "count": 7,
+        "total_tokens": 34157340,
+        "cost_usd_micros": 61611000,
+        "partial": false,
+        "cost_per_mtok_usd_micros": 1803741
+      },
       "projects": [
         {
           "project": "~/code/headroom",
