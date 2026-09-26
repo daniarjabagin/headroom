@@ -74,7 +74,11 @@ async fn discover(core: &Core, provider: &dyn Provider) {
             return;
         }
     };
-    let found = core.model().dismissed.resolve(found);
+    let found = {
+        let mut model = core.model();
+        model.cli_sign_ins.set(id, &found);
+        model.dismissed.resolve(found)
+    };
     let now = core.clock.now();
     let result = core
         .storage

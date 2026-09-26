@@ -61,7 +61,7 @@ fn base_view(record: &AccountRecord, model: &Model, ctx: &AssembleContext<'_>) -
         windows: snapshot.map_or_else(Vec::new, |s| windows(s, record, model, ctx.now)),
         balances: snapshot.map_or_else(Vec::new, |s| s.balances.iter().map(balance_view).collect()),
         notices: snapshot.map_or_else(Vec::new, |s| s.notices.iter().map(notice_view).collect()),
-        usage_home: ctx.homes.show(&record.reference.home),
+        usage_home: ctx.homes.show(&model.usage_home_of(&record.reference)),
         refresh: Some(refresh_view(record, runtime, model, ctx.now)),
         collapsed: false,
     }

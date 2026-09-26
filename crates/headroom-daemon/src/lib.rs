@@ -14,6 +14,7 @@ pub mod error;
 pub mod events;
 pub mod home;
 pub mod ipc;
+mod log_homes;
 pub mod model;
 pub mod notify;
 mod once;

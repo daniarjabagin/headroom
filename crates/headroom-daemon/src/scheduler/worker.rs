@@ -67,7 +67,7 @@ fn first_delay(core: &Core, account: &AccountRef, first: FirstRefresh) -> Signed
                 .snapshots
                 .get(&account.id)
                 .map(|e| e.snapshot.fetched_at);
-            let live = model.activity.account_is_live(account, now);
+            let live = model.account_is_live(account, now);
             let interval = policy::effective_interval(&model.settings, live);
             policy::initial_delay(fetched, now, interval)
         }
@@ -81,7 +81,7 @@ fn first_delay(core: &Core, account: &AccountRef, first: FirstRefresh) -> Signed
 fn live_deadline(core: &Core, account: &AccountRef, deadline: Instant) -> Instant {
     let now = core.clock.now();
     let mut model = core.model();
-    let live = model.activity.account_is_live(account, now);
+    let live = model.account_is_live(account, now);
     if !policy::adaptive_live(&model.settings, live) {
         return deadline;
     }

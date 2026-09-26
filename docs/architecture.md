@@ -155,7 +155,10 @@ pub struct AccountIdentity { pub email: Option<String>, pub plan: Option<String>
   Usage homes are discovered on their own (`Provider::usage_homes`): a home with logs but no OAuth
   account (API-key users, signed-out users) still counts, and so does a second config dir signed into
   an account already discovered elsewhere. An account links to the usage home at its own `home` when
-  that home has logs; accounts sharing a home share usage.
+  that home has logs, or, for a Headroom-owned account, to a CLI home signed in to the same account id
+  that is not shown as an account of its own (for example after it was dismissed); the account's
+  `usage[]` entry then merges all of its homes with logs, while spend still counts each home once.
+  Accounts sharing a home share usage.
 
 ## Quota model
 

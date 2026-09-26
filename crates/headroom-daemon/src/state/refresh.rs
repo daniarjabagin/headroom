@@ -12,7 +12,7 @@ pub fn refresh_view(
     model: &Model,
     now: Timestamp,
 ) -> RefreshView {
-    let active = model.activity.account_is_live(&record.reference, now);
+    let active = model.account_is_live(&record.reference, now);
     let live = policy::adaptive_live(&model.settings, active);
     RefreshView {
         mode: if live {

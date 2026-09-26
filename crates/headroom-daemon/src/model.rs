@@ -11,6 +11,7 @@ use crate::activity::ActivityTracker;
 use crate::dismissed::DismissedHomes;
 use crate::error::StorageError;
 use crate::home::UsageHome;
+use crate::log_homes::CliSignIns;
 use crate::settings::Settings;
 use crate::status::ProviderStatus;
 use crate::storage::accounts::{self, AccountRecord};
@@ -23,6 +24,7 @@ pub struct Model {
     pub settings: Settings,
     pub accounts: Vec<AccountRecord>,
     pub dismissed: DismissedHomes,
+    pub cli_sign_ins: CliSignIns,
     pub snapshots: HashMap<AccountId, SnapshotEntry>,
     pub runtime: HashMap<AccountId, AccountRuntime>,
     pub usage_homes: BTreeSet<UsageHome>,
@@ -115,10 +117,12 @@ impl Model {
                 (id, SnapshotEntry { snapshot, origin })
             })
             .collect();
+        let dismissed = dismissed::load_all(conn)?;
         Ok(Model {
             settings: settings::load(conn)?,
             accounts: accounts::load_all(conn)?,
-            dismissed: dismissed::load_all(conn)?,
+            cli_sign_ins: CliSignIns::from_dismissed(&dismissed),
+            dismissed,
             snapshots,
             runtime: lapsed_runtime(lapses::load_all(conn)?),
             usage_homes: BTreeSet::new(),

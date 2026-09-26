@@ -1,6 +1,7 @@
 mod account;
 mod account_collapse;
 mod account_recovery;
+mod account_usage;
 mod activity;
 mod combined;
 mod combined_pace;
@@ -53,9 +54,9 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
         display,
     );
     let spend = spend::spend(&listed, ctx);
-    let usage = listed
+    let usage = account_usage::shown_usage(model, &listed)
         .into_iter()
-        .map(|(home, summary)| usage::with_top_models(usage::usage_view(home, summary, ctx)))
+        .map(|(home, summary)| usage::with_top_models(usage::usage_view(home, &summary, ctx)))
         .collect();
     StatePayload {
         version: STATE_VERSION,
