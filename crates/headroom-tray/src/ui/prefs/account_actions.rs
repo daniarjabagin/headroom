@@ -86,6 +86,7 @@ impl LinksGroup {
         Self {
             group: adw::PreferencesGroup::builder()
                 .title(lang.tr("Links"))
+                .visible(false)
                 .build(),
             rows: RefCell::default(),
             links: RefCell::default(),

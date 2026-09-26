@@ -27,6 +27,7 @@ pub mod quota;
 pub mod recovery;
 pub mod ring_fit;
 pub mod settings;
+pub mod sheen_plan;
 pub mod shortcut;
 pub mod spend;
 pub mod theme;

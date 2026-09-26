@@ -188,6 +188,7 @@ fn sign_in_is_offered_for_signed_out_accounts_and_login_recoveries() {
     let mut login = state.accounts[0].clone();
     login.recovery = RecoveryField::Offered(Recovery::CliLogin {
         command: "claude auth login".into(),
+        account_id: Some("claude:main".into()),
     });
     assert!(offers_sign_in(&login));
     login.recovery = RecoveryField::Offered(Recovery::SignIn { account_id: None });

@@ -183,7 +183,11 @@ impl MountedWindowRow {
             members: members.to_vec(),
         };
         let view = combined_row(&ctx.locale, window, members, &ctx.display, now);
-        let meter = SegmentedMeter::new(meter_parts(ctx, &view), meter_size(ctx.compact()));
+        let meter = SegmentedMeter::new(
+            meter_parts(ctx, &view),
+            meter_size(ctx.compact()),
+            &ctx.sheen,
+        );
         let parts = Rc::new(if ctx.compact() {
             compact_parts(ctx, meter)
         } else {

@@ -25,6 +25,8 @@ fn period(cost: i64, tokens: u64) -> PeriodSpend {
         cost_per_mtok_usd_micros: Some(330_000),
         projects: None,
         projects_other: None,
+        models: None,
+        models_other: None,
     }
 }
 

@@ -8,7 +8,6 @@ use super::spend_view::{
     Basis, Figures, basis_of, measure, permille, proportion, share_text, unit_value,
 };
 
-const MODEL_ROWS: usize = 5;
 const PROJECT_NAME_CHARS: usize = 24;
 pub(super) const MODEL_FORMS: [&str; 2] = ["{count} model", "{count} models"];
 const PROJECT_FORMS: [&str; 2] = ["{count} project", "{count} projects"];
@@ -71,7 +70,7 @@ impl Scale {
         }
     }
 
-    fn new(lang: Lang, unit: SpendUnit, basis: Basis, period: &PeriodSpend) -> Self {
+    pub(super) fn new(lang: Lang, unit: SpendUnit, basis: Basis, period: &PeriodSpend) -> Self {
         let basis = basis_of(basis, period);
         Self {
             basis,
@@ -85,11 +84,11 @@ impl Scale {
         measure(self.basis, cost, tokens)
     }
 
-    fn share(self, cost: i64, tokens: u64) -> String {
+    pub(super) fn share(self, cost: i64, tokens: u64) -> String {
         share_text(self.lang, permille(self.of(cost, tokens), self.whole))
     }
 
-    fn part(self, provider: Option<String>, cost: i64, tokens: u64) -> BarPart {
+    pub(super) fn part(self, provider: Option<String>, cost: i64, tokens: u64) -> BarPart {
         BarPart {
             provider,
             fraction: proportion(self.of(cost, tokens), self.whole),
@@ -100,7 +99,7 @@ impl Scale {
         unit_value(self.lang, self.unit, figures)
     }
 
-    fn tooltip(self, figures: Figures) -> String {
+    pub(super) fn tooltip(self, figures: Figures) -> String {
         format!(
             "{} · {}",
             crate::numbers::exact_usd(figures.cost_micros),
@@ -124,7 +123,7 @@ pub(super) fn model_figures(model: &ModelUsage) -> Figures {
     }
 }
 
-fn model_row(scale: Scale, provider: &str, model: &ModelUsage) -> BreakdownRow {
+pub(super) fn model_row(scale: Scale, provider: &str, model: &ModelUsage) -> BreakdownRow {
     let figures = model_figures(model);
     BreakdownRow {
         mark: RowMark::Dot(provider.to_owned()),
@@ -141,181 +140,69 @@ fn model_row(scale: Scale, provider: &str, model: &ModelUsage) -> BreakdownRow {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum Rate {
-    #[default]
-    Empty,
-    One(Option<i64>),
-    Many,
-}
-
-impl Rate {
-    fn joined(self, other: Rate) -> Rate {
-        match (self, other) {
-            (Rate::Empty, rate) | (rate, Rate::Empty) => rate,
-            _ => Rate::Many,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct Folded {
-    count: u64,
+    pub(super) count: u64,
     cost: i64,
     tokens: u64,
-    rate: Rate,
+    per_mtok: Option<i64>,
 }
 
 impl Folded {
-    fn of(count: u64, cost: i64, tokens: u64, rate: Option<i64>) -> Self {
-        Self {
-            count,
-            cost,
-            tokens,
-            rate: Rate::One(rate),
+    pub(super) fn summed(self, part: Folded) -> Folded {
+        Folded {
+            count: self.count.saturating_add(part.count),
+            cost: self.cost.saturating_add(part.cost),
+            tokens: self.tokens.saturating_add(part.tokens),
+            per_mtok: None,
         }
-    }
-
-    pub(super) fn add(&mut self, part: Folded) {
-        self.count = self.count.saturating_add(part.count);
-        self.cost = self.cost.saturating_add(part.cost);
-        self.tokens = self.tokens.saturating_add(part.tokens);
-        self.rate = self.rate.joined(part.rate);
     }
 
     pub(super) fn figures(self) -> Figures {
         Figures {
             cost_micros: self.cost,
             tokens: self.tokens,
-            per_mtok: match self.rate {
-                Rate::One(rate) => rate,
-                Rate::Empty | Rate::Many => None,
-            },
+            per_mtok: self.per_mtok,
         }
-    }
-}
-
-impl From<&ModelUsage> for Folded {
-    fn from(model: &ModelUsage) -> Self {
-        Self::of(
-            1,
-            model.cost_usd_micros,
-            model.total_tokens,
-            model.cost_per_mtok_usd_micros,
-        )
     }
 }
 
 impl From<&OtherModels> for Folded {
     fn from(other: &OtherModels) -> Self {
-        Self::of(
-            other.count,
-            other.cost_usd_micros,
-            other.total_tokens,
-            other.cost_per_mtok_usd_micros,
-        )
+        Self {
+            count: other.count,
+            cost: other.cost_usd_micros,
+            tokens: other.total_tokens,
+            per_mtok: other.cost_per_mtok_usd_micros,
+        }
     }
 }
 
 impl From<&OtherProjects> for Folded {
     fn from(other: &OtherProjects) -> Self {
-        Self::of(
-            other.count,
-            other.cost_usd_micros,
-            other.total_tokens,
-            other.cost_per_mtok_usd_micros,
-        )
+        Self {
+            count: other.count,
+            cost: other.cost_usd_micros,
+            tokens: other.total_tokens,
+            per_mtok: other.cost_per_mtok_usd_micros,
+        }
     }
 }
 
-fn provider_folds(
-    ranked: &[(&str, &ModelUsage)],
-    providers: &[ProviderSpend],
-) -> Vec<(String, Folded)> {
-    providers
-        .iter()
-        .filter_map(|spend| {
-            let mut folded = Folded::default();
-            for (_, model) in ranked.iter().filter(|(id, _)| *id == spend.provider) {
-                folded.add(Folded::from(*model));
-            }
-            if let Some(other) = &spend.models_other {
-                folded.add(Folded::from(other));
-            }
-            (folded.count > 0).then(|| (spend.provider.clone(), folded))
-        })
-        .collect()
-}
-
-fn other_row(scale: Scale, detail: String, folds: &[(Option<String>, Folded)]) -> BreakdownRow {
-    let mut total = Folded::default();
-    for (_, folded) in folds {
-        total.add(*folded);
-    }
+pub(super) fn other_row(
+    scale: Scale,
+    detail: String,
+    total: Folded,
+    bar: Vec<BarPart>,
+) -> BreakdownRow {
     BreakdownRow {
         mark: RowMark::None,
         name: scale.lang.tr("Other").to_owned(),
         detail: Some(detail),
         share: scale.share(total.cost, total.tokens),
         value: scale.value(total.figures()),
-        bar: folds
-            .iter()
-            .map(|(provider, folded)| scale.part(provider.clone(), folded.cost, folded.tokens))
-            .collect(),
+        bar,
         tooltip: scale.tooltip(total.figures()),
-    }
-}
-
-fn ranked_models(scale: Scale, period: &PeriodSpend) -> Vec<(&str, &ModelUsage)> {
-    let mut models: Vec<(&str, &ModelUsage)> = period
-        .by_provider
-        .iter()
-        .flat_map(|spend| {
-            spend
-                .models
-                .iter()
-                .map(move |model| (spend.provider.as_str(), model))
-        })
-        .collect();
-    models.sort_by(|a, b| {
-        let key = |model: &ModelUsage| scale.of(model.cost_usd_micros, model.total_tokens);
-        key(b.1)
-            .cmp(&key(a.1))
-            .then(b.1.total_tokens.cmp(&a.1.total_tokens))
-            .then(a.1.model.cmp(&b.1.model))
-    });
-    models
-}
-
-#[must_use]
-pub fn model_list(
-    lang: Lang,
-    unit: SpendUnit,
-    basis: Basis,
-    period: &PeriodSpend,
-) -> BreakdownList {
-    let scale = Scale::new(lang, unit, basis, period);
-    let ranked = ranked_models(scale, period);
-    let shown = ranked.len().min(MODEL_ROWS);
-    let mut rows: Vec<BreakdownRow> = ranked[..shown]
-        .iter()
-        .map(|(provider, model)| model_row(scale, provider, model))
-        .collect();
-    let folds: Vec<(Option<String>, Folded)> =
-        provider_folds(&ranked[shown..], &period.by_provider)
-            .into_iter()
-            .map(|(provider, folded)| (Some(provider), folded))
-            .collect();
-    let folded: u64 = folds.iter().map(|(_, folded)| folded.count).sum();
-    if folded > 0 {
-        rows.push(other_row(scale, counted(lang, MODEL_FORMS, folded), &folds));
-    }
-    let total = u64::try_from(shown)
-        .unwrap_or(u64::MAX)
-        .saturating_add(folded);
-    BreakdownList {
-        caption: counted(lang, MODEL_FORMS, total),
-        rows,
     }
 }
 
@@ -370,7 +257,8 @@ pub fn project_list(
         let mut row = other_row(
             scale,
             counted(lang, PROJECT_FORMS, other.count),
-            &[(None, Folded::from(other))],
+            Folded::from(other),
+            vec![scale.part(None, other.cost_usd_micros, other.total_tokens)],
         );
         row.mark = RowMark::Folder;
         rows.push(row);

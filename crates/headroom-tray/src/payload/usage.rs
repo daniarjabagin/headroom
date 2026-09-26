@@ -109,6 +109,18 @@ pub struct PeriodSpend {
     pub projects: Option<Vec<ProjectSpend>>,
     #[serde(default)]
     pub projects_other: Option<OtherProjects>,
+    #[serde(default)]
+    pub models: Option<Vec<ProviderModelUsage>>,
+    #[serde(default)]
+    pub models_other: Option<OtherModels>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProviderModelUsage {
+    pub provider: String,
+    pub provider_name: String,
+    #[serde(flatten)]
+    pub usage: ModelUsage,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
