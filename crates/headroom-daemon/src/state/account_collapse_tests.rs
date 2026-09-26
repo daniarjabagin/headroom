@@ -1,6 +1,8 @@
+use headroom_core::pace::Tone;
+
 use super::*;
 use crate::state::combined::combined;
-use crate::state::payload::{AccountError, WindowView};
+use crate::state::payload::{AccountError, AccountStatus, WindowView};
 use crate::state::test_views::{account, window};
 use crate::testing::{CLAUDE, CODEX};
 
@@ -21,16 +23,24 @@ fn display(collapse: bool, starred: &[&str]) -> DisplaySettings {
     }
 }
 
+fn failure(kind: &str) -> AccountError {
+    AccountError {
+        kind: kind.into(),
+        message: "failed".into(),
+    }
+}
+
 #[test]
-fn accounts_collapse_only_when_unstarred_and_calm() {
+fn every_unstarred_account_collapses_whatever_its_tone() {
     let cases = [
         (false, vec![], Tone::Good, false),
         (true, vec![], Tone::Good, true),
         (true, vec![], Tone::Neutral, true),
+        (true, vec![], Tone::Warning, true),
+        (true, vec![], Tone::Critical, true),
         (true, vec!["claude:main"], Tone::Good, false),
-        (true, vec!["claude:other"], Tone::Good, true),
-        (true, vec![], Tone::Warning, false),
-        (true, vec![], Tone::Critical, false),
+        (true, vec!["claude:main"], Tone::Critical, false),
+        (true, vec!["claude:other"], Tone::Critical, true),
     ];
     for (collapse, starred, tone, expected) in cases {
         let view = account(&CLAUDE, "main", vec![toned(Tone::Good), toned(tone)]);
@@ -44,74 +54,29 @@ fn accounts_collapse_only_when_unstarred_and_calm() {
 }
 
 #[test]
-fn hidden_windows_never_promote_an_account() {
-    let mut critical = toned(Tone::Critical);
-    critical.hidden = true;
-    let view = account(&CLAUDE, "main", vec![toned(Tone::Good), critical]);
-    assert!(account_collapsed(&view, &display(true, &[])));
-}
-
-fn failure(kind: &str) -> AccountError {
-    AccountError {
-        kind: kind.into(),
-        message: "failed".into(),
-    }
-}
-
-#[test]
-fn accounts_that_need_attention_never_collapse() {
+fn unstarred_accounts_collapse_whatever_their_status() {
     let cases = [
-        (AccountStatus::Fresh, None, true),
-        (AccountStatus::Stale, None, true),
-        (AccountStatus::Refreshing, None, true),
-        (
-            AccountStatus::SignedOut,
-            Some(failure("not_signed_in")),
-            false,
-        ),
-        (
-            AccountStatus::SignedOut,
-            Some(failure("sign_in_expired")),
-            false,
-        ),
-        (
-            AccountStatus::Error,
-            Some(failure("account_changed")),
-            false,
-        ),
-        (AccountStatus::Error, Some(failure("network")), false),
-        (AccountStatus::Error, None, false),
+        (AccountStatus::Fresh, None),
+        (AccountStatus::Refreshing, Some(failure("network"))),
+        (AccountStatus::SignedOut, Some(failure("not_signed_in"))),
+        (AccountStatus::Error, Some(failure("account_changed"))),
         (
             AccountStatus::NoSubscription,
             Some(failure("no_subscription")),
-            false,
         ),
-        (AccountStatus::Refreshing, Some(failure("network")), false),
-        (AccountStatus::Fresh, Some(failure("rate_limited")), false),
+        (AccountStatus::Fresh, Some(failure("rate_limited"))),
     ];
-    for (status, error, expected) in cases {
-        let mut view = account(&CLAUDE, "main", vec![toned(Tone::Good)]);
+    for (status, error) in cases {
+        let mut view = account(&CLAUDE, "main", vec![toned(Tone::Critical)]);
         view.status = status;
         view.error = error.clone();
-        assert_eq!(
+        assert!(
             account_collapsed(&view, &display(true, &[])),
-            expected,
             "{status:?} {error:?}"
         );
+        assert!(!account_collapsed(&view, &display(true, &["claude:main"])));
+        assert!(!account_collapsed(&view, &display(false, &[])));
     }
-}
-
-#[test]
-fn a_member_that_needs_attention_keeps_the_group_expanded() {
-    let mut accounts = [
-        account(&CODEX, "work", vec![toned(Tone::Good)]),
-        account(&CODEX, "home", vec![toned(Tone::Good)]),
-    ];
-    accounts[1].status = AccountStatus::Error;
-    accounts[1].error = Some(failure("network"));
-    let groups = with_group_collapse(combined(&accounts, true), &accounts, &display(true, &[]));
-    assert_eq!(groups[0].account_ids.len(), 2);
-    assert!(!groups[0].collapsed);
 }
 
 #[test]
@@ -121,11 +86,13 @@ fn accounts_without_windows_collapse_when_unstarred() {
 }
 
 #[test]
-fn combined_groups_collapse_by_members_and_combined_tone() {
-    let accounts = [
+fn combined_groups_collapse_unless_a_member_is_starred() {
+    let mut accounts = [
         account(&CODEX, "work", vec![toned(Tone::Good)]),
         account(&CODEX, "home", vec![toned(Tone::Good)]),
     ];
+    accounts[1].status = AccountStatus::Error;
+    accounts[1].error = Some(failure("network"));
     let cases = [
         (false, vec![], false),
         (true, vec![], true),
@@ -133,23 +100,11 @@ fn combined_groups_collapse_by_members_and_combined_tone() {
         (true, vec!["claude:main"], true),
     ];
     for (collapse, starred, expected) in cases {
-        let groups = with_group_collapse(
-            combined(&accounts, true),
-            &accounts,
-            &display(collapse, &starred),
-        );
+        let mut groups = combined(&accounts, true);
+        groups[0].windows[0].tone = Tone::Critical;
+        let groups = with_group_collapse(groups, &display(collapse, &starred));
+        assert_eq!(groups[0].account_ids.len(), 2);
         assert_eq!(groups[0].collapsed, expected, "{collapse} {starred:?}");
+        assert_eq!(groups[0].windows[0].tone, Tone::Critical);
     }
-}
-
-#[test]
-fn a_warning_combined_window_promotes_the_group() {
-    let accounts = [
-        account(&CODEX, "work", vec![toned(Tone::Good)]),
-        account(&CODEX, "home", vec![toned(Tone::Good)]),
-    ];
-    let mut groups = combined(&accounts, true);
-    groups[0].windows[0].tone = Tone::Warning;
-    let groups = with_group_collapse(groups, &accounts, &display(true, &[]));
-    assert!(!groups[0].collapsed);
 }

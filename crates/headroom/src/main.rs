@@ -6,6 +6,7 @@ mod daemon;
 mod diagnostics;
 mod guard;
 mod logging;
+mod output;
 mod paths;
 mod pricing;
 mod providers;
@@ -51,6 +52,7 @@ fn main() -> ExitCode {
         .and_then(|runtime| runtime.block_on(dispatch(&globals, cli.command, logging)));
     match outcome {
         Ok(code) => code,
+        Err(error) if output::is_closed_output(&error) => ExitCode::SUCCESS,
         Err(error) => {
             let _ = writeln!(io::stderr(), "headroom: {error:#}");
             ExitCode::FAILURE

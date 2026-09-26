@@ -39,6 +39,7 @@ fn defaults_match_the_spec() {
             "spend_period": "30d",
             "spend_unit": "cost",
             "spend_breakdown": "models",
+            "show_breakdown": true,
             "starred_accounts": [],
             "collapse_unstarred": false,
             "hide_on_screen_share": true
@@ -64,6 +65,7 @@ fn missing_fields_take_defaults() {
         .display;
     assert_eq!(display.theme, Theme::Dark);
     assert!(display.show_spend);
+    assert!(display.show_breakdown);
     assert!(!display.translucent);
     assert!(!display.combine_accounts);
 }
@@ -96,6 +98,7 @@ fn display_options_round_trip() {
             "spend_period": "7d",
             "spend_unit": "cost_per_mtok",
             "spend_breakdown": "projects",
+            "show_breakdown": false,
             "starred_accounts": ["claude:def"],
             "collapse_unstarred": true,
             "hide_on_screen_share": false
@@ -110,6 +113,7 @@ fn display_options_round_trip() {
     assert_eq!(display.panel_label, PanelLabel::Window);
     assert!(display.translucent);
     assert!(display.combine_accounts);
+    assert!(!display.show_breakdown);
     assert!(display.is_hidden("codex:abc", "model:spark"));
     assert!(!display.is_hidden("codex:abc", "session"));
     assert!(!display.is_hidden("claude:x", "weekly"));

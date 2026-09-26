@@ -1,7 +1,7 @@
 mod announce;
 mod ansi;
 mod api_key;
-mod cancel;
+pub mod cancel;
 mod discovery;
 mod dismiss;
 mod home;

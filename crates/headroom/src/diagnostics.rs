@@ -1,5 +1,3 @@
-use std::io::{self, Write};
-
 use anyhow::{Context, Result};
 use headroom_daemon::home::HomeDisplay;
 use headroom_daemon::{diagnostics, system_info};
@@ -10,6 +8,7 @@ use serde_json::json;
 use crate::client::bus;
 use crate::client::{self, Daemon};
 use crate::logging::daemon_log_path;
+use crate::output;
 use crate::paths::Globals;
 
 #[derive(Deserialize)]
@@ -22,8 +21,7 @@ pub async fn print(globals: &Globals) -> Result<()> {
         Some(daemon) => report_text(&fetch(&daemon).await?)?,
         None => offline(),
     };
-    write!(io::stdout(), "{text}")?;
-    Ok(())
+    output::print(&text)
 }
 
 async fn fetch(daemon: &Daemon) -> Result<String> {

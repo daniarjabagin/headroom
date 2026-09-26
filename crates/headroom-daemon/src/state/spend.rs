@@ -69,7 +69,7 @@ fn provider_view(
     merge: ProviderMerge,
     ctx: &AssembleContext<'_>,
 ) -> ProviderSpendView {
-    let (models, models_other) = top_models(merge.models.ranked());
+    let (models, models_other) = top_models(&merge.models.ranked());
     let totals = merge.totals;
     ProviderSpendView {
         provider_name: ctx.catalog.display_name(&provider).to_owned(),

@@ -31,7 +31,7 @@ fn assembled_state_resolves_pinned_panel_limits() {
 }
 
 #[test]
-fn assembled_state_collapses_calm_unstarred_accounts() {
+fn assembled_state_collapses_every_unstarred_account() {
     let mut model = sample_model();
     model.settings.display.collapse_unstarred = true;
     let payload = assemble_sample(&model);
@@ -43,14 +43,16 @@ fn assembled_state_collapses_calm_unstarred_accounts() {
     assert_eq!(
         collapsed,
         [
-            ("codex:work", false),
-            ("claude:main", false),
+            ("codex:work", true),
+            ("claude:main", true),
             ("codex:hidden", true)
         ]
     );
+    assert!(payload.accounts[1].error.is_some());
     model.settings.display.starred_accounts = vec!["codex:hidden".into()];
     let starred = assemble_sample(&model);
-    assert!(!starred.accounts[2].collapsed);
+    let collapsed: Vec<_> = starred.accounts.iter().map(|a| a.collapsed).collect();
+    assert_eq!(collapsed, [true, true, false]);
 }
 
 #[test]

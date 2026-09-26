@@ -107,6 +107,7 @@ fn usage_models_are_cut_to_the_top_five_after_spend_is_merged() {
     assert_eq!((other.count, other.total_tokens), (2, 800));
     assert_eq!(other.cost_usd_micros, 200);
     assert!(other.partial);
+    assert_eq!(other.cost_per_mtok_usd_micros, Some(2_000_000));
     let listed: u64 = today.models.iter().map(|m| m.total_tokens).sum();
     assert_eq!(listed + other.total_tokens, today.tokens.total);
     let spend = payload

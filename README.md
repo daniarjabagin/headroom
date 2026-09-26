@@ -503,7 +503,7 @@ option is stored by the daemon, so the popup, the panel, Waybar and the CLI alwa
 
 | Tab | What you set |
 | --- | --- |
-| **General** | Theme, language, density (normal or compact), 12/24-hour time, translucency, reduced motion; what the panel shows and where (below); spend period, unit and breakdown; popup sections and combined accounts; starred cards and "on demand" folding; refresh interval and faster refresh while coding tools run; privacy (hide numbers while sharing the screen, update checks, provider status pages); the global shortcut |
+| **General** | Theme, language, density (normal or compact), 12/24-hour time, translucency, reduced motion; what the panel shows and where (below); spend period, unit and breakdown (models, projects or hidden); popup sections and combined accounts; starred cards and "on demand" folding; refresh interval and faster refresh while coding tools run; privacy (hide numbers while sharing the screen, update checks, provider status pages); the global shortcut |
 | **Accounts** | Add, sign in again, rename, reorder, hide single limits, hide or remove accounts |
 | **Notifications** | Almost out, cutting it close, will run out, limit reset; the "almost out" threshold (5, 10, 20 or 30 % left) and per-provider overrides; quiet hours with an exception for critical alerts |
 | **Advanced** | Service status, log level, log file (Copy path, Open folder), Copy diagnostics, Reset all settings… (accounts are kept) |

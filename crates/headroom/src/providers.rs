@@ -1,4 +1,3 @@
-use std::io::{self, Write};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -11,6 +10,7 @@ use headroom_providers::registry::{self, RegistryContext};
 use headroom_providers::secrets::{SecretBus, SecretStore};
 
 use crate::cli::ProvidersArgs;
+use crate::output;
 use crate::paths::Globals;
 use crate::render::providers::render_providers;
 
@@ -63,13 +63,10 @@ pub fn descriptor(id: &str) -> Result<&'static ProviderDescriptor> {
 
 pub fn list(args: &ProvidersArgs) -> Result<()> {
     let payload = catalog().payload();
-    let mut stdout = io::stdout().lock();
     if args.json {
-        writeln!(stdout, "{}", serde_json::to_string(&payload)?)?;
-    } else {
-        write!(stdout, "{}", render_providers(&payload))?;
+        return output::print_line(&serde_json::to_string(&payload)?);
     }
-    Ok(())
+    output::print(&render_providers(&payload))
 }
 
 fn secret_store(globals: &Globals) -> Result<SecretStore> {

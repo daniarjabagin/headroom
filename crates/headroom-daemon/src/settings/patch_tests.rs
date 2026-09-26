@@ -94,6 +94,14 @@ fn null_resets_a_field_or_section_to_its_default() {
     let theme = base.patched(r#"{"display":{"theme":null}}"#).unwrap();
     assert_eq!(theme.display.theme, Theme::System);
     assert!(!theme.display.show_trend);
+    let hidden = base
+        .patched(r#"{"display":{"show_breakdown":false}}"#)
+        .unwrap();
+    assert!(!hidden.display.show_breakdown);
+    let restored = hidden
+        .patched(r#"{"display":{"show_breakdown":null}}"#)
+        .unwrap();
+    assert!(restored.display.show_breakdown);
     let display = base.patched(r#"{"display":null}"#).unwrap();
     assert_eq!(display.display, Settings::default().display);
     assert_eq!(display.refresh_interval_secs, 120);

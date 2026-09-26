@@ -49,13 +49,12 @@ pub fn assemble(model: &Model, ctx: &AssembleContext<'_>) -> StatePayload {
     let display = &model.settings.display;
     let combined = account_collapse::with_group_collapse(
         combined::combined(&accounts, display.combine_accounts),
-        &accounts,
         display,
     );
     let spend = spend::spend(&listed, ctx);
     let usage = listed
         .into_iter()
-        .map(|(home, summary)| usage::with_top_models(usage::usage_view(home, summary, ctx)))
+        .map(|(home, summary)| usage::usage_view(home, summary, ctx))
         .collect();
     StatePayload {
         version: STATE_VERSION,

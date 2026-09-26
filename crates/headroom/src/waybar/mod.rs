@@ -2,13 +2,14 @@
 mod bus;
 mod socket;
 
-use std::io::{self, Write};
 use std::time::Duration;
 
 use anyhow::Result;
 
+use crate::accounts::cancel::Cancel;
 use crate::cli::WaybarArgs;
 use crate::client::{self, Transport};
+use crate::output;
 use crate::paths::Globals;
 use crate::render::waybar::WaybarLine;
 
@@ -24,15 +25,22 @@ impl Printer {
         if self.last.as_ref() == Some(&line) {
             return Ok(());
         }
-        let mut stdout = io::stdout().lock();
-        writeln!(stdout, "{}", serde_json::to_string(&line)?)?;
-        stdout.flush()?;
+        output::print_line(&serde_json::to_string(&line)?)?;
         self.last = Some(line);
         Ok(())
     }
 }
 
 pub async fn run(globals: &Globals, args: &WaybarArgs) -> Result<()> {
+    let reader_gone = Cancel::default();
+    reader_gone.on_stdout_closed();
+    tokio::select! {
+        streamed = stream(globals, args) => streamed,
+        () = reader_gone.cancelled() => Ok(()),
+    }
+}
+
+async fn stream(globals: &Globals, args: &WaybarArgs) -> Result<()> {
     let mut printer = Printer { last: None };
     match client::transport(globals)? {
         #[cfg(target_os = "linux")]

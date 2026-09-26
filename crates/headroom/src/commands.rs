@@ -4,6 +4,7 @@ use anyhow::Result;
 
 use crate::cli::{RefreshArgs, StatusArgs};
 use crate::client;
+use crate::output;
 use crate::paths::Globals;
 use crate::render::accounts::render_accounts;
 use crate::render::status::render_status;
@@ -17,15 +18,12 @@ pub async fn status(globals: &Globals, args: &StatusArgs) -> Result<()> {
     if loaded.source == Source::Cache {
         writeln!(io::stderr(), "{CACHED_NOTICE}")?;
     }
-    let mut stdout = io::stdout().lock();
     if args.json {
-        writeln!(stdout, "{}", loaded.json)?;
-    } else {
-        let no_color = std::env::var_os("NO_COLOR");
-        let palette = Palette::detect(no_color.as_deref(), stdout.is_terminal());
-        write!(stdout, "{}", render_status(&loaded.state, palette))?;
+        return output::print_line(&loaded.json);
     }
-    Ok(())
+    let no_color = std::env::var_os("NO_COLOR");
+    let palette = Palette::detect(no_color.as_deref(), io::stdout().is_terminal());
+    output::print(&render_status(&loaded.state, palette))
 }
 
 pub async fn refresh(globals: &Globals, args: &RefreshArgs) -> Result<()> {
@@ -38,8 +36,7 @@ pub async fn refresh(globals: &Globals, args: &RefreshArgs) -> Result<()> {
         daemon.refresh(account_id.unwrap_or("")).await?;
         account_id.unwrap_or("all due accounts")
     };
-    writeln!(io::stdout(), "Refresh requested for {target}")?;
-    Ok(())
+    output::print_line(&format!("Refresh requested for {target}"))
 }
 
 pub async fn list_accounts(globals: &Globals) -> Result<()> {
@@ -47,8 +44,7 @@ pub async fn list_accounts(globals: &Globals) -> Result<()> {
     if loaded.source == Source::Cache {
         writeln!(io::stderr(), "{CACHED_NOTICE}")?;
     }
-    write!(io::stdout(), "{}", render_accounts(&loaded.state.accounts))?;
-    Ok(())
+    output::print(&render_accounts(&loaded.state.accounts))
 }
 
 pub async fn label_account(globals: &Globals, id: &str, label: &str) -> Result<()> {

@@ -47,6 +47,7 @@
     "spend_period": "30d",
     "spend_unit": "cost",
     "spend_breakdown": "models",
+    "show_breakdown": true,
     "starred_accounts": [],
     "collapse_unstarred": false,
     "hide_on_screen_share": true
@@ -971,7 +972,8 @@
           "count": 2,
           "total_tokens": 2182045,
           "cost_usd_micros": 964000,
-          "partial": true
+          "partial": true,
+          "cost_per_mtok_usd_micros": 544619
         }
       },
       "daily": [
@@ -2425,7 +2427,8 @@
             "count": 2,
             "total_tokens": 509143,
             "cost_usd_micros": 224933,
-            "partial": true
+            "partial": true,
+            "cost_per_mtok_usd_micros": 544620
           }
         },
         {
@@ -2740,7 +2743,8 @@
             "count": 2,
             "total_tokens": 2182045,
             "cost_usd_micros": 964000,
-            "partial": true
+            "partial": true,
+            "cost_per_mtok_usd_micros": 544619
           }
         },
         {

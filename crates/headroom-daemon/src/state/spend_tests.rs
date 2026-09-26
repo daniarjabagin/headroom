@@ -249,6 +249,7 @@ fn provider_models_keep_the_top_five_and_fold_the_rest_after_merging() {
             total_tokens: 30,
             cost_usd_micros: 46,
             partial: true,
+            cost_per_mtok_usd_micros: Some(2_000_000),
         })
     );
 }

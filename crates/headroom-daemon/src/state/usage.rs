@@ -5,7 +5,7 @@ use jiff::ToSpan;
 use jiff::civil::Date;
 
 use super::AssembleContext;
-use super::models::{model_view, top_models};
+use super::models::top_models;
 use super::payload::{DailyView, TokensView, TotalsView, UsageView};
 use crate::home::UsageHome;
 
@@ -31,25 +31,16 @@ pub fn usage_view(
 
 fn totals_view(period: &PeriodUsage) -> TotalsView {
     let totals = &period.totals;
+    let (models, models_other) = top_models(&period.models);
     TotalsView {
         tokens: TokensView::of(&totals.tokens),
         cost_usd_micros: totals.cost.0,
         partial: totals.is_partial(),
         unpriced_tokens: totals.unpriced_tokens.0,
         unpriced_models: totals.unpriced_models.iter().cloned().collect(),
-        models: period.models.iter().map(model_view).collect(),
-        models_other: None,
+        models,
+        models_other,
     }
-}
-
-#[must_use]
-pub fn with_top_models(mut view: UsageView) -> UsageView {
-    for totals in [&mut view.today, &mut view.yesterday, &mut view.last_30_days] {
-        let (models, other) = top_models(std::mem::take(&mut totals.models));
-        totals.models = models;
-        totals.models_other = other;
-    }
-    view
 }
 
 fn daily(summary: &UsageSummary, today: Date) -> Vec<DailyView> {
